@@ -21,6 +21,8 @@ class ProfileController {
           email: user.email,
           fullName: user.fullName,
           avatarUrl: user.avatarUrl,
+          phone: user.phone,
+          address: user.address,
           industry: user.industry,
           bio: user.bio,
           role: user.role,
@@ -52,6 +54,8 @@ class ProfileController {
           email: admin.email,
           fullName: admin.fullName,
           avatarUrl: admin.avatarUrl,
+          phone: admin.phone,
+          address: admin.address,
           industry: admin.industry,
           bio: admin.bio,
           role: admin.role,
@@ -71,12 +75,14 @@ class ProfileController {
   async editProfile(req, res) {
     try {
       const userId = req.user.id;
-      const { fullName, avatarUrl, industry, bio } = req.body;
+      const { fullName, avatarUrl, phone, address, industry, bio } = req.body;
 
       // Call service to edit profile
       const updatedUser = await profileService.editProfile(userId, {
         fullName,
         avatarUrl,
+        phone,
+        address,
         industry,
         bio
       });
@@ -88,6 +94,30 @@ class ProfileController {
     } catch (error) {
       const statusCode = error.status || 500;
       res.status(statusCode).json({ message: error.message });
+    }
+  }
+
+  /**
+   * Upload avatar
+   * For /upload/avatar endpoint
+   */
+  async uploadAvatar(req, res) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+
+      const avatarUrl = `/uploads/${req.file.filename}`;
+
+      // Update user avatarUrl
+      const updatedUser = await profileService.editProfile(req.user.id, { avatarUrl });
+
+      res.status(200).json({
+        message: 'Avatar uploaded successfully',
+        data: { avatarUrl }
+      });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
     }
   }
 }

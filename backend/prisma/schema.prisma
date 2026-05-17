@@ -23,8 +23,10 @@ model User {
   email       String        @unique
   fullName    String        @map("full_name")
   avatarUrl   String?       @map("avatar_url")
+  phone       String?
+  address     String?
   industry    String?
-  bio         String?
+  bio         String?       @db.Text
   roleId      String        @map("role_id")
   status      Status        @default(INACTIVE)
   verifiedAt  DateTime?     @map("verified_at")
