@@ -1,0 +1,252 @@
+import { useState } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
+import {
+  BarChart2, MessageSquare, Calendar, Link2, Megaphone, Zap,
+  Menu, ChevronDown, Sparkles, Radio, X, Diamond, Globe, 
+  Settings, LogOut, HelpCircle, Gift, ChevronRight, Bell, Search,
+  MessageCircle
+} from "lucide-react";
+import { useConnections } from "../context/ConnectionsContext";
+import { useAuth } from "../context/AuthContext";
+
+function SettingsDrawer({ isOpen, onClose }) {
+  const navigate = useNavigate();
+  const { openConnections } = useConnections();
+  const { logout } = useAuth();
+  if (!isOpen) return null;
+
+  const sections = [
+    { items: [
+      { label: "Create Workplace", icon: <Diamond size={16} className="text-yellow-500" />, path: "/manage/workplace/new" },
+      { label: "Connections", icon: <ShareIcon size={16} className="text-blue-500" />, onClick: openConnections },
+      { label: "Brand settings", icon: <Settings size={16} className="text-gray-400" />, path: "/manage/connections?tab=brand-settings" },
+    ]},
+    { items: [
+      { label: "User management", icon: <Diamond size={16} className="text-yellow-500" />, path: "/manage/team" },
+      { label: "Plans and billing", icon: <BillingIcon size={16} className="text-blue-600" />, path: "/pricing" },
+      { label: "My tasks", icon: <Diamond size={16} className="text-yellow-500" />, path: "/manage/tasks" },
+      { label: "Language", icon: <Globe size={16} className="text-blue-500" />, extra: <span className="bg-gray-200 px-1.5 py-0.5 rounded text-[10px] font-bold">EN</span>, hasChevron: true },
+      { label: "Account settings", icon: <Settings size={16} className="text-gray-400" />, path: "/settings" },
+    ]},
+    { items: [
+      { label: "Help center", icon: <HelpCircle size={16} className="text-blue-500" /> },
+      { label: "Support Chat", icon: <MessageCircle size={16} className="text-blue-500" />, path: "/settings?tab=support" },
+      { label: "What's new", icon: <Megaphone size={16} className="text-blue-500" /> },
+      { label: "Affiliation program", icon: <Gift size={16} className="text-blue-500" /> },
+    ]},
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[100] flex justify-end">
+      <div className="absolute inset-0 bg-black/20" onClick={onClose} />
+      <div className="relative w-[280px] h-full bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+        <div className="flex items-center justify-end p-4 border-b border-gray-100 bg-[#2D1D35] text-white">
+           <button onClick={onClose} className="p-1 hover:bg-white/10 rounded-md transition-colors"><X size={24} /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto py-2">
+           {sections.map((section, si) => (
+             <div key={si}>
+                <div className="py-1">
+                   {section.items.map((item, ii) => (
+                     <button
+                       key={ii}
+                       onClick={() => { 
+                         if(item.onClick) item.onClick();
+                         else if(item.path) navigate(item.path); 
+                         onClose(); 
+                       }}
+                       className="w-full flex items-center gap-3 px-6 py-2.5 hover:bg-gray-50 transition-colors group"
+                     >
+                        <div className="shrink-0">{item.icon}</div>
+                        <span style={{ fontSize: 13, color: "#374151" }} className="flex-1 text-left">{item.label}</span>
+                        {item.extra}
+                        {item.hasChevron && <ChevronRight size={14} className="text-blue-500" />}
+                     </button>
+                   ))}
+                </div>
+                {si < sections.length - 1 && <div className="h-px bg-gray-100 mx-4 my-1" />}
+             </div>
+           ))}
+           <div className="h-px bg-gray-100 mx-4 my-1" />
+           <button 
+             onClick={async () => { 
+               await logout(); 
+               onClose(); 
+               navigate("/login");
+             }} 
+             className="w-full flex items-center gap-3 px-6 py-4 text-red-500 hover:bg-red-50 transition-colors"
+           >
+              <LogOut size={16} />
+              <span style={{ fontSize: 13, fontWeight: 500 }}>Logout</span>
+           </button>
+        </div>
+        <div className="p-6 border-t border-gray-50">
+           <button className="text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors">Legal terms</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ShareIcon({ size, className }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg>;
+}
+
+function BillingIcon({ size, className }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>;
+}
+
+export function Topbar() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [brandOpen, setBrandOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const currentPath = location.pathname;
+  const isSuperadmin = currentPath.startsWith("/admin");
+
+  return (
+    <>
+      <header
+        className="flex items-center px-4 shrink-0 z-40"
+        style={{
+          height: 56,
+          background: "#2D1D35", 
+          color: "#FFF",
+          gap: 16 }}
+      >
+        {/* Left: Logo */}
+        <Link to="/" className="flex items-center gap-2 no-underline shrink-0 mr-4">
+          <div className="w-8 h-8 flex items-center justify-center">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="text-white"><path d="M7 11V7a5 5 0 0 1 10 0v4"/><path d="M11 11h2"/><rect width="18" height="11" x="3" y="11" rx="2"/></svg>
+          </div>
+        </Link>
+
+        {/* Center-Left: Search Bar (Workspace & Manage only) */}
+        {!isSuperadmin && (
+          <div className="hidden md:flex relative max-w-xs flex-1">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input 
+              placeholder="Search tools, platforms..." 
+              className="w-full pl-9 pr-4 py-1.5 rounded-lg bg-white/10 border-none text-xs text-white outline-none focus:bg-white/20 transition-all placeholder:text-gray-500"
+            />
+          </div>
+        )}
+
+        {/* Center: Main Tools / Superadmin Title */}
+        <div className="flex-1 flex items-center justify-center gap-1">
+          {isSuperadmin ? (
+            <div className="flex items-center gap-2">
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#EF4444", textTransform: "uppercase", letterSpacing: "1.5px" }}>
+                  Superadmin Terminal
+              </span>
+            </div>
+          ) : (
+            [
+              { icon: <BarChart2 size={18} />, path: "/dashboard", label: "Analytics" },
+              { icon: <BarChart2 size={18} />, path: "/analytics", label: "Reports", isNew: true },
+              { icon: <MessageSquare size={18} />, path: "/manage/inbox", label: "Inbox" },
+              { icon: <Calendar size={18} />, path: "/planner", label: "Planning" },
+              { icon: <Radio size={18} />, path: "/live", label: "Livestream" },
+              { icon: <Link2 size={18} />, path: "/smartlinks", label: "SmartLinks" },
+              { icon: <Zap size={18} />, path: "/ai", label: "AI" },
+            ].map((tool, i) => {
+              const isActive = currentPath === tool.path;
+              return (
+                <button
+                  key={i}
+                  onClick={() => navigate(tool.path)}
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-md hover:bg-white/10 transition-colors relative"
+                  style={{ color: "#FFF", backgroundColor: isActive ? "rgba(255,255,255,0.15)" : "transparent" }}
+                  title={tool.label}
+                >
+                  <div className="p-1 rounded-lg">{tool.icon}</div>
+                  {tool.isNew && (
+                    <span className="absolute -top-1 -right-1 bg-[#86EFAC] text-[#064E3B] text-[8px] font-bold px-1 rounded-full uppercase">New</span>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+
+        {/* Right: Actions & Brand */}
+        <div className="flex items-center gap-3">
+          {/* Notification Bell (Workspace only) */}
+          {!isSuperadmin && (
+            <button 
+              onClick={() => navigate("/notifications")}
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors relative text-gray-300 hover:text-white"
+              title="Notifications"
+            >
+              <Bell size={18} />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-[#2D1D35]" />
+            </button>
+          )}
+
+          {/* Upgrade Button (Workspace only) */}
+          {!isSuperadmin && (
+            <button
+              onClick={() => navigate("/pricing")}
+              className="hidden lg:flex items-center gap-2 px-4 py-1.5 rounded-full font-bold transition-all"
+              style={{
+                background: "linear-gradient(90deg, #F97316, #EAB308)",
+                color: "#FFF",
+                fontSize: 11 }}
+            >
+              <Sparkles size={13} />
+              Upgrade
+            </button>
+          )}
+
+          {/* Brand Switcher (Workspace & Manage only) */}
+          {!isSuperadmin && (
+            <div className="relative">
+              <button
+                onClick={() => setBrandOpen(!brandOpen)}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <div className="w-7 h-7 rounded-lg bg-[#E1306C] flex items-center justify-center text-xs font-bold shadow-sm">T</div>
+                <div className="hidden md:flex flex-col items-start text-left min-w-[80px]">
+                  <span style={{ fontSize: 11, fontWeight: 600 }}>TechVN Brand</span>
+                  <span style={{ fontSize: 9, color: "#AAA" }}>{currentPath.startsWith("/manage") ? "Manager" : "Work"} mode</span>
+                </div>
+                <ChevronDown size={14} color="#666" />
+              </button>
+              
+              {brandOpen && (
+                <div className="absolute top-12 right-0 bg-white text-[#0A0A0A] rounded-xl shadow-xl p-2 z-50 min-w-[200px]" style={{ border: "1px solid #E5E7EB" }}>
+                  <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Your Workplaces</div>
+                  {["TechVN Studio", "Personal Account"].map(w => (
+                    <button key={w} onClick={() => setBrandOpen(false)} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 text-sm font-medium">{w}</button>
+                  ))}
+                  <div className="h-px bg-gray-100 my-1" />
+                  <button 
+                    onClick={() => { navigate(currentPath.startsWith("/manage") ? "/dashboard" : "/manage/team"); setBrandOpen(false); }} 
+                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 text-sm font-bold text-blue-600"
+                  >
+                    {currentPath.startsWith("/manage") ? "← Back to Workspace" : "Switch to Manager →"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Settings Drawer Trigger (Admin also sees this for Logout) */}
+          {/* Settings Drawer Trigger (ONLY for Workspace & Manage) */}
+          {!isSuperadmin && (
+            <button
+              onClick={() => setDrawerOpen(true)}
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              title="Menu"
+            >
+              <Menu size={20} />
+            </button>
+          )}
+        </div>
+      </header>
+
+      {!isSuperadmin && <SettingsDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} />}
+    </>
+  );
+}

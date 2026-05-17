@@ -32,6 +32,12 @@ class ProfileService {
     if (profileData.avatarUrl !== undefined) {
       updateData.avatarUrl = profileData.avatarUrl;
     }
+    if (profileData.industry !== undefined) {
+      updateData.industry = profileData.industry;
+    }
+    if (profileData.bio !== undefined) {
+      updateData.bio = profileData.bio;
+    }
 
     // If nothing to update
     if (Object.keys(updateData).length === 0) {
@@ -48,6 +54,8 @@ class ProfileService {
       email: updatedUser.email,
       fullName: updatedUser.fullName,
       avatarUrl: updatedUser.avatarUrl,
+      industry: updatedUser.industry,
+      bio: updatedUser.bio,
       role: updatedUser.role,
       status: updatedUser.status,
       createdAt: updatedUser.createdAt,

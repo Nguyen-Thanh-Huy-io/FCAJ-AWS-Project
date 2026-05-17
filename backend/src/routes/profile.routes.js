@@ -6,8 +6,8 @@ const { editProfileValidation } = require('../middlewares/validation.middleware'
 
 const router = express.Router();
 
-// User profile - requires USER role
-router.get('/user/profile', verifyAuth, authorizeUser, profileController.getUserProfile);
+// User profile - all roles can access their own profile
+router.get('/user/profile', verifyAuth, authorizeAny, profileController.getUserProfile);
 
 // Admin profile - requires ADMIN role
 router.get('/admin/profile', verifyAuth, authorizeAdmin, profileController.getAdminProfile);

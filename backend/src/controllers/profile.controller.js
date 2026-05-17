@@ -21,6 +21,8 @@ class ProfileController {
           email: user.email,
           fullName: user.fullName,
           avatarUrl: user.avatarUrl,
+          industry: user.industry,
+          bio: user.bio,
           role: user.role,
           status: user.status,
           createdAt: user.createdAt
@@ -50,6 +52,8 @@ class ProfileController {
           email: admin.email,
           fullName: admin.fullName,
           avatarUrl: admin.avatarUrl,
+          industry: admin.industry,
+          bio: admin.bio,
           role: admin.role,
           status: admin.status,
           createdAt: admin.createdAt
@@ -67,12 +71,14 @@ class ProfileController {
   async editProfile(req, res) {
     try {
       const userId = req.user.id;
-      const { fullName, avatarUrl } = req.body;
+      const { fullName, avatarUrl, industry, bio } = req.body;
 
       // Call service to edit profile
       const updatedUser = await profileService.editProfile(userId, {
         fullName,
-        avatarUrl
+        avatarUrl,
+        industry,
+        bio
       });
 
       res.status(200).json({

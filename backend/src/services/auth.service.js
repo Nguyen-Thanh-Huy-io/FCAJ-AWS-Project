@@ -60,7 +60,7 @@ class AuthService {
     const accessToken = jwtUtils.generateAccessToken({
       id: user.id,
       email: user.email,
-      role: user.role
+      role: user.role.name
     });
 
     const refreshToken = jwtUtils.generateRefreshToken({
@@ -83,7 +83,7 @@ class AuthService {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
-        role: user.role
+        role: user.role.name
       }
     };
   }
@@ -163,7 +163,7 @@ class AuthService {
     const accessToken = jwtUtils.generateAccessToken({
       id: user.id,
       email: user.email,
-      role: user.role
+      role: user.role.name
     });
 
     const refreshToken = jwtUtils.generateRefreshToken({
@@ -181,12 +181,12 @@ class AuthService {
     return {
       accessToken,
       refreshToken,
-      role: user.role,
+      role: user.role.name,
       user: {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
-        role: user.role
+        role: user.role.name
       }
     };
   }
@@ -224,7 +224,7 @@ class AuthService {
       const newAccessToken = jwtUtils.generateAccessToken({
         id: user.id,
         email: user.email,
-        role: user.role
+        role: user.role.name
       });
 
       const newRefreshToken = jwtUtils.generateRefreshToken({

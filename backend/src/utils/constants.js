@@ -5,7 +5,9 @@ const AUTH_PROVIDERS = {
 
 const USER_ROLES = {
   USER: 'USER',
-  ADMIN: 'ADMIN'
+  ADMIN: 'ADMIN',
+  MANAGER: 'MANAGER',
+  STAFF: 'STAFF'
 };
 
 const USER_STATUS = {

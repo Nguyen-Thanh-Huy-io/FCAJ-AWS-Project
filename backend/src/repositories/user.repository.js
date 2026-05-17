@@ -4,14 +4,14 @@ class UserRepository {
   async findByEmail(email) {
     return await prisma.user.findUnique({
       where: { email },
-      include: { accounts: true }
+      include: { accounts: true, role: true }
     });
   }
 
   async findById(id) {
     return await prisma.user.findUnique({
       where: { id },
-      include: { accounts: true }
+      include: { accounts: true, role: true }
     });
   }
 
@@ -19,17 +19,28 @@ class UserRepository {
     return await prisma.user.create({
       data: {
         ...userData,
+        role: {
+          connectOrCreate: {
+            where: { name: 'MANAGER' },
+            create: { 
+              name: 'MANAGER', 
+              description: 'Workspace Owner who can manage brands and invite members' 
+            }
+          }
+        },
         accounts: {
           create: accountData
         }
-      }
+      },
+      include: { role: true }
     });
   }
 
   async updateStatus(email, status, verifiedAt) {
     return await prisma.user.update({
       where: { email },
-      data: { status, verifiedAt }
+      data: { status, verifiedAt },
+      include: { role: true }
     });
   }
 
@@ -50,7 +61,8 @@ class UserRepository {
     const user = await prisma.user.findUnique({
       where: { email },
       include: { 
-        accounts: true
+        accounts: true,
+        role: true
       }
     });
 

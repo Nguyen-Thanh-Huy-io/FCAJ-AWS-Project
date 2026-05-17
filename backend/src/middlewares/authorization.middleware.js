@@ -12,9 +12,10 @@ const authorize = (...allowedRoles) => {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    const userRole = req.user.role?.toUpperCase();
+    const roleData = req.user.role;
+    const userRole = (typeof roleData === 'string' ? roleData : roleData?.name)?.toUpperCase();
 
-    if (!allowedRoles.includes(userRole)) {
+    if (!userRole || !allowedRoles.includes(userRole)) {
       return res.status(403).json({
         message: `Access denied. Only ${allowedRoles.join(', ')} roles are allowed.`
       });
@@ -30,18 +31,29 @@ const authorize = (...allowedRoles) => {
 const authorizeAdmin = authorize(USER_ROLES.ADMIN);
 
 /**
+ * Only MANAGER access
+ */
+const authorizeManager = authorize(USER_ROLES.MANAGER);
+
+/**
  * Only USER access
  */
 const authorizeUser = authorize(USER_ROLES.USER);
 
 /**
- * ADMIN and USER access
+ * All authenticated roles can access
  */
-const authorizeAny = authorize(USER_ROLES.ADMIN, USER_ROLES.USER);
+const authorizeAny = authorize(
+  USER_ROLES.ADMIN, 
+  USER_ROLES.MANAGER, 
+  USER_ROLES.STAFF, 
+  USER_ROLES.USER
+);
 
 module.exports = {
   authorize,
   authorizeAdmin,
+  authorizeManager,
   authorizeUser,
   authorizeAny
 };
