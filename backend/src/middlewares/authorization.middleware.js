@@ -13,6 +13,7 @@ const authorize = (...allowedRoles) => {
     }
 
     const roleData = req.user.role;
+    // Handle both string role (from new tokens) and object role (for backward compatibility if needed)
     const userRole = (typeof roleData === 'string' ? roleData : roleData?.name)?.toUpperCase();
 
     if (!userRole || !allowedRoles.includes(userRole)) {
