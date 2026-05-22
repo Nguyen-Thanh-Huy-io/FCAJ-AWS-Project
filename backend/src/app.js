@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 
 const authRoutes = require('./routes/auth.routes');
 const profileRoutes = require('./routes/profile.routes');
+const pricingRoutes = require('./routes/pricing.routes');
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use('/uploads', express.static('uploads'));
 
 app.use('/api/auth', authRoutes);
 app.use('/api', profileRoutes);
+app.use('/api/admin/pricing', pricingRoutes);
 
 app.get('/', (req, res) => {
   res.send('PubliCast API is running');

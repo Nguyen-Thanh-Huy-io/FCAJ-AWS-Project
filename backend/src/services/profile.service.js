@@ -1,11 +1,11 @@
 const userRepository = require('../repositories/user.repository');
-const { ERROR_MESSAGES, USER_STATUS } = require('../utils/constants');
+const { ERROR_MESSAGES } = require('../utils/constants');
 
 class ProfileService {
   /**
    * Edit user profile
    * @param {string} userId - User ID
-   * @param {Object} profileData - Data to update { fullName, avatarUrl, phone, address, industry, bio }
+   * @param {Object} profileData - Data to update { name, avatarUrl, phone, address, industry, bio }
    * @returns {Promise<Object>} - Updated user object
    */
   async editProfile(userId, profileData) {
@@ -18,7 +18,7 @@ class ProfileService {
     }
 
     // Check if account is banned
-    if (user.status === USER_STATUS.BANNED) {
+    if (!user.isActive) {
       const error = new Error(ERROR_MESSAGES.ACCOUNT_BANNED);
       error.status = 403;
       throw error;
@@ -27,7 +27,10 @@ class ProfileService {
     // Prepare update data
     const updateData = {};
     if (profileData.fullName !== undefined) {
-      updateData.fullName = profileData.fullName.trim();
+      updateData.name = profileData.fullName.trim();
+    }
+    if (profileData.name !== undefined) {
+      updateData.name = profileData.name.trim();
     }
     if (profileData.avatarUrl !== undefined) {
       updateData.avatarUrl = profileData.avatarUrl;
@@ -58,14 +61,16 @@ class ProfileService {
     return {
       id: updatedUser.id,
       email: updatedUser.email,
-      fullName: updatedUser.fullName,
+      name: updatedUser.name,
+      fullName: updatedUser.name,
       avatarUrl: updatedUser.avatarUrl,
       phone: updatedUser.phone,
       address: updatedUser.address,
       industry: updatedUser.industry,
       bio: updatedUser.bio,
       role: updatedUser.role,
-      status: updatedUser.status,
+      isActive: updatedUser.isActive,
+      isEmailVerified: updatedUser.isEmailVerified,
       createdAt: updatedUser.createdAt,
       updatedAt: updatedUser.updatedAt
     };

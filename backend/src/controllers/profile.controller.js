@@ -19,14 +19,16 @@ class ProfileController {
         data: {
           id: user.id,
           email: user.email,
-          fullName: user.fullName,
+          name: user.name,
+          fullName: user.name,
           avatarUrl: user.avatarUrl,
           phone: user.phone,
           address: user.address,
           industry: user.industry,
           bio: user.bio,
           role: user.role,
-          status: user.status,
+          isActive: user.isActive,
+          isEmailVerified: user.isEmailVerified,
           createdAt: user.createdAt
         }
       });
@@ -52,14 +54,16 @@ class ProfileController {
         data: {
           id: admin.id,
           email: admin.email,
-          fullName: admin.fullName,
+          name: admin.name,
+          fullName: admin.name,
           avatarUrl: admin.avatarUrl,
           phone: admin.phone,
           address: admin.address,
           industry: admin.industry,
           bio: admin.bio,
           role: admin.role,
-          status: admin.status,
+          isActive: admin.isActive,
+          isEmailVerified: admin.isEmailVerified,
           createdAt: admin.createdAt
         }
       });

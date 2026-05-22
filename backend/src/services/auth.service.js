@@ -24,9 +24,9 @@ class AuthService {
 
     const passwordHash = await bcrypt.hash(password, 10);
     
-    // Create user with status INACTIVE (pending)
+    // Create user with isEmailVerified = false (pending verification)
     const user = await userRepository.createUser(
-      { fullName: name, email: normalizedEmail, status: USER_STATUS.INACTIVE },
+      { name, email: normalizedEmail, isActive: false, isEmailVerified: false },
       { provider: AUTH_PROVIDERS.LOCAL, passwordHash }
     );
 
@@ -53,14 +53,14 @@ class AuthService {
       throw error;
     }
 
-    const user = await userRepository.updateStatus(normalizedEmail, USER_STATUS.ACTIVE, new Date());
+    const user = await userRepository.updateStatus(normalizedEmail, 'ACTIVE', new Date());
     await otpService.deleteOTP(normalizedEmail);
 
     // Generate JWT tokens for auto-login
     const accessToken = jwtUtils.generateAccessToken({
       id: user.id,
       email: user.email,
-      role: user.role.name
+      role: user.role
     });
 
     const refreshToken = jwtUtils.generateRefreshToken({
@@ -82,8 +82,8 @@ class AuthService {
       user: {
         id: user.id,
         email: user.email,
-        fullName: user.fullName,
-        role: user.role.name
+        name: user.name,
+        role: user.role
       }
     };
   }
@@ -106,7 +106,7 @@ class AuthService {
       throw error;
     }
 
-    if (user.status !== USER_STATUS.INACTIVE) {
+    if (user.isEmailVerified || !user.isActive) {
       const error = new Error('Tài khoản đã được kích hoạt hoặc đang bị khóa');
       error.status = 400;
       throw error;
@@ -139,13 +139,13 @@ class AuthService {
     }
 
     // Check account status
-    if (user.status === USER_STATUS.INACTIVE) {
+    if (!user.isEmailVerified) {
       const error = new Error(ERROR_MESSAGES.ACCOUNT_NOT_ACTIVATED);
       error.status = 403;
       throw error;
     }
 
-    if (user.status === USER_STATUS.BANNED) {
+    if (!user.isActive) {
       const error = new Error(ERROR_MESSAGES.ACCOUNT_BANNED);
       error.status = 403;
       throw error;
@@ -159,11 +159,14 @@ class AuthService {
       throw error;
     }
 
+    // Update last login time
+    await userRepository.updateProfile(user.id, { lastLoginAt: new Date() });
+
     // Generate JWT tokens
     const accessToken = jwtUtils.generateAccessToken({
       id: user.id,
       email: user.email,
-      role: user.role.name
+      role: user.role
     });
 
     const refreshToken = jwtUtils.generateRefreshToken({
@@ -181,12 +184,12 @@ class AuthService {
     return {
       accessToken,
       refreshToken,
-      role: user.role.name,
+      role: user.role,
       user: {
         id: user.id,
         email: user.email,
-        fullName: user.fullName,
-        role: user.role.name
+        name: user.name,
+        role: user.role
       }
     };
   }
@@ -216,7 +219,7 @@ class AuthService {
 
       // Get user data
       const user = await userRepository.findById(userId);
-      if (!user || user.status !== USER_STATUS.ACTIVE) {
+      if (!user || !user.isActive) {
         throw new Error('User not found or inactive');
       }
 
@@ -224,7 +227,7 @@ class AuthService {
       const newAccessToken = jwtUtils.generateAccessToken({
         id: user.id,
         email: user.email,
-        role: user.role.name
+        role: user.role
       });
 
       const newRefreshToken = jwtUtils.generateRefreshToken({
@@ -249,6 +252,7 @@ class AuthService {
       throw err;
     }
   }
+  }
 
   /**
    * Logout user - delete refresh token
@@ -267,7 +271,7 @@ class AuthService {
     const normalizedEmail = email.toLowerCase();
     const user = await userRepository.findByEmailWithPassword(normalizedEmail);
 
-    if (user && user.status === USER_STATUS.ACTIVE) {
+    if (user && user.isActive && user.isEmailVerified) {
       const otp = await otpService.generateOTP();
       await redisClient.setEx(
         `${FORGOT_PASSWORD_OTP_PREFIX}:${normalizedEmail}`,
@@ -321,7 +325,7 @@ class AuthService {
     }
 
     const user = await userRepository.findByEmailWithPassword(normalizedEmail);
-    if (!user || user.status !== USER_STATUS.ACTIVE || !user.passwordHash) {
+    if (!user || !user.isActive || !user.passwordHash) {
       const error = new Error(ERROR_MESSAGES.RESET_PASSWORD_OTP_EXPIRED);
       error.status = 400;
       throw error;
@@ -336,9 +340,9 @@ class AuthService {
 
     const passwordHash = await bcrypt.hash(newPassword, 10);
     const updateResult = await userRepository.updateLocalPassword(normalizedEmail, passwordHash);
-    if (!updateResult.count) {
-      const error = new Error('Local account not found');
-      error.status = 404;
+    if (!updateResult) {
+      const error = new Error('Password update failed');
+      error.status = 500;
       throw error;
     }
 

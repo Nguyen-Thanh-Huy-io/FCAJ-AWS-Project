@@ -1,19 +1,34 @@
 const AUTH_PROVIDERS = {
   LOCAL: 'LOCAL',
-  GOOGLE: 'GOOGLE'
+  GOOGLE: 'GOOGLE',
+  FACEBOOK: 'FACEBOOK',
+  INSTAGRAM: 'INSTAGRAM',
+  TIKTOK: 'TIKTOK',
+  LINKEDIN: 'LINKEDIN',
+  TWITTER: 'TWITTER',
+  YOUTUBE: 'YOUTUBE',
+  TWITCH: 'TWITCH',
+  SNAPCHAT: 'SNAPCHAT'
 };
 
 const USER_ROLES = {
-  USER: 'USER',
+  OWNER: 'OWNER',
   ADMIN: 'ADMIN',
-  MANAGER: 'MANAGER',
-  STAFF: 'STAFF'
+  EDITOR: 'EDITOR',
+  VIEWER: 'VIEWER',
+  ANALYST: 'ANALYST',
+  STREAM_MANAGER: 'STREAM_MANAGER',
+  CONTENT_MANAGER: 'CONTENT_MANAGER',
+  CONTENT_CREATOR: 'CONTENT_CREATOR',
+  STREAM_OPERATOR: 'STREAM_OPERATOR',
+  CLIENT: 'CLIENT'
 };
 
+// User account statuses - using booleans in new schema
 const USER_STATUS = {
-  ACTIVE: 'ACTIVE',
-  INACTIVE: 'INACTIVE',
-  BANNED: 'BANNED'
+  ACTIVE: 'ACTIVE', // when isActive=true and isEmailVerified=true
+  INACTIVE: 'INACTIVE', // when isEmailVerified=false
+  BANNED: 'BANNED' // when isActive=false
 };
 
 const ERROR_MESSAGES = {
