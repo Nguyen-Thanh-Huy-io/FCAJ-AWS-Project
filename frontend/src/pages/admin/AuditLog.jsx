@@ -1,21 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Shield, ChevronDown, ChevronRight, Search, 
   Download, Filter, AlertCircle, ShieldAlert, 
   User, Activity, Server, Database
 } from "lucide-react";
 import { StatCard } from "../../components/shared/StatCard";
-
-const logEntries = [
-  { id: "L1", time: "09:41:23", actor: "Sarah K.", role: "Editor", action: "PUBLISHED", category: "Content", target: '"Q2 Campaign Post"', ip: "192.168.1.42", status: "success" },
-  { id: "L2", time: "09:38:01", actor: "John D.", role: "Admin", action: "INVITED", category: "Team", target: "alex@company.com", ip: "10.0.0.15", status: "success" },
-  { id: "L3", time: "09:22:47", actor: "System", role: "Root", action: "FAILED LOGIN", category: "Security", target: "—", ip: "45.33.21.108", status: "failed" },
-  { id: "L4", time: "09:15:30", actor: "Maria L.", role: "Creator", action: "SUBMITTED", category: "Content", target: '"Product Launch Stream"', ip: "192.168.1.88", status: "success" },
-  { id: "L5", time: "08:59:12", actor: "Nhã Võ", role: "Owner", action: "PLAN UPGRADE", category: "Billing", target: "Pro → Agency", ip: "192.168.1.1", status: "success" },
-  { id: "L6", time: "08:44:05", actor: "Sarah K.", role: "Editor", action: "EDITED", category: "Content", target: '"Summer Campaign"', ip: "192.168.1.42", status: "success" },
-  { id: "L7", time: "08:30:18", actor: "John D.", role: "Admin", action: "EXPORTED", category: "Data", target: "Analytics Report Q1", ip: "10.0.0.15", status: "success" },
-  { id: "L8", time: "08:15:00", actor: "Maria L.", role: "Creator", action: "START STREAM", category: "Stream", target: "Tech Review Q2", ip: "192.168.1.88", status: "success" },
-];
+import { useFilters } from "../../hooks/useFilters";
+import { useDebounce } from "../../hooks/useDebounce";
+import apiService from "../../services/api";
+import { toast } from "sonner";
 
 const categoryColors = {
   Content: "bg-green-100 text-green-700",
@@ -27,8 +20,56 @@ const categoryColors = {
 };
 
 export function AuditLog() {
-  const [activeFilter, setActiveFilter] = useState("All");
+  const { filters, updateFilters, clearFilters, searchParamsString } = useFilters({
+    search: "",
+    category: "All",
+    status: "",
+    page: "1",
+    limit: "5"
+  });
+
+  const activeFilter = filters.category || "All";
   const [expandedRow, setExpandedRow] = useState(null);
+  const [logData, setLogData] = useState({ data: [], meta: { total: 0, page: 1, limit: 5, totalPages: 1 } });
+  const [loading, setLoading] = useState(false);
+
+  // Local state for search term
+  const [searchTerm, setSearchTerm] = useState(filters.search || "");
+  const debouncedSearch = useDebounce(searchTerm, 300);
+
+  // Sync debounced search to URL params
+  useEffect(() => {
+    if (debouncedSearch !== (filters.search || "")) {
+      updateFilters({ search: debouncedSearch });
+    }
+  }, [debouncedSearch]);
+
+  // Sync input value back if URL search parameter is cleared externally
+  useEffect(() => {
+    setSearchTerm(filters.search || "");
+  }, [filters.search]);
+
+  // Fetch dynamic audit logs from Server API
+  useEffect(() => {
+    const fetchLogs = async () => {
+      setLoading(true);
+      try {
+        const response = await apiService.get(`/admin/audit-logs?${searchParamsString}`);
+        setLogData(response.data);
+      } catch (error) {
+        toast.error(error.message || "Failed to load audit logs from server");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLogs();
+  }, [searchParamsString]);
+
+  const totalEntries = logData.meta?.total || 0;
+  const totalPages = logData.meta?.totalPages || 1;
+  const currentPage = logData.meta?.page || 1;
+  const paginatedEntries = logData.data || [];
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#F8F8F7]" style={{ padding: "40px 60px" }}>
@@ -39,8 +80,8 @@ export function AuditLog() {
               <Shield size={28} />
            </div>
            <div>
-             <h1 className="text-2xl font-bold text-[#0A0A0A]">System Audit Log</h1>
-             <p className="text-gray-500 mt-1">Immutable record of all administrative and user actions across the platform.</p>
+              <h1 className="text-2xl font-bold text-[#0A0A0A]">System Audit Log</h1>
+              <p className="text-gray-500 mt-1">Immutable record of all administrative and user actions across the platform.</p>
            </div>
         </div>
         <div className="flex gap-3">
@@ -72,7 +113,7 @@ export function AuditLog() {
 
       {/* Stats Summary */}
       <div className="grid grid-cols-4 gap-6 mb-10">
-         <StatCard label="Total Events (24h)" value="12,482" delta="↑ 4.2%" />
+         <StatCard label="Filtered Events" value={totalEntries.toString()} delta={`Total: ${totalEntries}`} />
          <StatCard label="Security Alerts" value="3" delta="↑ 2" deltaColor="#DC2626" />
          <StatCard label="Active Root Users" value="5" note="Across 2 regions" />
          <StatCard label="Storage Health" value="99.9%" delta="STABLE" />
@@ -80,21 +121,55 @@ export function AuditLog() {
 
       {/* Log Table Container */}
       <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-8 py-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/30">
+        <div className="px-8 py-6 border-b border-gray-50 flex items-center justify-between bg-gray-50/30 flex-wrap gap-4">
            <div className="flex items-center gap-6">
               {["All", "Security", "Billing", "Team", "Content"].map(f => (
                 <button 
                   key={f} 
-                  onClick={() => setActiveFilter(f)}
+                  onClick={() => updateFilters({ category: f })}
                   className={`text-[10px] font-black uppercase tracking-widest transition-all ${activeFilter === f ? "text-black border-b-2 border-black pb-1" : "text-gray-400 hover:text-gray-600"}`}
                 >
                   {f}
                 </button>
               ))}
            </div>
-           <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input placeholder="Search logs, IPs, actors..." className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-black w-64 transition-all" />
+           
+           <div className="flex items-center gap-3">
+              {/* Status Select */}
+              <select
+                value={filters.status || ""}
+                onChange={(e) => updateFilters({ status: e.target.value })}
+                className="text-xs bg-white border border-gray-200 rounded-xl outline-none focus:border-black cursor-pointer transition-all"
+                style={{ padding: "6px 12px" }}
+              >
+                <option value="">All Statuses</option>
+                <option value="success">Success</option>
+                <option value="failed">Failed</option>
+              </select>
+
+              {/* Clear Filters Button */}
+              {(filters.search || filters.status || activeFilter !== "All") && (
+                <button
+                  onClick={() => {
+                    clearFilters();
+                    setSearchTerm("");
+                  }}
+                  className="text-[10px] font-bold text-gray-450 hover:text-black uppercase tracking-wider cursor-pointer bg-transparent border-none outline-none"
+                  style={{ padding: "6px 10px" }}
+                >
+                  Clear
+                </button>
+              )}
+
+              <div className="relative">
+                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                 <input 
+                   placeholder="Search logs, IPs, actors..." 
+                   value={searchTerm}
+                   onChange={(e) => setSearchTerm(e.target.value)}
+                   className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-black w-64 transition-all" 
+                 />
+              </div>
            </div>
         </div>
 
@@ -110,16 +185,36 @@ export function AuditLog() {
               </tr>
            </thead>
            <tbody className="divide-y divide-gray-50">
-              {logEntries.map((entry, idx) => {
-                const isExpanded = expandedRow === idx;
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-8 py-20 text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#0A0A0A] mb-3" />
+                      <span className="text-xs text-gray-400 font-bold uppercase tracking-widest">Loading logs...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedEntries.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-8 py-10 text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <Search size={28} className="text-gray-300 mb-2" />
+                      <span className="text-xs text-gray-400 font-bold uppercase tracking-widest">No logs match criteria</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedEntries.map((entry) => {
+                const isExpanded = expandedRow === entry.id;
                 return (
                   <React.Fragment key={entry.id}>
                     <tr 
-                      onClick={() => setExpandedRow(isExpanded ? null : idx)}
+                      onClick={() => setExpandedRow(isExpanded ? null : entry.id)}
                       className={`hover:bg-gray-50/50 transition-colors cursor-pointer group ${entry.status === 'failed' ? 'bg-red-50/30' : ''}`}
                     >
                        <td className="px-8 py-5">
-                          <div className="text-xs font-bold text-[#0A0A0A]">May 17, 2026</div>
+                          <div className="text-xs font-bold text-[#0A0A0A]">
+                            {new Date(entry.createdAt).toLocaleDateString('vi-VN', { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </div>
                           <div className="text-[10px] text-gray-400 mt-0.5 font-mono">{entry.time}</div>
                        </td>
                        <td className="px-8 py-5">
@@ -132,7 +227,7 @@ export function AuditLog() {
                           </div>
                        </td>
                        <td className="px-8 py-5">
-                          <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter ${categoryColors[entry.category]}`}>
+                          <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-tighter ${categoryColors[entry.category] || "bg-gray-100 text-gray-700"}`}>
                              {entry.category}
                           </span>
                        </td>
@@ -159,7 +254,7 @@ export function AuditLog() {
                                      <Activity size={12} /> Execution Details
                                   </h4>
                                   <div className="space-y-2">
-                                     <div className="flex justify-between text-[11px]"><span className="text-gray-500">Request ID</span><span className="font-mono font-bold text-gray-800">REQ-9428-AB-26</span></div>
+                                     <div className="flex justify-between text-[11px]"><span className="text-gray-500">Request ID</span><span className="font-mono font-bold text-gray-800">REQ-9428-AB-{entry.id.substring(0, 8)}</span></div>
                                      <div className="flex justify-between text-[11px]"><span className="text-gray-500">Trace Mode</span><span className="font-bold text-blue-600">STRICT-COMPLIANCE</span></div>
                                      <div className="flex justify-between text-[11px]"><span className="text-gray-500">Latency</span><span className="font-bold text-gray-800">42ms</span></div>
                                   </div>
@@ -195,10 +290,24 @@ export function AuditLog() {
 
         {/* Footer / Pagination */}
         <div className="px-8 py-5 border-t border-gray-50 flex items-center justify-between bg-gray-50/20">
-           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Showing 50 of 2,847 system events</span>
+           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+             Showing {paginatedEntries.length} of {totalEntries} events (Page {currentPage} of {totalPages})
+           </span>
            <div className="flex items-center gap-2">
-              <button className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-[10px] font-bold text-gray-500 hover:bg-gray-50 transition-all">Previous</button>
-              <button className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-[10px] font-bold text-gray-500 hover:bg-gray-50 transition-all">Next Page</button>
+              <button 
+                disabled={currentPage <= 1 || loading}
+                onClick={() => updateFilters({ page: currentPage - 1 })}
+                className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-[10px] font-bold text-gray-500 hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <button 
+                disabled={currentPage >= totalPages || loading}
+                onClick={() => updateFilters({ page: currentPage + 1 })}
+                className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-[10px] font-bold text-gray-500 hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next Page
+              </button>
            </div>
         </div>
       </div>

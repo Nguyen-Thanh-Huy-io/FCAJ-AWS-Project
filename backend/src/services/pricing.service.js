@@ -235,6 +235,14 @@ class PricingService {
     return analytics;
   }
 
+  /**
+   * Get all plan limits for selection when creating/editing plans
+   * @returns {Promise<Array>} plan limits
+   */
+  async getAllPlanLimits() {
+    return await planLimitRepository.findAll();
+  }
+
   // ============= Private Helper Methods =============
 
   /**

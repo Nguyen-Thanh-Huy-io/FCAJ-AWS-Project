@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Plus, MoreHorizontal } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, MoreHorizontal, Search } from "lucide-react";
 import { usePostCreator } from "../../context/PostCreatorContext";
+import { useFilters } from "../../hooks/useFilters";
+import apiService from "../../services/api";
+import { toast } from "sonner";
 
 const PLATFORM_COLORS = {
   YouTube: "#FF0000", Facebook: "#1877F2", TikTok: "#010101",
@@ -34,48 +37,59 @@ const STATUS_DOT = {
   pending: "#F59E0B",
   rejected: "#DC2626" };
 
-const posts = {
-  8: [{ title: "New Product Feature", platform: "Instagram", time: "09:00", status: "published" }],
-  10: [
-    { title: "Weekly Tech Tips", platform: "LinkedIn", time: "10:00", status: "published" },
-    { title: "Behind the Scenes", platform: "Instagram", time: "14:00", status: "published" },
-  ],
-  12: [{ title: "Community Update", platform: "Facebook", time: "11:00", status: "scheduled" }],
-  13: [
-    { title: "Tutorial: React Hooks", platform: "YouTube", time: "15:00", status: "scheduled" },
-    { title: "Quick Tip #23", platform: "TikTok", time: "18:00", status: "draft" },
-    { title: "Announcement", platform: "X", time: "09:30", status: "scheduled" },
-    { title: "More content...", platform: "Instagram", time: "20:00", status: "pending" },
-  ],
-  15: [
-    { title: "Live Stream Recap", platform: "YouTube", time: "12:00", status: "pending" },
-    { title: "Partner Spotlight", platform: "LinkedIn", time: "16:00", status: "draft" },
-  ],
-  16: [
-    { title: "Weekend Special", platform: "Instagram", time: "10:00", status: "scheduled" },
-    { title: "Viewer Q&A Highlights", platform: "YouTube", time: "20:00", status: "draft" },
-  ],
-  19: [{ title: "New Month Goals", platform: "Facebook", time: "09:00", status: "scheduled" }],
-  22: [{ title: "Monthly Report", platform: "LinkedIn", time: "14:00", status: "draft" }],
-  25: [{ title: "Weekend Vlog", platform: "YouTube", time: "11:00", status: "scheduled" }] };
-
-const listPosts = [
-  { thumbnail: "🖼️", title: "New Product Feature", platforms: ["Instagram"], time: "May 8, 09:00", status: "published", engagement: "1.2K likes" },
-  { thumbnail: "🖼️", title: "Weekly Tech Tips", platforms: ["LinkedIn"], time: "May 10, 10:00", status: "published", engagement: "842 likes" },
-  { thumbnail: "📹", title: "Tutorial: React Hooks", platforms: ["YouTube"], time: "May 13, 15:00", status: "scheduled", engagement: "—" },
-  { thumbnail: "🖼️", title: "Community Update", platforms: ["Facebook"], time: "May 12, 11:00", status: "scheduled", engagement: "—" },
-  { thumbnail: "📹", title: "Live Stream Recap", platforms: ["YouTube"], time: "May 15, 12:00", status: "pending", engagement: "—" },
-  { thumbnail: "🖼️", title: "Weekend Special", platforms: ["Instagram"], time: "May 16, 10:00", status: "scheduled", engagement: "—" },
-  { thumbnail: "📹", title: "Quick Tip #23", platforms: ["TikTok"], time: "May 13, 18:00", status: "draft", engagement: "—" },
-];
-
 export function ContentPlannerPage() {
-  const [view, setView] = useState("calendar");
-  const [platformFilter, setPlatformFilter] = useState("All Platforms");
-  const [statusFilter, setStatusFilter] = useState("All");
+  const { filters, updateFilters, clearFilters, searchParamsString } = useFilters({
+    view: "calendar",
+    platform: "All Platforms",
+    status: "All",
+    page: "1",
+    limit: "50" // High limit for calendar view
+  });
+
+  const view = filters.view || "calendar";
+  const platformFilter = filters.platform || "All Platforms";
+  const statusFilter = filters.status || "All";
+
   const [contextMenu, setContextMenu] = useState(null);
+  const [postData, setPostData] = useState({ data: [], meta: {} });
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { openPostCreator } = usePostCreator();
+
+  // Fetch real data from Backend
+  useEffect(() => {
+    const fetchPosts = async () => {
+      setLoading(true);
+      try {
+        const response = await apiService.get(`/posts?${searchParamsString}`);
+        setPostData(response.data);
+      } catch (error) {
+        toast.error(error.message || "Failed to load posts");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPosts();
+  }, [searchParamsString]);
+
+  // Process data for calendar view (group by day of month)
+  // Assumes we are viewing May 2025 for now to match UI
+  const calendarPosts = useMemo(() => {
+    const grouped = {};
+    postData.data?.forEach(post => {
+      if (post.scheduledAt || post.createdAt) {
+        const date = new Date(post.scheduledAt || post.createdAt);
+        // Only process for May 2025 to match current UI hardcoded calendar
+        if (date.getMonth() === 4 && date.getFullYear() === 2025) {
+          const day = date.getDate();
+          if (!grouped[day]) grouped[day] = [];
+          grouped[day].push(post);
+        }
+      }
+    });
+    return grouped;
+  }, [postData.data]);
 
   return (
     <div
@@ -98,8 +112,8 @@ export function ContentPlannerPage() {
         {/* View Toggle */}
         <div className="flex items-center overflow-hidden rounded-lg" style={{ border: "0.5px solid #E5E7EB", background: "#F8F8F7" }}>
           {["calendar", "list"].map((v) => (
-            <button key={v} onClick={() => setView(v)} className="cursor-pointer capitalize"
-              style={{ padding: "4px 12px", fontSize: 11, background: view === v ? "#0A0A0A" : "transparent", color: view === v ? "#FFF" : "#6B7280" }}
+            <button key={v} onClick={() => updateFilters({ view: v })} className="cursor-pointer capitalize"
+              style={{ padding: "4px 12px", fontSize: 11, background: view === v ? "#0A0A0A" : "transparent", color: view === v ? "#FFF" : "#6B7280", border: "none" }}
             >
               {v}
             </button>
@@ -118,11 +132,11 @@ export function ContentPlannerPage() {
       </div>
 
       {/* Filter Row */}
-      <div className="flex items-center gap-2 px-6 py-2" style={{ background: "#FFF", borderBottom: "0.5px solid #E5E7EB" }}>
+      <div className="flex items-center gap-2 px-6 py-2 flex-wrap" style={{ background: "#FFF", borderBottom: "0.5px solid #E5E7EB" }}>
         {["All Platforms", "Instagram", "Facebook", "TikTok", "YouTube", "X", "LinkedIn", "Twitch"].map((p) => (
           <button
             key={p}
-            onClick={() => setPlatformFilter(p)}
+            onClick={() => updateFilters({ platform: p })}
             className="flex items-center gap-1 cursor-pointer"
             style={{
               padding: "3px 10px",
@@ -140,7 +154,7 @@ export function ContentPlannerPage() {
         {["All", "Scheduled", "Published", "Draft", "Pending", "Rejected"].map((s) => (
           <button
             key={s}
-            onClick={() => setStatusFilter(s)}
+            onClick={() => updateFilters({ status: s })}
             className="cursor-pointer"
             style={{
               padding: "3px 10px",
@@ -153,9 +167,25 @@ export function ContentPlannerPage() {
             {s}
           </button>
         ))}
+        {(platformFilter !== "All Platforms" || statusFilter !== "All") && (
+          <>
+            <div style={{ width: 1, height: 16, background: "#E5E7EB", margin: "0 4px" }} />
+            <button
+              onClick={clearFilters}
+              className="cursor-pointer text-xs text-gray-500 hover:text-black transition-colors"
+              style={{ fontSize: 11, fontWeight: 500, background: "none", border: "none", outline: "none" }}
+            >
+              Clear Filters
+            </button>
+          </>
+        )}
       </div>
 
-      {view === "calendar" ? (
+      {loading ? (
+         <div className="flex-1 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#0A0A0A]" />
+         </div>
+      ) : view === "calendar" ? (
         <div className="flex-1 overflow-auto" style={{ padding: "16px 24px" }}>
           {/* Calendar Grid */}
           <div style={{ background: "#FFF", border: "0.5px solid #E5E7EB", borderRadius: 12, overflow: "hidden" }}>
@@ -172,7 +202,7 @@ export function ContentPlannerPage() {
             {MAY_CALENDAR.map((week, wi) => (
               <div key={wi} style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: wi < MAY_CALENDAR.length - 1 ? "0.5px solid #E5E7EB" : "none" }}>
                 {week.map((date, di) => {
-                  const dayPosts = date ? (posts[date] || []) : [];
+                  const dayPosts = date ? (calendarPosts[date] || []) : [];
                   const isToday = date === 16;
                   const shown = dayPosts.slice(0, 4);
                   const extra = dayPosts.length - 4;
@@ -207,7 +237,7 @@ export function ContentPlannerPage() {
                                 style={{
                                   padding: "2px 5px",
                                   borderRadius: 4,
-                                  borderLeft: `2.5px solid ${PLATFORM_COLORS[post.platform] || "#888"}`,
+                                  borderLeft: `2.5px solid ${PLATFORM_COLORS[post.platforms[0]] || "#888"}`,
                                   background: "#F8F8F7",
                                   fontSize: 10,
                                   color: "#374151",
@@ -220,7 +250,7 @@ export function ContentPlannerPage() {
                                 <span className="truncate flex-1">{post.title}</span>
                                 <div
                                   className="rounded-full shrink-0"
-                                  style={{ width: 5, height: 5, background: STATUS_DOT[post.status] }}
+                                  style={{ width: 5, height: 5, background: STATUS_DOT[post.status] || "#888" }}
                                 />
                               </div>
                             ))}
@@ -251,48 +281,64 @@ export function ContentPlannerPage() {
                 </button>
               ))}
             </div>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ background: "#FAFAFA", borderBottom: "0.5px solid #E5E7EB" }}>
-                  {["", "Post", "Platforms", "Scheduled", "Status", "Engagement", ""].map((h, i) => (
-                    <th key={i} style={{ padding: "8px 12px", fontSize: 10, fontWeight: 500, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.6px", textAlign: "left" }}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {listPosts.map((post, i) => (
-                  <tr key={i} style={{ borderBottom: "0.5px solid #F0F0EF" }}>
-                    <td style={{ padding: "10px 12px", width: 32 }}><input type="checkbox" style={{ accentColor: "#0A0A0A" }} /></td>
-                    <td style={{ padding: "10px 12px" }}>
-                      <div className="flex items-center gap-2">
-                        <div style={{ width: 40, height: 40, borderRadius: 6, background: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
-                          {post.thumbnail}
-                        </div>
-                        <span style={{ fontSize: 12, fontWeight: 500, color: "#0A0A0A" }}>{post.title}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: "10px 12px" }}>
-                      <div className="flex items-center gap-1">
-                        {post.platforms.map((p) => <PlatformIcon key={p} platform={p} size={14} />)}
-                      </div>
-                    </td>
-                    <td style={{ padding: "10px 12px", fontSize: 11, color: "#6B7280" }}>{post.time}</td>
-                    <td style={{ padding: "10px 12px" }}>
-                      <div className="flex items-center gap-1.5">
-                        <div className="rounded-full" style={{ width: 6, height: 6, background: STATUS_DOT[post.status] }} />
-                        <span style={{ fontSize: 11, color: "#0A0A0A", textTransform: "capitalize" }}>{post.status}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: "10px 12px", fontSize: 11, color: "#6B7280" }}>{post.engagement}</td>
-                    <td style={{ padding: "10px 12px" }}>
-                      <button style={{ color: "#9CA3AF", cursor: "pointer" }}><MoreHorizontal size={14} /></button>
-                    </td>
+            {postData.data?.length === 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 16px", gap: 8, background: "#FFF" }}>
+                <span style={{ fontSize: 13, fontWeight: 500, color: "#6B7280" }}>No posts found</span>
+                <span style={{ fontSize: 11, color: "#9CA3AF" }}>Try adjusting your platform or status filters.</span>
+                <button
+                  onClick={clearFilters}
+                  className="mt-2 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-all"
+                  style={{ border: "0.5px solid #E5E7EB", background: "#FFF", color: "#0A0A0A" }}
+                >
+                  Reset Filters
+                </button>
+              </div>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: "#FAFAFA", borderBottom: "0.5px solid #E5E7EB" }}>
+                    {["", "Post", "Platforms", "Scheduled", "Status", "Creator", ""].map((h, i) => (
+                      <th key={i} style={{ padding: "8px 12px", fontSize: 10, fontWeight: 500, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.6px", textAlign: "left" }}>
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {postData.data?.map((post, i) => (
+                    <tr key={post.id} style={{ borderBottom: "0.5px solid #F0F0EF" }}>
+                      <td style={{ padding: "10px 12px", width: 32 }}><input type="checkbox" style={{ accentColor: "#0A0A0A" }} /></td>
+                      <td style={{ padding: "10px 12px" }}>
+                        <div className="flex items-center gap-2">
+                          <div style={{ width: 40, height: 40, borderRadius: 6, background: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
+                            {post.thumbnail ? <img src={post.thumbnail} alt="" className="w-full h-full object-cover rounded" /> : "📝"}
+                          </div>
+                          <span style={{ fontSize: 12, fontWeight: 500, color: "#0A0A0A" }}>{post.title}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: "10px 12px" }}>
+                        <div className="flex items-center gap-1">
+                          {post.platforms.map((p) => <PlatformIcon key={p} platform={p} size={14} />)}
+                        </div>
+                      </td>
+                      <td style={{ padding: "10px 12px", fontSize: 11, color: "#6B7280" }}>
+                        {post.scheduledAt ? new Date(post.scheduledAt).toLocaleString('vi-VN') : '—'}
+                      </td>
+                      <td style={{ padding: "10px 12px" }}>
+                        <div className="flex items-center gap-1.5">
+                          <div className="rounded-full" style={{ width: 6, height: 6, background: STATUS_DOT[post.status] || "#888" }} />
+                          <span style={{ fontSize: 11, color: "#0A0A0A", textTransform: "capitalize" }}>{post.status}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: "10px 12px", fontSize: 11, color: "#6B7280" }}>{post.creator}</td>
+                      <td style={{ padding: "10px 12px" }}>
+                        <button style={{ color: "#9CA3AF", cursor: "pointer", border: "none", background: "none" }}><MoreHorizontal size={14} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       )}
@@ -316,7 +362,7 @@ export function ContentPlannerPage() {
             <button
               key={action}
               className="block w-full text-left px-4 py-2 cursor-pointer"
-              style={{ fontSize: 12, color: action === "Delete" ? "#EF4444" : "#DDD" }}
+              style={{ fontSize: 12, color: action === "Delete" ? "#EF4444" : "#DDD", border: "none", background: "none" }}
               onMouseEnter={(e) => ((e.currentTarget).style.background = "#161616")}
               onMouseLeave={(e) => ((e.currentTarget).style.background = "transparent")}
               onClick={() => setContextMenu(null)}

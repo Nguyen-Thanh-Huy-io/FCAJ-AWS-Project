@@ -12,5 +12,9 @@ Chào mừng bạn đến với hệ thống tài liệu kỹ thuật của dự
 ### 🔹 Frontend
 - [Giao diện Đăng ký & OTP (UI/UX)](./frontend/auth/REGISTER_UI.md)
 
+### 🔹 Nhiệm vụ & Quy trình (Tasks & Features)
+- [Tìm kiếm & Lọc dữ liệu Server-side](./search_and_filter_task.md)
+
 ---
 *Tài liệu được phân loại theo Module và vai trò (BE/FE) để dễ dàng tra cứu.*
+

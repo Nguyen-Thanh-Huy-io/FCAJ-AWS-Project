@@ -1,29 +1,7 @@
-import { useState, useRef } from "react";
-import { Plus, X, Check, Globe, Zap, Megaphone, Box, Layers, Filter, Edit3, Trash2, Upload, Image as ImageIcon } from "lucide-react";
-
-// Initial static data
-const INITIAL_CORE_MODULES = [
-  { id: "M1", name: "Analytics", description: "Channel statistics, metrics and growth tracking.", icon: <Globe size={18} /> },
-  { id: "M2", name: "Automation", description: "Auto-posting, scheduling and queue management.", icon: <Zap size={18} /> },
-  { id: "M3", name: "Engagement", description: "Inbox management, comments and direct messages.", icon: <Megaphone size={18} /> },
-  { id: "M4", name: "Competitors", description: "Tracking and benchmarking against rival channels.", icon: <Filter size={18} /> },
-];
-
-const INITIAL_PLATFORMS = [
-  { id: "YT", name: "YouTube", color: "#FF0000" },
-  { id: "FB", name: "Facebook", color: "#1877F2" },
-  { id: "IG", name: "Instagram", color: "#E1306C" },
-  { id: "TK", name: "TikTok", color: "#000000" },
-  { id: "LI", name: "LinkedIn", color: "#0A66C2" },
-  { id: "X", name: "X (Twitter)", color: "#000000" },
-];
-
-const initialMatrix = {
-  "M1-YT": { status: "Active", sku: "PL-YT-AN" },
-  "M1-FB": { status: "Active", sku: "PL-FB-AN" },
-  "M2-YT": { status: "Active", sku: "PL-YT-AU" },
-  "M3-FB": { status: "Active", sku: "PL-FB-EN" },
-};
+import { useState, useEffect, useRef } from "react";
+import { Plus, X, Check, Globe, Zap, Megaphone, Box, Layers, Filter, Edit3, Trash2, Upload, Image as ImageIcon, Loader2 } from "lucide-react";
+import apiService from "../../services/api";
+import { toast } from "sonner";
 
 function MatrixCell({ exists, module, platform, onAdd }) {
   if (!exists) {
@@ -75,7 +53,6 @@ function PlatformModal({ isOpen, onClose, onSave }) {
              <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-all text-gray-400 hover:text-black"><X size={24} /></button>
           </div>
           <div className="p-8 space-y-6 overflow-y-auto">
-             {/* Image Upload Area */}
              <div className="flex flex-col items-center gap-4">
                 <div 
                   onClick={() => fileInputRef.current?.click()}
@@ -161,14 +138,33 @@ function ModuleModal({ isOpen, onClose, onSave }) {
 }
 
 export function AdminProducts() {
-  const [modules, setModules] = useState(INITIAL_CORE_MODULES);
-  const [platforms, setPlatforms] = useState(INITIAL_PLATFORMS);
-  const [matrix, setMatrix] = useState(initialMatrix);
+  const [modules, setModules] = useState([]);
+  const [platforms, setPlatforms] = useState([]);
+  const [matrix, setMatrix] = useState({});
+  const [loading, setLoading] = useState(true);
   
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPlatformModal, setShowPlatformModal] = useState(false);
   const [showModuleModal, setShowModuleModal] = useState(false);
   const [activeSelection, setActiveSelection] = useState(null);
+
+  useEffect(() => {
+    const fetchMatrix = async () => {
+      setLoading(true);
+      try {
+        const response = await apiService.get("/admin/products/matrix");
+        setModules(response.data.data.modules);
+        setPlatforms(response.data.data.platforms);
+        setMatrix(response.data.data.matrix);
+      } catch (error) {
+        toast.error("Failed to load product matrix");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMatrix();
+  }, []);
 
   const handleAddProduct = (module, platform) => {
     setActiveSelection({ module, platform });
@@ -179,15 +175,33 @@ export function AdminProducts() {
     const key = `${activeSelection.module.id}-${activeSelection.platform.id}`;
     setMatrix({ ...matrix, [key]: { status: "Active", sku: `PROD-${Math.floor(Math.random()*1000)}` } });
     setShowAddModal(false);
+    toast.success(`Module enabled for ${activeSelection.platform.name}`);
   };
 
   const addNewPlatform = (newPlatform) => {
     setPlatforms([...platforms, newPlatform]);
+    toast.success("Platform added (UI only)");
   };
 
   const addNewModule = (newModule) => {
     setModules([...modules, newModule]);
+    toast.success("Module added (UI only)");
   };
+
+  const getModuleIcon = (name) => {
+    if (name.includes("Analytics")) return <Globe size={18} />;
+    if (name.includes("Automation")) return <Zap size={18} />;
+    if (name.includes("Engagement")) return <Megaphone size={18} />;
+    return <Filter size={18} />;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="animate-spin text-gray-300" size={40} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#F8F8F7]" style={{ padding: "40px 60px" }}>
@@ -249,7 +263,7 @@ export function AdminProducts() {
                 <tr key={m.id}>
                    <td className="p-0">
                       <div className="h-12 bg-white border border-gray-100 rounded-xl flex items-center gap-3 px-4 shadow-sm">
-                         <div className="text-gray-400">{m.icon}</div>
+                         <div className="text-gray-400">{getModuleIcon(m.name)}</div>
                          <span className="text-xs font-bold text-[#0A0A0A]">{m.name}</span>
                       </div>
                    </td>
@@ -289,8 +303,8 @@ export function AdminProducts() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
            <div className="bg-white rounded-[32px] w-full max-w-md shadow-2xl overflow-hidden p-8 animate-in zoom-in-95 duration-200">
               <div className="text-center mb-8">
-                 <div className="w-16 h-16 rounded-3xl bg-gray-50 flex items-center justify-center mx-auto mb-4 border border-gray-100 shadow-inner">
-                    {activeSelection.module.icon}
+                 <div className="w-16 h-16 rounded-3xl bg-gray-50 flex items-center justify-center mx-auto mb-4 border border-gray-100 shadow-inner text-gray-400">
+                    {getModuleIcon(activeSelection.module.name)}
                  </div>
                  <h3 className="text-xl font-black text-[#0A0A0A]">Enable {activeSelection.module.name}</h3>
                  <p className="text-sm text-gray-500 mt-1">Activate this module for <b>{activeSelection.platform.name}</b></p>

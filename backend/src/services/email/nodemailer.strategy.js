@@ -6,9 +6,10 @@ class NodemailerStrategy extends EmailStrategy {
     super();
     // Cấu hình linh hoạt: ưu tiên biến môi trường, mặc định dùng ethereal để dev
     const isSecure = process.env.EMAIL_PORT == 465; // true cho port 465, false cho các port khác
-    
+
     const user = process.env.EMAIL_USER || process.env.GMAIL_USER;
     const pass = process.env.EMAIL_PASS || process.env.GMAIL_PASS;
+    this.senderEmail = user;
 
     // Check if using placeholder or missing credentials
     const isPlaceholder = (user === 'your_email@gmail.com' || pass === 'your_app_password_16_chars');
@@ -32,7 +33,7 @@ class NodemailerStrategy extends EmailStrategy {
     this.transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.EMAIL_PORT) || 465,
-      secure: isSecure || (process.env.EMAIL_PORT == 465), 
+      secure: isSecure || (process.env.EMAIL_PORT == 465),
       auth: {
         user: user,
         pass: pass
@@ -51,7 +52,7 @@ class NodemailerStrategy extends EmailStrategy {
     }
 
     await this.transporter.sendMail({
-      from: '"PubliCast" <noreply@publicast.com>',
+      from: `"PubliCast" <${this.senderEmail}>`,
       to,
       subject,
       text

@@ -155,6 +155,22 @@ class PricingController {
       });
     }
   }
+
+  /**
+   * GET /admin/pricing/limits
+   * Get all plan limits for selection
+   */
+  async getPlanLimits(req, res) {
+    try {
+      const data = await pricingService.getAllPlanLimits();
+      res.status(200).json({
+        message: 'Plan limits retrieved successfully',
+        data
+      });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
 }
 
 module.exports = new PricingController();

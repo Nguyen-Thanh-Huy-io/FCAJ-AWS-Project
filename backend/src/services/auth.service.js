@@ -252,7 +252,6 @@ class AuthService {
       throw err;
     }
   }
-  }
 
   /**
    * Logout user - delete refresh token

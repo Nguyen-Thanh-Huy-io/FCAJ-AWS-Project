@@ -1,7 +1,9 @@
-import { useState } from "react";
-import { Plus, X, Check, Settings2, Edit3, Trash2, Box, Layers, Globe, Zap, Megaphone } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, X, Check, Settings2, Edit3, Trash2, Box, Layers, Globe, Zap, Megaphone, Loader2 } from "lucide-react";
+import apiService from "../../services/api";
+import { toast } from "sonner";
 
-// Categorized Core Products
+// For this MVP, we'll keep products static since there's no model for them yet
 const AVAILABLE_PRODUCTS = [
   { id: "P1", name: "YouTube Analytics", category: "Platforms", icon: <Globe size={14} /> },
   { id: "P2", name: "Facebook Management", category: "Platforms", icon: <Globe size={14} /> },
@@ -14,48 +16,28 @@ const AVAILABLE_PRODUCTS = [
   { id: "P9", name: "Custom Branded Links", category: "Tools", icon: <Box size={14} /> },
 ];
 
-const initialPlans = [
-  {
-    id: "PL1",
-    name: "Free",
-    status: "active",
-    mostPopular: false,
-    monthly: 0,
-    annual: 0,
-    limits: { "Social Brands": 1, "Posts/month": 10, "AI Credits": 50, "Platforms": 2 },
-    includedProducts: ["P1", "P2"]
-  },
-  {
-    id: "PL2",
-    name: "Starter",
-    status: "active",
-    mostPopular: false,
-    monthly: 19,
-    annual: 15,
-    limits: { "Social Brands": 3, "Posts/month": 100, "AI Credits": 200, "Platforms": 3 },
-    includedProducts: ["P1", "P2", "P3", "P8"]
-  },
-  {
-    id: "PL3",
-    name: "Pro",
-    status: "active",
-    mostPopular: true,
-    monthly: 49,
-    annual: 39,
-    limits: { "Social Brands": 10, "Posts/month": 500, "AI Credits": "Unlimited", "Platforms": 7 },
-    includedProducts: ["P1", "P2", "P3", "P4", "P5", "P7", "P8"]
-  },
-];
-
-function PlanModal({ isOpen, onClose, onSave, plan = null }) {
-  const [formData, setFormData] = useState(plan || {
-    name: "",
-    monthly: 0,
-    annual: 0,
-    status: "active",
-    mostPopular: false,
-    limits: { "Social Brands": 1, "Posts/month": 50, "AI Credits": 100, "Platforms": 2 },
-    includedProducts: []
+function PlanModal({ isOpen, onClose, onSave, plan = null, availableLimits = [] }) {
+  const [formData, setFormData] = useState(plan ? {
+    name: plan.name,
+    priceAmount: plan.price.amount,
+    billingCycle: plan.billingCycle,
+    description: plan.description || "",
+    planLimitId: plan.planLimitId || availableLimits[0]?.id || "",
+    isActive: plan.isActive,
+    // Note: includedProducts and mostPopular are not in current Prisma model yet
+    // so we'll keep them as UI-only or handle them as part of description/JSON
+    includedProducts: [],
+    mostPopular: false
+  } : {
+    name: "STARTER",
+    priceAmount: 19,
+    currency: "USD",
+    billingCycle: "MONTHLY",
+    description: "",
+    planLimitId: availableLimits[0]?.id || "",
+    isActive: true,
+    includedProducts: [],
+    mostPopular: false
   });
 
   const toggleProduct = (prodId) => {
@@ -93,80 +75,59 @@ function PlanModal({ isOpen, onClose, onSave, plan = null }) {
               <div className="space-y-6">
                 <div className="space-y-2">
                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Plan Name</label>
-                   <input 
-                     placeholder="e.g. Enterprise" 
+                   <select 
                      value={formData.name}
                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none transition-all text-sm font-medium" 
-                   />
+                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none transition-all text-sm font-medium"
+                   >
+                      {["FREE", "STARTER", "PRO", "AGENCY"].map(n => <option key={n} value={n}>{n}</option>)}
+                   </select>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Monthly ($)</label>
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Price ($)</label>
                       <input 
                         type="number"
-                        value={formData.monthly}
-                        onChange={(e) => setFormData({...formData, monthly: Number(e.target.value)})}
+                        value={formData.priceAmount}
+                        onChange={(e) => setFormData({...formData, priceAmount: Number(e.target.value)})}
                         className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none transition-all text-sm font-bold" 
                       />
                    </div>
                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Annual ($)</label>
-                      <input 
-                        type="number"
-                        value={formData.annual}
-                        onChange={(e) => setFormData({...formData, annual: Number(e.target.value)})}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none transition-all text-sm font-bold text-green-600" 
-                      />
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Billing Cycle</label>
+                      <select 
+                        value={formData.billingCycle}
+                        onChange={(e) => setFormData({...formData, billingCycle: e.target.value})}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none transition-all text-sm font-bold text-green-600"
+                      >
+                         <option value="MONTHLY">Monthly</option>
+                         <option value="ANNUAL">Annual</option>
+                      </select>
                    </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <label className="flex items-center gap-3 cursor-pointer group">
-                      <input 
-                        type="checkbox" 
-                        checked={formData.mostPopular}
-                        onChange={(e) => setFormData({...formData, mostPopular: e.target.checked})}
-                        className="w-4 h-4 rounded accent-black" 
-                      />
-                      <span className="text-sm font-medium text-gray-600 group-hover:text-black">Most Popular</span>
-                  </label>
-                  <div className="flex-1 flex gap-1">
-                      {["active", "hidden", "archived"].map(s => (
-                        <button 
-                          key={s}
-                          onClick={() => setFormData({...formData, status: s})}
-                          className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase border transition-all ${formData.status === s ? "bg-black text-white border-black" : "bg-white text-gray-400 border-gray-100 hover:border-gray-200"}`}
-                        >
-                          {s}
-                        </button>
+                <div className="space-y-2">
+                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Select Limit Configuration</label>
+                   <select 
+                     value={formData.planLimitId}
+                     onChange={(e) => setFormData({...formData, planLimitId: e.target.value})}
+                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none transition-all text-sm font-medium"
+                   >
+                      {availableLimits.map(l => (
+                        <option key={l.id} value={l.id}>
+                          {l.maxBrands} Brands / {l.maxSocialProfiles} Profiles / {l.maxStreamQuality}
+                        </option>
                       ))}
-                  </div>
+                   </select>
                 </div>
-              </div>
-
-              <div className="space-y-4">
-                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Usage Limits</label>
-                 <div className="grid grid-cols-2 gap-x-6 gap-y-4 p-5 bg-gray-50 rounded-2xl border border-gray-100">
-                    {Object.entries(formData.limits).map(([key, val]) => (
-                      <div key={key} className="flex flex-col gap-1">
-                         <span className="text-[10px] text-gray-400 font-bold uppercase">{key}</span>
-                         <input 
-                           value={val}
-                           onChange={(e) => setFormData({...formData, limits: {...formData.limits, [key]: e.target.value}})}
-                           className="w-full bg-transparent border-b border-gray-200 focus:border-black outline-none text-sm font-bold text-black pb-1" 
-                         />
-                      </div>
-                    ))}
-                 </div>
               </div>
            </div>
 
-           {/* Right Col: Product Selection (Categorized) */}
+           {/* Right Col: Product Selection (Categorized) - UI Only for now */}
            <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Bundle Feature Catalog</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Bundle Feature Catalog (UI Only)</label>
                 <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{formData.includedProducts.length} items bundled</span>
               </div>
               
@@ -227,27 +188,65 @@ function PlanModal({ isOpen, onClose, onSave, plan = null }) {
 }
 
 export function AdminPricing() {
-  const [plans, setPlans] = useState(initialPlans);
+  const [plans, setPlans] = useState([]);
+  const [limits, setLimits] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
 
-  const handleSave = (newPlan) => {
-    if (editingPlan) {
-      setPlans(plans.map(p => p.id === editingPlan.id ? newPlan : p));
-    } else {
-      setPlans([...plans, { ...newPlan, id: `PL${plans.length + 1}` }]);
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [plansRes, limitsRes] = await Promise.all([
+        apiService.get("/admin/pricing"),
+        apiService.get("/admin/pricing/limits")
+      ]);
+      setPlans(plansRes.data.data.plans);
+      setSummary(plansRes.data.data.summary);
+      setLimits(limitsRes.data.data);
+    } catch (error) {
+      toast.error("Failed to load pricing data");
+    } finally {
+      setLoading(false);
     }
-    setIsModalOpen(false);
-    setEditingPlan(null);
   };
 
-  const deletePlan = (id) => {
-    if(window.confirm("Are you sure you want to delete this plan? This will affect subscribers.")) {
-      setPlans(plans.filter(p => p.id !== id));
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleSave = async (formData) => {
+    try {
+      if (editingPlan) {
+        await apiService.patch(`/admin/pricing/${editingPlan.id}`, formData);
+        toast.success("Plan updated successfully");
+      } else {
+        await apiService.post("/admin/pricing", {
+           ...formData,
+           currency: "USD"
+        });
+        toast.success("Plan created successfully");
+      }
+      setIsModalOpen(false);
+      setEditingPlan(null);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to save plan");
     }
   };
 
-  const getProductName = (id) => AVAILABLE_PRODUCTS.find(p => p.id === id)?.name || id;
+  const deletePlan = async (id) => {
+    if(window.confirm("Are you sure you want to deactivate this plan? This will affect subscribers.")) {
+      try {
+        await apiService.delete(`/admin/pricing/${id}`);
+        toast.success("Plan deactivated successfully");
+        fetchData();
+      } catch (error) {
+        toast.error("Failed to deactivate plan");
+      }
+    }
+  };
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#F8F8F7]" style={{ padding: "40px 60px" }}>
@@ -271,65 +270,73 @@ export function AdminPricing() {
         </button>
       </div>
 
-      {/* Plans Table */}
-      <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-           <thead className="bg-gray-50/50 border-b border-gray-100">
-              <tr>
-                 {["Plan Name", "Price (Monthly/Annual)", "Usage Limits", "Included Products", "Status", ""].map(h => (
-                   <th key={h} className="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{h}</th>
-                 ))}
-              </tr>
-           </thead>
-           <tbody className="divide-y divide-gray-50">
-              {plans.map((p) => (
-                <tr key={p.id} className="hover:bg-gray-50/50 transition-colors group">
-                   <td className="px-8 py-6">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-[#0A0A0A]">{p.name}</span>
-                        {p.mostPopular && <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 text-[8px] font-black rounded uppercase">Popular</span>}
-                      </div>
-                      <div className="text-[10px] text-gray-400 mt-0.5 font-mono">{p.id}</div>
-                   </td>
-                   <td className="px-8 py-6">
-                      <div className="text-sm font-bold text-[#0A0A0A]">${p.monthly}<span className="text-gray-400 font-normal text-xs"> / ${p.annual}</span></div>
-                   </td>
-                   <td className="px-8 py-6 text-xs text-gray-500 leading-relaxed">
-                      {p.limits["Social Brands"]} Brands · {p.limits["Platforms"]} Platforms<br/>
-                      {p.limits["Posts/month"]} Posts · {p.limits["AI Credits"]} AI
-                   </td>
-                   <td className="px-8 py-6">
-                      <div className="flex flex-wrap gap-1 max-w-[200px]">
-                         {p.includedProducts.map((prodId) => (
-                           <div key={prodId} className="px-1.5 py-0.5 bg-gray-100 text-[#0A0A0A] text-[9px] font-bold rounded border border-gray-200" title={getProductName(prodId)}>
-                              {getProductName(prodId).split(' ')[0]}
-                           </div>
-                         ))}
-                      </div>
-                   </td>
-                   <td className="px-8 py-6">
-                      <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase ${p.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
-                         {p.status}
-                      </span>
-                   </td>
-                   <td className="px-8 py-6">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                         <button onClick={() => { setEditingPlan(p); setIsModalOpen(true); }} className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-black shadow-sm border border-transparent hover:border-gray-100"><Edit3 size={14} /></button>
-                         <button onClick={() => deletePlan(p.id)} className="p-2 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500 shadow-sm border border-transparent hover:border-red-100"><Trash2 size={14} /></button>
-                      </div>
-                   </td>
+      {loading ? (
+         <div className="flex items-center justify-center py-20">
+            <Loader2 className="animate-spin text-gray-300" size={40} />
+         </div>
+      ) : (
+        <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden">
+          <table className="w-full text-left">
+             <thead className="bg-gray-50/50 border-b border-gray-100">
+                <tr>
+                   {["Plan Name", "Price", "Billing", "Usage Limits", "Subscriptions", "Status", ""].map(h => (
+                     <th key={h} className="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{h}</th>
+                   ))}
                 </tr>
-              ))}
-           </tbody>
-        </table>
-      </div>
+             </thead>
+             <tbody className="divide-y divide-gray-50">
+                {plans.length === 0 ? (
+                  <tr><td colSpan={7} className="px-8 py-10 text-center text-gray-400 text-xs font-bold uppercase tracking-widest">No plans defined</td></tr>
+                ) : (
+                  plans.map((p) => (
+                    <tr key={p.id} className="hover:bg-gray-50/50 transition-colors group">
+                       <td className="px-8 py-6">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-[#0A0A0A]">{p.name}</span>
+                          </div>
+                          <div className="text-[10px] text-gray-400 mt-0.5 font-mono">{p.id}</div>
+                       </td>
+                       <td className="px-8 py-6">
+                          <div className="text-sm font-bold text-[#0A0A0A]">${p.price.amount} <span className="text-gray-400 font-normal text-xs">{p.price.currency}</span></div>
+                       </td>
+                       <td className="px-8 py-6">
+                          <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest bg-gray-50 px-2 py-1 rounded border border-gray-100">{p.billingCycle}</span>
+                       </td>
+                       <td className="px-8 py-6 text-[11px] text-gray-500 leading-relaxed font-medium">
+                          {p.limits.maxBrands} Brands · {p.limits.maxSocialProfiles} Profiles<br/>
+                          {p.limits.maxPostsPerMonth} Posts · {p.limits.maxStreamQuality}
+                       </td>
+                       <td className="px-8 py-6">
+                          <div className="text-sm font-bold text-[#0A0A0A]">{p.subscriptionCount}</div>
+                       </td>
+                       <td className="px-8 py-6">
+                          <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase ${p.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                             {p.isActive ? "Active" : "Inactive"}
+                          </span>
+                       </td>
+                       <td className="px-8 py-6">
+                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                             <button onClick={() => { setEditingPlan(p); setIsModalOpen(true); }} className="p-2 hover:bg-white rounded-lg text-gray-400 hover:text-black shadow-sm border border-transparent hover:border-gray-100"><Edit3 size={14} /></button>
+                             <button onClick={() => deletePlan(p.id)} className="p-2 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-500 shadow-sm border border-transparent hover:border-red-100"><Trash2 size={14} /></button>
+                          </div>
+                       </td>
+                    </tr>
+                  ))
+                )}
+             </tbody>
+          </table>
+        </div>
+      )}
 
-      <PlanModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onSave={handleSave} 
-        plan={editingPlan} 
-      />
+      {isModalOpen && (
+        <PlanModal 
+          isOpen={isModalOpen} 
+          onClose={() => setIsModalOpen(false)} 
+          onSave={handleSave} 
+          plan={editingPlan} 
+          availableLimits={limits}
+        />
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import {
   BarChart2, MessageSquare, Calendar, Link2, Megaphone, Zap,
@@ -8,6 +8,8 @@ import {
 } from "lucide-react";
 import { useConnections } from "../context/ConnectionsContext";
 import { useAuth } from "../context/AuthContext";
+import { useDebounce } from "../hooks/useDebounce";
+import apiService from "../services/api";
 
 function SettingsDrawer({ isOpen, onClose }) {
   const navigate = useNavigate();
@@ -102,6 +104,66 @@ export function Topbar() {
   const [brandOpen, setBrandOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  // Search states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [selectedSearchIndex, setSelectedSearchIndex] = useState(-1);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const debouncedSearch = useDebounce(searchQuery, 300);
+
+  const quickLinks = [
+    { name: "Analytics Dashboard", description: "Quick link to metrics and views", path: "/dashboard" },
+    { name: "Content Planner", description: "Quick link to schedule posts", path: "/planner" },
+    { name: "AI Assistant", description: "Quick link to write assistant", path: "/ai" },
+    { name: "Account Settings", description: "Quick link to user profile", path: "/settings" }
+  ];
+
+  const displayedItems = searchQuery.trim() === "" ? quickLinks : searchResults;
+
+  useEffect(() => {
+    if (debouncedSearch.trim() === "") {
+      setSearchResults([]);
+      return;
+    }
+
+    const fetchResults = async () => {
+      setIsLoading(true);
+      try {
+        const response = await apiService.get(`/search?q=${encodeURIComponent(debouncedSearch)}`);
+        setSearchResults(response.data);
+      } catch (error) {
+        console.error("Search error:", error);
+        setSearchResults([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchResults();
+  }, [debouncedSearch]);
+
+  const handleKeyDown = (e) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedSearchIndex(prev => Math.min(prev + 1, displayedItems.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedSearchIndex(prev => Math.max(prev - 1, -1));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (selectedSearchIndex >= 0 && selectedSearchIndex < displayedItems.length) {
+        const selectedItem = displayedItems[selectedSearchIndex];
+        navigate(selectedItem.path);
+        setIsSearchFocused(false);
+        setSearchQuery("");
+      }
+    } else if (e.key === "Escape") {
+      setIsSearchFocused(false);
+    }
+  };
+
   const currentPath = location.pathname;
   const isSuperadmin = currentPath.startsWith("/admin");
 
@@ -128,8 +190,55 @@ export function Topbar() {
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input 
               placeholder="Search tools, platforms..." 
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setSelectedSearchIndex(-1); // Reset selected keyboard index
+              }}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+              onKeyDown={handleKeyDown}
               className="w-full pl-9 pr-4 py-1.5 rounded-lg bg-white/10 border-none text-xs text-white outline-none focus:bg-white/20 transition-all placeholder:text-gray-500"
             />
+            {/* Search Dropdown */}
+            {isSearchFocused && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-white text-gray-900 rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[100] max-h-[350px] overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="px-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50 border-b border-gray-100 flex justify-between items-center">
+                  <span>{searchQuery.trim() === "" ? "Quick Links" : `Search Results (${displayedItems.length})`}</span>
+                  {isLoading && <span className="text-[10px] text-purple-600 normal-case font-normal animate-pulse">Searching...</span>}
+                </div>
+                {displayedItems.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-gray-500">
+                    {isLoading ? "Searching database..." : `No results found for "${searchQuery}"`}
+                  </div>
+                ) : (
+                  displayedItems.map((item, index) => (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        navigate(item.path);
+                        setIsSearchFocused(false);
+                        setSearchQuery("");
+                      }}
+                      onMouseEnter={() => setSelectedSearchIndex(index)}
+                      className={`w-full flex items-center justify-between text-left px-4 py-2.5 transition-colors border-none ${
+                        index === selectedSearchIndex ? "bg-purple-50 text-purple-950" : "bg-white text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <div className="flex flex-col items-start min-w-0 flex-1">
+                        <span className="text-xs font-semibold truncate w-full">{item.name}</span>
+                        <span className="text-[10px] text-gray-400 line-clamp-1 truncate w-full">{item.description}</span>
+                      </div>
+                      {item.type && (
+                        <span className="shrink-0 ml-2 text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">
+                          {item.type}
+                        </span>
+                      )}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
           </div>
         )}
 
