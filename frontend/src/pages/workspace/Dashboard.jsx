@@ -1,5 +1,7 @@
-import { useNavigate } from "react-router-dom";
-import { Radio, TrendingUp } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Radio, TrendingUp, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { 
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, 
   LineChart, Line, CartesianGrid 
@@ -8,6 +10,8 @@ import {
 import { PlatformIcon } from "../../components/shared/PlatformIcon";
 import { StatCard } from "../../components/shared/StatCard";
 import { MetricToggle } from "../../components/shared/MetricToggle";
+import brandService from "../../services/brand.service";
+import socialService from "../../services/social.service";
 
 const PLATFORM_COLORS = {
   YouTube: "#FF0000",
@@ -19,38 +23,80 @@ const PLATFORM_COLORS = {
   X: "#000000" 
 };
 
-const viewersByPlatform = [
-  { platform: "YouTube", viewers: 12483, pct: 78 },
-  { platform: "Facebook", viewers: 7291, pct: 48 },
-  { platform: "TikTok", viewers: 4832, pct: 30 },
-  { platform: "Instagram", viewers: 2898, pct: 18 },
-  { platform: "Twitch", viewers: 1612, pct: 10 },
-  { platform: "LinkedIn", viewers: 968, pct: 6 },
-  { platform: "X", viewers: 645, pct: 4 },
-];
-
-const platforms = [
-  { name: "YouTube", quality: "1080p", on: true },
-  { name: "Facebook", quality: "720p", on: true },
-  { name: "TikTok", quality: "720p", on: false },
-  { name: "Instagram", quality: "720p", on: true },
-  { name: "Twitch", quality: "1080p", on: false },
-  { name: "LinkedIn", quality: "720p", on: false },
-  { name: "X", quality: "480p", on: false },
-];
-
-const weeklyData = [
-  { day: "Mon", viewers: 8200 },
-  { day: "Tue", viewers: 11400 },
-  { day: "Wed", viewers: 9800 },
-  { day: "Thu", viewers: 14200 },
-  { day: "Fri", viewers: 16800 },
-  { day: "Sat", viewers: 22400 },
-  { day: "Sun", viewers: 18600 },
-];
-
 export function DashboardPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [metrics, setMetrics] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeBrand, setActiveBrand] = useState(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("success") === "google_login") {
+      toast.success("Đăng nhập bằng Google thành công!");
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location, navigate]);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const brandsRes = await brandService.getBrands();
+        if (brandsRes.data && brandsRes.data.length > 0) {
+          const brand = brandsRes.data[0]; // For now, use the first brand
+          setActiveBrand(brand);
+          
+          const metricsRes = await socialService.getMetrics(brand.id);
+          setMetrics(metricsRes.data || []);
+        }
+      } catch (error) {
+        console.error("Failed to load dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  const getYouTubeStats = () => {
+    const ytAccount = metrics.find(m => m.platform === 'YOUTUBE');
+    if (!ytAccount || !ytAccount.youtubeChannel) return { subscribers: 0, views: 0, videos: 0 };
+    return {
+      subscribers: ytAccount.youtubeChannel.subscribersCount,
+      views: ytAccount.youtubeChannel.totalViewsCount,
+      videos: ytAccount.youtubeChannel.totalVideosCount
+    };
+  };
+
+  const stats = getYouTubeStats();
+
+  const viewersByPlatform = [
+    { platform: "YouTube", viewers: stats.subscribers, pct: Math.min((stats.subscribers / 100000) * 100, 100) },
+    { platform: "Facebook", viewers: 0, pct: 0 },
+    { platform: "TikTok", viewers: 0, pct: 0 },
+    { platform: "Instagram", viewers: 0, pct: 0 },
+    { platform: "Twitch", viewers: 0, pct: 0 },
+    { platform: "LinkedIn", viewers: 0, pct: 0 },
+    { platform: "X", viewers: 0, pct: 0 },
+  ];
+
+  const weeklyData = [
+    { day: "Mon", viewers: stats.subscribers * 0.8 },
+    { day: "Tue", viewers: stats.subscribers * 0.85 },
+    { day: "Wed", viewers: stats.subscribers * 0.9 },
+    { day: "Thu", viewers: stats.subscribers * 0.92 },
+    { day: "Fri", viewers: stats.subscribers * 0.95 },
+    { day: "Sat", viewers: stats.subscribers * 0.98 },
+    { day: "Sun", viewers: stats.subscribers },
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-[#F8F8F7]">
+        <Loader2 className="animate-spin text-gray-300" size={40} />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -60,25 +106,25 @@ export function DashboardPage() {
       {/* Stat Cards Row */}
       <div className="grid grid-cols-4 gap-4">
         <StatCard
-          label="Total Viewers"
-          value="48,291"
-          delta="↑ 12.4% vs yesterday"
+          label="Total Subscribers"
+          value={stats.subscribers.toLocaleString()}
+          delta="Real-time"
           deltaColor="#16A34A"
         />
         <StatCard
-          label="Live Streams"
-          value="2"
-          note="YouTube + Facebook"
+          label="Total Views"
+          value={stats.views.toLocaleString()}
+          note="YouTube Channel"
         />
         <StatCard
-          label="Scheduled Today"
-          value="5"
-          note="3 remaining"
+          label="Videos"
+          value={stats.videos.toLocaleString()}
+          note="Total uploaded"
         />
         <StatCard
-          label="Posts Scheduled"
-          value="23"
-          delta="↑ 3 vs last week"
+          label="Active Brand"
+          value={activeBrand?.name || "N/A"}
+          delta="Selected"
           deltaColor="#16A34A"
         />
       </div>
@@ -163,17 +209,28 @@ export function DashboardPage() {
               <div className="w-2 h-2 rounded-full bg-red-600 animate-ping" />
             </div>
             <div className="flex flex-col gap-1">
-              {platforms.map((p, i) => (
-                <div
-                  key={p.name}
-                  className={`flex items-center gap-3 py-3 ${i < platforms.length - 1 ? "border-b border-white/5" : ""}`}
-                >
-                  <PlatformIcon platform={p.name} size={20} />
-                  <span className="text-xs font-bold text-gray-200 flex-1">{p.name}</span>
-                  <span className="text-[9px] font-black text-gray-500 bg-white/5 px-2 py-0.5 rounded uppercase">{p.quality}</span>
-                  <MetricToggle on={p.on} />
-                </div>
-              ))}
+              {[
+                { name: "YouTube", quality: "1080p" },
+                { name: "Facebook", quality: "720p" },
+                { name: "TikTok", quality: "720p" },
+                { name: "Instagram", quality: "720p" },
+                { name: "Twitch", quality: "1080p" },
+                { name: "LinkedIn", quality: "720p" },
+                { name: "X", quality: "480p" },
+              ].map((p, i, arr) => {
+                const isConnected = metrics.some(m => m.platform === p.name.toUpperCase() || (p.name === 'X' && m.platform === 'TWITTER_X'));
+                return (
+                  <div
+                    key={p.name}
+                    className={`flex items-center gap-3 py-3 ${i < arr.length - 1 ? "border-b border-white/5" : ""}`}
+                  >
+                    <PlatformIcon platform={p.name} size={20} />
+                    <span className="text-xs font-bold text-gray-200 flex-1">{p.name}</span>
+                    <span className="text-[9px] font-black text-gray-500 bg-white/5 px-2 py-0.5 rounded uppercase">{p.quality}</span>
+                    <MetricToggle on={isConnected} />
+                  </div>
+                );
+              })}
             </div>
           </div>
 

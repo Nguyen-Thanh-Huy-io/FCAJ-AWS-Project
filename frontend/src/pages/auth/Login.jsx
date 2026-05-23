@@ -115,6 +115,7 @@ export function LoginPage({ initialScreen = "login" }) {
     setIsLoading(true);
     try {
       await login(email, password);
+      navigate("/dashboard");
     } catch (err) {
       if (err.message.includes("Account not activated")) {
         localStorage.setItem("isVerifyingOTP", "true");
@@ -201,6 +202,15 @@ export function LoginPage({ initialScreen = "login" }) {
   const STRENGTH_COLOR = ["#E5E7EB", "#DC2626", "#D97706", "#16A34A", "#16A34A"];
   const STRENGTH_LABEL = ["", "Weak", "Medium", "Strong", "Very Strong"];
 
+  const handleGoogleLogin = async () => {
+    try {
+      const { url } = await authService.getGoogleLoginUrl();
+      if (url) window.location.href = url;
+    } catch (err) {
+      toast.error("Không thể khởi động đăng nhập Google");
+    }
+  };
+
   if (screen === "login" || screen === "signup" || screen === "verify-otp") {
     return (
       <div className="flex h-screen w-full bg-white overflow-hidden">
@@ -271,14 +281,15 @@ export function LoginPage({ initialScreen = "login" }) {
                 </div>
 
                 <div className="flex flex-col gap-3 mb-8">
-                  {[
-                    { label: "Continue with Google", bg: "#FFF", color: "#0A0A0A", border: "0.5px solid #E5E7EB", icon: "G" },
-                    { label: "Continue with Apple", bg: "#0A0A0A", color: "#FFF", border: "none", icon: "🍎" },
-                  ].map((btn) => (
-                    <button key={btn.label} style={{ width: "100%", height: 46, borderRadius: 10, background: btn.bg, color: btn.color, fontSize: 14, fontWeight: 400, cursor: "pointer", border: btn.border, display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
-                      <span style={{ fontWeight: 700, fontSize: 16 }}>{btn.icon}</span> {btn.label}
-                    </button>
-                  ))}
+                  <button 
+                    onClick={handleGoogleLogin}
+                    style={{ width: "100%", height: 46, borderRadius: 10, background: "#FFF", color: "#0A0A0A", fontSize: 14, fontWeight: 400, cursor: "pointer", border: "0.5px solid #E5E7EB", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}
+                  >
+                    <span style={{ fontWeight: 700, fontSize: 16 }}>G</span> Continue with Google
+                  </button>
+                  <button style={{ width: "100%", height: 46, borderRadius: 10, background: "#0A0A0A", color: "#FFF", fontSize: 14, fontWeight: 400, cursor: "pointer", border: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}>
+                    <span style={{ fontWeight: 700, fontSize: 16 }}>🍎</span> Continue with Apple
+                  </button>
                 </div>
 
                 <div style={{ textAlign: "center", fontSize: 14, color: "#6B7280" }}>

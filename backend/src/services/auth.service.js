@@ -4,6 +4,8 @@ const otpService = require('./otp.service');
 const emailService = require('./email.service');
 const jwtUtils = require('../utils/jwt.utils');
 const redisClient = require('../config/redis');
+const googleOAuthService = require('./google-oauth.service');
+const brandService = require('./brand.service');
 
 const { USER_STATUS, AUTH_PROVIDERS, ERROR_MESSAGES } = require('../utils/constants');
 
@@ -15,8 +17,11 @@ const MAX_RESET_OTP_ATTEMPTS = 3;
 class AuthService {
   async register(name, email, password) {
     const normalizedEmail = email.toLowerCase();
+    console.log(`Starting registration for: ${normalizedEmail}`);
+    
     const existingUser = await userRepository.findByEmail(normalizedEmail);
     if (existingUser) {
+      console.warn(`Registration failed: Email ${normalizedEmail} already exists`);
       const error = new Error(ERROR_MESSAGES.EMAIL_ALREADY_EXISTS);
       error.status = 409;
       throw error;
@@ -24,15 +29,32 @@ class AuthService {
 
     const passwordHash = await bcrypt.hash(password, 10);
     
+    console.log(`Creating user record for: ${normalizedEmail}`);
     // Create user with isEmailVerified = false (pending verification)
     const user = await userRepository.createUser(
       { name, email: normalizedEmail, isActive: false, isEmailVerified: false },
       { provider: AUTH_PROVIDERS.LOCAL, passwordHash }
     );
 
+    console.log(`User created with ID: ${user.id}. Creating default brand...`);
+    // Auto-create default brand
+    await brandService.createDefaultBrand(user.id);
+
     const otp = await otpService.generateOTP();
+    console.log(`Generated OTP for ${normalizedEmail}: ${otp}`);
+    
     await otpService.saveOTP(normalizedEmail, otp);
-    await emailService.sendOTP(normalizedEmail, otp);
+    console.log(`Saved OTP to Redis for ${normalizedEmail}`);
+    
+    try {
+      await emailService.sendOTP(normalizedEmail, otp);
+      console.log(`OTP email sent successfully to ${normalizedEmail}`);
+    } catch (emailError) {
+      console.error(`Failed to send OTP email to ${normalizedEmail}:`, emailError);
+      // We don't throw here to avoid 500, but the user won't get the email
+      // Actually, maybe we SHOULD throw so the frontend knows it failed
+      throw new Error('Không thể gửi mã OTP. Vui lòng kiểm tra lại email hoặc thử lại sau.');
+    }
 
     return user;
   }
@@ -67,13 +89,17 @@ class AuthService {
       id: user.id
     });
 
-    // Hash and save refresh token to Redis
+    // Hash and save refresh token to Redis if available
     const hashedRefreshToken = jwtUtils.hashRefreshToken(refreshToken);
-    await redisClient.setEx(
-      `refresh:${user.id}`,
-      jwtUtils.getRefreshTokenRedisExpiry(),
-      hashedRefreshToken
-    );
+    if (redisClient.isOpen) {
+      await redisClient.setEx(
+        `refresh:${user.id}`,
+        jwtUtils.getRefreshTokenRedisExpiry(),
+        hashedRefreshToken
+      );
+    } else {
+      console.warn('Redis is not connected. Refresh token not persisted.');
+    }
 
     return { 
       message: ERROR_MESSAGES.ACTIVATION_SUCCESS,
@@ -173,13 +199,17 @@ class AuthService {
       id: user.id
     });
 
-    // Hash and save refresh token to Redis
+    // Hash and save refresh token to Redis if available
     const hashedRefreshToken = jwtUtils.hashRefreshToken(refreshToken);
-    await redisClient.setEx(
-      `refresh:${user.id}`,
-      jwtUtils.getRefreshTokenRedisExpiry(),
-      hashedRefreshToken
-    );
+    if (redisClient.isOpen) {
+      await redisClient.setEx(
+        `refresh:${user.id}`,
+        jwtUtils.getRefreshTokenRedisExpiry(),
+        hashedRefreshToken
+      );
+    } else {
+      console.warn('Redis is not connected. Refresh token not persisted.');
+    }
 
     return {
       accessToken,
@@ -260,6 +290,78 @@ class AuthService {
   async logout(userId) {
     await redisClient.del(`refresh:${userId}`);
     return { message: 'Logout successful' };
+  }
+
+  async getGoogleAuthUrl(redirectUri) {
+    const scopes = [
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/userinfo.profile'
+    ];
+    return googleOAuthService.getAuthUrl(scopes, 'login', redirectUri);
+  }
+
+  async handleGoogleCallback(code, redirectUri) {
+    const tokens = await googleOAuthService.getTokens(code, redirectUri);
+    const profile = await googleOAuthService.getUserInfo(tokens);
+
+    if (!profile.email) {
+      throw new Error('Google account must have an email');
+    }
+
+    const userData = {
+      email: profile.email,
+      name: profile.name,
+      avatarUrl: profile.picture
+    };
+
+    const accountData = {
+      provider: AUTH_PROVIDERS.GOOGLE,
+      providerId: profile.id
+    };
+
+    const result = await userRepository.upsertSocialUser(userData, accountData);
+    const user = result.user;
+
+    // Auto-create default brand if missing
+    const brands = await brandService.getUserBrands(user.id);
+    if (brands.length === 0) {
+      console.log(`Google user ${user.id} has no brands. Creating default 'Empty brand'...`);
+      await brandService.createDefaultBrand(user.id);
+    }
+
+    // Generate JWT tokens
+    const accessToken = jwtUtils.generateAccessToken({
+      id: user.id,
+      email: user.email,
+      role: user.role
+    });
+
+    const refreshToken = jwtUtils.generateRefreshToken({
+      id: user.id
+    });
+
+    // Hash and save refresh token to Redis if available
+    const hashedRefreshToken = jwtUtils.hashRefreshToken(refreshToken);
+    if (redisClient.isOpen) {
+      await redisClient.setEx(
+        `refresh:${user.id}`,
+        jwtUtils.getRefreshTokenRedisExpiry(),
+        hashedRefreshToken
+      );
+    } else {
+      console.warn('Redis is not connected. Refresh token not persisted.');
+    }
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role
+      }
+    };
   }
 
   /**

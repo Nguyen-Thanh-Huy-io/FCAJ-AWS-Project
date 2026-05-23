@@ -14,13 +14,15 @@ export const AuthProvider = ({ children }) => {
     try {
       const res = await profileService.getUserProfile();
       if (res && res.data) {
+        // profileService returns response.data which is { message, data: { user } }
         setUser(res.data);
         setIsAuthenticated(true);
+      } else {
+        setIsAuthenticated(false);
       }
     } catch (error) {
       setUser(null);
       setIsAuthenticated(false);
-      // Don't toast error here as it runs on every page load
     } finally {
       setLoading(false);
     }

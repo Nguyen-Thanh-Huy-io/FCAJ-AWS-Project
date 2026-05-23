@@ -17,8 +17,10 @@ const authorize = (...allowedRoles) => {
     const userRole = (typeof roleData === 'string' ? roleData : roleData?.name)?.toUpperCase();
 
     if (!userRole || !allowedRoles.includes(userRole)) {
+      const rolesList = allowedRoles.filter(Boolean).join(', ');
+      console.warn(`Access denied for role: ${userRole}. Required one of: ${rolesList}`);
       return res.status(403).json({
-        message: `Access denied. Only ${allowedRoles.join(', ')} roles are allowed.`
+        message: `Access denied. Only ${rolesList} roles are allowed.`
       });
     }
 
@@ -45,10 +47,19 @@ const authorizeUser = authorize(USER_ROLES.USER);
  * All authenticated roles can access
  */
 const authorizeAny = authorize(
+  USER_ROLES.OWNER,
   USER_ROLES.ADMIN, 
   USER_ROLES.MANAGER, 
   USER_ROLES.STAFF, 
-  USER_ROLES.USER
+  USER_ROLES.USER,
+  USER_ROLES.EDITOR,
+  USER_ROLES.VIEWER,
+  USER_ROLES.ANALYST,
+  USER_ROLES.STREAM_MANAGER,
+  USER_ROLES.CONTENT_MANAGER,
+  USER_ROLES.CONTENT_CREATOR,
+  USER_ROLES.STREAM_OPERATOR,
+  USER_ROLES.CLIENT
 );
 
 module.exports = {

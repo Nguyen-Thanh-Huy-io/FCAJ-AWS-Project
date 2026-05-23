@@ -1,6 +1,10 @@
 // Placeholder pages for less-prioritized sections
 
-import { BarChart2, Megaphone, Users, FileText, Link2, Search } from "lucide-react";
+import { useState, useEffect } from "react";
+import { BarChart2, Megaphone, Users, FileText, Link2, Search, Loader2 } from "lucide-react";
+import brandService from "../../services/brand.service";
+import socialService from "../../services/social.service";
+import { toast } from "sonner";
 
 function EmptyPage({ icon, title, subtitle, action, onAction }) {
   return (
@@ -155,6 +159,47 @@ export function SmartLinksPage() {
 }
 
 export function ConnectPlatformsPage() {
+  const [brands, setBrands] = useState([]);
+  const [selectedBrandId, setSelectedBrandId] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchBrands = async () => {
+      try {
+        const response = await brandService.getBrands();
+        setBrands(response.data);
+        if (response.data.length > 0) {
+          setSelectedBrandId(response.data[0].id);
+        }
+      } catch (error) {
+        toast.error("Failed to load brands");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchBrands();
+  }, []);
+
+  const handleConnect = async (platform) => {
+    if (!selectedBrandId) {
+      toast.error("Please select or create a brand first");
+      return;
+    }
+
+    if (platform === "YouTube") {
+      try {
+        const response = await socialService.getGoogleAuthUrl(selectedBrandId);
+        if (response.url) {
+          window.location.href = response.url;
+        }
+      } catch (error) {
+        toast.error(error.message || "Failed to start connection");
+      }
+    } else {
+      toast.info(`${platform} integration is coming soon!`);
+    }
+  };
+
   const platforms = [
     { name: "YouTube", emoji: "▶️", desc: "Schedule posts, view analytics, go live" },
     { name: "Facebook", emoji: "📘", desc: "Schedule posts, manage pages, run ads" },
@@ -166,43 +211,60 @@ export function ConnectPlatformsPage() {
     { name: "Google Analytics", emoji: "📊", desc: "Track website traffic and conversions" },
   ];
 
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-[#F8F8F7]">
+        <Loader2 className="animate-spin text-gray-300" size={40} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 overflow-y-auto flex items-start justify-center" style={{ background: "#F8F8F7", padding: "40px 24px" }}>
       <div style={{ maxWidth: 680, width: "100%" }}>
-        <div className="flex items-center gap-2 mb-8">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i <= 2 ? "#0A0A0A" : "#E5E7EB" }} />
-          ))}
+        {/* Brand Selector */}
+        <div className="mb-8 p-6 bg-white rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+           <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#0A0A0A] flex items-center justify-center text-white font-bold">B</div>
+              <div>
+                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Connected Brand</div>
+                 <select 
+                   value={selectedBrandId}
+                   onChange={(e) => setSelectedBrandId(e.target.value)}
+                   className="text-sm font-bold bg-transparent border-none outline-none cursor-pointer"
+                 >
+                    {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                 </select>
+              </div>
+           </div>
+           <button className="text-xs font-bold text-blue-600">+ New Brand</button>
         </div>
 
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontSize: 10, fontWeight: 500, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 6 }}>Step 2 of 4</div>
           <h2 style={{ fontSize: 22, fontWeight: 500, color: "#0A0A0A", marginBottom: 8 }}>Which platforms do you manage?</h2>
-          <p style={{ fontSize: 14, color: "#6B7280" }}>Connect at least one to get started. You can add more later.</p>
+          <p style={{ fontSize: 14, color: "#6B7280" }}>Connect your accounts to enable analytics and publishing.</p>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          {platforms.map((p) => (
-            <div key={p.name} style={{ background: "#FFF", border: "0.5px solid #E5E7EB", borderRadius: 12, padding: 16, display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ fontSize: 28, flexShrink: 0 }}>{p.emoji}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: "#0A0A0A", marginBottom: 2 }}>{p.name}</div>
-                <div style={{ fontSize: 11, color: "#9CA3AF" }}>{p.desc}</div>
+          {platforms.map((p) => {
+            const isConnected = brands.find(b => b.id === selectedBrandId)?.socialAccounts?.some(sa => sa.platform === p.name.toUpperCase());
+            return (
+              <div key={p.name} style={{ background: "#FFF", border: isConnected ? "1.5px solid #16A34A" : "0.5px solid #E5E7EB", borderRadius: 12, padding: 16, display: "flex", alignItems: "center", gap: 12, position: 'relative' }}>
+                <span style={{ fontSize: 28, flexShrink: 0 }}>{p.emoji}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: "#0A0A0A", marginBottom: 2 }}>{p.name}</div>
+                  <div style={{ fontSize: 11, color: "#9CA3AF" }}>{p.desc}</div>
+                </div>
+                <button 
+                  onClick={() => handleConnect(p.name)}
+                  disabled={isConnected}
+                  className={`px-4 py-1.5 rounded-lg text-[11px] font-bold uppercase transition-all ${isConnected ? 'bg-green-50 text-green-600' : 'bg-[#0A0A0A] text-white hover:bg-gray-800'}`}
+                >
+                  {isConnected ? 'Connected' : 'Connect'}
+                </button>
               </div>
-              <button style={{ padding: "6px 14px", borderRadius: 8, background: "#0A0A0A", color: "#FFF", fontSize: 11, fontWeight: 500, cursor: "pointer", border: "none", flexShrink: 0 }}>
-                Connect
-              </button>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex items-center justify-between mt-8">
-          <button style={{ padding: "8px 16px", borderRadius: 8, fontSize: 12, color: "#9CA3AF", cursor: "pointer", background: "none", border: "none" }}>
-            Skip this step
-          </button>
-          <button style={{ padding: "10px 24px", borderRadius: 8, background: "#0A0A0A", color: "#FFF", fontSize: 13, fontWeight: 500, cursor: "pointer", border: "none" }}>
-            Continue →
-          </button>
+            );
+          })}
         </div>
       </div>
     </div>

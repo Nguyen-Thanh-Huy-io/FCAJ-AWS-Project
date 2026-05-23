@@ -14,7 +14,7 @@ async function main() {
   await prisma.planLimit.deleteMany({});
 
   console.log('Seeding PlanLimits...');
-  const limit = await prisma.planLimit.create({
+  const proLimit = await prisma.planLimit.create({
     data: {
       maxBrands: 5,
       maxSocialProfiles: 10,
@@ -27,15 +27,40 @@ async function main() {
     }
   });
 
+  const freeLimit = await prisma.planLimit.create({
+    data: {
+      maxBrands: 1,
+      maxSocialProfiles: 2,
+      maxPostsPerMonth: 10,
+      maxLivePlatforms: 1,
+      maxStreamQuality: 'SD',
+      maxTeamSeats: 1,
+      allowCustomRoles: false,
+      allowApprovalWorkflow: false
+    }
+  });
+
   console.log('Seeding Plans...');
-  const plan = await prisma.plan.create({
+  const proPlan = await prisma.plan.create({
     data: {
       name: 'PRO',
       priceAmount: 29.00,
       currency: 'USD',
       billingCycle: 'MONTHLY',
       description: 'Professional Plan',
-      planLimitId: limit.id,
+      planLimitId: proLimit.id,
+      isActive: true
+    }
+  });
+
+  const freePlan = await prisma.plan.create({
+    data: {
+      name: 'FREE',
+      priceAmount: 0,
+      currency: 'USD',
+      billingCycle: 'MONTHLY',
+      description: 'Free Plan',
+      planLimitId: freeLimit.id,
       isActive: true
     }
   });
@@ -45,7 +70,7 @@ async function main() {
   const passwordHash = '$2a$10$tMhPqW9gZ72bM7d/vXlU7eS0mD1zZl/z/n6J3c9i7o9B01G5C5.P.';
   const user = await prisma.user.create({
     data: {
-      email: 'trongphuc91thcsduclap@gmail.com',
+      email: 'vothanhnha26@gmail.com',
       passwordHash: passwordHash,
       name: 'Nhã Võ',
       role: 'ADMIN',
@@ -68,7 +93,7 @@ async function main() {
   console.log('Seeding Subscription...');
   const subscription = await prisma.subscription.create({
     data: {
-      planId: plan.id,
+      planId: proPlan.id,
       status: 'ACTIVE',
       currentPeriodStart: new Date(),
       currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)

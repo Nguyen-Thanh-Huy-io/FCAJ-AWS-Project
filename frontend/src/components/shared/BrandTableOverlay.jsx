@@ -1,12 +1,7 @@
 import React from "react";
 import { X, Search, Youtube, ExternalLink, ArrowUp, ArrowDown } from "lucide-react";
 
-const BRANDS_DATA = [
-  { id: 1, name: "Empty brand", initial: "C", color: "#E1306C", networks: ["youtube"], owner: "vothanhnha26@gmail.com" },
-  { id: 2, name: "TechVN Studio", initial: "T", color: "#4F46E5", networks: ["youtube", "facebook"], owner: "vothanhnha26@gmail.com" },
-];
-
-export function BrandTableOverlay({ isOpen, onClose, onSelect }) {
+export function BrandTableOverlay({ isOpen, onClose, onSelect, brands = [] }) {
   if (!isOpen) return null;
 
   return (
@@ -47,21 +42,24 @@ export function BrandTableOverlay({ isOpen, onClose, onSelect }) {
 
            {/* Table Rows */}
            <div className="space-y-3">
-              {BRANDS_DATA.map((brand) => (
+              {brands.length === 0 ? (
+                <div className="text-center py-10 text-gray-400 text-sm font-medium">No brands available</div>
+              ) : brands.map((brand) => (
                 <div key={brand.id} className="grid grid-cols-12 items-center px-6 py-4 rounded-xl border border-gray-100 bg-white shadow-sm hover:border-gray-200 transition-all group">
                    <div className="col-span-4 flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-sm" style={{ backgroundColor: brand.color }}>
-                         {brand.initial}
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-sm" style={{ backgroundColor: '#E1306C' }}>
+                         {brand.name.charAt(0)}
                       </div>
                       <span className="text-sm font-bold text-[#0A0A0A]">{brand.name}</span>
                    </div>
                    
                    <div className="col-span-2 flex items-center gap-2">
-                      {brand.networks.includes("youtube") && <Youtube size={18} className="text-red-600" />}
+                      {brand.socialAccounts?.some(sa => sa.platform === 'YOUTUBE') && <Youtube size={18} className="text-red-600" />}
+                      {brand.socialAccounts?.some(sa => sa.platform === 'FACEBOOK') && <Facebook size={18} className="text-blue-600" />}
                    </div>
 
                    <div className="col-span-4 text-xs text-gray-500 font-medium">
-                      {brand.owner}
+                      {brand.owner?.email || 'N/A'}
                    </div>
 
                    <div className="col-span-2 flex items-center justify-end gap-5">

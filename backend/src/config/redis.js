@@ -77,12 +77,22 @@ if (process.env.USE_MEMORY_REDIS === 'true') {
   module.exports = createMemoryRedisClient();
 } else {
   const redisClient = createClient({
-    url: `redis://${process.env.REDIS_HOST || '127.0.0.1'}:${process.env.REDIS_PORT || 6379}`
+    url: `redis://${process.env.REDIS_HOST || '127.0.0.1'}:${process.env.REDIS_PORT || 6379}`,
+    socket: {
+      reconnectStrategy: (retries) => {
+        if (retries > 10) {
+          console.error('Redis max reconnection retries reached');
+          return new Error('Redis max reconnection retries reached');
+        }
+        return Math.min(retries * 50, 1000);
+      },
+      connectTimeout: 20000
+    }
   });
 
   redisClient.on('error', (err) => {
     if (process.env.NODE_ENV !== 'test') {
-      console.error('Redis Client Error', err);
+      console.error('Redis Client Error:', err.message);
     }
   });
 

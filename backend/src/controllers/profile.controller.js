@@ -1,5 +1,6 @@
 const userRepository = require('../repositories/user.repository');
 const profileService = require('../services/profile.service');
+const brandService = require('../services/brand.service');
 
 class ProfileController {
   /**
@@ -12,6 +13,20 @@ class ProfileController {
 
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Check if user has any brands. If not, create one.
+      const brands = await brandService.getUserBrands(user.id);
+      console.log(`User ${user.id} has ${brands.length} brands.`);
+      if (brands.length === 0) {
+        console.log(`Creating default 'Empty brand' for user ${user.id}...`);
+        try {
+          const newBrand = await brandService.createDefaultBrand(user.id);
+          console.log(`Successfully created default brand: ${newBrand.id}`);
+        } catch (brandError) {
+          console.error(`Failed to auto-create brand for user ${user.id}:`, brandError.message);
+          // Don't fail the whole profile request, but log it
+        }
       }
 
       res.status(200).json({

@@ -3,6 +3,61 @@ const loginRateLimiter = require('../middlewares/login-rate-limit.middleware');
 const { ERROR_MESSAGES } = require('../utils/constants');
 
 class AuthController {
+  /**
+   * Get Google Login URL
+   * GET /api/auth/google
+   */
+  async googleLogin(req, res) {
+    try {
+      const redirectUri = `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
+      console.log('Google Login Request - redirectUri:', redirectUri);
+      const url = await authService.getGoogleAuthUrl(redirectUri);
+      res.json({ url });
+    } catch (error) {
+      console.error('Google Login Error:', error);
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  /**
+   * Google OAuth Callback
+   * GET /api/auth/google/callback
+   */
+  async googleCallback(req, res) {
+    const { code } = req.query;
+    const redirectUri = `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+    try {
+      const result = await authService.handleGoogleCallback(code, redirectUri);
+
+      // Set HttpOnly cookies for tokens
+      const accessTokenMaxAge = 15 * 60 * 1000;
+      const refreshTokenMaxAge = 7 * 24 * 60 * 60 * 1000;
+
+      res.cookie('accessToken', result.accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: accessTokenMaxAge,
+        path: '/'
+      });
+
+      res.cookie('refreshToken', result.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: refreshTokenMaxAge,
+        path: '/'
+      });
+
+      // Redirect to dashboard with success
+      res.redirect(`${frontendUrl}/dashboard?success=google_login`);
+    } catch (error) {
+      res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(error.message)}`);
+    }
+  }
+
   async register(req, res) {
     try {
       const { name, email, password } = req.body;
@@ -30,7 +85,7 @@ class AuthController {
         res.cookie('accessToken', result.accessToken, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
+          sameSite: 'lax',
           maxAge: accessTokenMaxAge,
           path: '/'
         });
@@ -38,7 +93,7 @@ class AuthController {
         res.cookie('refreshToken', result.refreshToken, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
+          sameSite: 'lax',
           maxAge: refreshTokenMaxAge,
           path: '/'
         });
@@ -122,7 +177,7 @@ class AuthController {
       res.cookie('accessToken', result.accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'lax',
         maxAge: accessTokenMaxAge,
         path: '/'
       });
@@ -130,7 +185,7 @@ class AuthController {
       res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'lax',
         maxAge: refreshTokenMaxAge,
         path: '/'
       });
@@ -138,6 +193,8 @@ class AuthController {
       res.status(200).json({
         message: ERROR_MESSAGES.LOGIN_SUCCESS,
         role: result.role,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
         redirectUrl: result.role === 'ADMIN' ? '/admin/profile' : '/user/profile',
         user: result.user
       });
@@ -184,7 +241,7 @@ class AuthController {
       res.cookie('accessToken', result.accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'lax',
         maxAge: accessTokenMaxAge,
         path: '/'
       });
@@ -192,7 +249,7 @@ class AuthController {
       res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'lax',
         maxAge: refreshTokenMaxAge,
         path: '/'
       });

@@ -1,10 +1,16 @@
 import apiService from './api';
 
 class AuthService {
+  async getGoogleLoginUrl() {
+    const response = await apiService.get('/auth/google');
+    return response.data;
+  }
+
   async login(payload) {
     const response = await apiService.post('/auth/login', payload);
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
+    const token = response.data.accessToken || response.data.token;
+    if (token) {
+      localStorage.setItem('token', token);
     }
     return response.data;
   }
@@ -16,8 +22,9 @@ class AuthService {
 
   async verifyOTP(payload) {
     const response = await apiService.post('/auth/verify-otp', payload);
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
+    const token = response.data.accessToken || response.data.token;
+    if (token) {
+      localStorage.setItem('token', token);
     }
     return response.data;
   }

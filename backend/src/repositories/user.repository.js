@@ -80,28 +80,99 @@ class UserRepository {
     });
   }
 
-  /**
-   * Update user profile
-   */
-  async updateProfile(userId, profileData) {
-    const updateData = {};
-    
-    // Map old field names to new ones
-    if (profileData.fullName) updateData.name = profileData.fullName;
-    if (profileData.name) updateData.name = profileData.name;
-    if (profileData.avatarUrl !== undefined) updateData.avatarUrl = profileData.avatarUrl;
-    if (profileData.phone !== undefined) updateData.phone = profileData.phone;
-    if (profileData.address !== undefined) updateData.address = profileData.address;
-    if (profileData.industry !== undefined) updateData.industry = profileData.industry;
-    if (profileData.bio !== undefined) updateData.bio = profileData.bio;
-    if (profileData.language) updateData.language = profileData.language;
-    if (profileData.timezone) updateData.timezone = profileData.timezone;
-    
+  async findByProviderId(provider, providerId) {
+    return await prisma.user.findFirst({
+      where: {
+        accounts: {
+          some: {
+            provider,
+            providerId
+          }
+        }
+      },
+      include: { accounts: true, customRole: true }
+    });
+  }
+
+  async updateProfile(userId, updateData) {
     return await prisma.user.update({
       where: { id: userId },
       data: updateData,
       include: { customRole: true, accounts: true }
     });
+  }
+
+  async upsertSocialUser(userData, accountData) {
+    const { email, name, avatarUrl } = userData;
+    const { provider, providerId } = accountData;
+
+    // Try to find user by email first to link accounts
+    const existingUser = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+      include: { accounts: true }
+    });
+
+    if (existingUser) {
+      // Check if this provider account already exists
+      const existingAccount = existingUser.accounts.find(acc => acc.provider === provider);
+      
+      if (!existingAccount) {
+        // Link new social account to existing user
+        await prisma.userAccount.create({
+          data: {
+            userId: existingUser.id,
+            provider,
+            providerId,
+            lastLoginAt: new Date()
+          }
+        });
+      } else {
+        // Update existing account's lastLoginAt
+        await prisma.userAccount.update({
+          where: { id: existingAccount.id },
+          data: { lastLoginAt: new Date() }
+        });
+      }
+
+      // Update profile info if missing
+      const user = await prisma.user.update({
+        where: { id: existingUser.id },
+        data: {
+          name: existingUser.name || name,
+          avatarUrl: existingUser.avatarUrl || avatarUrl,
+          isActive: true,
+          isEmailVerified: true,
+          lastLoginAt: new Date()
+        },
+        include: { accounts: true, customRole: true }
+      });
+
+      return { user, isNew: false };
+    }
+
+    // Create new user if not exists
+    const newUser = await prisma.user.create({
+      data: {
+        email: email.toLowerCase(),
+        name: name,
+        avatarUrl: avatarUrl,
+        passwordHash: 'SOCIAL_AUTH_NO_PASSWORD',
+        role: 'OWNER',
+        isActive: true,
+        isEmailVerified: true,
+        lastLoginAt: new Date(),
+        accounts: {
+          create: {
+            provider,
+            providerId,
+            lastLoginAt: new Date()
+          }
+        }
+      },
+      include: { accounts: true, customRole: true }
+    });
+
+    return { user: newUser, isNew: true };
   }
 }
 

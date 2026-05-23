@@ -18,6 +18,10 @@ model User {
   passwordHash String
   name         String
   avatarUrl    String?
+  phone        String?
+  address      String?
+  industry     String?
+  bio          String?   @db.Text
   role         UserRole  @default(OWNER)
   customRoleId String?
   isActive        Boolean   @default(true)
@@ -299,8 +303,8 @@ model SocialAccount {
   username          String
   displayName       String
   profilePictureUrl String?
-  accessToken       String
-  refreshToken      String?
+  accessToken       String       @db.Text
+  refreshToken      String?      @db.Text
   tokenExpiresAt    DateTime?
   scopes            String       @db.Text
   isConnected       Boolean      @default(true)
@@ -316,10 +320,33 @@ model SocialAccount {
   facebookPage     FacebookPage?
   tikTokAccount    TikTokAccount?
   linkedInAccount  LinkedInAccount?
+  youtubeChannel   YouTubeChannel?
 
   @@unique([brandId, platform, platformAccountId])
   @@index([brandId])
   @@map("social_accounts")
+}
+
+model YouTubeChannel {
+  id                    String  @id @default(uuid())
+  socialAccountId       String  @unique
+  channelId             String  // ID gốc từ YouTube (UCxxxxxxxx)
+  customUrl             String? // @handle
+  subscribersCount      Int     @default(0)
+  totalVideosCount      Int     @default(0)
+  totalViewsCount       Int     @default(0)
+  country               String?
+  defaultLanguage       String?
+  isVerified            Boolean @default(false)
+  isMonetized           Boolean @default(false)
+  supportsShorts        Boolean @default(true)
+  supportsLivestream    Boolean @default(false)
+  madeForKids           Boolean @default(false)
+  hiddenSubscriberCount Boolean @default(false)
+
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@map("youtube_channels")
 }
 
 model InstagramAccount {
@@ -583,9 +610,11 @@ model Analytics {
   fetchedAt       DateTime
   analyticsType   String
 
-  brand         Brand          @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  socialAccount SocialAccount? @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
-  adAccount     AdAccount?     @relation(fields: [adAccountId], references: [id], onDelete: Cascade)
+  brand           Brand            @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  socialAccount   SocialAccount?   @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  adAccount       AdAccount?       @relation(fields: [adAccountId], references: [id], onDelete: Cascade)
+  socialAnalytics SocialAnalytics?
+  adAnalytics     AdAnalytics?
 
   @@index([brandId])
   @@map("analytics")
@@ -615,6 +644,8 @@ model SocialAnalytics {
   hourlyEngagementJson     String?  @db.Text
   createdAt                DateTime @default(now())
 
+  analytics Analytics @relation(fields: [analyticsId], references: [id], onDelete: Cascade)
+
   @@map("social_analytics")
 }
 
@@ -640,6 +671,8 @@ model AdAnalytics {
   videoWatchRate        Float?
   campaignBreakdownJson String?  @db.Text
   createdAt             DateTime @default(now())
+
+  analytics Analytics @relation(fields: [analyticsId], references: [id], onDelete: Cascade)
 
   @@map("ad_analytics")
 }
@@ -969,6 +1002,9 @@ model SystemNotification {
 enum UserRole {
   OWNER
   ADMIN
+  MANAGER
+  STAFF
+  USER
   EDITOR
   VIEWER
   ANALYST

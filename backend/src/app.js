@@ -16,8 +16,16 @@ const inboxRoutes = require('./routes/inbox.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const revenueRoutes = require('./routes/revenue.routes');
 const productRoutes = require('./routes/product.routes');
+const socialRoutes = require('./routes/social.routes');
+const brandRoutes = require('./routes/brand.routes');
 
 const app = express();
+
+// Request logger
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
 
 // CORS config - Allow local development origins
 app.use(cors({
@@ -52,6 +60,8 @@ app.use('/api/inbox', inboxRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin/revenue', revenueRoutes);
 app.use('/api/admin/products', productRoutes);
+app.use('/api/social', socialRoutes);
+app.use('/api/brands', brandRoutes);
 
 app.get('/', (req, res) => {
   res.send('PubliCast API is running');

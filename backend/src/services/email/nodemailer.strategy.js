@@ -51,12 +51,19 @@ class NodemailerStrategy extends EmailStrategy {
       return;
     }
 
-    await this.transporter.sendMail({
-      from: `"PubliCast" <${this.senderEmail}>`,
-      to,
-      subject,
-      text
-    });
+    console.log(`Attempting to send email to: ${to} with subject: ${subject}`);
+    try {
+      await this.transporter.sendMail({
+        from: `"PubliCast" <${this.senderEmail}>`,
+        to,
+        subject,
+        text
+      });
+      console.log(`Email successfully sent to: ${to}`);
+    } catch (error) {
+      console.error(`Failed to send email to: ${to}`, error);
+      throw error;
+    }
   }
 }
 

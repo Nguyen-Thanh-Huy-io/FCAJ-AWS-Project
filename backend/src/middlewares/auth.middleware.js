@@ -9,11 +9,13 @@ const verifyAuth = (req, res, next) => {
     const token = req.cookies?.accessToken || jwtUtils.extractToken(req.headers.authorization);
 
     if (!token) {
+      console.warn('Auth missing: No token in cookies or headers');
       return res.status(401).json({ message: 'Access token required' });
     }
 
     // Verify token
     const decoded = jwtUtils.verifyAccessToken(token);
+    console.log('Auth success: User ID', decoded.id, 'Role', decoded.role);
 
     // Attach user info to request
     req.user = decoded;

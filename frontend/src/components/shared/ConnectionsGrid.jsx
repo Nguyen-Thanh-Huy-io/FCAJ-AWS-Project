@@ -4,67 +4,107 @@ import {
   Linkedin, Music2, Globe, Store, 
   Diamond, Check, X, Youtube, PlayCircle
 } from "lucide-react";
+import socialService from "../../services/social.service";
+import { toast } from "sonner";
 
 export const NETWORKS = [
-  { 
-    id: "web", name: "Web", icon: <Rss size={16} className="text-blue-400" />, 
-    btnText: "Connect a web page", btnBg: "bg-blue-400", connected: true, handle: "techvn.io"
-  },
-  { 
-    id: "blog", name: "Blog", icon: <Rss size={16} className="text-blue-300" />, 
-    btnText: "Connect a blog", btnBg: "bg-teal-200 opacity-60", 
-    note: "In order to connect a blog you need to connect a web page first."
-  },
-  { 
-    id: "facebook", name: "Facebook", icon: <Facebook size={16} className="text-blue-600" />, 
-    btnText: "Connect a Facebook page", btnBg: "bg-blue-600", connected: true, handle: "TechVN Studio"
-  },
-  { 
-    id: "instagram", name: "Instagram", icon: <Instagram size={16} className="text-pink-600" />, 
-    btnText: "Connect an Instagram professional account", btnBg: "bg-[#FF0069]", connected: false
-  },
-  { 
-    id: "threads", name: "Threads", icon: <Music2 size={16} className="text-black" />, 
-    btnText: "Connect a Threads account", btnBg: "bg-black", connected: false
-  },
-  { 
-    id: "x", name: "X", icon: <X size={16} className="text-black" />, 
-    btnText: "Connect a Twitter / X account", btnBg: "bg-[#FEFCE8]", btnTextColor: "text-gray-800", isPremium: true, connected: true, handle: "@techvn_io"
-  },
-  { 
-    id: "bluesky", name: "Bluesky", icon: <Globe size={16} className="text-blue-400" />, 
-    btnText: "Connect a Bluesky account", btnBg: "bg-blue-500", connected: false
-  },
-  { 
-    id: "linkedin", name: "LinkedIn", icon: <Linkedin size={16} className="text-blue-700" />, 
-    btnText: "Connect a LinkedIn account for 15 days for free", btnBg: "bg-[#FEFCE8]", btnTextColor: "text-gray-800", isPremium: true, connected: true, handle: "TechVN Company"
-  },
-  { 
-    id: "pinterest", name: "Pinterest", icon: <Check size={16} className="text-red-600" />, 
-    btnText: "Connect a Pinterest account", btnBg: "bg-red-600", connected: false
-  },
-  { 
-    id: "tiktok_personal", name: "TikTok personal", icon: <Music2 size={16} className="text-black" />, 
-    btnText: "Connect a TikTok personal account", btnBg: "bg-black", connected: true, handle: "@vothanhnha"
-  },
-  { 
-    id: "tiktok_business", name: "TikTok business", icon: <Music2 size={16} className="text-black" />, 
-    btnText: "Connect a TikTok business account", btnBg: "bg-black", connected: false
-  },
-  { 
-    id: "google", name: "Google Business Profile", icon: <Store size={16} className="text-blue-500" />, 
-    btnText: "Connect a Google Business Profile account", btnBg: "bg-blue-500", connected: false
-  },
-  { 
-    id: "youtube", name: "YouTube", icon: <Youtube size={16} className="text-red-600" />, 
-    btnText: "Connect a YouTube channel", btnBg: "bg-red-600", connected: true, handle: "@techvn_official"
-  },
+  // ... (keep the same array but I'll need it inside the component or export it)
 ];
 
-export function ConnectionsGrid({ className = "" }) {
+export function ConnectionsGrid({ className = "", brand }) {
+  const handleConnectYouTube = async () => {
+    if (!brand) {
+      toast.error("Please select a brand first");
+      return;
+    }
+    try {
+      const response = await socialService.getGoogleAuthUrl(brand.id);
+      if (response.url) {
+        window.location.href = response.url;
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to start YouTube connection");
+    }
+  };
+
+  const getStatus = (platformId) => {
+    if (!brand || !brand.socialAccounts) return { connected: false };
+    // Map internal IDs to PlatformType enum in Backend
+    const mapping = {
+      "facebook": "FACEBOOK",
+      "instagram": "INSTAGRAM",
+      "youtube": "YOUTUBE",
+      "tiktok_personal": "TIKTOK",
+      "linkedin": "LINKEDIN",
+      "x": "TWITTER_X"
+    };
+    const platform = mapping[platformId];
+    const account = brand.socialAccounts.find(sa => sa.platform === platform);
+    return {
+      connected: !!account,
+      handle: account?.username || account?.displayName
+    };
+  };
+
+  const networks = [
+    { 
+      id: "web", name: "Web", icon: <Rss size={16} className="text-blue-400" />, 
+      btnText: "Connect a web page", btnBg: "bg-blue-400", ...getStatus("web")
+    },
+    { 
+      id: "blog", name: "Blog", icon: <Rss size={16} className="text-blue-300" />, 
+      btnText: "Connect a blog", btnBg: "bg-teal-200 opacity-60", 
+      note: "In order to connect a blog you need to connect a web page first."
+    },
+    { 
+      id: "facebook", name: "Facebook", icon: <Facebook size={16} className="text-blue-600" />, 
+      btnText: "Connect a Facebook page", btnBg: "bg-blue-600", ...getStatus("facebook")
+    },
+    { 
+      id: "instagram", name: "Instagram", icon: <Instagram size={16} className="text-pink-600" />, 
+      btnText: "Connect an Instagram professional account", btnBg: "bg-[#FF0069]", ...getStatus("instagram")
+    },
+    { 
+      id: "threads", name: "Threads", icon: <Music2 size={16} className="text-black" />, 
+      btnText: "Connect a Threads account", btnBg: "bg-black", connected: false
+    },
+    { 
+      id: "x", name: "X", icon: <X size={16} className="text-black" />, 
+      btnText: "Connect a Twitter / X account", btnBg: "bg-[#FEFCE8]", btnTextColor: "text-gray-800", isPremium: true, ...getStatus("x")
+    },
+    { 
+      id: "bluesky", name: "Bluesky", icon: <Globe size={16} className="text-blue-400" />, 
+      btnText: "Connect a Bluesky account", btnBg: "bg-blue-500", connected: false
+    },
+    { 
+      id: "linkedin", name: "LinkedIn", icon: <Linkedin size={16} className="text-blue-700" />, 
+      btnText: "Connect a LinkedIn account for 15 days for free", btnBg: "bg-[#FEFCE8]", btnTextColor: "text-gray-800", isPremium: true, ...getStatus("linkedin")
+    },
+    { 
+      id: "pinterest", name: "Pinterest", icon: <Check size={16} className="text-red-600" />, 
+      btnText: "Connect a Pinterest account", btnBg: "bg-red-600", connected: false
+    },
+    { 
+      id: "tiktok_personal", name: "TikTok personal", icon: <Music2 size={16} className="text-black" />, 
+      btnText: "Connect a TikTok personal account", btnBg: "bg-black", ...getStatus("tiktok_personal")
+    },
+    { 
+      id: "tiktok_business", name: "TikTok business", icon: <Music2 size={16} className="text-black" />, 
+      btnText: "Connect a TikTok business account", btnBg: "bg-black", connected: false
+    },
+    { 
+      id: "google", name: "Google Business Profile", icon: <Store size={16} className="text-blue-500" />, 
+      btnText: "Connect a Google Business Profile account", btnBg: "bg-blue-500", connected: false
+    },
+    { 
+      id: "youtube", name: "YouTube", icon: <Youtube size={16} className="text-red-600" />, 
+      btnText: "Connect a YouTube channel", btnBg: "bg-red-600", ...getStatus("youtube")
+    },
+  ];
+
   return (
     <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-12 ${className}`}>
-      {NETWORKS.map((net) => (
+      {networks.map((net) => (
         <div key={net.id} className="space-y-4 relative group">
            {/* Network Label */}
            <div className="flex items-center gap-2 px-1">
@@ -75,6 +115,9 @@ export function ConnectionsGrid({ className = "" }) {
            {/* Connection Button */}
            <div className="relative">
               <button 
+                onClick={() => {
+                  if (net.id === "youtube") handleConnectYouTube();
+                }}
                 className={`w-full h-[60px] rounded-2xl flex items-center justify-between px-6 transition-all transform active:scale-95 shadow-sm border border-black/5 ${net.btnBg} ${net.btnTextColor || 'text-white'}`}
               >
                  <div className="flex-1 min-w-0 pr-4">

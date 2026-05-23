@@ -14,6 +14,10 @@ const { verifyAuth } = require('../middlewares/auth.middleware');
 
 const router = express.Router();
 
+// Google Auth
+router.get('/google', authController.googleLogin);
+router.get('/google/callback', authController.googleCallback);
+
 // Registration
 router.post('/register', authRateLimiter, registerValidation, authController.register);
 
