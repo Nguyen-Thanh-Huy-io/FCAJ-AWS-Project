@@ -1,6 +1,8 @@
 const googleOAuthService = require('../../services/social/google-oauth.service');
 const youtubeService = require('../../services/social/youtube');
 const socialAccountRepository = require('../../repositories/social/social-account.repository');
+const googleDriveService = require('../../services/social/google-drive.service');
+const prisma = require('../../config/prisma');
 
 class SocialController {
   async getGoogleAuthUrl(req, res) {
@@ -16,7 +18,8 @@ class SocialController {
         'https://www.googleapis.com/auth/youtube.force-ssl',
         'https://www.googleapis.com/auth/yt-analytics.readonly',
         'https://www.googleapis.com/auth/userinfo.email',
-        'https://www.googleapis.com/auth/userinfo.profile'
+        'https://www.googleapis.com/auth/userinfo.profile',
+        'https://www.googleapis.com/auth/drive.readonly'
       ];
       const redirectUri = `${req.protocol}://${req.get('host')}/api/social/google/callback`;
       const url = googleOAuthService.getAuthUrl(scopes, brandId, redirectUri);
@@ -154,6 +157,73 @@ class SocialController {
       const forceRefresh = sync === 'true' || sync === true;
       const playlists = await youtubeService.getPlaylists(brandId, forceRefresh);
       res.json({ data: playlists });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getGoogleDriveFiles(req, res) {
+    try {
+      const { brandId } = req.query;
+      if (!brandId) {
+        return res.status(400).json({ message: 'brandId is required' });
+      }
+
+      const files = await googleDriveService.listVideos(brandId);
+      
+      const socialAccount = await prisma.socialAccount.findFirst({
+        where: {
+          brandId,
+          platform: 'YOUTUBE'
+        }
+      });
+
+      res.json({ 
+        connected: true, 
+        data: files,
+        account: socialAccount ? {
+          displayName: socialAccount.displayName,
+          username: socialAccount.username,
+          profilePictureUrl: socialAccount.profilePictureUrl
+        } : null
+      });
+    } catch (error) {
+      if (error.code === 'NOT_CONNECTED') {
+        return res.json({ connected: false, data: [], account: null });
+      }
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async downloadGoogleDriveFile(req, res) {
+    try {
+      const { brandId, fileId, fileName } = req.body;
+      if (!brandId || !fileId || !fileName) {
+        return res.status(400).json({ message: 'brandId, fileId, and fileName are required' });
+      }
+
+      const localPath = await googleDriveService.downloadFile(brandId, fileId, fileName);
+      res.json({ videoUrl: localPath });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async disconnectGoogleAccount(req, res) {
+    try {
+      const { brandId } = req.body;
+      if (!brandId) {
+        return res.status(400).json({ message: 'brandId is required' });
+      }
+
+      await prisma.socialAccount.deleteMany({
+        where: {
+          brandId,
+          platform: 'YOUTUBE'
+        }
+      });
+
+      res.json({ success: true, message: 'Google account disconnected successfully' });
     } catch (error) {
       res.status(500).json({ message: error.message });
     }

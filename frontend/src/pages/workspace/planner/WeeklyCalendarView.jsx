@@ -4,13 +4,14 @@ import { Loader2 } from "lucide-react";
 import { usePostCreator } from "../../../context/PostCreatorContext";
 import apiService from "../../../services/api";
 import brandService from "../../../services/brand.service";
-import { toast } from "sonner";
+import { useGoogleDriveImport } from "../../../hooks/useGoogleDriveImport";
 
 // Import SOLID Subcomponents
 import { UpgradeBanner } from "./components/UpgradeBanner";
 import { PlannerToolbar } from "./components/PlannerToolbar";
 import { WeeklyGrid } from "./components/WeeklyGrid";
 import { SidebarIntegrations } from "./components/SidebarIntegrations";
+import { ImportOverlay } from "./components/ImportOverlay";
 
 export function WeeklyCalendarView() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -23,6 +24,9 @@ export function WeeklyCalendarView() {
   // Center date of current selected week (Defaults to May 24, 2026 as per original system context)
   const [selectedDate, setSelectedDate] = useState(new Date("2026-05-24"));
   const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // Custom Hook for Drive Imports (SOLID/SRP)
+  const { isImporting, importFromDrive } = useGoogleDriveImport(activeBrand);
 
   // Update current time every minute
   useEffect(() => {
@@ -147,25 +151,29 @@ export function WeeklyCalendarView() {
       )}
 
       {/* 3. Main Grid layout: Lịch bên trái, Tích hợp bên phải */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-6 items-start">
+      <div className="h-[750px] flex flex-col lg:flex-row gap-6 items-stretch mb-6">
         {/* Lưới lịch tuần */}
-        <div className="flex-1 w-full">
+        <div className="flex-1 w-full h-full">
           <WeeklyGrid
             selectedDate={selectedDate}
             groupedPosts={groupedPosts}
             currentTime={currentTime}
             onCellClick={handleCellClick}
             onPostClick={(post) => openPostCreator({ post })}
+            onCellDrop={importFromDrive}
           />
         </div>
 
         {/* Cột tích hợp bên phải */}
         {showSidebar && (
-          <div className="w-full lg:w-[280px] shrink-0 lg:sticky lg:top-4 animate-in slide-in-from-right duration-250">
-            <SidebarIntegrations />
+          <div className="w-full lg:w-[280px] shrink-0 h-full animate-in slide-in-from-right duration-250">
+            <SidebarIntegrations activeBrand={activeBrand} />
           </div>
         )}
       </div>
+
+      {/* Google Drive Import Backdrop Overlay */}
+      <ImportOverlay isOpen={isImporting} />
     </div>
   );
 }

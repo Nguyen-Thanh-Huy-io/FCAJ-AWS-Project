@@ -50,6 +50,21 @@ class SocialService {
     const response = await apiService.get(`/social/youtube/competitors?brandId=${brandId}`);
     return response.data;
   }
+
+  async getGoogleDriveFiles(brandId) {
+    const response = await apiService.get(`/social/google/drive/files?brandId=${brandId}`);
+    return response.data;
+  }
+
+  async downloadGoogleDriveFile(brandId, fileId, fileName) {
+    const response = await apiService.post('/social/google/drive/download', { brandId, fileId, fileName });
+    return response.data;
+  }
+
+  async disconnectGoogleAccount(brandId) {
+    const response = await apiService.post('/social/google/disconnect', { brandId });
+    return response.data;
+  }
 }
 
 const socialService = new SocialService();

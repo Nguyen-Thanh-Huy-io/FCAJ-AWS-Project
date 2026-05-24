@@ -23,4 +23,9 @@ router.get('/youtube/search-channels', verifyAuth, socialController.searchYouTub
 router.post('/youtube/competitors', verifyAuth, socialController.addYouTubeCompetitor);
 router.get('/youtube/competitors', verifyAuth, socialController.getYouTubeCompetitors);
 
+// Google Drive
+router.get('/google/drive/files', verifyAuth, socialController.getGoogleDriveFiles);
+router.post('/google/drive/download', verifyAuth, socialController.downloadGoogleDriveFile);
+router.post('/google/disconnect', verifyAuth, socialController.disconnectGoogleAccount);
+
 module.exports = router;

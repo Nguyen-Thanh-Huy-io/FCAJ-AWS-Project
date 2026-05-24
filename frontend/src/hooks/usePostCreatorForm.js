@@ -17,7 +17,20 @@ const toLocalDatetimeString = (dateInput) => {
 };
 
 export function usePostCreatorForm() {
-  const { isOpen, closePostCreator, editingPost } = usePostCreator();
+  const { 
+    isOpen, 
+    closePostCreator, 
+    editingPost, 
+    defaultScheduledAt,
+    videoFile, 
+    setVideoFile,
+    videoFileUrl, 
+    setVideoFileUrl,
+    isUploadingVideo, 
+    setIsUploadingVideo,
+    uploadedVideoPath, 
+    setUploadedVideoPath
+  } = usePostCreator();
   
   const [caption, setCaption] = useState("");
   const [title, setTitle] = useState("");
@@ -50,12 +63,6 @@ export function usePostCreatorForm() {
   // Playlists fetched data
   const [playlists, setPlaylists] = useState([]);
   const [isLoadingPlaylists, setIsLoadingPlaylists] = useState(false);
-
-  // Video Upload States
-  const [videoFile, setVideoFile] = useState(null);
-  const [videoFileUrl, setVideoFileUrl] = useState("");
-  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
-  const [uploadedVideoPath, setUploadedVideoPath] = useState("");
 
   const [activePopover, setActivePopover] = useState(null); // 'media', 'emoji', 'utm'
   const [showFirstCommentModal, setShowFirstCommentModal] = useState(false);
@@ -193,7 +200,7 @@ export function usePostCreatorForm() {
         setCaption("");
         setTitle("");
         setActivePlatform("youtube");
-        setScheduledDate(toLocalDatetimeString(new Date()));
+        setScheduledDate(defaultScheduledAt ? toLocalDatetimeString(defaultScheduledAt) : toLocalDatetimeString(new Date()));
         setYoutubeType("video");
         setYoutubeTitle("");
         setYoutubeMadeForKids(false);
@@ -203,11 +210,9 @@ export function usePostCreatorForm() {
         setYoutubeTags("");
         setYoutubeFirstComment("");
         setGlobalFirstComment("");
-        setUploadedVideoPath("");
-        setVideoFileUrl("");
       }
     }
-  }, [isOpen, editingPost]);
+  }, [isOpen, editingPost, defaultScheduledAt]);
 
   const handleCreatePost = async () => {
     if (!activeBrand) {

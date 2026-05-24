@@ -18,7 +18,8 @@ export function WeeklyGrid({
   groupedPosts,
   currentTime,
   onCellClick,
-  onPostClick
+  onPostClick,
+  onCellDrop
 }) {
   const gridContainerRef = useRef(null);
 
@@ -84,7 +85,7 @@ export function WeeklyGrid({
   }, []);
 
   return (
-    <div className="flex-1 bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden flex flex-col min-h-[600px]">
+    <div className="w-full h-full bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden flex flex-col">
       {/* Days Header */}
       <div className="flex border-b border-gray-100 bg-white shrink-0 no-print">
         {/* Time column spacer */}
@@ -144,6 +145,25 @@ export function WeeklyGrid({
                 <div 
                   key={dIdx} 
                   onClick={() => onCellClick(day.raw, hour.value)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const dataStr = e.dataTransfer.getData("text/plain");
+                    if (dataStr) {
+                      try {
+                        const fileData = JSON.parse(dataStr);
+                        if (fileData.source === 'google-drive' && onCellDrop) {
+                          onCellDrop(day.raw, hour.value, fileData);
+                        }
+                      } catch (err) {
+                        console.error('Failed to parse drag drop metadata:', err);
+                      }
+                    }
+                  }}
                   style={{ backgroundColor: heatmapBg }}
                   className="flex-1 border-l border-gray-100 first:border-l-0 transition-all hover:bg-red-100/30 cursor-pointer p-1.5 relative flex flex-col justify-start"
                 >
