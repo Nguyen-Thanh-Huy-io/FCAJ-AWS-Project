@@ -77,6 +77,33 @@ class PostRepository {
       }
     });
   }
+
+  async findManyByIdsAndBrand(ids, brandId) {
+    return prisma.post.findMany({
+      where: {
+        id: { in: ids },
+        brandId
+      }
+    });
+  }
+
+  async updateStatus(id, status) {
+    return prisma.post.update({
+      where: { id },
+      data: { status }
+    });
+  }
+
+  async deleteMany(where) {
+    return prisma.post.deleteMany({ where });
+  }
+
+  async updateMany(where, data) {
+    return prisma.post.updateMany({
+      where,
+      data
+    });
+  }
 }
 
 module.exports = new PostRepository();

@@ -39,6 +39,7 @@ import { ListView } from "./pages/workspace/planner/ListView";
 import { HistoryView } from "./pages/workspace/planner/HistoryView";
 import { PostsLibraryView } from "./pages/workspace/planner/PostsLibraryView";
 import { AutoListsView } from "./pages/workspace/planner/AutoListsView";
+import { AutoListEdit } from "./pages/workspace/planner/AutoListEdit";
 
 // Manage Pages
 import { InboxPage } from "./pages/manage/Inbox";
@@ -122,6 +123,7 @@ export default function App() {
                 <Route path="list" element={<ListView />} />
                 <Route path="library" element={<PostsLibraryView />} />
                 <Route path="autolists" element={<AutoListsView />} />
+                <Route path="autolist/:id" element={<AutoListEdit />} />
                 <Route path="history" element={<HistoryView />} />
               </Route>
               <Route path="/media-library" element={<ProtectedRoute><MediaLibraryPage /></ProtectedRoute>} />

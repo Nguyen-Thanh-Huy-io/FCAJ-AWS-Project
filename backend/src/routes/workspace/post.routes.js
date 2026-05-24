@@ -20,6 +20,30 @@ router.get('/', postController.getPosts);
 router.post('/', postController.createPost);
 
 /**
+ * POST /api/posts/bulk-approve
+ * Bulk approve posts
+ */
+router.post('/bulk-approve', postController.bulkApprove);
+
+/**
+ * DELETE /api/posts/bulk
+ * Bulk delete posts
+ */
+router.delete('/bulk', postController.bulkDelete);
+
+/**
+ * POST /api/posts/bulk-restore
+ * Bulk restore posts from trash
+ */
+router.post('/bulk-restore', postController.bulkRestore);
+
+/**
+ * DELETE /api/posts/trash
+ * Permanently delete all posts in trash
+ */
+router.delete('/trash', postController.emptyTrash);
+
+/**
  * PUT /api/posts/:id
  * Update an existing post
  */

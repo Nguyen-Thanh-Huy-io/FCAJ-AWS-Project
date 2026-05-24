@@ -22,7 +22,9 @@ class PostService {
       page = 1,
       limit = 10,
       sortBy = 'createdAt',
-      sortOrder = 'desc'
+      sortOrder = 'desc',
+      isLibrary,
+      isDeleted
     } = queryParams;
 
     // 1. Sanitize & Validate Pagination
@@ -35,7 +37,11 @@ class PostService {
     const safeSortOrder = ALLOWED_SORT_ORDERS.includes(sortOrder) ? sortOrder : 'desc';
 
     // 3. Build Dynamic Where Conditions
-    const where = { brandId };
+    const where = { 
+      brandId,
+      isLibrary: isLibrary === 'true' || isLibrary === true,
+      isDeleted: isDeleted === 'true' || isDeleted === true
+    };
 
     // Text search (Title or Caption)
     if (search && search.trim()) {
@@ -56,7 +62,7 @@ class PostService {
       where.status = status.toUpperCase(); // Ensure uppercase for enum matching
     }
 
-    // Date range filter (usually for scheduledAt or createdAt)
+    // Date range filter
     if (startDate || endDate) {
       where.createdAt = {};
       if (startDate) {
@@ -100,6 +106,7 @@ class PostService {
           scheduledAt: p.scheduledAt,
           publishedAt: p.publishedAt,
           createdAt: p.createdAt,
+          deletedAt: p.deletedAt,
           creator: p.creator?.name || 'Unknown',
           thumbnail: p.mediaThumbnailUrls ? p.mediaThumbnailUrls.split(',')[0] : null,
           mediaUrls: p.mediaUrls ? p.mediaUrls.split(',').map(m => m.trim()) : [],
@@ -117,10 +124,6 @@ class PostService {
 
   /**
    * Create a new post
-   * @param {Object} postData - Post details
-   * @param {string} userId - ID of user creating the post
-   * @param {string} brandId - Scoped brand ID
-   * @returns {Promise<Object>} Created post
    */
   async createPost(postData, userId, brandId) {
     const {
@@ -132,6 +135,7 @@ class PostService {
       mediaUrls = [],
       mediaThumbnailUrls = [],
       scheduledAt,
+      isLibrary = false,
       options = {}
     } = postData;
 
@@ -148,6 +152,7 @@ class PostService {
       mediaThumbnailUrls: mediaThumbnailUrls.join(','),
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
       firstComment: options.firstComment || null,
+      isLibrary: isLibrary === true || isLibrary === 'true',
       metadata: options ? JSON.stringify(options) : null
     };
 
@@ -176,8 +181,6 @@ class PostService {
 
   /**
    * Đồng bộ xuất bản bài đăng lên các nền tảng xã hội
-   * @param {string} postId 
-   * @param {Object} postDataOptions Các tùy chọn riêng tư, comment,...
    */
   async publishToPlatforms(postId, postDataOptions = {}) {
     const post = await postRepository.findById(postId);
@@ -185,7 +188,6 @@ class PostService {
 
     const platforms = post.targetPlatforms ? post.targetPlatforms.split(',').map(p => p.trim()) : [];
 
-    // Parse options from metadata if postDataOptions is not provided or empty
     let options = postDataOptions;
     if ((!options || Object.keys(options).length === 0) && post.metadata) {
       try {
@@ -199,7 +201,6 @@ class PostService {
       try {
         const service = socialPlatformFactory.getService(platform);
         
-        // Kiểm tra xem Service có hỗ trợ hàm publishPost hay không (Duck Typing - ISP)
         if (service && typeof service.publishPost === 'function') {
           const result = await service.publishPost(post.brandId, {
             title: post.title,
@@ -227,10 +228,6 @@ class PostService {
 
   /**
    * Update an existing post
-   * @param {string} id - ID of the post to update
-   * @param {Object} postData - Updated post details
-   * @param {string} brandId - Scoped brand ID
-   * @returns {Promise<Object>} Updated post
    */
   async updatePost(id, postData, brandId) {
     const post = await postRepository.findById(id);
@@ -250,7 +247,8 @@ class PostService {
       targetPlatforms,
       mediaUrls,
       mediaThumbnailUrls,
-      scheduledAt
+      scheduledAt,
+      isLibrary
     } = postData;
 
     const data = {};
@@ -262,6 +260,8 @@ class PostService {
     if (mediaUrls !== undefined) data.mediaUrls = mediaUrls.join(',');
     if (mediaThumbnailUrls !== undefined) data.mediaThumbnailUrls = mediaThumbnailUrls.join(',');
     if (scheduledAt !== undefined) data.scheduledAt = scheduledAt ? new Date(scheduledAt) : null;
+    if (isLibrary !== undefined) data.isLibrary = isLibrary === true || isLibrary === 'true';
+    
     if (postData.options !== undefined) {
       data.metadata = JSON.stringify(postData.options);
       data.firstComment = postData.options.firstComment || null;
@@ -288,6 +288,56 @@ class PostService {
       ...updatedPost,
       options: parsedOptions
     };
+  }
+
+  /**
+   * Phê duyệt hàng loạt bài đăng
+   */
+  async bulkApprove(ids, brandId) {
+    const posts = await postRepository.findManyByIdsAndBrand(ids, brandId);
+    if (!posts || posts.length === 0) return 0;
+
+    let count = 0;
+    for (const post of posts) {
+      if (post.status === POST_STATUS.PENDING_APPROVAL) {
+        await postRepository.updateStatus(post.id, POST_STATUS.APPROVED);
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /**
+   * Xóa hàng loạt bài đăng (Soft Delete)
+   */
+  async bulkDelete(ids, brandId) {
+    const result = await postRepository.updateMany(
+      { id: { in: ids }, brandId },
+      { isDeleted: true, deletedAt: new Date() }
+    );
+    return result.count;
+  }
+
+  /**
+   * Khôi phục hàng loạt từ thùng rác
+   */
+  async bulkRestore(ids, brandId) {
+    const result = await postRepository.updateMany(
+      { id: { in: ids }, brandId },
+      { isDeleted: false, deletedAt: null }
+    );
+    return result.count;
+  }
+
+  /**
+   * Xóa vĩnh viễn toàn bộ thùng rác
+   */
+  async emptyTrash(brandId) {
+    const result = await postRepository.deleteMany({
+      brandId,
+      isDeleted: true
+    });
+    return result.count;
   }
 }
 

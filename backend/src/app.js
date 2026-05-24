@@ -23,6 +23,7 @@ const postRoutes = require('./routes/workspace/post.routes');
 const mediaLibraryRoutes = require('./routes/workspace/media-library.routes');
 const teamRoutes = require('./routes/workspace/team.routes');
 const brandRoutes = require('./routes/workspace/brand.routes');
+const autoListRoutes = require('./routes/workspace/auto-list.routes');
 
 // Routes - Core Domain
 const searchRoutes = require('./routes/core/search.routes');
@@ -71,6 +72,7 @@ app.use('/api/admin/revenue', revenueRoutes);
 app.use('/api/admin/products', productRoutes);
 app.use('/api/social', socialRoutes);
 app.use('/api/brands', brandRoutes);
+app.use('/api/auto-lists', autoListRoutes);
 
 app.get('/', (req, res) => {
   res.send('PubliCast API is running');

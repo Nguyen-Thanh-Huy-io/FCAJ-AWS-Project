@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import apiService from "../services/api";
 import brandService from "../services/brand.service";
+import socialService from "../services/social.service";
 import { usePostCreator } from "../context/PostCreatorContext";
 
 const toLocalDatetimeString = (dateInput) => {
@@ -22,6 +23,7 @@ export function usePostCreatorForm() {
     closePostCreator, 
     editingPost, 
     defaultScheduledAt,
+    isLibrary: initialIsLibrary,
     videoFile, 
     setVideoFile,
     videoFileUrl, 
@@ -41,6 +43,7 @@ export function usePostCreatorForm() {
   const [activeBrand, setActiveBrand] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
   const [scheduledDate, setScheduledDate] = useState(() => toLocalDatetimeString(new Date()));
+  const [isLibrary, setIsLibrary] = useState(false);
 
   // Presets Accordion States
   const [globalOpen, setGlobalOpen] = useState(false);
@@ -66,6 +69,7 @@ export function usePostCreatorForm() {
 
   const [activePopover, setActivePopover] = useState(null); // 'media', 'emoji', 'utm'
   const [showFirstCommentModal, setShowFirstCommentModal] = useState(false);
+  const [isDriveModalOpen, setIsDriveModalOpen] = useState(false);
 
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -122,6 +126,39 @@ export function usePostCreatorForm() {
     setUploadedVideoPath("");
   };
 
+  const handleSelectDriveFile = async (file) => {
+    if (!activeBrand) return;
+    
+    setIsDriveModalOpen(false);
+    setIsUploadingVideo(true);
+    toast.loading(`Importing "${file.name}" from Google Drive...`, { id: 'import-drive-toast' });
+
+    try {
+      const res = await socialService.downloadGoogleDriveFile(
+        activeBrand.id,
+        file.id,
+        file.name
+      );
+
+      if (res.videoUrl) {
+        toast.success(`Successfully imported "${file.name}"!`, { id: 'import-drive-toast' });
+
+        const backendUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+        const fullUrl = res.videoUrl.startsWith('http') ? res.videoUrl : `${backendUrl}${res.videoUrl}`;
+
+        setUploadedVideoPath(res.videoUrl);
+        setVideoFileUrl(fullUrl);
+      } else {
+        throw new Error("Invalid response received from import service");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(`Import failed: ${err.message}`, { id: 'import-drive-toast' });
+    } finally {
+      setIsUploadingVideo(false);
+    }
+  };
+
   const fetchPlaylists = async (forceRefresh = false) => {
     if (!activeBrand) return;
     setIsLoadingPlaylists(true);
@@ -170,6 +207,7 @@ export function usePostCreatorForm() {
         setTitle(editingPost.title || "");
         setActivePlatform(editingPost.platforms?.[0]?.toLowerCase() || "youtube");
         setScheduledDate(editingPost.scheduledAt ? toLocalDatetimeString(editingPost.scheduledAt) : toLocalDatetimeString(new Date()));
+        setIsLibrary(editingPost.isLibrary || false);
         
         // Setup options
         const opts = editingPost.options || {};
@@ -201,6 +239,7 @@ export function usePostCreatorForm() {
         setTitle("");
         setActivePlatform("youtube");
         setScheduledDate(defaultScheduledAt ? toLocalDatetimeString(defaultScheduledAt) : toLocalDatetimeString(new Date()));
+        setIsLibrary(initialIsLibrary || false);
         setYoutubeType("video");
         setYoutubeTitle("");
         setYoutubeMadeForKids(false);
@@ -212,7 +251,7 @@ export function usePostCreatorForm() {
         setGlobalFirstComment("");
       }
     }
-  }, [isOpen, editingPost, defaultScheduledAt]);
+  }, [isOpen, editingPost, defaultScheduledAt, initialIsLibrary]);
 
   const handleCreatePost = async () => {
     if (!activeBrand) {
@@ -227,11 +266,17 @@ export function usePostCreatorForm() {
 
     setIsCreating(true);
     try {
+      let status = 'DRAFT';
+      if (selectedPublishId === 'now') status = 'PUBLISHED';
+      else if (selectedPublishId === 'schedule') status = 'SCHEDULED';
+      else if (selectedPublishId === 'review') status = 'PENDING_APPROVAL';
+
       const payload = {
         brandId: activeBrand.id,
         title: title || youtubeTitle || (caption ? caption.substring(0, 50) : "New Video"),
         caption,
-        status: selectedPublishId === 'now' ? 'PUBLISHED' : 'SCHEDULED',
+        status,
+        isLibrary,
         targetPlatforms: [activePlatform.toUpperCase()],
         scheduledAt: new Date(scheduledDate).toISOString(),
         mediaUrls: [uploadedVideoPath],
@@ -292,6 +337,8 @@ export function usePostCreatorForm() {
     setIsCreating,
     scheduledDate,
     setScheduledDate,
+    isLibrary,
+    setIsLibrary,
     globalOpen,
     setGlobalOpen,
     youtubeOpen,
@@ -326,6 +373,9 @@ export function usePostCreatorForm() {
     setActivePopover,
     showFirstCommentModal,
     setShowFirstCommentModal,
+    isDriveModalOpen,
+    setIsDriveModalOpen,
+    handleSelectDriveFile,
     textareaRef,
     fileInputRef,
     insertAtCursor,

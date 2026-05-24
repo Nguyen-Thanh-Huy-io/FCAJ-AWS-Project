@@ -492,6 +492,9 @@ model Post {
   failureReason      String?
   autoListId         String?
   platformPostId     String?
+  isLibrary          Boolean    @default(false)
+  isDeleted          Boolean    @default(false)
+  deletedAt          DateTime?
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 

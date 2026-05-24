@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Image as ImageIcon, PlayCircle, Folder, ChevronRight } from "lucide-react";
 
-export function MediaDropdown({ onClose, onSelectVideo }) {
+export function MediaDropdown({ onClose, onSelectVideo, onSelectDrive }) {
   const menuItems = [
     { id: 'image', label: 'Add image', icon: <ImageIcon size={16} className="text-gray-500" /> },
     { id: 'video', label: 'Add video', icon: <PlayCircle size={16} className="text-gray-500" />, onClick: onSelectVideo },
@@ -10,7 +10,7 @@ export function MediaDropdown({ onClose, onSelectVideo }) {
         <path d="M12 2L2 22h20L12 2zm0 4l6.5 13H5.5L12 6z"/>
       </svg>
     )},
-    { id: 'drive', label: 'Google Drive', icon: (
+    { id: 'drive', label: 'Google Drive', onClick: onSelectDrive, icon: (
       <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
         <path d="M8.5 2.5L2 13.5L5 19L11.5 8H8.5Z" fill="#0066DA"/>
         <path d="M15.5 2.5L22 13.5L19 19L12.5 8H15.5Z" fill="#00A25B"/>

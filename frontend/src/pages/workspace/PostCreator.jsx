@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useState } from "react";
 import { 
   X, Smile, Link2, Plus, Image as ImageIcon, 
   FileText, Loader2, RotateCw, Copy, ChevronDown, 
@@ -12,6 +13,7 @@ import { EmojiPickerPopover } from "../../components/workspace/post-creator/Emoj
 import { FirstCommentModal } from "../../components/workspace/post-creator/FirstCommentModal";
 import { UTMGeneratorPopover } from "../../components/workspace/post-creator/UTMGeneratorPopover";
 import { PreviewStrategies } from "../../components/workspace/post-creator/PreviewStrategies";
+import { GoogleDrivePickerModal } from "../../components/workspace/post-creator/GoogleDrivePickerModal";
 import { toast } from "sonner";
 
 const PUBLISH_OPTIONS = [
@@ -41,6 +43,8 @@ export function PostCreatorPage() {
     isCreating,
     scheduledDate,
     setScheduledDate,
+    isLibrary,
+    setIsLibrary,
     globalOpen,
     setGlobalOpen,
     youtubeOpen,
@@ -75,6 +79,9 @@ export function PostCreatorPage() {
     setActivePopover,
     showFirstCommentModal,
     setShowFirstCommentModal,
+    isDriveModalOpen,
+    setIsDriveModalOpen,
+    handleSelectDriveFile,
     textareaRef,
     fileInputRef,
     insertAtCursor,
@@ -199,6 +206,7 @@ export function PostCreatorPage() {
                             <MediaDropdown 
                               onClose={() => setActivePopover(null)} 
                               onSelectVideo={() => fileInputRef.current?.click()} 
+                              onSelectDrive={() => setIsDriveModalOpen(true)}
                             />
                           )}
                         </div>
@@ -253,7 +261,17 @@ export function PostCreatorPage() {
                         <button className="text-gray-400 hover:text-black transition-colors p-1.5 rounded-lg cursor-pointer"><Languages size={18} /></button>
                         <button className="text-gray-400 hover:text-black transition-colors p-1.5 rounded-lg cursor-pointer"><FileText size={18} /></button>
                      </div>
-                     <div className="flex items-center gap-3">
+                     <div className="flex items-center gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer group">
+                           <input 
+                             type="checkbox" 
+                             checked={isLibrary}
+                             onChange={(e) => setIsLibrary(e.target.checked)}
+                             className="w-4 h-4 rounded border-gray-300 text-black focus:ring-black" 
+                           />
+                           <span className="text-[10px] font-bold text-gray-400 group-hover:text-black transition-colors uppercase tracking-widest">Add to library</span>
+                        </label>
+                        <div className="w-px h-4 bg-gray-200" />
                         <div className="group relative">
                            <span className="text-[10px] font-bold text-gray-300 group-hover:text-gray-500 transition-colors uppercase tracking-widest">{caption.length} / 5000</span>
                            <div className="absolute bottom-full right-0 mb-4 w-64 p-3 bg-white rounded-xl shadow-xl border border-gray-100 hidden group-hover:block animate-in fade-in slide-in-from-bottom-2 z-50">
@@ -559,6 +577,12 @@ export function PostCreatorPage() {
             onCancel={() => setShowFirstCommentModal(false)}
           />
         )}
+        <GoogleDrivePickerModal 
+          isOpen={isDriveModalOpen}
+          onClose={() => setIsDriveModalOpen(false)}
+          activeBrand={activeBrand}
+          onSelectFile={handleSelectDriveFile}
+        />
         </div>
       </div>
     </div>
