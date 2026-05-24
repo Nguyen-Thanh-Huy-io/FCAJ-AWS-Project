@@ -3,21 +3,30 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 
-const authRoutes = require('./routes/auth.routes');
-const profileRoutes = require('./routes/profile.routes');
-const pricingRoutes = require('./routes/pricing.routes');
-const auditLogRoutes = require('./routes/audit-log.routes');
-const searchRoutes = require('./routes/search.routes');
-const livestreamRoutes = require('./routes/livestream.routes');
-const postRoutes = require('./routes/post.routes');
-const mediaLibraryRoutes = require('./routes/media-library.routes');
-const teamRoutes = require('./routes/team.routes');
-const inboxRoutes = require('./routes/inbox.routes');
-const notificationRoutes = require('./routes/notification.routes');
-const revenueRoutes = require('./routes/revenue.routes');
-const productRoutes = require('./routes/product.routes');
-const socialRoutes = require('./routes/social.routes');
-const brandRoutes = require('./routes/brand.routes');
+// Routes - Auth Domain
+const authRoutes = require('./routes/auth/auth.routes');
+const profileRoutes = require('./routes/auth/profile.routes');
+
+// Routes - Admin Domain
+const pricingRoutes = require('./routes/admin/pricing.routes');
+const auditLogRoutes = require('./routes/admin/audit-log.routes');
+const revenueRoutes = require('./routes/admin/revenue.routes');
+const productRoutes = require('./routes/admin/product.routes');
+
+// Routes - Social Domain
+const socialRoutes = require('./routes/social/social.routes');
+const inboxRoutes = require('./routes/social/inbox.routes');
+
+// Routes - Workspace Domain
+const livestreamRoutes = require('./routes/workspace/livestream.routes');
+const postRoutes = require('./routes/workspace/post.routes');
+const mediaLibraryRoutes = require('./routes/workspace/media-library.routes');
+const teamRoutes = require('./routes/workspace/team.routes');
+const brandRoutes = require('./routes/workspace/brand.routes');
+
+// Routes - Core Domain
+const searchRoutes = require('./routes/core/search.routes');
+const notificationRoutes = require('./routes/core/notification.routes');
 
 const app = express();
 

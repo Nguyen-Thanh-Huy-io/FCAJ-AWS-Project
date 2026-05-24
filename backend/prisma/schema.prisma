@@ -754,8 +754,8 @@ model InboxItem {
   relatedPostId     String?       // ID bài viết/video từ nền tảng gốc
   parentItemId      String?
   assignedUserId    String?
-  tags              String?       @db.Text
-  internalNotes     String?       @db.Text
+  tags              Json?         // Mảng nhãn phân loại tùy chỉnh (VIP, Hỏi giá...)
+  internalNotes     Json?         // Lịch sử ghi chú nội bộ của các nhân viên hỗ trợ
   status            String        @default("UNREAD")
   isHidden          Boolean       @default(false)
   sentiment         String?

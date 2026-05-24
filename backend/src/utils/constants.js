@@ -1,14 +1,15 @@
-const AUTH_PROVIDERS = {
-  LOCAL: 'LOCAL',
-  GOOGLE: 'GOOGLE',
+/**
+ * Centralize all constants to avoid Magic Strings across the application.
+ * Following SOLID principles for better maintainability.
+ */
+
+const PLATFORMS = {
+  YOUTUBE: 'YOUTUBE',
   FACEBOOK: 'FACEBOOK',
   INSTAGRAM: 'INSTAGRAM',
   TIKTOK: 'TIKTOK',
   LINKEDIN: 'LINKEDIN',
-  TWITTER: 'TWITTER',
-  YOUTUBE: 'YOUTUBE',
-  TWITCH: 'TWITCH',
-  SNAPCHAT: 'SNAPCHAT'
+  TWITTER_X: 'TWITTER_X'
 };
 
 const USER_ROLES = {
@@ -27,52 +28,72 @@ const USER_ROLES = {
   CLIENT: 'CLIENT'
 };
 
-// User account statuses - using booleans in new schema
 const USER_STATUS = {
-  ACTIVE: 'ACTIVE', // when isActive=true and isEmailVerified=true
-  INACTIVE: 'INACTIVE', // when isEmailVerified=false
-  BANNED: 'BANNED' // when isActive=false
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+  BANNED: 'BANNED'
+};
+
+const AUTH_PROVIDERS = {
+  LOCAL: 'LOCAL',
+  GOOGLE: 'GOOGLE',
+  FACEBOOK: 'FACEBOOK',
+  INSTAGRAM: 'INSTAGRAM'
+};
+
+const INBOX_STATUS = {
+  UNREAD: 'UNREAD',
+  READ: 'READ',
+  RESOLVED: 'RESOLVED',
+  OPEN: 'OPEN',
+  SPAM: 'SPAM',
+  ARCHIVED: 'ARCHIVED'
+};
+
+const INBOX_TYPES = {
+  COMMENT: 'COMMENT',
+  DIRECT_MESSAGE: 'DIRECT_MESSAGE',
+  MENTION: 'MENTION',
+  REVIEW: 'REVIEW'
+};
+
+const POST_STATUS = {
+  DRAFT: 'DRAFT',
+  SCHEDULED: 'SCHEDULED',
+  PENDING_APPROVAL: 'PENDING_APPROVAL',
+  APPROVED: 'APPROVED',
+  PUBLISHED: 'PUBLISHED',
+  FAILED: 'FAILED',
+  REJECTED: 'REJECTED'
 };
 
 const ERROR_MESSAGES = {
-  EMAIL_ALREADY_EXISTS: 'Email already exists',
-  OTP_EXPIRED: 'OTP expired or not found',
-  INVALID_OTP: 'Invalid OTP',
-  REGISTRATION_SUCCESS: 'Registration successful. Please check your email for OTP.',
-  ACTIVATION_SUCCESS: 'Account activated successfully',
-  // Login errors
+  REGISTRATION_SUCCESS: 'Registration successful. Please check your email for activation OTP.',
   LOGIN_SUCCESS: 'Login successful',
-  INVALID_CREDENTIALS: 'Invalid email or password',
-  INVALID_EMAIL: 'Email does not exist',
-  INVALID_PASSWORD: 'Password is incorrect',
+  EMAIL_ALREADY_EXISTS: 'Email already exists',
+  OTP_EXPIRED: 'OTP has expired',
+  INVALID_OTP: 'Invalid OTP',
+  ACTIVATION_SUCCESS: 'Account activated successfully',
+  INVALID_EMAIL: 'Invalid email address',
   ACCOUNT_NOT_ACTIVATED: 'Account not activated. Please verify your email first.',
   ACCOUNT_BANNED: 'Your account has been banned',
-  TOO_MANY_LOGIN_ATTEMPTS: 'Too many login attempts. Please try again later.',
-  EMAIL_REQUIRED: 'Email is required',
-  PASSWORD_REQUIRED: 'Password is required',
-  // Profile
-  USER_NOT_FOUND: 'User not found',
-  AUTHENTICATION_REQUIRED: 'Authentication required',
-  ACCESS_DENIED: 'Access denied',
-  // Forgot password
+  INVALID_PASSWORD: 'Invalid email or password',
   FORGOT_PASSWORD_OTP_SENT: 'OTP sent if email exists',
-  RESET_PASSWORD_SUCCESS: 'Password reset successfully',
   RESET_PASSWORD_OTP_EXPIRED: 'OTP has expired, please request again',
+  RESET_PASSWORD_OTP_LOCKED: 'Too many wrong attempts. Please request a new OTP.',
   RESET_PASSWORD_INVALID_OTP: 'Invalid OTP',
-  RESET_PASSWORD_OTP_LOCKED: 'Invalid OTP too many times. Please request a new OTP.',
-  NEW_PASSWORD_SAME_AS_OLD: 'New password must differ from old'
-};
-
-const JWT_CONFIG = {
-  ACCESS_TOKEN_EXPIRY: '15m',
-  REFRESH_TOKEN_EXPIRY: '7d',
-  REFRESH_TOKEN_REDIS_EXPIRY: 7 * 24 * 60 * 60 // 7 days in seconds
+  NEW_PASSWORD_SAME_AS_OLD: 'New password must differ from old',
+  RESET_PASSWORD_SUCCESS: 'Password reset successfully',
+  USER_NOT_FOUND: 'User not found'
 };
 
 module.exports = {
-  AUTH_PROVIDERS,
+  PLATFORMS,
   USER_ROLES,
   USER_STATUS,
-  ERROR_MESSAGES,
-  JWT_CONFIG
+  AUTH_PROVIDERS,
+  INBOX_STATUS,
+  INBOX_TYPES,
+  POST_STATUS,
+  ERROR_MESSAGES
 };

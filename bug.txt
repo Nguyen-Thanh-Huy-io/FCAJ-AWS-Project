@@ -1,28 +1,16 @@
-Status update error: TypeError: apiService.patch is not a function
-    at handleUpdateStatus (Inbox.jsx:122:24)
-    at onClick (Inbox.jsx:271:65)
-    at HTMLUnknownElement.callCallback2 (chunk-KDCVS43I.js?v=c95177d9:3680:22)
-    at Object.invokeGuardedCallbackDev (chunk-KDCVS43I.js?v=c95177d9:3705:24)
-    at invokeGuardedCallback (chunk-KDCVS43I.js?v=c95177d9:3739:39)
-    at invokeGuardedCallbackAndCatchFirstError (chunk-KDCVS43I.js?v=c95177d9:3742:33)
-    at executeDispatch (chunk-KDCVS43I.js?v=c95177d9:7046:11)
-    at processDispatchQueueItemsInOrder (chunk-KDCVS43I.js?v=c95177d9:7066:15)
-    at processDispatchQueue (chunk-KDCVS43I.js?v=c95177d9:7075:13)
-    at dispatchEventsForPlugins (chunk-KDCVS43I.js?v=c95177d9:7083:11)
-(anonymous) @ Inbox.jsx:139
-(anonymous) @ Inbox.jsx:271
-callCallback2 @ chunk-KDCVS43I.js?v=c95177d9:3680
-invokeGuardedCallbackDev @ chunk-KDCVS43I.js?v=c95177d9:3705
-invokeGuardedCallback @ chunk-KDCVS43I.js?v=c95177d9:3739
-invokeGuardedCallbackAndCatchFirstError @ chunk-KDCVS43I.js?v=c95177d9:3742
-executeDispatch @ chunk-KDCVS43I.js?v=c95177d9:7046
-processDispatchQueueItemsInOrder @ chunk-KDCVS43I.js?v=c95177d9:7066
-processDispatchQueue @ chunk-KDCVS43I.js?v=c95177d9:7075
-dispatchEventsForPlugins @ chunk-KDCVS43I.js?v=c95177d9:7083
-(anonymous) @ chunk-KDCVS43I.js?v=c95177d9:7206
-batchedUpdates$1 @ chunk-KDCVS43I.js?v=c95177d9:18966
-batchedUpdates @ chunk-KDCVS43I.js?v=c95177d9:3585
-dispatchEventForPluginEventSystem @ chunk-KDCVS43I.js?v=c95177d9:7205
-dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-KDCVS43I.js?v=c95177d9:5484
-dispatchEvent @ chunk-KDCVS43I.js?v=c95177d9:5478
-dispatchDiscreteEvent @ chunk-KDCVS43I.js?v=c95177d9:5455
+const authorizeAdmin = authorize(USER_ROLES.ADMIN);
+                                            ^
+
+TypeError: Cannot read properties of undefined (reading 'ADMIN')
+    at Object.<anonymous> (D:\Fullit\projects\PubliCast\backend\src\middlewares\authorization.middleware.js:34:45)
+    at Module._compile (node:internal/modules/cjs/loader:1572:14)
+    at Object..js (node:internal/modules/cjs/loader:1709:10)
+    at Module.load (node:internal/modules/cjs/loader:1315:32)
+    at Function._load (node:internal/modules/cjs/loader:1125:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:216:24)
+    at Module.require (node:internal/modules/cjs/loader:1337:12)
+    at require (node:internal/modules/helpers:139:16)
+    at Object.<anonymous> (D:\Fullit\projects\PubliCast\backend\src\routes\auth\profile.routes.js:8:5)
+
+Node.js v23.1.0
