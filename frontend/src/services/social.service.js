@@ -28,6 +28,14 @@ class SocialService {
     return response.data;
   }
 
+  async getVideoAnalytics(brandId, videoId, startDate, endDate) {
+    let url = `/social/youtube/video-analytics?brandId=${brandId}&videoId=${videoId}`;
+    if (startDate) url += `&startDate=${startDate}`;
+    if (endDate) url += `&endDate=${endDate}`;
+    const response = await apiService.get(url);
+    return response.data;
+  }
+
   async searchChannels(brandId, query) {
     const response = await apiService.get(`/social/youtube/search-channels?brandId=${brandId}&query=${query}`);
     return response.data;

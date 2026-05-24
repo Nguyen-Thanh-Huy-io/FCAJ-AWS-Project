@@ -164,3 +164,74 @@ Khi có yêu cầu tích hợp thêm Facebook, bạn chỉ cần thực hiện 3
    this.services.set(PLATFORMS.FACEBOOK, facebookService);
    ```
 3. **Cập nhật hằng số nền tảng:** Đảm bảo `PLATFORMS.FACEBOOK` được định nghĩa trong `utils/constants.js`.
+
+---
+
+## 5. Kiến Trúc Lên Lịch & Tự Động Xuất Bản (Scheduling & Auto-Publishing)
+
+Hệ thống đặt lịch xuất bản (Scheduling) sử dụng cơ chế kiến trúc phân tán với mô hình tự động quét nền (Background Worker), kết hợp khóa phân tán (Distributed Lock) qua Redis và cấu trúc lưu trữ đa hình (Polymorphic Metadata) để đảm bảo tính mở rộng và an toàn dữ liệu.
+
+### 5.1 Cấu Trúc Dữ Liệu Đa Hình (Polymorphic Metadata)
+Để tuân thủ nguyên lý **OCP (Open/Closed Principle)** và **ISP (Interface Segregation Principle)**, các cấu hình riêng biệt của từng mạng xã hội (như YouTube playlist, danh mục, chế độ làm cho trẻ em...) không được tạo thành các cột tĩnh trong bảng `Post`.
+Thay vào đó, cột `metadata` kiểu `Text` lưu trữ chuỗi JSON cấu hình được map động:
+* Khi lưu: Dữ liệu tùy chọn từ form Frontend được tuần tự hóa (Serialize) thành JSON string và lưu vào cột `metadata`.
+* Khi xử lý/đăng bài: Dịch vụ `PostService` giải tuần tự hóa (Deserialize) trường `metadata` thành đối tượng `options` để truyền cho các Platform Service tương ứng.
+
+### 5.2 Khóa Phân Tán Bằng Redis (Distributed Locking)
+Để tránh việc cùng một bài viết hẹn giờ bị xuất bản trùng lặp (ví dụ: khi hệ thống Backend chạy song song nhiều cụm server/instance hoặc khi server bị restart đột ngột), hệ thống sử dụng cơ chế khóa phân tán với Redis:
+1. Trước khi xử lý bài đăng, worker yêu cầu tạo khóa: `SET post:lock:<postId> "locked" NX EX 300` (khóa độc quyền tự hủy sau 5 phút).
+2. Nếu Redis trả về `OK` (thành công), worker tiến hành đăng tải.
+3. Nếu thất bại, worker bỏ qua bài viết để tránh xung đột dữ liệu.
+4. Sau khi hoàn thành đăng tải (hoặc lỗi), khóa sẽ được xóa (`DEL`) để giải phóng tài nguyên.
+
+### 5.3 Sơ Đồ Tuần Tự Tiến Trình Đăng Bài Ngầm (Scheduled Auto-Publish Flow)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Scheduler as PostSchedulerService (Background)
+    participant Redis as Redis Server
+    participant DB as Prisma (MySQL)
+    participant PostSvc as PostService
+    participant Factory as SocialPlatformFactory
+    participant YT as YouTubeService (Facade)
+
+    Note over Scheduler: --- Chạy ngầm định kỳ mỗi 60 giây ---
+    Scheduler->>DB: findMany(status: SCHEDULED, scheduledAt <= Now)
+    DB-->>Scheduler: Trả về danh sách bài đăng đến hạn
+    
+    loop Với mỗi bài đăng (post)
+        Scheduler->>Redis: SET post:lock:<id> (NX: true, EX: 300)
+        alt Khóa thành công (Lock Acquired)
+            Redis-->>Scheduler: Trả về OK
+            
+            Scheduler->>PostSvc: publishToPlatforms(post.id)
+            activate PostSvc
+            
+            PostSvc->>DB: Đọc bài đăng & parse metadata JSON
+            DB-->>PostSvc: Post với options từ metadata
+            
+            loop Với mỗi platform trong targetPlatforms (vd: YOUTUBE)
+                PostSvc->>Factory: getService(platform)
+                Factory-->>PostSvc: Trả về YouTubeService
+                
+                PostSvc->>YT: publishPost(brandId, postData)
+                activate YT
+                YT-->>PostSvc: Trả về platformVideoId & videoUrl
+                deactivate YT
+            end
+            
+            PostSvc->>DB: updatePost(status: PUBLISHED, platformPostId, etc.)
+            DB-->>PostSvc: Thành công
+            
+            PostSvc-->>Scheduler: Kết quả thành công
+            deactivate PostSvc
+            
+            Scheduler->>Redis: DEL post:lock:<id>
+            Redis-->>Scheduler: OK
+            
+        else Khóa thất bại (Lock Failed)
+            Redis-->>Scheduler: Trả về null (Bỏ qua bài đăng này)
+        end
+    end
+```

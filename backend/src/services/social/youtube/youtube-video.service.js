@@ -128,6 +128,36 @@ class YouTubeVideoService {
     }));
   }
 
+  async getPlaylists(brandId, forceRefresh = false) {
+    const youtubePlaylistCache = require('./youtube-playlist-cache');
+    if (!forceRefresh) {
+      const cached = youtubePlaylistCache.get(brandId);
+      if (cached) {
+        return cached;
+      }
+    }
+
+    const socialAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORMS.YOUTUBE);
+    if (!socialAccount || socialAccount.length === 0) throw new Error('YouTube account not connected');
+
+    const account = socialAccount[0];
+    const auth = googleOAuthService.createClient();
+    auth.setCredentials({ access_token: account.accessToken });
+
+    const res = await youtubeGateway.getPlaylists(auth);
+    if (!res.data.items) return [];
+
+    const playlists = res.data.items.map(item => ({
+      id: item.id,
+      title: item.snippet.title,
+      description: item.snippet.description,
+      itemCount: item.contentDetails.itemCount
+    }));
+
+    youtubePlaylistCache.set(brandId, playlists);
+    return playlists;
+  }
+
   extractVideoId(url) {
     const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
     const match = url.match(regex);

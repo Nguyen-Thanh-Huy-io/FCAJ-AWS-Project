@@ -94,8 +94,8 @@ export function CompetitorsTab({
                         </div>
                     </td>
                     <td className="px-6 py-4 text-sm font-bold text-[#0A0A0A]">{comp.followersCount?.toLocaleString()}</td>
-                    <td className="px-6 py-4 text-sm font-bold text-gray-500">—</td>
-                    <td className="px-6 py-4 text-sm font-bold text-gray-500">—</td>
+                    <td className="px-6 py-4 text-sm font-bold text-[#0A0A0A]">{comp.totalViews?.toLocaleString() || '0'}</td>
+                    <td className="px-6 py-4 text-sm font-bold text-[#0A0A0A]">{comp.totalVideos?.toLocaleString() || '0'}</td>
                     <td className="px-6 py-4 text-[10px] font-medium text-gray-400">{new Date(comp.addedAt).toLocaleDateString()}</td>
                   </tr>
                 ))}
@@ -103,6 +103,54 @@ export function CompetitorsTab({
           </table>
          )}
       </div>
+
+      {/* Latest Videos Section */}
+      {!isCompetitorLoading && competitors.length > 0 && (
+        <div className="mt-8 space-y-4">
+          <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">LATEST VIDEOS COMPARISON</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {competitors.map((comp) => (
+              <div key={comp.id} className="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm space-y-4 flex flex-col justify-between">
+                <div>
+                  {/* Competitor Header */}
+                  <div className="flex items-center gap-3 pb-3 border-b border-gray-50 mb-3">
+                    <img src={comp.competitorAvatarUrl} className="w-8 h-8 rounded-full border border-gray-100 object-cover" />
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-[#0A0A0A] truncate">{comp.competitorDisplayName}</h4>
+                      <p className="text-[9px] text-gray-400 truncate">{comp.competitorHandle}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Videos list */}
+                  <div className="space-y-3">
+                    {!comp.latestVideos || comp.latestVideos.length === 0 ? (
+                      <p className="text-xs text-gray-400 text-center py-8">No recent videos found.</p>
+                    ) : (
+                      comp.latestVideos.map((vid) => (
+                        <div key={vid.id} className="flex gap-3 hover:bg-[#F8F8F7]/50 p-2 rounded-2xl transition-all border border-transparent hover:border-gray-100">
+                          <div className="w-16 h-10 rounded-lg overflow-hidden shrink-0 border border-gray-100 relative bg-gray-50 shadow-sm">
+                            <img src={vid.thumbnailUrl} className="w-full h-full object-cover" />
+                          </div>
+                          <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                            <h5 className="text-[10px] font-bold text-[#0A0A0A] line-clamp-1 leading-snug" title={vid.title}>
+                              {vid.title}
+                            </h5>
+                            <div className="flex items-center gap-2 text-[8px] text-gray-400 font-bold uppercase tracking-wider">
+                              <span className="text-[#16A34A]">{vid.views?.toLocaleString()} views</span>
+                              <span>•</span>
+                              <span>{new Date(vid.publishedAt).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

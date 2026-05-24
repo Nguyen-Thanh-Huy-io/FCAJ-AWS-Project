@@ -484,6 +484,7 @@ model Post {
   locationName       String?
   linkUrl            String?
   altText            String?
+  metadata           String?    @db.Text
   isCollaboration    Boolean    @default(false)
   collaboratorHandle String?
   scheduledAt        DateTime?

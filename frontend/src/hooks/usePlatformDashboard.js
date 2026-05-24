@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { subDays, eachDayOfInterval, format } from "date-fns";
 import { toast } from "sonner";
@@ -67,6 +67,12 @@ export function usePlatformDashboard(platform) {
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [isCompetitorModalOpen, setIsCompetitorModalOpen] = useState(false);
 
+  // Video Detail State
+  const [selectedVideo, setSelectedVideo] = useState(null);
+  const [videoAnalytics, setVideoAnalytics] = useState([]);
+  const [isVideoDetailLoading, setIsVideoDetailLoading] = useState(false);
+  const [isVideoDetailModalOpen, setIsVideoDetailModalOpen] = useState(false);
+
   const loadMetrics = async (brandId) => {
     try {
       const metricsRes = await socialService.getMetrics(brandId, {
@@ -119,6 +125,26 @@ export function usePlatformDashboard(platform) {
       console.error("Failed to fetch published videos:", error);
     } finally {
       setIsPublishedLoading(false);
+    }
+  };
+
+  const handleVideoClick = async (video) => {
+    setSelectedVideo(video);
+    setIsVideoDetailModalOpen(true);
+    setIsVideoDetailLoading(true);
+    try {
+      const res = await socialService.getVideoAnalytics(
+        activeBrand.id, 
+        video.id,
+        dateRange.from?.toISOString().split('T')[0],
+        dateRange.to?.toISOString().split('T')[0]
+      );
+      setVideoAnalytics(res.data || []);
+    } catch (e) {
+      console.error("Failed to fetch video analytics", e);
+      toast.error("Failed to load video analytics");
+    } finally {
+      setIsVideoDetailLoading(false);
     }
   };
 
@@ -275,69 +301,30 @@ export function usePlatformDashboard(platform) {
   const totalPeriodViews = realData.growth?.reduce((a, b) => a + b.value, 0) || 0;
   const totalPeriodGained = realData.growth?.reduce((a, b) => a + b.new, 0) || 0;
 
-  const getGrowthData = () => {
+  const communityGrowthData = useMemo(() => {
     if (!dateRange.from || !dateRange.to) return [];
     try {
       const days = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
-      const numDays = days.length;
-      
-      const subsBase = stats.subscribers || 12;
-      const viewsBase = totalPeriodViews || 13;
-      const videosBase = stats.videos || 3;
-      const revenueBase = 0;
-
-      const hasRealData = realData.growth?.length > 0;
-
-      return days.map((day, idx) => {
+      return days.map((day) => {
         const dateString = format(day, "MMM d");
         const searchName = format(day, "MM/dd");
         const realDayData = realData.growth?.find(g => g.name === searchName);
 
-        if (hasRealData) {
-          let videosVal = undefined;
-          if (dateString === "May 7" || dateString === "May 8") {
-            videosVal = 12;
-          }
-          return {
-            name: dateString,
-            subscribers: realDayData ? realDayData.new : undefined,
-            views: realDayData ? realDayData.value : undefined,
-            revenue: realDayData ? 0 : undefined,
-            videos: videosVal,
-            new: realDayData ? realDayData.new : undefined,
-            lost: realDayData ? realDayData.lost : undefined
-          };
-        }
-
-        const progress = idx / (numDays - 1 || 1);
-        const subscribers = Math.round(subsBase * (0.9 + progress * 0.1));
-        
-        const avgDailyViews = viewsBase / numDays;
-        const views = Math.round(avgDailyViews * (0.8 + Math.sin(idx * 0.5) * 0.2 + Math.random() * 0.1));
-        const revenue = revenueBase === 0 ? 0 : Math.round(revenueBase / numDays * (0.5 + Math.random() * 0.5));
-        const isUploadDay = idx > 0 && idx % 8 === 0;
-        const videos = isUploadDay ? Math.floor(Math.random() * 2) + 1 : undefined;
-        
-        const gained = Math.round((subsBase || 12) / numDays * (0.8 + Math.sin(idx) * 0.2 + Math.random() * 0.1));
-        const lost = Math.round(gained * 0.1);
-
         return {
           name: dateString,
-          subscribers,
-          views,
-          revenue,
-          videos,
-          new: gained,
-          lost
+          subscribers: realDayData ? realDayData.new : 0,
+          views: realDayData ? realDayData.value : 0,
+          revenue: 0,
+          videos: undefined, // Default to none unless we track daily uploads
+          new: realDayData ? realDayData.new : 0,
+          lost: realDayData ? realDayData.lost : 0
         };
       });
     } catch (e) {
       console.error("Error generating community growth data:", e);
       return [];
     }
-  };
-
-  const communityGrowthData = getGrowthData();
+  }, [dateRange, realData.growth]);
 
   return {
     activeTab,
@@ -372,6 +359,13 @@ export function usePlatformDashboard(platform) {
     setIsVideoModalOpen,
     isCompetitorModalOpen,
     setIsCompetitorModalOpen,
+    selectedVideo,
+    setSelectedVideo,
+    videoAnalytics,
+    isVideoDetailLoading,
+    isVideoDetailModalOpen,
+    setIsVideoDetailModalOpen,
+    handleVideoClick,
     stats,
     realData,
     totalPeriodViews,

@@ -22,6 +22,12 @@ const createMemoryRedisClient = () => {
       return record ? record.value : null;
     },
     set: async (key, value, options = {}) => {
+      if (options.NX) {
+        const record = getRecord(key);
+        if (record) {
+          return null;
+        }
+      }
       const ttl = options.EX ? options.EX * 1000 : null;
       store.set(key, {
         value: String(value),

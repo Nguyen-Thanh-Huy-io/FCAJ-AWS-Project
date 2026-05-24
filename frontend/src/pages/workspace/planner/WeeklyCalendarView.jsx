@@ -1,0 +1,171 @@
+import * as React from "react";
+import { useState, useEffect, useMemo } from "react";
+import { Loader2 } from "lucide-react";
+import { usePostCreator } from "../../../context/PostCreatorContext";
+import apiService from "../../../services/api";
+import brandService from "../../../services/brand.service";
+import { toast } from "sonner";
+
+// Import SOLID Subcomponents
+import { UpgradeBanner } from "./components/UpgradeBanner";
+import { PlannerToolbar } from "./components/PlannerToolbar";
+import { WeeklyGrid } from "./components/WeeklyGrid";
+import { SidebarIntegrations } from "./components/SidebarIntegrations";
+
+export function WeeklyCalendarView() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const { openPostCreator, isOpen } = usePostCreator();
+  const [activeBrand, setActiveBrand] = useState(null);
+  const [postData, setPostData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(false);
+  
+  // Center date of current selected week (Defaults to May 24, 2026 as per original system context)
+  const [selectedDate, setSelectedDate] = useState(new Date("2026-05-24"));
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every minute
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Load Active Brand
+  useEffect(() => {
+    const loadBrand = async () => {
+      try {
+        const res = await brandService.getBrands();
+        if (res.data?.length > 0) setActiveBrand(res.data[0]);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    loadBrand();
+  }, []);
+
+  // Fetch Posts based on selectedDate
+  const fetchPosts = async () => {
+    if (!activeBrand) return;
+    setLoading(true);
+
+    // Calculate start & end of selected date week (Sunday to Saturday)
+    const current = new Date(selectedDate);
+    const day = current.getDay();
+    const sunday = new Date(current.setDate(current.getDate() - day));
+    const saturday = new Date(current.setDate(current.getDate() - day + 6));
+
+    const startDateStr = sunday.toISOString().split('T')[0];
+    const endDateStr = saturday.toISOString().split('T')[0];
+
+    try {
+      const res = await apiService.get(`/posts?brandId=${activeBrand.id}&startDate=${startDateStr}&endDate=${endDateStr}`);
+      setPostData(res.data.data || []);
+    } catch (e) {
+      toast.error("Failed to load posts");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPosts();
+  }, [activeBrand, selectedDate, isOpen]);
+
+  // Group and search-filter posts dynamically
+  const groupedPosts = useMemo(() => {
+    const grid = {};
+    const filtered = postData.filter(post => 
+      !searchTerm || post.title?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    filtered.forEach(post => {
+      const date = new Date(post.scheduledAt || post.createdAt);
+      const dateStr = date.toISOString().split('T')[0];
+      const hour = date.getHours();
+      const key = `${dateStr}-${hour}`;
+      if (!grid[key]) grid[key] = [];
+      grid[key].push(post);
+    });
+    return grid;
+  }, [postData, searchTerm]);
+
+  // Date handlers
+  const handlePrevWeek = () => {
+    setSelectedDate(prev => {
+      const d = new Date(prev);
+      d.setDate(prev.getDate() - 7);
+      return d;
+    });
+  };
+
+  const handleNextWeek = () => {
+    setSelectedDate(prev => {
+      const d = new Date(prev);
+      d.setDate(prev.getDate() + 7);
+      return d;
+    });
+  };
+
+  const handleTodayWeek = () => {
+    setSelectedDate(new Date());
+  };
+
+  const handleSelectDate = (date) => {
+    setSelectedDate(date);
+  };
+
+  const handleCellClick = (date, hour) => {
+    // Open post creator at specific date and hour
+    const scheduledDate = new Date(date);
+    scheduledDate.setHours(hour, 0, 0, 0);
+    openPostCreator({ defaultScheduledAt: scheduledDate });
+  };
+
+  return (
+    <div className="flex-1 flex flex-col p-6 space-y-6 overflow-y-auto">
+      {/* 1. Plan Upgrade Banner */}
+      <UpgradeBanner postedCount={postData.length} limit={20} />
+
+      {/* 2. Navigation & Actions Toolbar */}
+      <PlannerToolbar
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        selectedDate={selectedDate}
+        onSelectDate={handleSelectDate}
+        onPrevWeek={handlePrevWeek}
+        onNextWeek={handleNextWeek}
+        onTodayWeek={handleTodayWeek}
+        onCreatePostClick={openPostCreator}
+        showSidebar={showSidebar}
+        onToggleSidebar={() => setShowSidebar(prev => !prev)}
+      />
+
+      {loading && (
+        <div className="flex items-center justify-center py-4 no-print">
+          <Loader2 className="animate-spin text-[#0A0A0A] mr-2" size={18} />
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Loading calendar posts...</span>
+        </div>
+      )}
+
+      {/* 3. Main Grid layout: Lịch bên trái, Tích hợp bên phải */}
+      <div className="flex-1 flex flex-col lg:flex-row gap-6 items-start">
+        {/* Lưới lịch tuần */}
+        <div className="flex-1 w-full">
+          <WeeklyGrid
+            selectedDate={selectedDate}
+            groupedPosts={groupedPosts}
+            currentTime={currentTime}
+            onCellClick={handleCellClick}
+            onPostClick={(post) => openPostCreator({ post })}
+          />
+        </div>
+
+        {/* Cột tích hợp bên phải */}
+        {showSidebar && (
+          <div className="w-full lg:w-[280px] shrink-0 lg:sticky lg:top-4 animate-in slide-in-from-right duration-250">
+            <SidebarIntegrations />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

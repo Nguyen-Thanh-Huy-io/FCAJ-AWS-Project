@@ -2,6 +2,7 @@ const BaseSocialService = require('../base-social.service');
 const youtubeAnalytics = require('./youtube-analytics.service');
 const youtubeVideo = require('./youtube-video.service');
 const youtubeComment = require('./youtube-comment.service');
+const youtubePublish = require('./youtube-publish.service');
 
 class YouTubeService extends BaseSocialService {
   // --- Analytics & Channel ---
@@ -29,6 +30,10 @@ class YouTubeService extends BaseSocialService {
     return youtubeAnalytics.getCompetitors(brandId);
   }
 
+  async getVideoAnalytics(brandId, videoId, startDate, endDate) {
+    return youtubeAnalytics.getVideoAnalytics(brandId, videoId, startDate, endDate);
+  }
+
   // --- Videos & Tracking ---
   async getPublishedVideos(brandId, pageToken = null, limit = 10) {
     return youtubeVideo.getPublishedVideos(brandId, pageToken, limit);
@@ -50,6 +55,10 @@ class YouTubeService extends BaseSocialService {
     return youtubeVideo.searchChannel(brandId, query);
   }
 
+  async getPlaylists(brandId, forceRefresh = false) {
+    return youtubeVideo.getPlaylists(brandId, forceRefresh);
+  }
+
   // --- Comments & Interactions ---
   async fetchChannelComments(brandId) {
     return youtubeComment.fetchChannelComments(brandId);
@@ -57,6 +66,11 @@ class YouTubeService extends BaseSocialService {
 
   async replyToComment(brandId, parentCommentId, text) {
     return youtubeComment.replyToComment(brandId, parentCommentId, text);
+  }
+
+  // --- Publishing ---
+  async publishPost(brandId, postData) {
+    return youtubePublish.publishPost(brandId, postData);
   }
 }
 

@@ -15,6 +15,8 @@ router.get('/metrics', verifyAuth, socialController.getMetrics);
 router.post('/youtube/track', verifyAuth, socialController.trackYouTubeVideo);
 router.get('/youtube/tracked-videos', verifyAuth, socialController.getTrackedVideos);
 router.get('/youtube/published-videos', verifyAuth, socialController.getYouTubePublishedVideos);
+router.get('/youtube/video-analytics', verifyAuth, socialController.getYouTubeVideoAnalytics);
+router.get('/youtube/playlists', verifyAuth, socialController.getYouTubePlaylists);
 
 // YouTube Competitors
 router.get('/youtube/search-channels', verifyAuth, socialController.searchYouTubeChannels);

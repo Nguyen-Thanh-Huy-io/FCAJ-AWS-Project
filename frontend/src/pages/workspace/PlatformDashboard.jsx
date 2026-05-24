@@ -1,8 +1,22 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
   Youtube, Instagram, Facebook, PlayCircle, Linkedin,
-  Info, Download, Loader2, Diamond, X
+  Info, Download, Loader2, Diamond, X, BarChart2
 } from "lucide-react";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog";
+import { Button } from "../../components/ui/button";
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
+  ResponsiveContainer, AreaChart, Area
+} from "recharts";
 import { GrowthChart } from "./dashboard/GrowthChart";
 import { BalanceChart } from "./dashboard/BalanceChart";
 import { DemographicsTab } from "./dashboard/DemographicsTab";
@@ -11,6 +25,7 @@ import { CompetitorsTab } from "./dashboard/CompetitorsTab";
 import { TrackedVideosTab } from "./dashboard/TrackedVideosTab";
 import { usePlatformDashboard } from "../../hooks/usePlatformDashboard";
 import { DateRangeFilter } from "../../components/app/DateRangeFilter";
+import socialService from "../../services/social.service";
 
 const PLATFORM_CONFIG = {
   youtube: { name: "YouTube", color: "#FF0000", icon: <Youtube size={20} /> },
@@ -28,50 +43,10 @@ const YT_TABS = [
   { id: "competitors", label: "COMPETITORS" },
 ];
 
-const MOCK_YT_DATA = {
-  demographics: {
-    gender: [
-      { name: 'Male', value: 65, color: '#818CF8' },
-      { name: 'Female', value: 35, color: '#F472B6' },
-    ],
-    age: [
-      { name: '13-17', value: 5 },
-      { name: '18-24', value: 25 },
-      { name: '25-34', value: 45 },
-      { name: '35-44', value: 15 },
-      { name: '45-54', value: 7 },
-      { name: '55-64', value: 2 },
-      { name: '65+', value: 1 },
-    ],
-    countries: [
-      { name: 'Vietnam', value: 85, flag: '🇻🇳', progress: 85 },
-      { name: 'United States', value: 5, flag: '🇺🇸', progress: 15 },
-      { name: 'Brazil', value: 3, flag: '🇧🇷', progress: 10 },
-      { name: 'India', value: 2, flag: '🇮🇳', progress: 8 },
-      { name: 'Others', value: 5, flag: '🌍', progress: 12 },
-    ],
-    trafficSource: [
-      { name: 'YouTube channels', value: 5, percentage: '38.46%', color: '#818CF8' },
-      { name: 'Browser features', value: 3, percentage: '23.08%', color: '#4ADE80' },
-      { name: 'YouTube search', value: 3, percentage: '23.08%', color: '#F472B6' },
-      { name: 'Direct or unknown', value: 1, percentage: '7.69%', color: '#FBBF24' },
-      { name: 'Other YouTube features', value: 1, percentage: '7.69%', color: '#22D3EE' },
-    ]
-  },
-  balance: [
-    { name: 'May 1', new: 12, lost: 2 },
-    { name: 'May 2', new: 15, lost: 1 },
-    { name: 'May 3', new: 8, lost: 4 },
-    { name: 'May 4', new: 20, lost: 0 },
-    { name: 'May 5', new: 18, lost: 3 },
-    { name: 'May 6', new: 25, lost: 2 },
-    { name: 'May 7', new: 30, lost: 5 },
-  ]
-};
-
 export function PlatformDashboardPage() {
   const { platform } = useParams();
   const config = PLATFORM_CONFIG[platform] || PLATFORM_CONFIG.youtube;
+  
   const {
     activeTab,
     setActiveTab,
@@ -105,6 +80,12 @@ export function PlatformDashboardPage() {
     setIsVideoModalOpen,
     isCompetitorModalOpen,
     setIsCompetitorModalOpen,
+    selectedVideo,
+    videoAnalytics,
+    isVideoDetailLoading,
+    isVideoDetailModalOpen,
+    setIsVideoDetailModalOpen,
+    handleVideoClick,
     stats,
     realData,
     totalPeriodViews,
@@ -117,6 +98,46 @@ export function PlatformDashboardPage() {
   } = usePlatformDashboard(platform);
 
   const navigate = useNavigate();
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+  const handleExportCSV = () => {
+    let headers = [];
+    let rows = [];
+    let fileName = `publicast_${platform}_report_${activeTab}`;
+
+    if (activeTab === "published") {
+      headers = ["Title", "Published At", "Views", "Likes", "Comments"];
+      rows = (publishedVideos || []).map(v => [
+        v.title,
+        new Date(v.publishedAt).toLocaleDateString(),
+        v.views || 0,
+        v.likes || 0,
+        v.comments || 0
+      ]);
+    } else if (activeTab === "competitors") {
+      headers = ["Competitor Name", "Handle", "Subscribers", "Total Views", "Total Videos", "Added At"];
+      rows = (competitors || []).map(c => [
+        c.competitorDisplayName,
+        c.competitorHandle,
+        c.followersCount || 0,
+        0, 0,
+        new Date(c.addedAt).toLocaleDateString()
+      ]);
+    }
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(r => r.map(cell => `"${cell}"`).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `${fileName}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   if (loading) {
     return (
@@ -148,18 +169,19 @@ export function PlatformDashboardPage() {
         
         <div className="flex items-center gap-2">
            <DateRangeFilter date={dateRange} setDate={setDateRange} />
-           <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500">
+           <button 
+             onClick={() => setIsExportModalOpen(true)}
+             className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500"
+            >
              <Download size={16} />
            </button>
         </div>
       </div>
 
       <div className="p-6 max-w-[1400px] mx-auto space-y-6 pb-12">
-        {/* Tab Content Header */}
         <div className="flex items-center justify-between">
            <h2 className="text-xl font-bold text-[#0A0A0A] capitalize tracking-tight">{activeTab}</h2>
            
-           {/* Channel Badge like Image */}
            <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-xl border border-gray-100 shadow-sm">
               <div className="w-6 h-6 rounded-lg overflow-hidden border border-gray-100">
                 <img src={metrics?.profilePictureUrl} alt="Avatar" className="w-full h-full object-cover" />
@@ -171,7 +193,6 @@ export function PlatformDashboardPage() {
            </div>
         </div>
 
-        {/* Upgrade Banner */}
         {showInfo && (
           <div className="bg-[#2D1D35] rounded-3xl p-5 shadow-sm flex items-center justify-between border border-white/10 relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-32 h-32 bg-[#D9F99D]/10 rounded-full -mr-16 -mt-16 blur-3xl" />
@@ -213,24 +234,20 @@ export function PlatformDashboardPage() {
           <>
             {activeTab === "community" && (
               <div className="space-y-6">
-                  <GrowthChart
-                    stats={stats}
-                    totalPeriodViews={totalPeriodViews}
-                    totalPeriodGained={totalPeriodGained}
-                    selectedMetrics={selectedMetrics}
-                    handleMetricToggle={handleMetricToggle}
-                    communityGrowthData={communityGrowthData}
-                  />
-
-                  <BalanceChart
-                    stats={stats}
-                    totalPeriodGained={totalPeriodGained}
-                    selectedBalanceMetrics={selectedBalanceMetrics}
-                    handleBalanceMetricToggle={handleBalanceMetricToggle}
-                    communityGrowthData={communityGrowthData}
-                  />
-
-                 {/* No Data Warning */}
+                 <GrowthChart 
+                   communityGrowthData={communityGrowthData}
+                   stats={stats}
+                   totalPeriodViews={totalPeriodViews}
+                   selectedMetrics={selectedMetrics}
+                   handleMetricToggle={handleMetricToggle}
+                 />
+                 <BalanceChart 
+                   realData={realData}
+                   totalPeriodGained={totalPeriodGained}
+                   stats={stats}
+                   selectedBalanceMetrics={selectedBalanceMetrics}
+                   handleBalanceMetricToggle={handleBalanceMetricToggle}
+                 />
                  {realData.growth?.length === 0 && (
                    <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-center gap-3">
                       <Info className="text-amber-500" size={18} />
@@ -255,6 +272,7 @@ export function PlatformDashboardPage() {
                 pageSize={pageSize}
                 setPageSize={setPageSize}
                 fetchPublishedVideos={fetchPublishedVideos}
+                onVideoClick={handleVideoClick}
               />
             )}
 
@@ -288,6 +306,137 @@ export function PlatformDashboardPage() {
         )}
       </div>
 
+      {/* Video Detail Modal */}
+      <Dialog open={isVideoDetailModalOpen} onOpenChange={setIsVideoDetailModalOpen}>
+        <DialogContent className="sm:max-w-[800px] bg-white rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
+          {selectedVideo && (
+            <div className="flex flex-col">
+              <div className="bg-[#2D1D35] p-6 text-white relative">
+                 <div className="flex gap-4 items-center">
+                    <img src={selectedVideo.thumbnailUrl} className="w-32 h-20 rounded-xl object-cover border border-white/10" />
+                    <div className="flex-1">
+                       <h3 className="text-lg font-bold line-clamp-2 leading-snug">{selectedVideo.title}</h3>
+                       <div className="flex gap-4 mt-2">
+                          <div className="flex flex-col">
+                             <span className="text-[10px] text-gray-400 uppercase font-bold">Views</span>
+                             <span className="text-base font-bold text-[#BEF264]">{parseInt(selectedVideo.views).toLocaleString()}</span>
+                          </div>
+                          <div className="flex flex-col">
+                             <span className="text-[10px] text-gray-400 uppercase font-bold">Likes</span>
+                             <span className="text-base font-bold text-white">{parseInt(selectedVideo.likes).toLocaleString()}</span>
+                          </div>
+                          <div className="flex flex-col">
+                             <span className="text-[10px] text-gray-400 uppercase font-bold">Published</span>
+                             <span className="text-base font-bold text-white">{new Date(selectedVideo.publishedAt).toLocaleDateString()}</span>
+                          </div>
+                       </div>
+                    </div>
+                 </div>
+                 <button onClick={() => setIsVideoDetailModalOpen(false)} className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors">
+                    <X size={20} />
+                 </button>
+              </div>
+
+              <div className="p-8 space-y-6 bg-[#F8F8F7]">
+                 <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
+                    <div className="flex items-center justify-between mb-8">
+                       <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Growth Performance</h4>
+                       <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-[#8E9BEE]" />
+                          <span className="text-[10px] font-bold text-gray-500">VIEWS OVER TIME</span>
+                       </div>
+                    </div>
+                    
+                    {isVideoDetailLoading ? (
+                      <div className="h-[300px] flex items-center justify-center"><Loader2 className="animate-spin text-gray-200" /></div>
+                    ) : videoAnalytics.length === 0 ? (
+                      <div className="h-[300px] flex flex-col items-center justify-center text-center">
+                         <BarChart2 size={40} className="text-gray-100 mb-4" />
+                         <p className="text-sm text-gray-400 font-medium">No historical data available for this range.</p>
+                      </div>
+                    ) : (
+                      <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={videoAnalytics}>
+                              <defs>
+                                <linearGradient id="colorVideoViews" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#8E9BEE" stopOpacity={0.2}/>
+                                    <stop offset="95%" stopColor="#8E9BEE" stopOpacity={0}/>
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="0" vertical={false} stroke="#F3F4F6" />
+                              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#9CA3AF" }} />
+                              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#9CA3AF" }} />
+                              <Tooltip contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }} />
+                              <Area type="monotone" dataKey="views" stroke="#8E9BEE" strokeWidth={3} fillOpacity={1} fill="url(#colorVideoViews)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                 </div>
+
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col items-center">
+                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Avg. Watch Time</span>
+                       <span className="text-2xl font-bold text-[#0A0A0A]">{Math.round(videoAnalytics[videoAnalytics.length-1]?.avgWatchTime / 60 || 0)}m</span>
+                       <div className="w-full h-1 bg-gray-50 rounded-full mt-4">
+                          <div className="h-full bg-[#D1EBD9] rounded-full w-[70%]" />
+                       </div>
+                    </div>
+                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex flex-col items-center">
+                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Comments</span>
+                       <span className="text-2xl font-bold text-[#0A0A0A]">{selectedVideo.comments}</span>
+                       <div className="w-full h-1 bg-gray-50 rounded-full mt-4">
+                          <div className="h-full bg-[#8E9BEE] rounded-full w-[45%]" />
+                       </div>
+                    </div>
+                 </div>
+              </div>
+              
+              <div className="p-4 border-t border-gray-100 bg-white flex justify-end">
+                 <Button onClick={() => setIsVideoDetailModalOpen(false)} className="bg-[#0A0A0A] text-white rounded-xl font-bold px-8">Close</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isExportModalOpen} onOpenChange={setIsExportModalOpen}>
+        <DialogContent className="sm:max-w-[400px] rounded-3xl p-6 bg-white border border-gray-100 shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-[#0A0A0A] tracking-tight">Xuất báo cáo kênh {config.name}</DialogTitle>
+            <DialogDescription className="text-xs text-gray-400">Chọn định dạng báo cáo bạn muốn tải xuống.</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4 py-4">
+            <button
+              onClick={() => {
+                handleExportCSV();
+                setIsExportModalOpen(false);
+              }}
+              className="flex flex-col items-center gap-3 p-5 rounded-2xl border border-gray-100 hover:border-gray-900 bg-white hover:bg-gray-50/50 transition-all text-center group cursor-pointer"
+            >
+              <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center text-green-600 font-bold text-sm group-hover:scale-105 transition-transform">
+                CSV
+              </div>
+              <div className="text-xs font-bold text-[#0A0A0A]">Tải file CSV</div>
+              <div className="text-[9px] text-gray-400">Dữ liệu bảng tính chi tiết cho tab {activeTab}</div>
+            </button>
+            <button
+              onClick={() => {
+                toast.info("Tính năng xuất PDF đang được phát triển.");
+                setIsExportModalOpen(false);
+              }}
+              className="flex flex-col items-center gap-3 p-5 rounded-2xl border border-gray-100 hover:border-gray-900 bg-white hover:bg-gray-50/50 transition-all text-center group cursor-pointer"
+            >
+              <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 font-bold text-sm group-hover:scale-105 transition-transform">
+                PDF
+              </div>
+              <div className="text-xs font-bold text-[#0A0A0A]">Tải file PDF</div>
+              <div className="text-[9px] text-gray-400">Báo cáo trực quan kèm biểu đồ đồ họa</div>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

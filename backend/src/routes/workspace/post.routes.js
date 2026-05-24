@@ -13,4 +13,42 @@ router.use(verifyAuth);
  */
 router.get('/', postController.getPosts);
 
+/**
+ * POST /api/posts
+ * Create a new post
+ */
+router.post('/', postController.createPost);
+
+/**
+ * PUT /api/posts/:id
+ * Update an existing post
+ */
+router.put('/:id', postController.updatePost);
+
+const multer = require('multer');
+const path = require('path');
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = Date.now() + path.extname(file.originalname);
+    cb(null, uniqueName);
+  },
+});
+
+const upload = multer({ storage });
+
+router.post('/upload', upload.single('video'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'No video file uploaded' });
+  }
+  const videoUrl = `/uploads/${req.file.filename}`;
+  res.status(200).json({
+    message: 'Video uploaded successfully',
+    videoUrl: videoUrl
+  });
+});
+
 module.exports = router;

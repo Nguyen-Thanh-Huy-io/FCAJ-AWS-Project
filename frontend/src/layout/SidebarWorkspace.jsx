@@ -109,10 +109,15 @@ export function SidebarWorkspace() {
             </div>
             <Link
               to="/planner"
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 no-underline transition-all"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all no-underline ${
+                currentPath.startsWith("/planner") ? "bg-[#F8F8F7] text-[#0A0A0A]" : "text-gray-500 hover:bg-gray-50"
+              }`}
             >
-              <FileText size={18} />
-              <span style={{ fontSize: 13 }}>Content Planner</span>
+              <FileText size={18} style={{ color: currentPath.startsWith("/planner") ? "#0A0A0A" : undefined }} />
+              <span style={{ fontSize: 13, fontWeight: currentPath.startsWith("/planner") ? 600 : 400 }}>Content Planner</span>
+              {currentPath.startsWith("/planner") && (
+                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#0A0A0A]" />
+              )}
             </Link>
           </div>
         )}

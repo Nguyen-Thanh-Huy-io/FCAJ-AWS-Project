@@ -24,7 +24,6 @@ import { StreamSchedulerPage } from "./pages/workspace/StreamScheduler";
 import { LiveMonitorPage } from "./pages/workspace/LiveMonitor";
 import { LiveSetupPage } from "./pages/workspace/LiveSetup";
 import { AnalyticsPage } from "./pages/workspace/Analytics";
-import { ContentPlannerPage } from "./pages/workspace/ContentPlanner";
 import { MediaLibraryPage } from "./pages/workspace/MediaLibrary";
 import { StreamHistoryPage } from "./pages/workspace/StreamHistory";
 import { SettingsPage } from "./pages/workspace/Settings";
@@ -34,6 +33,12 @@ import { HashtagManager } from "./pages/workspace/HashtagManager";
 import { AutoLists } from "./pages/workspace/AutoLists";
 import { ErrorPages } from "./pages/workspace/ErrorPages";
 import { NotificationsPage } from "./pages/workspace/Notifications";
+import { PlannerLayout } from "./pages/workspace/planner/PlannerLayout";
+import { WeeklyCalendarView } from "./pages/workspace/planner/WeeklyCalendarView";
+import { ListView } from "./pages/workspace/planner/ListView";
+import { HistoryView } from "./pages/workspace/planner/HistoryView";
+import { PostsLibraryView } from "./pages/workspace/planner/PostsLibraryView";
+import { AutoListsView } from "./pages/workspace/planner/AutoListsView";
 
 // Manage Pages
 import { InboxPage } from "./pages/manage/Inbox";
@@ -111,7 +116,14 @@ export default function App() {
               <Route path="/live" element={<ProtectedRoute><LiveMonitorPage /></ProtectedRoute>} />
               <Route path="/live/setup" element={<ProtectedRoute><LiveSetupPage /></ProtectedRoute>} />
               <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
-              <Route path="/planner" element={<ProtectedRoute><ContentPlannerPage /></ProtectedRoute>} />
+              <Route path="/planner" element={<ProtectedRoute><PlannerLayout /></ProtectedRoute>}>
+                <Route index element={<Navigate to="calendar" replace />} />
+                <Route path="calendar" element={<WeeklyCalendarView />} />
+                <Route path="list" element={<ListView />} />
+                <Route path="library" element={<PostsLibraryView />} />
+                <Route path="autolists" element={<AutoListsView />} />
+                <Route path="history" element={<HistoryView />} />
+              </Route>
               <Route path="/media-library" element={<ProtectedRoute><MediaLibraryPage /></ProtectedRoute>} />
               <Route path="/smartlinks" element={<ProtectedRoute><SmartLinksPage /></ProtectedRoute>} />
               <Route path="/ai" element={<ProtectedRoute><AIAssistant /></ProtectedRoute>} />

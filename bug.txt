@@ -1,31 +1,101 @@
-node:internal/modules/cjs/loader:1249
-  throw err;
-  ^
+Uncaught ReferenceError: Languages is not defined
+    at PostCreatorPage (PostCreator.jsx:250:127)
+    at renderWithHooks (chunk-KDCVS43I.js?v=c95177d9:11596:26)
+    at updateFunctionComponent (chunk-KDCVS43I.js?v=c95177d9:14630:28)
+    at beginWork (chunk-KDCVS43I.js?v=c95177d9:15972:22)
+    at HTMLUnknownElement.callCallback2 (chunk-KDCVS43I.js?v=c95177d9:3680:22)
+    at Object.invokeGuardedCallbackDev (chunk-KDCVS43I.js?v=c95177d9:3705:24)
+    at invokeGuardedCallback (chunk-KDCVS43I.js?v=c95177d9:3739:39)
+    at beginWork$1 (chunk-KDCVS43I.js?v=c95177d9:19818:15)
+    at performUnitOfWork (chunk-KDCVS43I.js?v=c95177d9:19251:20)
+    at workLoopSync (chunk-KDCVS43I.js?v=c95177d9:19190:13)
+(anonymous) @ PostCreator.jsx:250
+renderWithHooks @ chunk-KDCVS43I.js?v=c95177d9:11596
+updateFunctionComponent @ chunk-KDCVS43I.js?v=c95177d9:14630
+beginWork @ chunk-KDCVS43I.js?v=c95177d9:15972
+callCallback2 @ chunk-KDCVS43I.js?v=c95177d9:3680
+invokeGuardedCallbackDev @ chunk-KDCVS43I.js?v=c95177d9:3705
+invokeGuardedCallback @ chunk-KDCVS43I.js?v=c95177d9:3739
+beginWork$1 @ chunk-KDCVS43I.js?v=c95177d9:19818
+performUnitOfWork @ chunk-KDCVS43I.js?v=c95177d9:19251
+workLoopSync @ chunk-KDCVS43I.js?v=c95177d9:19190
+renderRootSync @ chunk-KDCVS43I.js?v=c95177d9:19169
+performSyncWorkOnRoot @ chunk-KDCVS43I.js?v=c95177d9:18927
+flushSyncCallbacks @ chunk-KDCVS43I.js?v=c95177d9:9166
+(anonymous) @ chunk-KDCVS43I.js?v=c95177d9:18677
+PostCreator.jsx:250 Uncaught ReferenceError: Languages is not defined
+    at PostCreatorPage (PostCreator.jsx:250:127)
+    at renderWithHooks (chunk-KDCVS43I.js?v=c95177d9:11596:26)
+    at updateFunctionComponent (chunk-KDCVS43I.js?v=c95177d9:14630:28)
+    at beginWork (chunk-KDCVS43I.js?v=c95177d9:15972:22)
+    at HTMLUnknownElement.callCallback2 (chunk-KDCVS43I.js?v=c95177d9:3680:22)
+    at Object.invokeGuardedCallbackDev (chunk-KDCVS43I.js?v=c95177d9:3705:24)
+    at invokeGuardedCallback (chunk-KDCVS43I.js?v=c95177d9:3739:39)
+    at beginWork$1 (chunk-KDCVS43I.js?v=c95177d9:19818:15)
+    at performUnitOfWork (chunk-KDCVS43I.js?v=c95177d9:19251:20)
+    at workLoopSync (chunk-KDCVS43I.js?v=c95177d9:19190:13)
+(anonymous) @ PostCreator.jsx:250
+renderWithHooks @ chunk-KDCVS43I.js?v=c95177d9:11596
+updateFunctionComponent @ chunk-KDCVS43I.js?v=c95177d9:14630
+beginWork @ chunk-KDCVS43I.js?v=c95177d9:15972
+callCallback2 @ chunk-KDCVS43I.js?v=c95177d9:3680
+invokeGuardedCallbackDev @ chunk-KDCVS43I.js?v=c95177d9:3705
+invokeGuardedCallback @ chunk-KDCVS43I.js?v=c95177d9:3739
+beginWork$1 @ chunk-KDCVS43I.js?v=c95177d9:19818
+performUnitOfWork @ chunk-KDCVS43I.js?v=c95177d9:19251
+workLoopSync @ chunk-KDCVS43I.js?v=c95177d9:19190
+renderRootSync @ chunk-KDCVS43I.js?v=c95177d9:19169
+recoverFromConcurrentError @ chunk-KDCVS43I.js?v=c95177d9:18786
+performSyncWorkOnRoot @ chunk-KDCVS43I.js?v=c95177d9:18932
+flushSyncCallbacks @ chunk-KDCVS43I.js?v=c95177d9:9166
+(anonymous) @ chunk-KDCVS43I.js?v=c95177d9:18677
+chunk-KDCVS43I.js?v=c95177d9:14080 The above error occurred in the <PostCreatorPage> component:
 
-Error: Cannot find module '../../services/social/youtube.service'
-Require stack:
-- D:\Fullit\projects\PubliCast\backend\src\controllers\social\social.controller.js       
-- D:\Fullit\projects\PubliCast\backend\src\routes\social\social.routes.js
-- D:\Fullit\projects\PubliCast\backend\src\app.js
-- D:\Fullit\projects\PubliCast\backend\src\server.js
-    at Function._resolveFilename (node:internal/modules/cjs/loader:1246:15)
-    at Function._load (node:internal/modules/cjs/loader:1072:27)
-    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
-    at wrapModuleLoad (node:internal/modules/cjs/loader:216:24)
-    at Module.require (node:internal/modules/cjs/loader:1337:12)
-    at require (node:internal/modules/helpers:139:16)
-    at Object.<anonymous> (D:\Fullit\projects\PubliCast\backend\src\controllers\social\social.controller.js:2:24)
-    at Module._compile (node:internal/modules/cjs/loader:1572:14)
-    at Object..js (node:internal/modules/cjs/loader:1709:10)
-    at Module.load (node:internal/modules/cjs/loader:1315:32) {
-  code: 'MODULE_NOT_FOUND',
-  requireStack: [
-    'D:\\Fullit\\projects\\PubliCast\\backend\\src\\controllers\\social\\social.controller.js',
-    'D:\\Fullit\\projects\\PubliCast\\backend\\src\\routes\\social\\social.routes.js',   
-    'D:\\Fullit\\projects\\PubliCast\\backend\\src\\app.js',
-    'D:\\Fullit\\projects\\PubliCast\\backend\\src\\server.js'
-  ]
-}
+    at PostCreatorPage (http://localhost:5173/src/pages/workspace/PostCreator.jsx:113:7)
+    at div
+    at App (http://localhost:5173/src/App.jsx:74:40)
+    at PostCreatorProvider (http://localhost:5173/src/context/PostCreatorContext.jsx:20:39)
+    at ConnectionsProvider (http://localhost:5173/src/context/ConnectionsContext.jsx:20:39)
+    at AuthProvider (http://localhost:5173/src/context/AuthContext.jsx:23:32)
+    at Router (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=c95177d9:7500:13)
+    at BrowserRouter (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=c95177d9:10787:3)
 
-Node.js v23.1.0
-[nodemon] app crashed - waiting for file changes before starting...
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+logCapturedError @ chunk-KDCVS43I.js?v=c95177d9:14080
+update.callback @ chunk-KDCVS43I.js?v=c95177d9:14100
+callCallback @ chunk-KDCVS43I.js?v=c95177d9:11296
+commitUpdateQueue @ chunk-KDCVS43I.js?v=c95177d9:11313
+commitLayoutEffectOnFiber @ chunk-KDCVS43I.js?v=c95177d9:17141
+commitLayoutMountEffects_complete @ chunk-KDCVS43I.js?v=c95177d9:18030
+commitLayoutEffects_begin @ chunk-KDCVS43I.js?v=c95177d9:18019
+commitLayoutEffects @ chunk-KDCVS43I.js?v=c95177d9:17970
+commitRootImpl @ chunk-KDCVS43I.js?v=c95177d9:19406
+commitRoot @ chunk-KDCVS43I.js?v=c95177d9:19330
+performSyncWorkOnRoot @ chunk-KDCVS43I.js?v=c95177d9:18948
+flushSyncCallbacks @ chunk-KDCVS43I.js?v=c95177d9:9166
+(anonymous) @ chunk-KDCVS43I.js?v=c95177d9:18677
+chunk-KDCVS43I.js?v=c95177d9:9176 Uncaught ReferenceError: Languages is not defined
+    at PostCreatorPage (PostCreator.jsx:250:127)
+    at renderWithHooks (chunk-KDCVS43I.js?v=c95177d9:11596:26)
+    at updateFunctionComponent (chunk-KDCVS43I.js?v=c95177d9:14630:28)
+    at beginWork (chunk-KDCVS43I.js?v=c95177d9:15972:22)
+    at beginWork$1 (chunk-KDCVS43I.js?v=c95177d9:19806:22)
+    at performUnitOfWork (chunk-KDCVS43I.js?v=c95177d9:19251:20)
+    at workLoopSync (chunk-KDCVS43I.js?v=c95177d9:19190:13)
+    at renderRootSync (chunk-KDCVS43I.js?v=c95177d9:19169:15)
+    at recoverFromConcurrentError (chunk-KDCVS43I.js?v=c95177d9:18786:28)
+    at performSyncWorkOnRoot (chunk-KDCVS43I.js?v=c95177d9:18932:28)
+(anonymous) @ PostCreator.jsx:250
+renderWithHooks @ chunk-KDCVS43I.js?v=c95177d9:11596
+updateFunctionComponent @ chunk-KDCVS43I.js?v=c95177d9:14630
+beginWork @ chunk-KDCVS43I.js?v=c95177d9:15972
+beginWork$1 @ chunk-KDCVS43I.js?v=c95177d9:19806
+performUnitOfWork @ chunk-KDCVS43I.js?v=c95177d9:19251
+workLoopSync @ chunk-KDCVS43I.js?v=c95177d9:19190
+renderRootSync @ chunk-KDCVS43I.js?v=c95177d9:19169
+recoverFromConcurrentError @ chunk-KDCVS43I.js?v=c95177d9:18786
+performSyncWorkOnRoot @ chunk-KDCVS43I.js?v=c95177d9:18932
+flushSyncCallbacks @ chunk-KDCVS43I.js?v=c95177d9:9166
+(anonymous) @ chunk-KDCVS43I.js?v=c95177d9:18677
+academia-7OvxaULB.js:38 [pdf-viewer-detect][isBrowserPdfViewerPage] final: false

@@ -103,6 +103,18 @@ class SocialController {
     }
   }
 
+  async getYouTubeVideoAnalytics(req, res) {
+    try {
+      const { brandId, videoId, startDate, endDate } = req.query;
+      if (!videoId) return res.status(400).json({ message: 'videoId is required' });
+      
+      const data = await youtubeService.getVideoAnalytics(brandId, videoId, startDate, endDate);
+      res.json({ data });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
   async searchYouTubeChannels(req, res) {
     try {
       const { brandId, query } = req.query;
@@ -128,6 +140,20 @@ class SocialController {
       const { brandId } = req.query;
       const competitors = await youtubeService.getCompetitors(brandId);
       res.json({ data: competitors });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getYouTubePlaylists(req, res) {
+    try {
+      const { brandId, sync } = req.query;
+      if (!brandId) {
+        return res.status(400).json({ message: 'brandId is required' });
+      }
+      const forceRefresh = sync === 'true' || sync === true;
+      const playlists = await youtubeService.getPlaylists(brandId, forceRefresh);
+      res.json({ data: playlists });
     } catch (error) {
       res.status(500).json({ message: error.message });
     }

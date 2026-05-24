@@ -4,12 +4,19 @@ const PostCreatorContext = createContext();
 
 export function PostCreatorProvider({ children }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState(null);
 
-  const openPostCreator = () => setIsOpen(true);
-  const closePostCreator = () => setIsOpen(false);
+  const openPostCreator = (options = {}) => {
+    setEditingPost(options.post || null);
+    setIsOpen(true);
+  };
+  const closePostCreator = () => {
+    setEditingPost(null);
+    setIsOpen(false);
+  };
 
   return (
-    <PostCreatorContext.Provider value={{ isOpen, openPostCreator, closePostCreator }}>
+    <PostCreatorContext.Provider value={{ isOpen, editingPost, openPostCreator, closePostCreator }}>
       {children}
     </PostCreatorContext.Provider>
   );

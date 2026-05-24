@@ -156,7 +156,104 @@ class YouTubeAnalyticsService {
   }
 
   async getCompetitors(brandId) {
-    return competitorRepository.getCompetitors(brandId, PLATFORMS.YOUTUBE);
+    const competitors = await competitorRepository.getCompetitors(brandId, PLATFORMS.YOUTUBE);
+    if (!competitors || competitors.length === 0) return [];
+
+    const socialAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORMS.YOUTUBE);
+    if (!socialAccount || socialAccount.length === 0) return competitors;
+
+    const auth = googleOAuthService.createClient();
+    auth.setCredentials({ access_token: socialAccount[0].accessToken });
+
+    // Enrich each competitor with YouTube API data
+    const enrichedCompetitors = await Promise.all(competitors.map(async (comp) => {
+      try {
+        const channelRes = await youtubeGateway.getChannelList(auth, false, comp.competitorHandle);
+        if (!channelRes.data.items || channelRes.data.items.length === 0) {
+          return {
+            ...comp,
+            totalViews: 0,
+            totalVideos: 0,
+            latestVideos: []
+          };
+        }
+
+        const channel = channelRes.data.items[0];
+        const uploadsPlaylistId = channel.contentDetails?.relatedPlaylists?.uploads;
+        const totalViews = parseInt(channel.statistics?.viewCount) || 0;
+        const totalVideos = parseInt(channel.statistics?.videoCount) || 0;
+        const followersCount = parseInt(channel.statistics?.subscriberCount) || 0;
+
+        let latestVideos = [];
+        if (uploadsPlaylistId) {
+          const playlistRes = await youtubeGateway.getPlaylistItems(auth, uploadsPlaylistId, 5);
+          if (playlistRes.data.items && playlistRes.data.items.length > 0) {
+            const videoIds = playlistRes.data.items.map(item => item.contentDetails.videoId).join(',');
+            const videoDetails = await youtubeGateway.getVideosList(auth, videoIds);
+            latestVideos = videoDetails.data.items.map(v => ({
+              id: v.id,
+              title: v.snippet.title,
+              thumbnailUrl: v.snippet.thumbnails.medium?.url || v.snippet.thumbnails.default.url,
+              publishedAt: v.snippet.publishedAt,
+              views: parseInt(v.statistics.viewCount) || 0,
+              likes: parseInt(v.statistics.likeCount) || 0,
+              comments: parseInt(v.statistics.commentCount) || 0,
+            }));
+          }
+        }
+
+        return {
+          ...comp,
+          followersCount,
+          totalViews,
+          totalVideos,
+          latestVideos
+        };
+      } catch (err) {
+        console.error(`Failed to enrich competitor ${comp.competitorHandle}:`, err.message);
+        return {
+          ...comp,
+          totalViews: 0,
+          totalVideos: 0,
+          latestVideos: []
+        };
+      }
+    }));
+
+    return enrichedCompetitors;
+  }
+
+  async getVideoAnalytics(brandId, videoId, startDate, endDate) {
+    const socialAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORMS.YOUTUBE);
+    if (!socialAccount || socialAccount.length === 0) throw new Error('YouTube account not connected');
+
+    const auth = googleOAuthService.createClient();
+    auth.setCredentials({ access_token: socialAccount[0].accessToken });
+
+    const now = new Date();
+    const defaultStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const defaultEnd = now.toISOString().split('T')[0];
+
+    const start = startDate || defaultStart;
+    const end = endDate || defaultEnd;
+
+    const response = await youtubeGateway.getAnalyticsReportQuery(auth, {
+      ids: 'channel==MINE',
+      startDate: start,
+      endDate: end,
+      metrics: 'views,likes,comments,averageViewDuration',
+      dimensions: 'day',
+      filters: `video==${videoId}`,
+      sort: 'day'
+    });
+
+    return response.data.rows?.map(row => ({
+      date: row[0],
+      views: row[1],
+      likes: row[2],
+      comments: row[3],
+      avgWatchTime: row[4]
+    })) || [];
   }
 }
 

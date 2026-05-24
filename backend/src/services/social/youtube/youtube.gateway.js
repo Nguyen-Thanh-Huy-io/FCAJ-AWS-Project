@@ -91,6 +91,91 @@ class YouTubeGateway {
     const analytics = google.youtubeAnalytics({ version: 'v2', auth });
     return analytics.reports.query(params);
   }
+
+  /**
+   * Upload video lên YouTube
+   */
+  async uploadVideo(auth, videoStream, metadata) {
+    const youtube = google.youtube({ version: 'v3', auth });
+    const { 
+      title, 
+      description, 
+      privacyStatus = 'private', 
+      categoryId = '22',
+      selfDeclaredMadeForKids = false,
+      tags = []
+    } = metadata;
+
+    return youtube.videos.insert({
+      part: 'snippet,status',
+      requestBody: {
+        snippet: {
+          title,
+          description,
+          categoryId,
+          tags
+        },
+        status: {
+          privacyStatus,
+          selfDeclaredMadeForKids
+        }
+      },
+      media: {
+        body: videoStream
+      }
+    });
+  }
+
+  /**
+   * Lấy danh sách Playlist của kênh
+   */
+  async getPlaylists(auth, limit = 50) {
+    const youtube = google.youtube({ version: 'v3', auth });
+    return youtube.playlists.list({
+      part: 'snippet,contentDetails',
+      mine: true,
+      maxResults: limit
+    });
+  }
+
+  /**
+   * Thêm video vào Playlist
+   */
+  async addVideoToPlaylist(auth, playlistId, videoId) {
+    const youtube = google.youtube({ version: 'v3', auth });
+    return youtube.playlistItems.insert({
+      part: 'snippet',
+      requestBody: {
+        snippet: {
+          playlistId,
+          resourceId: {
+            kind: 'youtube#video',
+            videoId
+          }
+        }
+      }
+    });
+  }
+
+  /**
+   * Đăng bình luận mới lên video (Top-level comment)
+   */
+  async insertCommentThread(auth, videoId, text) {
+    const youtube = google.youtube({ version: 'v3', auth });
+    return youtube.commentThreads.insert({
+      part: 'snippet',
+      requestBody: {
+        snippet: {
+          videoId,
+          topLevelComment: {
+            snippet: {
+              textOriginal: text
+            }
+          }
+        }
+      }
+    });
+  }
 }
 
 module.exports = new YouTubeGateway();

@@ -46,6 +46,37 @@ class PostRepository {
       }
     });
   }
+
+  async create(data) {
+    return prisma.post.create({
+      data,
+      include: {
+        creator: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true
+          }
+        }
+      }
+    });
+  }
+
+  async update(id, data) {
+    return prisma.post.update({
+      where: { id },
+      data,
+      include: {
+        creator: {
+          select: {
+            id: true,
+            name: true,
+            avatarUrl: true
+          }
+        }
+      }
+    });
+  }
 }
 
 module.exports = new PostRepository();

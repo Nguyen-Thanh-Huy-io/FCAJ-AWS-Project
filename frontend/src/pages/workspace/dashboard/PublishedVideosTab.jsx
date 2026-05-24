@@ -9,7 +9,8 @@ export function PublishedVideosTab({
   nextPageToken,
   pageSize,
   setPageSize,
-  fetchPublishedVideos
+  fetchPublishedVideos,
+  onVideoClick
 }) {
   return (
     <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
@@ -74,7 +75,11 @@ export function PublishedVideosTab({
               {publishedVideos.length === 0 ? (
                   <tr><td colSpan="6" className="px-6 py-10 text-center text-gray-400 text-xs">No videos found.</td></tr>
               ) : publishedVideos.map((item, i) => (
-                  <tr key={i} className="hover:bg-[#F8F8F7]/50 transition-colors group">
+                  <tr 
+                    key={i} 
+                    className="hover:bg-[#F8F8F7]/50 transition-colors group cursor-pointer"
+                    onClick={() => onVideoClick(item)}
+                  >
                       <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
                           <div className="w-16 h-10 bg-gray-100 rounded-lg overflow-hidden relative shadow-sm border border-gray-100 shrink-0">
