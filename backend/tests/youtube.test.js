@@ -1,11 +1,12 @@
-const youtubeService = require('../src/services/youtube.service');
-const googleOAuthService = require('../src/services/google-oauth.service');
-const socialAccountRepository = require('../src/repositories/social-account.repository');
+const youtubeService = require('../src/services/social/youtube');
+const googleOAuthService = require('../src/services/social/google-oauth.service');
+const socialAccountRepository = require('../src/repositories/social/social-account.repository');
+const youtubeAnalytics = require('../src/services/social/youtube/youtube-analytics.service');
 const { google } = require('googleapis');
 
 jest.mock('googleapis');
-jest.mock('../src/services/google-oauth.service');
-jest.mock('../src/repositories/social-account.repository');
+jest.mock('../src/services/social/google-oauth.service');
+jest.mock('../src/repositories/social/social-account.repository');
 
 describe('YouTubeService', () => {
   afterEach(() => {
@@ -27,6 +28,11 @@ describe('YouTubeService', () => {
           subscriberCount: '1000',
           videoCount: '50',
           viewCount: '5000'
+        },
+        contentDetails: {
+          relatedPlaylists: {
+            uploads: 'uploadsPlaylist123'
+          }
         }
       };
 
@@ -62,14 +68,16 @@ describe('YouTubeService', () => {
       const mockChannelData = { channelId: 'UC123', statistics: {}, snippet: {} };
       
       googleOAuthService.getTokens.mockResolvedValue(mockTokens);
-      googleOAuthService.getClient.mockReturnValue({});
+      googleOAuthService.createClient.mockReturnValue({
+        setCredentials: jest.fn()
+      });
       
-      const getChannelInfoSpy = jest.spyOn(youtubeService, 'getChannelInfo').mockResolvedValue(mockChannelData);
+      const getChannelInfoSpy = jest.spyOn(youtubeAnalytics, 'getChannelInfo').mockResolvedValue(mockChannelData);
       socialAccountRepository.upsertYouTubeAccount.mockResolvedValue({ id: 'sa1' });
 
       const result = await youtubeService.connectChannel('brand1', 'code123');
 
-      expect(googleOAuthService.getTokens).toHaveBeenCalledWith('code123');
+      expect(googleOAuthService.getTokens).toHaveBeenCalledWith('code123', undefined);
       expect(socialAccountRepository.upsertYouTubeAccount).toHaveBeenCalledWith('brand1', mockChannelData, mockTokens);
       expect(result.id).toBe('sa1');
       

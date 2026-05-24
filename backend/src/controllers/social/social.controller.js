@@ -1,5 +1,5 @@
 const googleOAuthService = require('../../services/social/google-oauth.service');
-const youtubeService = require('../../services/social/youtube.service');
+const youtubeService = require('../../services/social/youtube');
 const socialAccountRepository = require('../../repositories/social/social-account.repository');
 
 class SocialController {

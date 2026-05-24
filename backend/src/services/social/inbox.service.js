@@ -1,5 +1,5 @@
 const inboxRepository = require('../../repositories/social/inbox.repository');
-const youtubeService = require('./youtube.service');
+const socialPlatformFactory = require('./social-platform.factory');
 const prisma = require('../../config/prisma');
 const { PLATFORMS, INBOX_STATUS, INBOX_TYPES } = require('../../utils/constants');
 
@@ -139,10 +139,11 @@ class InboxService {
     };
 
     let videoContext = null;
-    if (item.platform === PLATFORMS.YOUTUBE && item.relatedPostId) {
+    if (item.relatedPostId) {
        try {
           const brandId = item.inbox.brandId;
-          videoContext = await youtubeService.getVideoDetails(brandId, item.relatedPostId);
+          const service = socialPlatformFactory.getService(item.platform);
+          videoContext = await service.getVideoDetails(brandId, item.relatedPostId);
        } catch (e) {
           console.error("Failed to fetch video context:", e.message);
        }
@@ -176,27 +177,26 @@ class InboxService {
   }
 
   async syncPlatformComments(brandId, platform) {
-    if (platform === PLATFORMS.YOUTUBE) {
-      return await youtubeService.fetchChannelComments(brandId);
+    try {
+      const service = socialPlatformFactory.getService(platform);
+      return await service.fetchChannelComments(brandId);
+    } catch (e) {
+      console.error(`Failed to sync platform comments for ${platform}:`, e.message);
+      return [];
     }
-    // Add other platforms here...
-    return [];
   }
 
   async replyToItem(brandId, itemId, text) {
     const item = await inboxRepository.findById(itemId);
     if (!item) throw new Error('Item not found');
 
-    if (item.platform === PLATFORMS.YOUTUBE) {
-      const reply = await youtubeService.replyToComment(brandId, item.platformItemId, text);
-      
-      // Update parent status to READ
-      await inboxRepository.updateStatus(itemId, INBOX_STATUS.READ);
-      
-      return reply;
-    }
-
-    throw new Error('Platform not supported for reply');
+    const service = socialPlatformFactory.getService(item.platform);
+    const reply = await service.replyToComment(brandId, item.platformItemId, text);
+    
+    // Update parent status to READ
+    await inboxRepository.updateStatus(itemId, INBOX_STATUS.READ);
+    
+    return reply;
   }
 
   async updateItemStatus(itemId, status) {

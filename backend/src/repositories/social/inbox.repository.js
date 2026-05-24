@@ -54,6 +54,39 @@ class InboxRepository {
       data: { status }
     });
   }
+
+  async findOrCreateInbox(brandId) {
+    let inbox = await prisma.unifiedInbox.findUnique({ where: { brandId } });
+    if (!inbox) {
+      inbox = await prisma.unifiedInbox.create({ data: { brandId } });
+    }
+    return inbox;
+  }
+
+  async upsertInboxItem(where, update, create) {
+    return prisma.inboxItem.upsert({
+      where,
+      update,
+      create
+    });
+  }
+
+  async findInboxItemByPlatformId(platformItemId) {
+    return prisma.inboxItem.findUnique({
+      where: { platformItemId }
+    });
+  }
+
+  async createInboxItem(data) {
+    return prisma.inboxItem.create({ data });
+  }
+
+  async updateInboxLastSync(inboxId) {
+    return prisma.unifiedInbox.update({
+      where: { id: inboxId },
+      data: { lastSyncAt: new Date() }
+    });
+  }
 }
 
 module.exports = new InboxRepository();
