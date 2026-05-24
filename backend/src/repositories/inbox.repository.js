@@ -23,8 +23,8 @@ class InboxRepository {
           repliedBy: {
             select: { id: true, name: true, avatarUrl: true }
           },
-          post: {
-            select: { id: true, title: true, mediaThumbnailUrls: true, publishedAt: true }
+          replies: {
+             select: { authorId: true, authorName: true, authorAvatarUrl: true }
           }
         }
       }),
@@ -38,9 +38,9 @@ class InboxRepository {
     return prisma.inboxItem.findUnique({
       where: { id },
       include: {
+        inbox: true,
         assignedUser: { select: { id: true, name: true, avatarUrl: true } },
         repliedBy: { select: { id: true, name: true, avatarUrl: true } },
-        post: true,
         replies: {
           orderBy: { platformCreatedAt: 'asc' }
         }

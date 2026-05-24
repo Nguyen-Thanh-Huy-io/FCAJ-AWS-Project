@@ -248,6 +248,41 @@ class YouTubeService {
     });
   }
 
+  async getVideoDetails(brandId, videoId) {
+    const socialAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, 'YOUTUBE');
+    if (!socialAccount || socialAccount.length === 0) return null;
+
+    const auth = googleOAuthService.createClient();
+    auth.setCredentials({ access_token: socialAccount[0].accessToken });
+
+    const youtube = google.youtube({ version: 'v3', auth });
+    const response = await youtube.videos.list({
+      part: 'snippet,statistics,contentDetails',
+      id: videoId
+    });
+
+    if (!response.data.items || response.data.items.length === 0) return null;
+
+    const video = response.data.items[0];
+    const channelRes = await youtube.channels.list({
+      part: 'statistics',
+      id: video.snippet.channelId
+    });
+
+    return {
+      id: video.id,
+      title: video.snippet.title,
+      description: video.snippet.description,
+      thumbnailUrl: video.snippet.thumbnails.high?.url || video.snippet.thumbnails.default.url,
+      channelId: video.snippet.channelId,
+      channelTitle: video.snippet.channelTitle,
+      subscriberCount: channelRes.data.items?.[0]?.statistics?.subscriberCount,
+      viewCount: video.statistics.viewCount,
+      likeCount: video.statistics.likeCount,
+      publishedAt: video.snippet.publishedAt
+    };
+  }
+
   async searchChannel(brandId, query) {
     const socialAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, 'YOUTUBE');
     if (!socialAccount || socialAccount.length === 0) throw new Error('YouTube account not connected');
@@ -302,6 +337,155 @@ class YouTubeService {
     return prisma.competitorAnalysis.findMany({
       where: { brandId, platform: 'YOUTUBE' },
       orderBy: { addedAt: 'desc' }
+    });
+  }
+
+  async fetchChannelComments(brandId) {
+    const socialAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, 'YOUTUBE');
+    if (!socialAccount || socialAccount.length === 0) throw new Error('YouTube account not connected');
+
+    const account = socialAccount[0];
+    const auth = googleOAuthService.createClient();
+    auth.setCredentials({ access_token: account.accessToken });
+
+    const youtube = google.youtube({ version: 'v3', auth });
+
+    // Ensure UnifiedInbox exists for this brand
+    let inbox = await prisma.unifiedInbox.findUnique({ where: { brandId } });
+    if (!inbox) {
+      inbox = await prisma.unifiedInbox.create({ data: { brandId } });
+    }
+
+    const response = await youtube.commentThreads.list({
+      part: 'snippet,replies',
+      allThreadsRelatedToChannelId: account.platformAccountId,
+      maxResults: 100,
+      order: 'time',
+      moderationStatus: 'published' // Mặc định chỉ lấy cái đã đăng, tôi sẽ thử bỏ lọc nếu cần nhưng API yêu cầu xác định
+    });
+
+    if (!response.data.items) return [];
+
+    const inboxItems = [];
+    for (const thread of response.data.items) {
+      const comment = thread.snippet.topLevelComment;
+      
+      // Upsert Main Comment
+      const item = await prisma.inboxItem.upsert({
+        where: { platformItemId: comment.id },
+        update: {
+          content: comment.snippet.textDisplay,
+          authorName: comment.snippet.authorDisplayName,
+          authorAvatarUrl: comment.snippet.authorProfileImageUrl,
+          syncedAt: new Date(),
+          socialAccountId: account.id
+        },
+        create: {
+          inboxId: inbox.id,
+          platform: 'YOUTUBE',
+          type: 'COMMENT',
+          platformItemId: comment.id,
+          authorId: comment.snippet.authorChannelId.value,
+          authorName: comment.snippet.authorDisplayName,
+          authorAvatarUrl: comment.snippet.authorProfileImageUrl,
+          content: comment.snippet.textDisplay,
+          relatedPostId: comment.snippet.videoId,
+          platformCreatedAt: new Date(comment.snippet.publishedAt),
+          syncedAt: new Date(),
+          status: 'UNREAD',
+          socialAccountId: account.id
+        }
+      });
+      inboxItems.push(item);
+
+      // Handle Replies in thread if any
+      if (thread.replies && thread.replies.comments) {
+        for (const reply of thread.replies.comments) {
+          await prisma.inboxItem.upsert({
+            where: { platformItemId: reply.id },
+            update: {
+              content: reply.snippet.textDisplay,
+              authorName: reply.snippet.authorDisplayName,
+              authorAvatarUrl: reply.snippet.authorProfileImageUrl,
+              socialAccountId: account.id
+            },
+            create: {
+              inboxId: inbox.id,
+              platform: 'YOUTUBE',
+              type: 'COMMENT',
+              platformItemId: reply.id,
+              parentItemId: item.id,
+              authorId: reply.snippet.authorChannelId.value,
+              authorName: reply.snippet.authorDisplayName,
+              authorAvatarUrl: reply.snippet.authorProfileImageUrl,
+              content: reply.snippet.textDisplay,
+              relatedPostId: reply.snippet.videoId,
+              platformCreatedAt: new Date(reply.snippet.publishedAt),
+              syncedAt: new Date(),
+              status: 'READ',
+              socialAccountId: account.id
+            }
+          });
+        }
+      }
+    }
+
+    // Update last sync time
+    await prisma.unifiedInbox.update({
+      where: { id: inbox.id },
+      data: { lastSyncAt: new Date() }
+    });
+
+    return inboxItems;
+  }
+
+  async replyToComment(brandId, parentCommentId, text) {
+    const socialAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, 'YOUTUBE');
+    if (!socialAccount || socialAccount.length === 0) throw new Error('YouTube account not connected');
+
+    const account = socialAccount[0];
+    const auth = googleOAuthService.createClient();
+    auth.setCredentials({ access_token: account.accessToken });
+
+    const youtube = google.youtube({ version: 'v3', auth });
+
+    // YouTube comments.insert API
+    const response = await youtube.comments.insert({
+      part: 'snippet',
+      requestBody: {
+        snippet: {
+          parentId: parentCommentId,
+          textOriginal: text
+        }
+      }
+    });
+
+    const newComment = response.data;
+
+    // Save our reply to database
+    let inbox = await prisma.unifiedInbox.findUnique({ where: { brandId } });
+    
+    // Find parent in our DB to link
+    const parentInDb = await prisma.inboxItem.findUnique({
+      where: { platformItemId: parentCommentId }
+    });
+
+    return prisma.inboxItem.create({
+      data: {
+        inboxId: inbox.id,
+        platform: 'YOUTUBE',
+        type: 'COMMENT',
+        platformItemId: newComment.id,
+        parentItemId: parentInDb?.id,
+        authorId: account.platformAccountId,
+        authorName: account.displayName,
+        authorAvatarUrl: account.profilePictureUrl,
+        content: newComment.snippet.textDisplay,
+        relatedPostId: parentInDb?.relatedPostId,
+        platformCreatedAt: new Date(newComment.snippet.publishedAt),
+        syncedAt: new Date(),
+        status: 'READ'
+      }
     });
   }
 

@@ -45,6 +45,10 @@ class ApiService {
     return this.api.put(url, data, config);
   }
 
+  async patch(url, data = {}, config = {}) {
+    return this.api.patch(url, data, config);
+  }
+
   async delete(url, config = {}) {
     return this.api.delete(url, config);
   }

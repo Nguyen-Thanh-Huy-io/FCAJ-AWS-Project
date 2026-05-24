@@ -1,4 +1,6 @@
 const inboxRepository = require('../repositories/inbox.repository');
+const youtubeService = require('./youtube.service');
+const prisma = require('../config/prisma');
 
 class InboxService {
   /**
@@ -20,7 +22,8 @@ class InboxService {
 
     // Build where
     const where = {
-      inbox: { brandId }
+      inbox: { brandId },
+      parentItemId: null // Only top-level items in list
     };
 
     if (search && search.trim()) {
@@ -38,6 +41,8 @@ class InboxService {
     // Handle Tab Logic
     if (tab === 'Unread') {
       where.status = 'UNREAD';
+    } else if (tab === 'Unresolved') {
+      where.status = { in: ['UNREAD', 'READ', 'OPEN'] };
     } else if (tab === 'Comments') {
       where.type = 'COMMENT';
     } else if (tab === 'DMs') {
@@ -48,9 +53,6 @@ class InboxService {
 
     if (status && status !== 'all') {
       where.status = status.toUpperCase(); // e.g., OPEN, RESOLVED, SPAM
-    } else if (!tab) {
-      // Default to OPEN if no status or tab specified
-      // where.status = 'OPEN';
     }
 
     const { items, total } = await inboxRepository.findManyAndCount(where, {
@@ -59,18 +61,48 @@ class InboxService {
     });
 
     return {
-      data: items.map(item => ({
-        id: item.id,
-        platform: this.formatPlatform(item.platform),
-        user: item.authorName,
-        avatar: item.authorAvatarUrl || item.authorName.charAt(0),
-        preview: item.content,
-        time: this.formatTimeAgo(item.platformCreatedAt),
-        unread: item.status === 'UNREAD',
-        assigned: item.assignedUser?.name || null,
-        status: item.status.toLowerCase(),
-        type: item.type.toLowerCase()
-      })),
+      data: items.map(item => {
+        // Aggregate participants from replies
+        const participants = [
+          { name: item.authorName, avatar: item.authorAvatarUrl }
+        ];
+        
+        const repliers = (item.replies || [])
+          .filter(r => r.authorId !== item.authorId) // Only unique repliers
+          .map(r => ({ name: r.authorName, avatar: r.authorAvatarUrl }));
+        
+        // Use a Set to ensure unique names for participants display
+        const uniqueRepliers = [];
+        const seenNames = new Set([item.authorName]);
+        for(const r of repliers) {
+           if(!seenNames.has(r.name)) {
+              seenNames.add(r.name);
+              uniqueRepliers.push(r);
+           }
+        }
+        participants.push(...uniqueRepliers);
+
+        const participantNames = participants.map(p => p.name);
+        let displayName = participantNames[0];
+        if (participantNames.length > 1) {
+           displayName = `${participantNames[0]} and ${participantNames[1]}`;
+           if (participantNames.length > 2) displayName += ` and ${participantNames.length - 2} others`;
+        }
+
+        return {
+          id: item.id,
+          platform: this.formatPlatform(item.platform),
+          user: displayName,
+          participants: participants.slice(0, 3), // Return top 3 for avatar stack
+          avatar: item.authorAvatarUrl || item.authorName.charAt(0),
+          preview: item.content,
+          time: this.formatTimeAgo(item.platformCreatedAt),
+          unread: item.status === 'UNREAD',
+          assigned: item.assignedUser?.name || null,
+          status: item.status.toLowerCase(),
+          type: item.type.toLowerCase()
+        };
+      }),
       meta: {
         total,
         page: safePage,
@@ -84,11 +116,42 @@ class InboxService {
     const item = await inboxRepository.findById(itemId);
     if (!item) throw { status: 404, message: 'Item not found' };
 
+    // More robust identification of "me"
+    let myAccountId = null;
+    if (item.socialAccountId) {
+       const sa = await prisma.socialAccount.findUnique({ where: { id: item.socialAccountId }, select: { platformAccountId: true } });
+       myAccountId = sa?.platformAccountId;
+    } else {
+       // Fallback: search by brand and platform
+       const sa = await prisma.socialAccount.findFirst({ 
+          where: { brandId: item.inbox.brandId, platform: item.platform },
+          select: { platformAccountId: true }
+       });
+       myAccountId = sa?.platformAccountId;
+    }
+
+    const isMe = (authorId, authorName) => {
+       if (myAccountId && authorId === myAccountId) return true;
+       // Extreme fallback for CodeChick specifically as requested
+       if (authorName === 'CodeChick') return true;
+       return false;
+    };
+
+    let videoContext = null;
+    if (item.platform === 'YOUTUBE' && item.relatedPostId) {
+       try {
+          const brandId = item.inbox.brandId;
+          videoContext = await youtubeService.getVideoDetails(brandId, item.relatedPostId);
+       } catch (e) {
+          console.error("Failed to fetch video context:", e.message);
+       }
+    }
+
     // Format current item and its replies as a single thread
     const thread = [
       {
         id: item.id,
-        from: 'them',
+        from: isMe(item.authorId, item.authorName) ? 'me' : 'them',
         text: item.content,
         time: new Date(item.platformCreatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         author: item.authorName,
@@ -96,21 +159,55 @@ class InboxService {
       },
       ...(item.replies || []).map(r => ({
         id: r.id,
-        from: r.authorId === item.authorId ? 'them' : 'me',
+        from: (r.platformItemId.startsWith('me-') || r.repliedByUserId || isMe(r.authorId, r.authorName)) ? 'me' : 'them',
         text: r.content,
         time: new Date(r.platformCreatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        author: r.authorName
+        author: r.authorName,
+        avatar: r.authorAvatarUrl
       }))
     ];
 
     return {
       item,
-      thread
+      thread,
+      videoContext
     };
+  }
+
+  async syncPlatformComments(brandId, platform) {
+    if (platform === 'YOUTUBE') {
+      return await youtubeService.fetchChannelComments(brandId);
+    }
+    // Add other platforms here...
+    return [];
+  }
+
+  async replyToItem(brandId, itemId, text) {
+    const item = await inboxRepository.findById(itemId);
+    if (!item) throw new Error('Item not found');
+
+    if (item.platform === 'YOUTUBE') {
+      const reply = await youtubeService.replyToComment(brandId, item.platformItemId, text);
+      
+      // Update parent status to READ
+      await inboxRepository.updateStatus(itemId, 'READ');
+      
+      return reply;
+    }
+
+    throw new Error('Platform not supported for reply');
+  }
+
+  async updateItemStatus(itemId, status) {
+    const item = await inboxRepository.findById(itemId);
+    if (!item) throw new Error('Item not found');
+
+    return await inboxRepository.updateStatus(itemId, status.toUpperCase());
   }
 
   formatPlatform(p) {
     // YOUTUBE -> YouTube
+    if (!p) return 'Unknown';
     return p.charAt(0).toUpperCase() + p.slice(1).toLowerCase();
   }
 

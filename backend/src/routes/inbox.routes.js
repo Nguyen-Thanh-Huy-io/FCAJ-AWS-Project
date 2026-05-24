@@ -16,4 +16,19 @@ router.get('/', inboxController.getInboxItems);
  */
 router.get('/:id', inboxController.getConversationThread);
 
+/**
+ * POST /api/inbox/sync
+ */
+router.post('/sync', inboxController.syncInbox);
+
+/**
+ * POST /api/inbox/reply
+ */
+router.post('/reply', inboxController.replyToItem);
+
+/**
+ * PATCH /api/inbox/:id/status
+ */
+router.patch('/:id/status', inboxController.updateStatus);
+
 module.exports = router;

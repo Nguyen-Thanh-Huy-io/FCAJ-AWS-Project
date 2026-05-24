@@ -498,7 +498,6 @@ model Post {
   creator           User               @relation("PostCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
   autoList          AutoList?          @relation(fields: [autoListId], references: [id], onDelete: Cascade)
   approvalWorkflows ApprovalWorkflow[]
-  inboxItems        InboxItem[]
 
   @@index([brandId])
   @@index([createdByUserId])
@@ -746,13 +745,13 @@ model InboxItem {
   inboxId           String
   platform          PlatformType
   type              InboxItemType
-  platformItemId    String
+  platformItemId    String        @unique
   authorId          String
   authorName        String
   authorAvatarUrl   String?
   content           String        @db.Text
   mediaUrls         String?       @db.Text
-  relatedPostId     String?
+  relatedPostId     String?       // ID bài viết/video từ nền tảng gốc
   parentItemId      String?
   assignedUserId    String?
   tags              String?       @db.Text
@@ -767,7 +766,6 @@ model InboxItem {
   createdAt         DateTime      @default(now())
 
   inbox           UnifiedInbox   @relation(fields: [inboxId], references: [id], onDelete: Cascade)
-  post            Post?          @relation(fields: [relatedPostId], references: [id], onDelete: Cascade)
   parentItem      InboxItem?     @relation("InboxItemReplies", fields: [parentItemId], references: [id])
   replies         InboxItem[]    @relation("InboxItemReplies")
   assignedUser    User?          @relation("InboxItemAssignedUser", fields: [assignedUserId], references: [id])

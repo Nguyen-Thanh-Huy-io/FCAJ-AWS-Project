@@ -1,23 +1,28 @@
 import { useState, useEffect } from "react";
-import { Search, Edit3, Send, CheckCircle, XCircle, MoreHorizontal, Loader2 } from "lucide-react";
+import { 
+  Search, RefreshCw, Youtube, Filter, MoreHorizontal, 
+  Loader2, MessageSquare, AlertCircle, EyeOff, CheckCircle, ExternalLink
+} from "lucide-react";
 import { useFilters } from "../../hooks/useFilters";
 import { useDebounce } from "../../hooks/useDebounce";
 import apiService from "../../services/api";
+import brandService from "../../services/brand.service";
 import { toast } from "sonner";
 
-const PLATFORM_COLORS = {
-  YouTube: "#FF0000", Facebook: "#1877F2", TikTok: "#010101",
-  Instagram: "#E1306C", Twitch: "#9146FF", LinkedIn: "#0A66C2", X: "#000000" };
+// SOLID Components
+import { ConversationItem } from "../../components/inbox/ConversationItem";
+import { VideoContextCard } from "../../components/inbox/VideoContextCard";
+import { ReplyComposer } from "../../components/inbox/ReplyComposer";
 
 export function InboxPage() {
   const { filters, updateFilters, clearFilters, searchParamsString } = useFilters({
-    tab: "All",
-    platform: "All",
+    tab: "Unresolved",
+    platform: "YouTube",
     search: ""
   });
 
-  const tabFilter = filters.tab || "All";
-  const platformFilter = filters.platform || "All";
+  const tabFilter = filters.tab || "Unresolved";
+  const platformFilter = filters.platform || "YouTube";
   const [searchTerm, setSearchTerm] = useState(filters.search || "");
   const debouncedSearch = useDebounce(searchTerm, 300);
 
@@ -25,339 +30,260 @@ export function InboxPage() {
   const [loading, setLoading] = useState(false);
   const [activeConv, setActiveConv] = useState(null);
   const [thread, setThread] = useState([]);
+  const [videoContext, setVideoContext] = useState(null);
   const [threadLoading, setThreadLoading] = useState(false);
   const [replyText, setReplyText] = useState("");
-  const [status, setStatus] = useState("open");
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [activeBrand, setActiveBrand] = useState(null);
+  const [isReplying, setIsReplying] = useState(false);
 
-  // Sync debounced search to URL params
+  // Load Active Brand
+  useEffect(() => {
+    const loadBrand = async () => {
+      try {
+        const res = await brandService.getBrands();
+        if (res.data?.length > 0) setActiveBrand(res.data[0]);
+      } catch (e) {
+        console.error("Failed to load brands:", e);
+      }
+    };
+    loadBrand();
+  }, []);
+
+  // Sync debounced search
   useEffect(() => {
     if (debouncedSearch !== (filters.search || "")) {
       updateFilters({ search: debouncedSearch });
     }
   }, [debouncedSearch]);
 
-  // Sync input value back
   useEffect(() => {
     setSearchTerm(filters.search || "");
   }, [filters.search]);
 
   // Fetch conversations
-  useEffect(() => {
-    const fetchInbox = async () => {
-      setLoading(true);
-      try {
-        const response = await apiService.get(`/inbox?${searchParamsString}`);
-        setInboxData(response.data);
-        
-        // Auto-select first conversation if none selected
-        if (response.data.data?.length > 0 && !activeConv) {
-          setActiveConv(response.data.data[0]);
-        }
-      } catch (error) {
-        toast.error(error.message || "Failed to load inbox");
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchInbox = async () => {
+    if (!activeBrand) return;
+    setLoading(true);
+    try {
+      const response = await apiService.get(`/inbox?brandId=${activeBrand.id}&${searchParamsString}`);
+      setInboxData(response.data);
+    } catch (error) {
+      console.error("Inbox load error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchInbox();
-  }, [searchParamsString]);
+  }, [searchParamsString, activeBrand]);
 
   // Fetch thread for active conversation
-  useEffect(() => {
+  const fetchThread = async () => {
     if (!activeConv) return;
+    setThreadLoading(true);
+    setVideoContext(null);
+    try {
+      const response = await apiService.get(`/inbox/${activeConv.id}`);
+      setThread(response.data.thread);
+      setVideoContext(response.data.videoContext);
 
-    const fetchThread = async () => {
-      setThreadLoading(true);
-      try {
-        const response = await apiService.get(`/inbox/${activeConv.id}`);
-        setThread(response.data.thread);
-        setStatus(activeConv.status || "open");
-      } catch (error) {
-        toast.error("Failed to load message thread");
-      } finally {
-        setThreadLoading(false);
+      if (activeConv.unread) {
+        handleUpdateStatus(activeConv.id, 'READ');
       }
-    };
+    } catch (error) {
+      toast.error("Failed to load message thread");
+    } finally {
+      setThreadLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchThread();
   }, [activeConv?.id]);
 
-  const conversations = inboxData.data || [];
+  const handleSync = async () => {
+    if (!activeBrand) return;
+    setIsSyncing(true);
+    try {
+      const platform = platformFilter.toUpperCase();
+      await apiService.post('/inbox/sync', { brandId: activeBrand.id, platform });
+      toast.success("Inbox synced successfully");
+      fetchInbox();
+    } catch (e) {
+      toast.error("Sync failed: " + (e.response?.data?.message || e.message));
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleUpdateStatus = async (itemId, newStatus) => {
+    try {
+      await apiService.patch(`/inbox/${itemId}/status`, { status: newStatus });
+      setInboxData(prev => ({
+        ...prev,
+        data: prev.data.map(item => 
+          item.id === itemId ? { ...item, status: newStatus.toLowerCase(), unread: newStatus === 'UNREAD' } : item
+        )
+      }));
+      if (activeConv?.id === itemId) {
+        setActiveConv(prev => ({ ...prev, status: newStatus.toLowerCase(), unread: newStatus === 'UNREAD' }));
+      }
+    } catch (e) {
+      toast.error("Failed to update status");
+    }
+  };
+
+  const handleReply = async () => {
+    if (!replyText || !activeConv || !activeBrand) return;
+    setIsReplying(true);
+    try {
+      await apiService.post('/inbox/reply', {
+        brandId: activeBrand.id,
+        itemId: activeConv.id,
+        text: replyText
+      });
+      toast.success("Reply sent");
+      setReplyText("");
+      fetchThread();
+    } catch (e) {
+      toast.error("Failed to send reply");
+    } finally {
+      setIsReplying(false);
+    }
+  };
 
   return (
-    <div className="flex-1 flex overflow-hidden" style={{ background: "#F8F8F7" }}>
-      {/* Left – Conversation List */}
-      <div style={{ width: 280, background: "#F8F8F7", borderRight: "0.5px solid #E5E7EB", display: "flex", flexDirection: "column", flexShrink: 0 }}>
-        {/* Header */}
-        <div className="flex items-center gap-2 px-4 py-3" style={{ background: "#FFF", borderBottom: "0.5px solid #E5E7EB" }}>
-          <span style={{ fontSize: 14, fontWeight: 500, color: "#0A0A0A", flex: 1 }}>Inbox</span>
-          <button style={{ color: "#6B7280", cursor: "pointer", background: "none", border: "none" }}>
-            <Edit3 size={14} />
-          </button>
+    <div className="flex-1 flex overflow-hidden bg-[#F8F8F7] p-4 gap-4">
+      {/* Sidebar (List) */}
+      <div className="w-[380px] bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
+        <div className="p-4 flex items-center justify-center gap-4 relative border-b border-gray-50">
+           <div className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer"><Youtube className="text-[#FF0000] fill-[#FF0000]" size={28} /></div>
+           <button onClick={handleSync} disabled={isSyncing} className="p-1 hover:bg-gray-100 rounded-full text-gray-400 absolute right-4"><RefreshCw size={20} className={isSyncing ? "animate-spin" : ""} /></button>
+           <button className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-50 text-xl font-light">+</button>
         </div>
 
-        {/* Filter tabs */}
-        <div className="flex overflow-x-auto px-3 py-2 gap-1" style={{ borderBottom: "0.5px solid #E5E7EB", background: "#FFF" }}>
-          {["All", "Unread", "Comments", "DMs", "Mentions"].map((t) => (
-            <button
-              key={t}
-              onClick={() => updateFilters({ tab: t })}
-              className="cursor-pointer whitespace-nowrap"
-              style={{
-                padding: "3px 10px",
-                borderRadius: 6,
-                fontSize: 10,
-                background: tabFilter === t ? "#0A0A0A" : "transparent",
-                color: tabFilter === t ? "#FFF" : "#6B7280",
-                border: tabFilter === t ? "none" : "0.5px solid #E5E7EB" }}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-
-        {/* Platform filters */}
-        <div className="flex gap-1.5 px-3 py-2" style={{ borderBottom: "0.5px solid #E5E7EB", background: "#FFF" }}>
-          {["All", "YouTube", "Facebook", "Instagram", "TikTok", "X"].map((p) => (
-            <button
-              key={p}
-              onClick={() => updateFilters({ platform: p })}
-              style={{
-                width: p === "All" ? "auto" : 22,
-                height: 22,
-                borderRadius: "50%",
-                background: platformFilter === p ? (p === "All" ? "#0A0A0A" : PLATFORM_COLORS[p]) : "#F3F4F6",
-                color: platformFilter === p ? "#FFF" : "#6B7280",
-                fontSize: p === "All" ? 9 : 8,
-                fontWeight: 700,
-                cursor: "pointer",
-                border: "none",
-                padding: p === "All" ? "0 6px" : 0 }}
-            >
-              {p === "All" ? "All" : p.slice(0, 2).toUpperCase()}
-            </button>
-          ))}
-        </div>
-
-        {/* Search */}
-        <div className="relative px-3 py-2" style={{ background: "#FFF", borderBottom: "0.5px solid #E5E7EB" }}>
-          <Search size={11} style={{ position: "absolute", left: 22, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
-          <input
-            placeholder="Search conversations..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ width: "100%", padding: "5px 8px 5px 24px", borderRadius: 6, border: "0.5px solid #E5E7EB", fontSize: 11, outline: "none" }}
-          />
-        </div>
-
-        {/* Conversations */}
-        <div className="flex-1 overflow-y-auto">
-          {loading ? (
-             <div className="flex items-center justify-center py-10">
-                <Loader2 className="animate-spin text-gray-300" size={20} />
-             </div>
-          ) : conversations.length === 0 ? (
-             <div className="text-center py-10 text-[11px] text-gray-400 uppercase tracking-widest font-bold">No results</div>
-          ) : (
-            conversations.map((conv) => (
-              <button
-                key={conv.id}
-                className="w-full text-left"
-                onClick={() => setActiveConv(conv)}
-                style={{
-                  padding: "10px 12px",
-                  borderBottom: "0.5px solid #F0F0EF",
-                  borderLeft: `3px solid ${activeConv?.id === conv.id ? PLATFORM_COLORS[conv.platform] || "#0A0A0A" : "transparent"}`,
-                  background: activeConv?.id === conv.id ? "#EEF" : "transparent",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 8 }}
-              >
-                <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#0A0A0A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 600, color: "#FFF", flexShrink: 0, overflow: 'hidden' }}>
-                  {conv.avatar && conv.avatar.length > 2 ? <img src={conv.avatar} alt="" className="w-full h-full object-cover" /> : (conv.avatar || conv.user.charAt(0))}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="flex items-center justify-between">
-                    <span style={{ fontSize: 12, fontWeight: conv.unread ? 600 : 400, color: "#0A0A0A" }}>{conv.user}</span>
-                    <span style={{ fontSize: 9, color: "#9CA3AF" }}>{conv.time}</span>
-                  </div>
-                  <div className="flex items-center justify-between mt-0.5">
-                    <span style={{ fontSize: 11, color: "#9CA3AF", flex: 1 }} className="truncate">{conv.preview}</span>
-                    {conv.unread && (
-                      <span style={{ background: "#0A0A0A", color: "#FFF", fontSize: 9, borderRadius: 9999, padding: "1px 5px", flexShrink: 0 }}>
-                        ●
-                      </span>
-                    )}
-                  </div>
-                  {conv.assigned && (
-                    <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "#F3F4F6", color: "#6B7280", marginTop: 2, display: "inline-block" }}>
-                      {conv.assigned}
-                    </span>
-                  )}
-                </div>
-              </button>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* Center – Thread */}
-      <div className="flex flex-col flex-1 overflow-hidden" style={{ background: "#FFF" }}>
-        {!activeConv ? (
-           <div className="flex-1 flex flex-col items-center justify-center text-gray-300 gap-3">
-              <div className="w-16 h-16 bg-gray-50 rounded-3xl flex items-center justify-center">
-                 <Send size={32} />
-              </div>
-              <span className="text-[11px] font-bold uppercase tracking-widest">Select a conversation to start</span>
+        <div className="p-4 flex gap-2">
+           <div className="relative flex-1 group">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
+              <input type="text" placeholder="Search conversation..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-gray-50/50 border border-gray-200 rounded-xl py-2.5 pl-10 pr-4 text-xs focus:outline-none" />
            </div>
-        ) : (
-          <>
-            {/* Thread header */}
-            <div className="flex items-center gap-3 px-5 py-3" style={{ borderBottom: "0.5px solid #E5E7EB" }}>
-              <div
-                style={{ width: 8, height: 8, borderRadius: "50%", background: PLATFORM_COLORS[activeConv.platform] || "#0A0A0A", flexShrink: 0 }}
-              />
-              <span style={{ fontSize: 13, fontWeight: 500, color: "#0A0A0A" }}>{activeConv.user}</span>
-              <span style={{ fontSize: 11, color: "#9CA3AF" }}>via {activeConv.platform}</span>
-              <button style={{ marginLeft: "auto", fontSize: 11, color: "#2563EB", cursor: "pointer", background: "none", border: "none" }}>
-                Open in {activeConv.platform} ↗
-              </button>
-            </div>
+           <button className="w-11 h-11 rounded-xl border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50"><Filter size={18} /></button>
+        </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-3">
-              {threadLoading ? (
-                 <div className="flex-1 flex items-center justify-center">
-                    <Loader2 className="animate-spin text-gray-200" size={32} />
-                 </div>
-              ) : (
-                thread.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.from === "me" ? "justify-end" : "justify-start"}`}>
-                    {msg.from === "them" && (
-                      <div style={{ width: 26, height: 26, borderRadius: "50%", background: "#0A0A0A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 600, color: "#FFF", marginRight: 8, flexShrink: 0, overflow: 'hidden' }}>
-                        {msg.avatar ? <img src={msg.avatar} alt="" className="w-full h-full object-cover" /> : msg.author.charAt(0)}
-                      </div>
-                    )}
-                    <div style={{ maxWidth: "70%" }}>
-                      <div
-                        style={{
-                          padding: "8px 12px",
-                          borderRadius: msg.from === "me" ? "12px 12px 2px 12px" : "12px 12px 12px 2px",
-                          background: msg.from === "me" ? "#0A0A0A" : "#F3F4F6",
-                          color: msg.from === "me" ? "#FFF" : "#0A0A0A",
-                          fontSize: 12,
-                          lineHeight: 1.5 }}
-                      >
-                        {msg.text}
-                      </div>
-                      <div style={{ fontSize: 9, color: "#9CA3AF", marginTop: 2, textAlign: msg.from === "me" ? "right" : "left" }}>
-                        {msg.time}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+        <div className="flex px-2 border-b border-gray-50">
+           {["Unresolved", "Unread", "All"].map(t => (
+             <button key={t} onClick={() => updateFilters({ tab: t })} className={`flex-1 py-3 text-[11px] font-bold uppercase tracking-widest relative ${tabFilter === t ? "text-black" : "text-gray-400"}`}>
+               {t}
+               {tabFilter === t && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-black" />}
+             </button>
+           ))}
+           <button className="px-4 text-gray-300 hover:text-gray-600"><MoreHorizontal size={18} /></button>
+        </div>
 
-            {/* Quick replies */}
-            <div className="flex gap-2 px-5 pb-2">
-              {["Thank you! 🙏", "Please DM us 📩", "We'll check this!"].map((qr) => (
-                <button
-                  key={qr}
-                  onClick={() => setReplyText(qr)}
-                  style={{ padding: "4px 10px", borderRadius: 9999, border: "0.5px solid #E5E7EB", fontSize: 11, color: "#6B7280", cursor: "pointer", background: "#FFF", whiteSpace: "nowrap" }}
-                >
-                  {qr}
-                </button>
-              ))}
-            </div>
-
-            {/* Reply composer */}
-            <div className="flex items-center gap-2 px-5 py-3" style={{ borderTop: "0.5px solid #E5E7EB" }}>
-              <input
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-                placeholder="Write a reply..."
-                className="flex-1"
-                style={{ padding: "8px 12px", borderRadius: 8, border: "0.5px solid #E5E7EB", fontSize: 12, outline: "none" }}
-              />
-              <button
-                style={{ padding: "8px 14px", borderRadius: 8, background: "#0A0A0A", color: "#FFF", fontSize: 12, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
-              >
-                <Send size={12} /> Reply
-              </button>
-            </div>
-          </>
-        )}
+        <div className="flex-1 overflow-y-auto scrollbar-thin">
+           {loading ? (
+             <div className="h-40 flex flex-col items-center justify-center gap-3"><Loader2 className="animate-spin text-gray-200" size={32} /></div>
+           ) : inboxData.data?.length === 0 ? (
+             <div className="p-12 text-center flex flex-col items-center gap-4">
+                <div className="w-16 h-16 bg-gray-50 rounded-3xl flex items-center justify-center text-gray-200"><MessageSquare size={32} /></div>
+                <p className="text-[11px] font-bold text-gray-400 uppercase">No {tabFilter.toLowerCase()} conversations found.</p>
+             </div>
+           ) : (
+             inboxData.data.map(conv => (
+               <ConversationItem key={conv.id} conv={conv} activeConv={activeConv} onSelect={setActiveConv} onUpdateStatus={handleUpdateStatus} />
+             ))
+           )}
+        </div>
       </div>
 
-      {/* Right – Details */}
-      {activeConv && (
-        <div style={{ width: 260, background: "#FFF", borderLeft: "0.5px solid #E5E7EB", padding: 16, display: "flex", flexDirection: "column", gap: 14, overflowY: "auto", flexShrink: 0 }}>
-          {/* Contact */}
-          <div className="flex flex-col items-center gap-2 py-3" style={{ borderBottom: "0.5px solid #E5E7EB" }}>
-            <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#0A0A0A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 600, color: "#FFF", overflow: 'hidden' }}>
-              {activeConv.avatar && activeConv.avatar.length > 2 ? <img src={activeConv.avatar} alt="" className="w-full h-full object-cover" /> : activeConv.user.charAt(0)}
-            </div>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: "#0A0A0A" }}>{activeConv.user}</div>
-              <div style={{ fontSize: 11, color: "#9CA3AF" }}>via {activeConv.platform}</div>
-            </div>
-          </div>
+      {/* Main Content (Thread) */}
+      <div className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col overflow-hidden relative">
+         {!activeConv ? (
+           <div className="flex-1 flex flex-col items-center justify-center p-12 text-center animate-in fade-in duration-500">
+              <div className="relative mb-8">
+                 <div className="w-64 h-64 bg-[#F8F8F7] rounded-[60px] rotate-12 flex items-center justify-center">
+                    <div className="w-48 h-48 bg-white rounded-[50px] -rotate-12 flex items-center justify-center border border-gray-50 shadow-sm">
+                       <div className="w-20 h-20 rounded-full bg-gray-50 flex items-center justify-center text-gray-200"><AlertCircle size={48} strokeWidth={1.5} /></div>
+                    </div>
+                 </div>
+              </div>
+              <h3 className="text-[15px] font-bold text-gray-400 uppercase tracking-[0.1em]">Please select a conversation on the left to begin</h3>
+           </div>
+         ) : (
+           <>
+             <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between bg-white">
+                <div className="flex items-center gap-3">
+                   <div className="relative shrink-0 w-10 h-10">
+                      {activeConv.participants?.length > 1 ? (
+                        <>
+                           <div className="w-7 h-7 rounded-full overflow-hidden border-2 border-white shadow-sm bg-gray-50 absolute top-0 left-0 z-10">
+                              <img src={activeConv.participants[0].avatar} className="w-full h-full object-cover" />
+                           </div>
+                           <div className="w-7 h-7 rounded-full overflow-hidden border-2 border-white shadow-sm bg-[#4A3AFF] absolute bottom-0 right-0 z-0 flex items-center justify-center text-[8px] font-bold text-white">
+                              {activeConv.participants[1].avatar ? <img src={activeConv.participants[1].avatar} className="w-full h-full object-cover" /> : activeConv.participants[1].name.charAt(0)}
+                           </div>
+                        </>
+                      ) : (
+                        <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-100 bg-gray-50">
+                           <img src={activeConv.avatar} className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-white flex items-center justify-center shadow-sm z-20">
+                         <Youtube className="text-[#FF0000] fill-[#FF0000]" size={8} />
+                      </div>
+                   </div>
+                   <div>
+                      <h4 className="text-[13px] font-bold text-[#0A0A0A]">{activeConv.user}</h4>
+                      <div className="flex items-center gap-1"><MessageSquare className="text-gray-400" size={10} /><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">COMMENT</span></div>
+                   </div>
+                </div>
+                <div className="flex items-center gap-2">
+                   <button onClick={() => handleUpdateStatus(activeConv.id, activeConv.unread ? 'READ' : 'UNREAD')} className={`p-2 transition-colors ${activeConv.unread ? "text-black" : "text-gray-300 hover:text-gray-500"}`}><EyeOff size={18} /></button>
+                   <button onClick={() => handleUpdateStatus(activeConv.id, 'RESOLVED')} className={`p-2 transition-colors ${activeConv.status === 'resolved' ? "text-green-500" : "text-gray-300 hover:text-green-500"}`}><CheckCircle size={18} /></button>
+                   <div className="w-px h-4 bg-gray-100 mx-1" />
+                   {videoContext && (
+                     <a href={`https://www.youtube.com/watch?v=${videoContext.id}`} target="_blank" rel="noopener noreferrer" className="p-2 text-gray-400 hover:bg-gray-50 rounded-lg transition-all"><ExternalLink size={16} /></a>
+                   )}
+                </div>
+             </div>
 
-          {/* Assign */}
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 500, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 6 }}>Assign to</div>
-            <select style={{ width: "100%", padding: "6px 10px", borderRadius: 8, border: "0.5px solid #E5E7EB", fontSize: 11, outline: "none", cursor: "pointer" }}>
-              <option>Unassigned</option>
-              <option selected>Me</option>
-              <option>Sarah (Admin)</option>
-              <option>Maria (Editor)</option>
-            </select>
-          </div>
+             <div className="flex-1 overflow-y-auto p-8 flex flex-col gap-8 scrollbar-thin bg-[#FDFDFD]">
+                {threadLoading ? (
+                  <div className="flex-1 flex items-center justify-center"><Loader2 className="animate-spin text-gray-100" size={40} /></div>
+                ) : (
+                  <>
+                    <VideoContextCard videoContext={videoContext} />
+                    <div className="flex flex-col gap-8">
+                      {thread.map((msg, i) => (
+                        <div key={i} className={`flex items-start gap-4 w-full ${msg.from === "me" ? "flex-row-reverse" : ""}`}>
+                           <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border-2 border-white shadow-sm bg-gray-50 flex items-center justify-center">
+                              {msg.from === "me" ? (
+                                <div className="w-full h-full bg-[#FF4F9A] flex items-center justify-center text-white text-[11px] font-bold">{activeBrand?.name?.charAt(0) || "C"}</div>
+                              ) : (
+                                <img src={msg.avatar} className="w-full h-full object-cover" />
+                              )}
+                           </div>
+                           <div className={`max-w-[70%] space-y-1.5 flex flex-col ${msg.from === "me" ? "items-end" : "items-start"}`}>
+                              <div className={`px-5 py-3 text-[13px] leading-relaxed shadow-sm ${msg.from === "me" ? "bg-[#FEF3C7] text-[#92400E] rounded-2xl rounded-tr-none border border-[#FDE68A] self-end" : "bg-[#EEF2FF] text-[#1E1B4B] rounded-2xl rounded-tl-none border border-[#E0E7FF] self-start"}`} dangerouslySetInnerHTML={{ __html: msg.text }} />
+                              <div className={`flex items-center gap-1.5 px-1 ${msg.from === "me" ? "flex-row-reverse" : ""}`}>
+                                 <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{msg.from === "me" ? "Manager" : msg.author}</span>
+                                 <span className="text-[14px] text-gray-200 leading-none">·</span>
+                                 <span className="text-[9px] font-bold text-gray-300 uppercase">{msg.time}</span>
+                              </div>
+                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+             </div>
 
-          {/* Status */}
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 500, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 6 }}>Status</div>
-            <div className="flex gap-1">
-              {(["open", "resolved", "spam"]).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setStatus(s)}
-                  className="cursor-pointer capitalize flex-1"
-                  style={{
-                    padding: "5px 0",
-                    borderRadius: 6,
-                    fontSize: 11,
-                    background: status === s ? "#0A0A0A" : "transparent",
-                    color: status === s ? "#FFF" : "#6B7280",
-                    border: "0.5px solid #E5E7EB" }}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Tags */}
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 500, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 6 }}>Tags</div>
-            <div className="flex flex-wrap gap-1">
-              <button style={{ fontSize: 10, padding: "2px 8px", borderRadius: 4, border: "0.5px dashed #E5E7EB", color: "#9CA3AF", cursor: "pointer", background: "transparent" }}>
-                + Add Tag
-              </button>
-            </div>
-          </div>
-
-          <button
-            style={{ width: "100%", padding: "7px 0", borderRadius: 8, border: "0.5px solid #BBF7D0", fontSize: 12, color: "#16A34A", cursor: "pointer", background: "#F0FDF4" }}
-          >
-            ✓ Mark Resolved
-          </button>
-        </div>
-      )}
+             <ReplyComposer replyText={replyText} setReplyText={setReplyText} onReply={handleReply} isReplying={isReplying} />
+           </>
+         )}
+      </div>
     </div>
   );
 }
