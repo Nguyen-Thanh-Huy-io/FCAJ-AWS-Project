@@ -28,6 +28,7 @@ class SocialAccountRepository {
             totalVideosCount: parseInt(statistics.videoCount) || 0,
             totalViewsCount: parseInt(statistics.viewCount) || 0,
             customUrl: snippet.customUrl,
+            uploadsPlaylistId: channelData.uploadsPlaylistId,
             country: snippet.country,
             defaultLanguage: snippet.defaultLanguage,
           }
@@ -49,6 +50,7 @@ class SocialAccountRepository {
           create: {
             channelId,
             customUrl: snippet.customUrl,
+            uploadsPlaylistId: channelData.uploadsPlaylistId,
             subscribersCount: parseInt(statistics.subscriberCount) || 0,
             totalVideosCount: parseInt(statistics.videoCount) || 0,
             totalViewsCount: parseInt(statistics.viewCount) || 0,

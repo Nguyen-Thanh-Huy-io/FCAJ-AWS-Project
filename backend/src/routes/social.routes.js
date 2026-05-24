@@ -11,4 +11,14 @@ router.get('/google/callback', socialController.googleCallback);
 // Real-time Metrics
 router.get('/metrics', verifyAuth, socialController.getMetrics);
 
+// YouTube Tracked Videos
+router.post('/youtube/track', verifyAuth, socialController.trackYouTubeVideo);
+router.get('/youtube/tracked-videos', verifyAuth, socialController.getTrackedVideos);
+router.get('/youtube/published-videos', verifyAuth, socialController.getYouTubePublishedVideos);
+
+// YouTube Competitors
+router.get('/youtube/search-channels', verifyAuth, socialController.searchYouTubeChannels);
+router.post('/youtube/competitors', verifyAuth, socialController.addYouTubeCompetitor);
+router.get('/youtube/competitors', verifyAuth, socialController.getYouTubeCompetitors);
+
 module.exports = router;

@@ -1,19 +1,19 @@
 "use client";
 
-import *  from "react";
-import *  from "@radix-ui/react-avatar";
+import * as React from "react";
+import * as AvatarPrimitive from "@radix-ui/react-avatar";
 
 import { cn } from "./utils";
 
 function Avatar({
   className,
   ...props
-} {
+}) {
   return (
     <AvatarPrimitive.Root
       data-slot="avatar"
       className={cn(
-        "relative flex size-10 shrink-0 overflow-hidden rounded-full",
+        "relative flex size-8 shrink-0 overflow-hidden rounded-full",
         className,
       )}
       {...props}
@@ -24,7 +24,7 @@ function Avatar({
 function AvatarImage({
   className,
   ...props
-} {
+}) {
   return (
     <AvatarPrimitive.Image
       data-slot="avatar-image"
@@ -37,7 +37,7 @@ function AvatarImage({
 function AvatarFallback({
   className,
   ...props
-} {
+}) {
   return (
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
@@ -51,5 +51,6 @@ function AvatarFallback({
 }
 
 export { Avatar, AvatarImage, AvatarFallback };
+
 
 

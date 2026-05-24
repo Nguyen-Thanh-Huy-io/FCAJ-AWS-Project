@@ -1,6 +1,6 @@
 import { cn } from "./utils";
 
-function Skeleton({ className, ...props } {
+function Skeleton({ className, ...props }) {
   return (
     <div
       data-slot="skeleton"
@@ -11,5 +11,3 @@ function Skeleton({ className, ...props } {
 }
 
 export { Skeleton };
-
-

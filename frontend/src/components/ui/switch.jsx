@@ -1,19 +1,19 @@
 "use client";
 
-import *  from "react";
-import *  from "@radix-ui/react-switch";
+import * as React from "react";
+import * as SwitchPrimitive from "@radix-ui/react-switch";
 
 import { cn } from "./utils";
 
 function Switch({
   className,
   ...props
-} {
+}) {
   return (
     <SwitchPrimitive.Root
       data-slot="switch"
       className={cn(
-        "peer data-[state=checked]-primary data-[state=unchecked]-switch-background focus-visible-ring focus-visible-ring/50 dark-[state=unchecked]-input/80 inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent transition-all outline-none focus-visible-[3px] disabled-not-allowed disabled-50",
+        "peer data-[state=checked]:bg-primary data-[state=unchecked]:bg-input focus-visible:ring-ring focus-visible:ring/50 inline-flex h-[20px] w-[36px] shrink-0 items-center rounded-full border-2 border-transparent transition-colors outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}
       {...props}
@@ -21,7 +21,7 @@ function Switch({
       <SwitchPrimitive.Thumb
         data-slot="switch-thumb"
         className={cn(
-          "bg-card dark-[state=unchecked]-card-foreground dark-[state=checked]-primary-foreground pointer-events-none block size-4 rounded-full ring-0 transition-transform data-[state=checked]-x-[calc(100%-2px)] data-[state=unchecked]-x-0",
+          "bg-background pointer-events-none block h-4 w-4 rounded-full shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0",
         )}
       />
     </SwitchPrimitive.Root>
@@ -29,5 +29,3 @@ function Switch({
 }
 
 export { Switch };
-
-

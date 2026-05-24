@@ -120,9 +120,34 @@ model Brand {
   notifications      SystemNotification[]
   subscriptionAddons SubscriptionAddon[]
   supportTickets     SupportTicket[]
+  trackedVideos      TrackedVideo[]
 
   @@index([ownerId])
   @@map("brands")
+}
+
+model TrackedVideo {
+  id              String   @id @default(uuid())
+  brandId         String
+  platform        PlatformType @default(YOUTUBE)
+  videoId         String   // YouTube Video ID
+  title           String?
+  thumbnailUrl    String?
+  channelId       String?
+  channelName     String?
+  publishedAt     DateTime?
+  lastViews       Int      @default(0)
+  lastLikes       Int      @default(0)
+  lastComments    Int      @default(0)
+  isTracking      Boolean  @default(true)
+  addedAt         DateTime @default(now())
+  lastSyncedAt    DateTime?
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([brandId, videoId])
+  @@index([brandId])
+  @@map("tracked_videos")
 }
 
 model Team {
@@ -332,6 +357,7 @@ model YouTubeChannel {
   socialAccountId       String  @unique
   channelId             String  // ID gốc từ YouTube (UCxxxxxxxx)
   customUrl             String? // @handle
+  uploadsPlaylistId     String? // ID của playlist chứa video tải lên
   subscribersCount      Int     @default(0)
   totalVideosCount      Int     @default(0)
   totalViewsCount       Int     @default(0)

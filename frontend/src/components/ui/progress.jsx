@@ -1,7 +1,7 @@
 "use client";
 
-import *  from "react";
-import *  from "@radix-ui/react-progress";
+import * as React from "react";
+import * as ProgressPrimitive from "@radix-ui/react-progress";
 
 import { cn } from "./utils";
 
@@ -9,7 +9,7 @@ function Progress({
   className,
   value,
   ...props
-} {
+}) {
   return (
     <ProgressPrimitive.Root
       data-slot="progress"
@@ -29,5 +29,3 @@ function Progress({
 }
 
 export { Progress };
-
-

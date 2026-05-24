@@ -44,7 +44,7 @@ class SocialController {
 
   async getMetrics(req, res) {
     try {
-      const { brandId } = req.query;
+      const { brandId, startDate, endDate } = req.query;
       if (!brandId) {
         return res.status(400).json({ message: 'brandId is required' });
       }
@@ -55,7 +55,7 @@ class SocialController {
       // For each account, sync metrics
       const syncedAccounts = await Promise.all(accounts.map(async (account) => {
         try {
-          return await youtubeService.syncChannelMetrics(account.id);
+          return await youtubeService.syncChannelMetrics(account.id, startDate, endDate);
         } catch (error) {
           console.error(`Failed to sync metrics for account ${account.id}:`, error.message);
           return account; // Return current data if sync fails
@@ -66,6 +66,66 @@ class SocialController {
         message: 'Metrics synced successfully',
         data: syncedAccounts
       });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async trackYouTubeVideo(req, res) {
+    try {
+      const { brandId, videoUrl } = req.body;
+      const trackedVideo = await youtubeService.trackVideo(brandId, videoUrl);
+      res.json({ message: 'Video tracked successfully', data: trackedVideo });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getTrackedVideos(req, res) {
+    try {
+      const { brandId } = req.query;
+      const videos = await youtubeService.getTrackedVideos(brandId);
+      res.json({ data: videos });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getYouTubePublishedVideos(req, res) {
+    try {
+      const { brandId, pageToken, limit } = req.query;
+      const data = await youtubeService.getPublishedVideos(brandId, pageToken, limit);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async searchYouTubeChannels(req, res) {
+    try {
+      const { brandId, query } = req.query;
+      const channels = await youtubeService.searchChannel(brandId, query);
+      res.json({ data: channels });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async addYouTubeCompetitor(req, res) {
+    try {
+      const { brandId, channelId } = req.body;
+      const competitor = await youtubeService.addCompetitor(brandId, channelId);
+      res.json({ message: 'Competitor added successfully', data: competitor });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getYouTubeCompetitors(req, res) {
+    try {
+      const { brandId } = req.query;
+      const competitors = await youtubeService.getCompetitors(brandId);
+      res.json({ data: competitors });
     } catch (error) {
       res.status(500).json({ message: error.message });
     }

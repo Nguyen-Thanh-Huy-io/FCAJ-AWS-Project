@@ -7,6 +7,8 @@ Chào mừng bạn đến với hệ thống tài liệu kỹ thuật của dự
 ### 🔹 Backend
 - [Đăng ký & Xác thực OTP (Logic)](./backend/auth/REGISTER_LOGIC.md)
 - [Hệ thống Đăng nhập (Existing)](../backend/docs/LOGIN_SYSTEM.md)
+- [Tích hợp MXH & Analytics (General)](./backend/SOCIAL_SERVICES.md)
+- [Chi tiết Triển khai YouTube](./backend/YOUTUBE_IMPLEMENTATION.md)
 - [API Reference (Existing)](../backend/docs/API_REFERENCE.md)
 
 ### 🔹 Frontend
