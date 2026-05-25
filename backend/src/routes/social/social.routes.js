@@ -8,6 +8,12 @@ const router = express.Router();
 router.get('/google/url', verifyAuth, socialController.getGoogleAuthUrl);
 router.get('/google/callback', socialController.googleCallback);
 
+// Facebook OAuth
+router.get('/facebook/url', verifyAuth, socialController.getFacebookAuthUrl);
+router.get('/facebook/callback', socialController.facebookCallback);
+router.get('/facebook/published-posts', verifyAuth, socialController.getFacebookPublishedPosts);
+router.post('/facebook/disconnect', verifyAuth, socialController.disconnectFacebookAccount);
+
 // Real-time Metrics
 router.get('/metrics', verifyAuth, socialController.getMetrics);
 

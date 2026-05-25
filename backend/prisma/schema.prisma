@@ -327,7 +327,7 @@ model SocialAccount {
   platformAccountId String
   username          String
   displayName       String
-  profilePictureUrl String?
+  profilePictureUrl String?      @db.Text
   accessToken       String       @db.Text
   refreshToken      String?      @db.Text
   tokenExpiresAt    DateTime?

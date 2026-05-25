@@ -3,11 +3,11 @@ import { ResponsiveContainer, ComposedChart, CartesianGrid, XAxis, YAxis, Toolti
 import { MetricCard } from './MetricCard';
 
 export function BalanceChart({ 
-  stats, 
-  totalPeriodGained, 
-  selectedBalanceMetrics, 
-  handleBalanceMetricToggle, 
-  communityGrowthData 
+  stats = {}, 
+  totalPeriodGained = 0, 
+  selectedBalanceMetrics = {}, 
+  handleBalanceMetricToggle = () => {}, 
+  communityGrowthData = [] 
 }) {
   return (
     <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
@@ -60,18 +60,34 @@ export function BalanceChart({
                  }
                />
                <YAxis 
+                 yAxisId="left"
                  axisLine={false} 
                  tickLine={false} 
                  tick={{ fontSize: 10, fill: "#9CA3AF", fontWeight: 600 }} 
+                 width={40}
+               />
+               <YAxis 
+                 yAxisId="right"
+                 orientation="right"
+                 axisLine={false} 
+                 tickLine={false} 
+                 tick={{ fontSize: 10, fill: "#9CA3AF", fontWeight: 600 }} 
+                 width={selectedBalanceMetrics.videos ? 40 : 0}
                />
                <Tooltip cursor={{ fill: '#F9FAFB' }} contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }} />
+               
+               {selectedBalanceMetrics.videos && (
+                 <Bar yAxisId="right" dataKey="videos" fill="#E6A34A" radius={[4, 4, 0, 0]} barSize={20} opacity={0.8} />
+               )}
+               
                {selectedBalanceMetrics.gained && (
                  <Area 
+                   yAxisId="left"
                    type="monotone" 
                    dataKey="new" 
                    stroke="#8E9BEE" 
                    strokeWidth={3} 
-                   fill="none"
+                   fill="rgba(142, 155, 238, 0.05)"
                    dot={{ fill: '#8E9BEE', strokeWidth: 2, r: 4, stroke: '#fff' }}
                    activeDot={{ r: 6 }}
                    connectNulls={true}
@@ -79,18 +95,16 @@ export function BalanceChart({
                )}
                {selectedBalanceMetrics.lost && (
                  <Area 
+                   yAxisId="left"
                    type="monotone" 
                    dataKey="lost" 
                    stroke="#F7A6E0" 
                    strokeWidth={3} 
-                   fill="none"
+                   fill="rgba(247, 166, 224, 0.05)"
                    dot={{ fill: '#F7A6E0', strokeWidth: 2, r: 4, stroke: '#fff' }}
                    activeDot={{ r: 6 }}
                    connectNulls={true}
                  />
-               )}
-               {selectedBalanceMetrics.videos && (
-                 <Bar dataKey="videos" fill="#E6A34A" radius={[4, 4, 0, 0]} barSize={20} opacity={0.8} />
                )}
             </ComposedChart>
           </ResponsiveContainer>

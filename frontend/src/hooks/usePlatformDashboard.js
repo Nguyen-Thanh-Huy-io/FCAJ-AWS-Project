@@ -117,18 +117,24 @@ export function usePlatformDashboard(platform) {
     if (!activeBrand) return;
     setIsPublishedLoading(true);
     try {
-      const res = await socialService.getPublishedVideos(activeBrand.id, pageToken, limit);
-      setPublishedVideos(res.videos || []);
-      setNextPageToken(res.nextPageToken || null);
-      setPrevPageToken(res.prevPageToken || null);
+      if (platform === "facebook") {
+        const res = await socialService.getFacebookPublishedPosts(activeBrand.id, limit);
+        setPublishedVideos(res.data || []);
+      } else {
+        const res = await socialService.getPublishedVideos(activeBrand.id, pageToken, limit);
+        setPublishedVideos(res.videos || []);
+        setNextPageToken(res.nextPageToken || null);
+        setPrevPageToken(res.prevPageToken || null);
+      }
     } catch (error) {
-      console.error("Failed to fetch published videos:", error);
+      console.error("Failed to fetch published content:", error);
     } finally {
       setIsPublishedLoading(false);
     }
   };
 
   const handleVideoClick = async (video) => {
+    if (platform === "facebook") return; // Details modal not used for Facebook posts
     setSelectedVideo(video);
     setIsVideoDetailModalOpen(true);
     setIsVideoDetailLoading(true);
@@ -176,9 +182,11 @@ export function usePlatformDashboard(platform) {
 
   useEffect(() => {
     if (!activeBrand) return;
-    if (activeTab === "viewed") fetchTracked();
-    if (activeTab === "competitors") fetchCompetitors();
-    if (activeTab === "published") fetchPublishedVideos(null, pageSize);
+    if (activeTab === "viewed" && platform !== "facebook") fetchTracked();
+    if (activeTab === "competitors" && platform !== "facebook") fetchCompetitors();
+    if (activeTab === "published" || activeTab === "posts_list" || (activeTab === "community" && platform === "youtube")) {
+      fetchPublishedVideos(null, pageSize);
+    }
   }, [activeTab, activeBrand, pageSize]);
 
   const handleTrackVideo = async () => {
@@ -225,19 +233,37 @@ export function usePlatformDashboard(platform) {
       return {
         demographics: { gender: [], age: [], countries: [], trafficSource: [] },
         balance: [],
-        growth: []
+        growth: [],
+        clicks: [],
+        postsPeriod: [],
+        interactions: {},
+        summary: {}
       };
     }
     try {
       const raw = JSON.parse(metrics.analytics[0].socialAnalytics.audienceDemographicsJson);
       
+      if (platform === "facebook") {
+        return {
+          demographics: { gender: [], age: [], countries: [], trafficSource: [] },
+          balance: raw.balance || [],
+          growth: raw.growth || [],
+          clicks: raw.clicks || [],
+          postsPeriod: raw.postsPeriod || [],
+          interactions: raw.interactions || {},
+          summary: raw.summary || {}
+        };
+      }
+      
       const ageMap = {};
       const genderMap = { Male: 0, Female: 0 };
-      raw.demographics?.forEach(([age, gender, percentage]) => {
-        ageMap[age] = (ageMap[age] || 0) + percentage;
-        if (gender === 'male') genderMap.Male += percentage;
-        if (gender === 'female') genderMap.Female += percentage;
-      });
+      (raw.demographics || [])
+        .filter(row => Array.isArray(row) && row.length >= 3)
+        .forEach(([age, gender, percentage]) => {
+          ageMap[age] = (ageMap[age] || 0) + percentage;
+          if (gender === 'male') genderMap.Male += percentage;
+          if (gender === 'female') genderMap.Female += percentage;
+        });
 
       const age = Object.entries(ageMap).map(([name, value]) => ({
         name: name.replace('age', ''),
@@ -248,28 +274,54 @@ export function usePlatformDashboard(platform) {
         { name: 'Female', value: Math.round(genderMap.Female), color: '#F472B6' }
       ];
 
-      const totalTrafficViews = raw.trafficSource?.reduce((a, b) => a + (b[1] || 0), 0) || 1;
-      const trafficSource = raw.trafficSource?.map(([source, views, time]) => ({
-        name: source.replace('insightTrafficSourceType', '').replace(/_/g, ' '),
-        value: views,
-        percentage: `${Math.round((views / totalTrafficViews) * 100)}%`,
-        color: '#818CF8'
-      })) || [];
+      const totalTrafficViews = (raw.trafficSource || []).reduce((a, b) => a + (Array.isArray(b) ? (b[1] || 0) : 0), 0) || 1;
+      const trafficSource = (raw.trafficSource || [])
+        .filter(row => Array.isArray(row) && row.length >= 2)
+        .map(([source, views, time]) => ({
+          name: source ? source.replace('insightTrafficSourceType', '').replace(/_/g, ' ') : 'Unknown',
+          value: views || 0,
+          percentage: `${Math.round(((views || 0) / totalTrafficViews) * 100)}%`,
+          color: '#818CF8'
+        }));
 
-      const totalGeoViews = raw.geographic?.reduce((a, b) => a + (b[1] || 0), 0) || 1;
-      const countries = raw.geographic?.map(([code, views]) => ({
-        name: code, 
-        value: Math.round((views / totalGeoViews) * 100),
-        flag: '📍',
-        progress: Math.round((views / totalGeoViews) * 100)
-      })) || [];
+      const totalGeoViews = (raw.geographic || []).reduce((a, b) => a + (Array.isArray(b) ? (b[1] || 0) : 0), 0) || 1;
+      const countries = (raw.geographic || [])
+        .filter(row => Array.isArray(row) && row.length >= 2)
+        .map(([code, views]) => ({
+          name: code || 'Unknown', 
+          value: Math.round(((views || 0) / totalGeoViews) * 100),
+          flag: '📍',
+          progress: Math.round(((views || 0) / totalGeoViews) * 100)
+        }));
 
-      const growth = raw.growth?.map(([day, views, gained, lost]) => ({
-        name: day.split('-').slice(1).join('/'),
-        value: views,
-        new: gained,
-        lost: lost
-      })) || [];
+      const growth = (raw.growth || [])
+        .map((row) => {
+          // If it's the new object format from backend
+          if (typeof row === 'object' && !Array.isArray(row)) {
+            return {
+              date: row.date,
+              name: row.date ? row.date.split('-').slice(1).join('/') : 'Unknown',
+              value: row.views || 0,
+              new: row.subscribersGained || 0,
+              lost: row.subscribersLost || 0,
+              videos: row.totalContent || 0
+            };
+          }
+          // Fallback for array format (old or different API)
+          if (Array.isArray(row) && row.length >= 4) {
+            const [day, views, gained, lost] = row;
+            return {
+              date: day,
+              name: day ? day.split('-').slice(1).join('/') : 'Unknown',
+              value: views || 0,
+              new: gained || 0,
+              lost: lost || 0,
+              videos: 0
+            };
+          }
+          return null;
+        })
+        .filter(Boolean);
 
       return {
         demographics: { age, gender, countries, trafficSource },
@@ -281,13 +333,27 @@ export function usePlatformDashboard(platform) {
       return {
         demographics: { gender: [], age: [], countries: [], trafficSource: [] },
         balance: [],
-        growth: []
+        growth: [],
+        clicks: [],
+        postsPeriod: [],
+        interactions: {},
+        summary: {}
       };
     }
   };
 
-  const getYouTubeStats = () => {
-    if (!metrics || !metrics.youtubeChannel) return { subscribers: 0, views: 0, videos: 0 };
+  const getStats = () => {
+    if (!metrics) return { subscribers: 0, views: 0, videos: 0 };
+    if (platform === "facebook") {
+      if (!metrics.facebookPage) return { subscribers: 0, views: 0, videos: 0 };
+      const analytics = getAnalyticsData();
+      return {
+        subscribers: metrics.facebookPage.followersCount,
+        views: analytics.summary?.views || metrics.facebookPage.likesCount,
+        videos: 0
+      };
+    }
+    if (!metrics.youtubeChannel) return { subscribers: 0, views: 0, videos: 0 };
     return {
       subscribers: metrics.youtubeChannel.subscribersCount,
       views: metrics.youtubeChannel.totalViewsCount,
@@ -295,27 +361,33 @@ export function usePlatformDashboard(platform) {
     };
   };
 
-  const stats = getYouTubeStats();
+  const stats = getStats();
   const realData = getAnalyticsData();
 
-  const totalPeriodViews = realData.growth?.reduce((a, b) => a + b.value, 0) || 0;
-  const totalPeriodGained = realData.growth?.reduce((a, b) => a + b.new, 0) || 0;
+  const totalPeriodViews = realData.growth?.reduce((a, b) => a + (b.value || 0), 0) || 0;
+  const totalPeriodGained = realData.growth?.reduce((a, b) => a + (b.new || 0), 0) || 0;
+  const totalPeriodLost = realData.growth?.reduce((a, b) => a + (b.lost || 0), 0) || 0;
+  const totalPeriodVideos = realData.growth?.reduce((a, b) => a + (b.videos || 0), 0) || 0;
 
   const communityGrowthData = useMemo(() => {
     if (!dateRange.from || !dateRange.to) return [];
     try {
+      if (platform === "facebook") {
+        return realData.growth || [];
+      }
       const days = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
+      
       return days.map((day) => {
         const dateString = format(day, "MMM d");
-        const searchName = format(day, "MM/dd");
-        const realDayData = realData.growth?.find(g => g.name === searchName);
+        const searchDate = format(day, "yyyy-MM-dd");
+        const realDayData = realData.growth?.find(g => g.date === searchDate);
 
         return {
           name: dateString,
           subscribers: realDayData ? realDayData.new : 0,
           views: realDayData ? realDayData.value : 0,
           revenue: 0,
-          videos: undefined, // Default to none unless we track daily uploads
+          videos: realDayData ? realDayData.videos : 0,
           new: realDayData ? realDayData.new : 0,
           lost: realDayData ? realDayData.lost : 0
         };
@@ -324,7 +396,7 @@ export function usePlatformDashboard(platform) {
       console.error("Error generating community growth data:", e);
       return [];
     }
-  }, [dateRange, realData.growth]);
+  }, [dateRange, realData.growth, platform]);
 
   return {
     activeTab,

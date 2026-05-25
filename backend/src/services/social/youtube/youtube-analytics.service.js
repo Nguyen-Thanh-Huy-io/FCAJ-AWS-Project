@@ -31,6 +31,7 @@ class YouTubeAnalyticsService {
 
   async getAnalyticsReport(auth, startDate, endDate) {
     try {
+      console.log(`--- ENTERING getAnalyticsReport: start=${startDate}, end=${endDate} ---`);
       const now = new Date();
       const defaultStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const defaultEnd = now.toISOString().split('T')[0];
@@ -69,7 +70,6 @@ class YouTubeAnalyticsService {
         maxResults: 10
       });
 
-      // 4. Daily Growth (Views, Subscribers)
       const growthRes = await youtubeGateway.getAnalyticsReportQuery(auth, {
         ids: 'channel==MINE',
         startDate: start,
@@ -79,11 +79,98 @@ class YouTubeAnalyticsService {
         sort: 'day'
       });
 
+      // 5. Fetch ALL types of uploads (Videos, Shorts, Live) using search
+      const videosPerDay = {};
+      try {
+        const searchRes = await youtubeGateway.getSearchList(auth, {
+          forMine: true,
+          type: 'video',
+          publishedAfter: new Date(start).toISOString(),
+          publishedBefore: new Date(new Date(end).getTime() + 24*60*60*1000).toISOString(),
+          maxResults: 50
+        });
+
+        if (searchRes.data.items) {
+          console.log('================================================================');
+          console.log(`RAW DATA (Search): Found ${searchRes.data.items.length} items from YouTube API`);
+          
+          searchRes.data.items.forEach((item, index) => {
+            const title = item.snippet.title;
+            const publishedAt = item.snippet.publishedAt;
+            
+            if (publishedAt) {
+              const pubDate = new Date(publishedAt);
+              // Use local date string (YYYY-MM-DD)
+              const dateStr = pubDate.toLocaleDateString('en-CA'); 
+              
+              console.log(`[${index + 1}] ITEM: "${title}"`);
+              console.log(`    - Original Time: ${publishedAt}`);
+              console.log(`    - Local Date:    ${dateStr}`);
+              
+              if (dateStr >= start && dateStr <= end) {
+                console.log(`    => STATUS: IN RANGE (Accepted)`);
+                videosPerDay[dateStr] = (videosPerDay[dateStr] || 0) + 1;
+              } else {
+                console.log(`    => STATUS: OUT OF RANGE`);
+              }
+            }
+          });
+          console.log('================================================================');
+        }
+      } catch (searchErr) {
+        console.error('Error fetching videos via search:', searchErr.message);
+        // Fallback to playlist logic if search fails (quota issues etc)
+        const channelRes = await youtubeGateway.getChannelList(auth, true);
+        const uploadsPlaylistId = channelRes.data.items[0]?.contentDetails?.relatedPlaylists?.uploads;
+        if (uploadsPlaylistId) {
+          const playlistRes = await youtubeGateway.getPlaylistItems(auth, uploadsPlaylistId, 50);
+          if (playlistRes.data.items) {
+            playlistRes.data.items.forEach(item => {
+              const publishedAt = item.contentDetails?.videoPublishedAt || item.snippet.publishedAt;
+              if (publishedAt) {
+                const dateStr = new Date(publishedAt).toLocaleDateString('en-CA');
+                if (dateStr >= start && dateStr <= end) {
+                  videosPerDay[dateStr] = (videosPerDay[dateStr] || 0) + 1;
+                }
+              }
+            });
+          }
+        }
+      }
+
+      // 6. Merge and ensure all days are present
+      const dailyMap = {};
+      const startMs = new Date(start + 'T00:00:00Z').getTime();
+      const endMs = new Date(end + 'T00:00:00Z').getTime();
+      for (let t = startMs; t <= endMs; t += 24 * 60 * 60 * 1000) {
+        const d = new Date(t).toISOString().split('T')[0];
+        dailyMap[d] = {
+          date: d,
+          views: 0,
+          subscribersGained: 0,
+          subscribersLost: 0,
+          totalContent: videosPerDay[d] || 0
+        };
+      }
+
+      if (growthRes.data.rows) {
+        growthRes.data.rows.forEach(row => {
+          const d = row[0];
+          if (dailyMap[d]) {
+            dailyMap[d].views = row[1];
+            dailyMap[d].subscribersGained = row[2];
+            dailyMap[d].subscribersLost = row[3];
+          }
+        });
+      }
+
+      const growthData = Object.keys(dailyMap).sort().map(d => dailyMap[d]);
+
       return {
         demographics: demoRes.data.rows || [],
         trafficSource: trafficRes.data.rows || [],
         geographic: geoRes.data.rows || [],
-        growth: growthRes.data.rows || []
+        growth: growthData
       };
     } catch (error) {
       console.error('Error fetching YouTube Analytics:', error.message);

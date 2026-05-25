@@ -1,0 +1,21 @@
+usePlatformDashboard.js:302 Error parsing analytics data: TypeError: object is not iterable (cannot read property Symbol(Symbol.iterator))
+    at usePlatformDashboard.js:289:38
+    at Array.map (<anonymous>)
+    at getAnalyticsData (usePlatformDashboard.js:289:34)
+    at usePlatformDashboard (usePlatformDashboard.js:335:20)
+    at PlatformDashboardPage (PlatformDashboard.jsx:108:7)
+
+usePlatformDashboard.js:168 Initial load failed: Error: Network Error
+    at api.js:31:31
+    at async BrandService.getBrands (brand.service.js:5:22)
+    at async loadData (usePlatformDashboard.js:161:27)
+:3000/api/brands:1 
+ Failed to load resource: net::ERR_CONNECTION_REFUSED
+usePlatformDashboard.js:302 Error parsing analytics data: TypeError: object is not iterable (cannot read property Symbol(Symbol.iterator))
+    at usePlatformDashboard.js:289:38
+    at Array.map (<anonymous>)
+    at getAnalyticsData (usePlatformDashboard.js:289:34)
+    at usePlatformDashboard (usePlatformDashboard.js:335:20)
+    at PlatformDashboardPage (PlatformDashboard.jsx:108:7)
+
+﻿

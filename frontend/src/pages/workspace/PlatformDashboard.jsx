@@ -23,6 +23,7 @@ import { DemographicsTab } from "./dashboard/DemographicsTab";
 import { PublishedVideosTab } from "./dashboard/PublishedVideosTab";
 import { CompetitorsTab } from "./dashboard/CompetitorsTab";
 import { TrackedVideosTab } from "./dashboard/TrackedVideosTab";
+import { FacebookDashboard } from "./dashboard/FacebookDashboard";
 import { usePlatformDashboard } from "../../hooks/usePlatformDashboard";
 import { DateRangeFilter } from "../../components/app/DateRangeFilter";
 import socialService from "../../services/social.service";
@@ -41,6 +42,15 @@ const YT_TABS = [
   { id: "published", label: "PUBLISHED VIDEOS" },
   { id: "viewed", label: "VIEWED VIDEOS" },
   { id: "competitors", label: "COMPETITORS" },
+];
+
+const FB_TABS = [
+  { id: "overview", label: "OVERVIEW" },
+  { id: "followers", label: "FOLLOWERS" },
+  { id: "clicks", label: "CLICKS" },
+  { id: "posts", label: "POSTS" },
+  { id: "interactions", label: "INTERACTIONS" },
+  { id: "posts_list", label: "LIST OF POSTS" },
 ];
 
 export function PlatformDashboardPage() {
@@ -100,19 +110,32 @@ export function PlatformDashboardPage() {
   const navigate = useNavigate();
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
+  const tabs = platform === "facebook" ? FB_TABS : YT_TABS;
+
+  useState(() => {
+    if (platform === "facebook") {
+      setActiveTab("overview");
+    } else {
+      setActiveTab("community");
+    }
+  }, [platform]);
+
   const handleExportCSV = () => {
     let headers = [];
     let rows = [];
     let fileName = `publicast_${platform}_report_${activeTab}`;
 
-    if (activeTab === "published") {
-      headers = ["Title", "Published At", "Views", "Likes", "Comments"];
+    if (activeTab === "published" || activeTab === "posts_list") {
+      headers = ["Content", "Published At", "Reach", "Views", "Reactions", "Comments", "Shares", "Clicks"];
       rows = (publishedVideos || []).map(v => [
-        v.title,
-        new Date(v.publishedAt).toLocaleDateString(),
+        v.message || v.title,
+        new Date(v.date || v.publishedAt).toLocaleDateString(),
+        v.reach || 0,
         v.views || 0,
-        v.likes || 0,
-        v.comments || 0
+        v.reactions || v.likes || 0,
+        v.comments || 0,
+        v.shares || 0,
+        v.clicks || 0
       ]);
     } else if (activeTab === "competitors") {
       headers = ["Competitor Name", "Handle", "Subscribers", "Total Views", "Total Videos", "Added At"];
@@ -152,7 +175,7 @@ export function PlatformDashboardPage() {
       {/* Sub-Navigation (Tabs) */}
       <div className="sticky top-0 z-10 bg-white/80 backdrop-blur-md flex items-center justify-between px-6 border-b border-gray-100" style={{ height: 48 }}>
         <div className="flex gap-8 h-full">
-          {YT_TABS.map((tab) => (
+          {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -180,15 +203,24 @@ export function PlatformDashboardPage() {
 
       <div className="p-6 max-w-[1400px] mx-auto space-y-6 pb-12">
         <div className="flex items-center justify-between">
-           <h2 className="text-xl font-bold text-[#0A0A0A] capitalize tracking-tight">{activeTab}</h2>
+           <h2 className="text-xl font-bold text-[#0A0A0A] capitalize tracking-tight">
+             {activeTab === 'posts_list' ? 'List of Posts' : activeTab}
+           </h2>
            
            <div className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-xl border border-gray-100 shadow-sm">
               <div className="w-6 h-6 rounded-lg overflow-hidden border border-gray-100">
                 <img src={metrics?.profilePictureUrl} alt="Avatar" className="w-full h-full object-cover" />
               </div>
               <span className="text-[11px] font-bold text-gray-700">{metrics?.displayName}</span>
-              <div className="w-5 h-5 rounded-md bg-[#FF0000] flex items-center justify-center">
-                 <Youtube size={10} className="text-white fill-white" />
+              <div 
+                className="w-5 h-5 rounded-md flex items-center justify-center"
+                style={{ backgroundColor: config.color }}
+              >
+                 {platform === "facebook" ? (
+                   <Facebook size={10} className="text-white fill-white" />
+                 ) : (
+                   <Youtube size={10} className="text-white fill-white" />
+                 )}
               </div>
            </div>
         </div>
@@ -230,6 +262,20 @@ export function PlatformDashboardPage() {
                Connect {config.name}
              </button>
           </div>
+        ) : platform === "facebook" ? (
+          <FacebookDashboard
+            metrics={metrics}
+            dateRange={dateRange}
+            setDateRange={setDateRange}
+            realData={realData}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            publishedVideos={publishedVideos}
+            isPublishedLoading={isPublishedLoading}
+            pageSize={pageSize}
+            setPageSize={setPageSize}
+            fetchPublishedVideos={fetchPublishedVideos}
+          />
         ) : (
           <>
             {activeTab === "community" && (
@@ -242,7 +288,7 @@ export function PlatformDashboardPage() {
                    handleMetricToggle={handleMetricToggle}
                  />
                  <BalanceChart 
-                   realData={realData}
+                   communityGrowthData={communityGrowthData}
                    totalPeriodGained={totalPeriodGained}
                    stats={stats}
                    selectedBalanceMetrics={selectedBalanceMetrics}

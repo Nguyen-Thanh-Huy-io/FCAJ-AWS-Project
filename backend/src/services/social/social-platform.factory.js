@@ -1,13 +1,13 @@
 const youtubeService = require('./youtube');
+const facebookService = require('./facebook');
 const { PLATFORMS } = require('../../utils/constants');
 
 class SocialPlatformFactory {
   constructor() {
     this.services = {
       [PLATFORMS.YOUTUBE]: youtubeService,
+      [PLATFORMS.FACEBOOK]: facebookService,
       // Khi tích hợp các nền tảng mới sau này, chỉ cần khai báo tại đây:
-      // [PLATFORMS.FACEBOOK]: facebookService,
-      // [PLATFORMS.TIKTOK]: tiktokService,
     };
   }
 

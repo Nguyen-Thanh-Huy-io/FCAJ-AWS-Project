@@ -17,6 +17,17 @@ export function ConnectionsGrid({ className = "", brand }) {
       toast.error("Please select a brand first");
       return;
     }
+    const status = getStatus("youtube");
+    if (status.connected) {
+      try {
+        await socialService.disconnectGoogleAccount(brand.id);
+        toast.success("YouTube channel disconnected");
+        window.location.reload();
+      } catch (error) {
+        toast.error(error.message || "Failed to disconnect YouTube");
+      }
+      return;
+    }
     try {
       const response = await socialService.getGoogleAuthUrl(brand.id);
       if (response.url) {
@@ -24,6 +35,32 @@ export function ConnectionsGrid({ className = "", brand }) {
       }
     } catch (error) {
       toast.error(error.message || "Failed to start YouTube connection");
+    }
+  };
+
+  const handleConnectFacebook = async () => {
+    if (!brand) {
+      toast.error("Please select a brand first");
+      return;
+    }
+    const status = getStatus("facebook");
+    if (status.connected) {
+      try {
+        await socialService.disconnectFacebookAccount(brand.id);
+        toast.success("Facebook page disconnected");
+        window.location.reload();
+      } catch (error) {
+        toast.error(error.message || "Failed to disconnect Facebook");
+      }
+      return;
+    }
+    try {
+      const response = await socialService.getFacebookAuthUrl(brand.id);
+      if (response.url) {
+        window.location.href = response.url;
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to start Facebook connection");
     }
   };
 
@@ -117,6 +154,7 @@ export function ConnectionsGrid({ className = "", brand }) {
               <button 
                 onClick={() => {
                   if (net.id === "youtube") handleConnectYouTube();
+                  if (net.id === "facebook") handleConnectFacebook();
                 }}
                 className={`w-full h-[60px] rounded-2xl flex items-center justify-between px-6 transition-all transform active:scale-95 shadow-sm border border-black/5 ${net.btnBg} ${net.btnTextColor || 'text-white'}`}
               >

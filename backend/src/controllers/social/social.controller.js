@@ -50,19 +50,44 @@ class SocialController {
   async getMetrics(req, res) {
     try {
       const { brandId, startDate, endDate } = req.query;
+      console.log('--- SocialController.getMetrics ---');
+      console.log('brandId:', brandId);
+      console.log('startDate:', startDate, 'endDate:', endDate);
+      
       if (!brandId) {
         return res.status(400).json({ message: 'brandId is required' });
       }
 
+      const socialPlatformFactory = require('../../services/social/social-platform.factory');
+
       // Find all social accounts for this brand
-      const accounts = await socialAccountRepository.findByBrandAndPlatform(brandId, 'YOUTUBE');
+      const accounts = await prisma.socialAccount.findMany({
+        where: { brandId },
+        include: {
+          youtubeChannel: true,
+          facebookPage: true,
+          analytics: {
+            orderBy: { fetchedAt: 'desc' },
+            take: 1,
+            include: {
+              socialAnalytics: true
+            }
+          }
+        }
+      });
       
-      // For each account, sync metrics
+      console.log('Accounts found:', accounts.map(a => ({ id: a.id, platform: a.platform, displayName: a.displayName })));
+      
+      // For each account, sync metrics polymorphically
       const syncedAccounts = await Promise.all(accounts.map(async (account) => {
         try {
-          return await youtubeService.syncChannelMetrics(account.id, startDate, endDate);
+          console.log(`Syncing channel metrics for ${account.platform} (Account: ${account.id})...`);
+          const service = socialPlatformFactory.getService(account.platform);
+          const result = await service.syncChannelMetrics(account.id, startDate, endDate);
+          console.log(`Successfully synced ${account.platform}.`);
+          return result;
         } catch (error) {
-          console.error(`Failed to sync metrics for account ${account.id}:`, error.message);
+          console.error(`Failed to sync metrics for account ${account.id} (${account.platform}):`, error);
           return account; // Return current data if sync fails
         }
       }));
@@ -72,6 +97,7 @@ class SocialController {
         data: syncedAccounts
       });
     } catch (error) {
+      console.error('Error in SocialController.getMetrics:', error);
       res.status(500).json({ message: error.message });
     }
   }
@@ -224,6 +250,74 @@ class SocialController {
       });
 
       res.json({ success: true, message: 'Google account disconnected successfully' });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async getFacebookAuthUrl(req, res) {
+    try {
+      const { brandId } = req.query;
+      if (!brandId) {
+        return res.status(400).json({ message: 'brandId is required' });
+      }
+      const appId = process.env.FACEBOOK_APP_ID;
+      const redirectUri = `${req.protocol}://${req.get('host')}/api/social/facebook/callback`;
+      const url = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${brandId}&scope=pages_show_list,pages_read_engagement,pages_read_user_content,read_insights`;
+      res.json({ url });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async facebookCallback(req, res) {
+    const { code, state } = req.query;
+    const brandId = state;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const redirectUri = `${req.protocol}://${req.get('host')}/api/social/facebook/callback`;
+
+    if (!brandId) {
+      return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
+    }
+
+    try {
+      const facebookService = require('../../services/social/facebook');
+      await facebookService.connectChannel(brandId, code, redirectUri);
+      res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=facebook_connected`);
+    } catch (error) {
+      res.redirect(`${frontendUrl}/manage/connections?error=${encodeURIComponent(error.message)}`);
+    }
+  }
+
+  async getFacebookPublishedPosts(req, res) {
+    try {
+      const { brandId, limit } = req.query;
+      if (!brandId) {
+        return res.status(400).json({ message: 'brandId is required' });
+      }
+      const facebookService = require('../../services/social/facebook');
+      const data = await facebookService.getPublishedVideos(brandId, null, limit ? parseInt(limit) : 10);
+      res.json({ data });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  }
+
+  async disconnectFacebookAccount(req, res) {
+    try {
+      const { brandId } = req.body;
+      if (!brandId) {
+        return res.status(400).json({ message: 'brandId is required' });
+      }
+
+      await prisma.socialAccount.deleteMany({
+        where: {
+          brandId,
+          platform: 'FACEBOOK'
+        }
+      });
+
+      res.json({ success: true, message: 'Facebook page disconnected successfully' });
     } catch (error) {
       res.status(500).json({ message: error.message });
     }

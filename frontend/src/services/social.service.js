@@ -65,6 +65,21 @@ class SocialService {
     const response = await apiService.post('/social/google/disconnect', { brandId });
     return response.data;
   }
+
+  async getFacebookAuthUrl(brandId) {
+    const response = await apiService.get(`/social/facebook/url?brandId=${brandId}`);
+    return response.data;
+  }
+
+  async getFacebookPublishedPosts(brandId, limit = 10) {
+    const response = await apiService.get(`/social/facebook/published-posts?brandId=${brandId}&limit=${limit}`);
+    return response.data;
+  }
+
+  async disconnectFacebookAccount(brandId) {
+    const response = await apiService.post('/social/facebook/disconnect', { brandId });
+    return response.data;
+  }
 }
 
 const socialService = new SocialService();
