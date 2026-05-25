@@ -64,6 +64,12 @@ class InboxRepository {
   }
 
   async upsertInboxItem(where, update, create) {
+    if (update.authorAvatarUrl && update.authorAvatarUrl.length > 190) {
+      update.authorAvatarUrl = update.authorAvatarUrl.substring(0, 190);
+    }
+    if (create.authorAvatarUrl && create.authorAvatarUrl.length > 190) {
+      create.authorAvatarUrl = create.authorAvatarUrl.substring(0, 190);
+    }
     return prisma.inboxItem.upsert({
       where,
       update,
@@ -78,6 +84,9 @@ class InboxRepository {
   }
 
   async createInboxItem(data) {
+    if (data.authorAvatarUrl && data.authorAvatarUrl.length > 190) {
+      data.authorAvatarUrl = data.authorAvatarUrl.substring(0, 190);
+    }
     return prisma.inboxItem.create({ data });
   }
 

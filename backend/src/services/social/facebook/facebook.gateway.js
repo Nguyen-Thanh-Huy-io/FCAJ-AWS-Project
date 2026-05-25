@@ -127,6 +127,102 @@ class FacebookGateway {
     const data = await res.json();
     return data.data || [];
   }
+
+  async getPostComments(postId, pageAccessToken) {
+    const fields = 'id,message,created_time,from,comments{id,message,created_time,from}';
+    const url = `${this.graphBaseUrl}/${postId}/comments?fields=${fields}&access_token=${pageAccessToken}`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.data || [];
+  }
+
+  async replyToComment(commentId, text, pageAccessToken) {
+    const url = `${this.graphBaseUrl}/${commentId}/comments?message=${encodeURIComponent(text)}&access_token=${pageAccessToken}`;
+    const res = await fetch(url, { method: 'POST' });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error?.message || 'Failed to reply to comment on Facebook');
+    }
+    return res.json();
+  }
+
+  async publishTextPost(pageId, pageAccessToken, message) {
+    const url = `${this.graphBaseUrl}/${pageId}/feed?message=${encodeURIComponent(message)}&access_token=${pageAccessToken}`;
+    const res = await fetch(url, { method: 'POST' });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error?.message || 'Failed to publish text post to Facebook');
+    }
+    return res.json();
+  }
+
+  async publishPhoto(pageId, pageAccessToken, mediaUrl, caption) {
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Resolve local path
+    const localPath = path.join(process.cwd(), mediaUrl.startsWith('/') ? mediaUrl.substring(1) : mediaUrl);
+    if (!fs.existsSync(localPath)) {
+      throw new Error(`Media file not found at ${localPath}`);
+    }
+
+    const formData = new FormData();
+    const fileBuffer = fs.readFileSync(localPath);
+    const blob = new Blob([fileBuffer]);
+    formData.append('source', blob, path.basename(localPath));
+    if (caption) {
+      formData.append('message', caption);
+    }
+    formData.append('access_token', pageAccessToken);
+
+    const url = `${this.graphBaseUrl}/${pageId}/photos`;
+    const res = await fetch(url, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error?.message || 'Failed to publish photo to Facebook');
+    }
+    return res.json();
+  }
+
+  async publishVideo(pageId, pageAccessToken, mediaUrl, title, description) {
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Resolve local path
+    const localPath = path.join(process.cwd(), mediaUrl.startsWith('/') ? mediaUrl.substring(1) : mediaUrl);
+    if (!fs.existsSync(localPath)) {
+      throw new Error(`Media file not found at ${localPath}`);
+    }
+
+    const formData = new FormData();
+    const fileBuffer = fs.readFileSync(localPath);
+    const blob = new Blob([fileBuffer]);
+    formData.append('source', blob, path.basename(localPath));
+    if (title) {
+      formData.append('title', title);
+    }
+    if (description) {
+      formData.append('description', description);
+    }
+    formData.append('access_token', pageAccessToken);
+
+    const url = `https://graph-video.facebook.com/v25.0/${pageId}/videos`;
+    const res = await fetch(url, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error?.message || 'Failed to publish video to Facebook');
+    }
+    return res.json();
+  }
 }
 
 module.exports = new FacebookGateway();

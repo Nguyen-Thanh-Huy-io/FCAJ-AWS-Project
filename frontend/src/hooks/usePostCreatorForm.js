@@ -48,10 +48,16 @@ export function usePostCreatorForm() {
   // Presets Accordion States
   const [globalOpen, setGlobalOpen] = useState(false);
   const [youtubeOpen, setYoutubeOpen] = useState(false);
+  const [facebookOpen, setFacebookOpen] = useState(false);
 
   // Selector Video/Short State
   const [youtubeType, setYoutubeType] = useState("video");
   const [showTypeMenu, setShowTypeMenu] = useState(false);
+
+  // Facebook Dropdown / Mode State
+  const [facebookType, setFacebookType] = useState("post"); // post, reel, story
+  const [showFacebookTypeMenu, setShowFacebookTypeMenu] = useState(false);
+  const [facebookTitle, setFacebookTitle] = useState("");
 
   // YouTube Presets States
   const [youtubeTitle, setYoutubeTitle] = useState("");
@@ -62,6 +68,28 @@ export function usePostCreatorForm() {
   const [youtubeTags, setYoutubeTags] = useState("");
   const [youtubeFirstComment, setYoutubeFirstComment] = useState("");
   const [globalFirstComment, setGlobalFirstComment] = useState("");
+
+  // Validation function
+  const getValidationErrors = () => {
+    const errors = [];
+    const isPastDate = new Date(scheduledDate).getTime() < Date.now() - 60000;
+    if (isPastDate) {
+      errors.push("Publish date can't be a past date.");
+    }
+    if (activePlatform === 'facebook') {
+      if (facebookType === 'reel' && !uploadedVideoPath && !videoFile) {
+        errors.push("Reel -> Add at least 1 video.");
+      }
+      if (facebookType === 'story' && !uploadedVideoPath && !videoFile) {
+        errors.push("Auto publish (story) -> Add at least 1 image or video.");
+      }
+    } else if (activePlatform === 'youtube') {
+      if (!uploadedVideoPath && !videoFile) {
+        errors.push("YouTube -> Add at least 1 video.");
+      }
+    }
+    return errors;
+  };
 
   // Playlists fetched data
   const [playlists, setPlaylists] = useState([]);
@@ -220,6 +248,10 @@ export function usePostCreatorForm() {
         setYoutubeTags(opts.tags || "");
         setYoutubeFirstComment(opts.firstComment || "");
         setGlobalFirstComment(opts.firstComment || "");
+
+        // Setup Facebook
+        setFacebookType(opts.facebookType || "post");
+        setFacebookTitle(opts.facebookTitle || "");
         
         // Setup media
         if (editingPost.mediaUrls?.[0]) {
@@ -249,6 +281,10 @@ export function usePostCreatorForm() {
         setYoutubeTags("");
         setYoutubeFirstComment("");
         setGlobalFirstComment("");
+
+        // Reset Facebook
+        setFacebookType("post");
+        setFacebookTitle("");
       }
     }
   }, [isOpen, editingPost, defaultScheduledAt, initialIsLibrary]);
@@ -259,8 +295,9 @@ export function usePostCreatorForm() {
       return;
     }
 
-    if (!uploadedVideoPath) {
-      toast.error("Please upload a video file for your YouTube post");
+    const errors = getValidationErrors();
+    if (errors.length > 0) {
+      toast.error("Please resolve the validation errors first");
       return;
     }
 
@@ -271,15 +308,27 @@ export function usePostCreatorForm() {
       else if (selectedPublishId === 'schedule') status = 'SCHEDULED';
       else if (selectedPublishId === 'review') status = 'PENDING_APPROVAL';
 
+      let postType = "VIDEO";
+      if (activePlatform === 'facebook') {
+        if (facebookType === 'story') postType = 'STORY';
+        else if (facebookType === 'reel') postType = 'REEL';
+        else {
+          postType = (uploadedVideoPath || videoFile) ? 'VIDEO' : 'IMAGE';
+        }
+      } else if (activePlatform === 'youtube') {
+        postType = youtubeType === 'short' ? 'SHORT' : 'VIDEO';
+      }
+
       const payload = {
         brandId: activeBrand.id,
-        title: title || youtubeTitle || (caption ? caption.substring(0, 50) : "New Video"),
+        title: title || (activePlatform === 'facebook' && facebookType === 'reel' ? facebookTitle : youtubeTitle) || (caption ? caption.substring(0, 50) : "New Post"),
         caption,
+        type: postType,
         status,
         isLibrary,
         targetPlatforms: [activePlatform.toUpperCase()],
         scheduledAt: new Date(scheduledDate).toISOString(),
-        mediaUrls: [uploadedVideoPath],
+        mediaUrls: uploadedVideoPath ? [uploadedVideoPath] : [],
         options: {
           youtubeType,
           youtubeTitle,
@@ -288,7 +337,9 @@ export function usePostCreatorForm() {
           playlistId: youtubePlaylistId,
           tags: youtubeTags,
           madeForKids: youtubeMadeForKids,
-          firstComment: youtubeFirstComment || globalFirstComment
+          firstComment: youtubeFirstComment || globalFirstComment,
+          facebookType,
+          facebookTitle
         }
       };
 
@@ -306,6 +357,8 @@ export function usePostCreatorForm() {
       setYoutubeTags("");
       setYoutubeFirstComment("");
       setGlobalFirstComment("");
+      setFacebookTitle("");
+      setFacebookType("post");
       setVideoFile(null);
       setVideoFileUrl("");
       setUploadedVideoPath("");
@@ -366,9 +419,12 @@ export function usePostCreatorForm() {
     playlists,
     isLoadingPlaylists,
     videoFile,
+    setVideoFile,
     videoFileUrl,
+    setVideoFileUrl,
     isUploadingVideo,
     uploadedVideoPath,
+    setUploadedVideoPath,
     activePopover,
     setActivePopover,
     showFirstCommentModal,
@@ -383,6 +439,16 @@ export function usePostCreatorForm() {
     handleRemoveVideo,
     fetchPlaylists,
     editingPost,
-    handleCreatePost
+    handleCreatePost,
+    // Facebook States
+    facebookOpen,
+    setFacebookOpen,
+    facebookType,
+    setFacebookType,
+    showFacebookTypeMenu,
+    setShowFacebookTypeMenu,
+    facebookTitle,
+    setFacebookTitle,
+    getValidationErrors
   };
 }

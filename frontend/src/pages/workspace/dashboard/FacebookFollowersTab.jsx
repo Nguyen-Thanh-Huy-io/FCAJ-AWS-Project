@@ -61,6 +61,12 @@ export function FacebookFollowersTab({ realData = {} }) {
               tickLine={false} 
               tick={{ fontSize: 10, fill: "#9CA3AF", fontWeight: 600 }} 
               dy={10} 
+              interval={
+                balanceData.length <= 7 ? 0 :
+                balanceData.length <= 14 ? 1 :
+                balanceData.length <= 31 ? 2 :
+                Math.floor(balanceData.length / 10)
+              }
             />
             <YAxis 
               axisLine={false} 

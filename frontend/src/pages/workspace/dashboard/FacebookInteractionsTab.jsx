@@ -79,6 +79,12 @@ export function FacebookInteractionsTab({ realData = {} }) {
                 tickLine={false} 
                 tick={{ fontSize: 10, fill: "#9CA3AF", fontWeight: 600 }} 
                 dy={10} 
+                interval={
+                  chartData.length <= 7 ? 0 :
+                  chartData.length <= 14 ? 1 :
+                  chartData.length <= 31 ? 2 :
+                  Math.floor(chartData.length / 10)
+                }
               />
               <YAxis 
                 axisLine={false} 

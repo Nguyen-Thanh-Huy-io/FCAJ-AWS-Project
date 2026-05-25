@@ -62,6 +62,12 @@ export function FacebookOverviewTab({ realData = {} }) {
                 tickLine={false} 
                 tick={{ fontSize: 10, fill: "#9CA3AF", fontWeight: 600 }} 
                 dy={10} 
+                interval={
+                  growthData.length <= 7 ? 0 :
+                  growthData.length <= 14 ? 1 :
+                  growthData.length <= 31 ? 2 :
+                  Math.floor(growthData.length / 10)
+                }
               />
               <YAxis 
                 yAxisId="left"

@@ -54,8 +54,14 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-// Serve static files from uploads directory
-app.use('/uploads', express.static('uploads'));
+// Serve static files from uploads directory with CORS headers enabled
+app.use('/uploads', express.static('uploads', {
+  setHeaders: (res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Credentials', 'true');
+    res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  }
+}));
 
 app.use('/api/auth', authRoutes);
 app.use('/api', profileRoutes);

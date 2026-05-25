@@ -1,6 +1,7 @@
 const BaseSocialService = require('../base-social.service');
 const facebookAnalytics = require('./facebook-analytics.service');
 const facebookPost = require('./facebook-post.service');
+const facebookComment = require('./facebook-comment.service');
 
 class FacebookService extends BaseSocialService {
   // --- Analytics & Page ---
@@ -27,6 +28,10 @@ class FacebookService extends BaseSocialService {
     return facebookPost.getPublishedPosts(brandId, limit);
   }
 
+  async publishPost(brandId, postData) {
+    return facebookPost.publishPost(brandId, postData);
+  }
+
   // --- Unsupported or Stub methods for LSP Compliance ---
   async trackVideo(brandId, videoUrl) {
     return null;
@@ -45,11 +50,11 @@ class FacebookService extends BaseSocialService {
   }
 
   async fetchChannelComments(brandId) {
-    return [];
+    return facebookComment.fetchChannelComments(brandId);
   }
 
   async replyToComment(brandId, parentCommentId, text) {
-    return null;
+    return facebookComment.replyToComment(brandId, parentCommentId, text);
   }
 }
 

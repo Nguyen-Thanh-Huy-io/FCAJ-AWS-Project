@@ -4,7 +4,8 @@ import {
   X, Smile, Link2, Plus, Image as ImageIcon, 
   FileText, Loader2, RotateCw, Copy, ChevronDown, 
   Calendar, Youtube, PlayCircle, Smartphone, Monitor, Info, MessageSquare,
-  Languages, Settings
+  Languages, Settings, LayoutGrid, Film, PlusCircle, AlertCircle, Check,
+  MoreHorizontal, Edit, Type, Trash2
 } from "lucide-react";
 import { usePostCreatorForm } from "../../hooks/usePostCreatorForm";
 import { ShortsIcon } from "../../components/workspace/post-creator/ShortsIcon";
@@ -14,6 +15,8 @@ import { FirstCommentModal } from "../../components/workspace/post-creator/First
 import { UTMGeneratorPopover } from "../../components/workspace/post-creator/UTMGeneratorPopover";
 import { PreviewStrategies } from "../../components/workspace/post-creator/PreviewStrategies";
 import { GoogleDrivePickerModal } from "../../components/workspace/post-creator/GoogleDrivePickerModal";
+import { MediaUploadModal } from "../../components/workspace/post-creator/MediaUploadModal";
+import { ImageEditorModal } from "../../components/workspace/post-creator/ImageEditorModal";
 import { toast } from "sonner";
 
 const PUBLISH_OPTIONS = [
@@ -72,8 +75,11 @@ export function PostCreatorPage() {
     playlists,
     isLoadingPlaylists,
     videoFile,
+    setVideoFile,
     videoFileUrl,
+    setVideoFileUrl,
     uploadedVideoPath,
+    setUploadedVideoPath,
     isUploadingVideo,
     activePopover,
     setActivePopover,
@@ -89,13 +95,54 @@ export function PostCreatorPage() {
     handleRemoveVideo,
     fetchPlaylists,
     editingPost,
-    handleCreatePost
+    handleCreatePost,
+    // Facebook
+    facebookOpen,
+    setFacebookOpen,
+    facebookType,
+    setFacebookType,
+    showFacebookTypeMenu,
+    setShowFacebookTypeMenu,
+    facebookTitle,
+    setFacebookTitle,
+    getValidationErrors
   } = usePostCreatorForm();
+
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showImageMenu, setShowImageMenu] = useState(false);
+  const [showImageEditor, setShowImageEditor] = useState(false);
+  const [imageTransform, setImageTransform] = useState({ rotation: 0, flipH: false, flipV: false, filter: 'none' });
 
   if (!isOpen) return null;
 
   const currentOption = PUBLISH_OPTIONS.find(o => o.id === selectedPublishId);
   const PreviewComponent = PreviewStrategies[activePlatform];
+  
+  const isImageFile = videoFile 
+    ? videoFile.type.startsWith("image/") 
+    : (uploadedVideoPath && !uploadedVideoPath.endsWith(".mp4") && !uploadedVideoPath.endsWith(".mov") && !uploadedVideoPath.endsWith(".avi"));
+
+  const getImageStyle = (transform) => {
+    if (!transform) return {};
+    const { rotation = 0, flipH = false, flipV = false } = transform;
+    return {
+      transform: `rotate(${rotation}deg) scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`,
+      transition: 'transform 0.3s ease'
+    };
+  };
+  
+  const getImageFilterClass = (filterId) => {
+    switch (filterId) {
+      case 'grayscale': return 'grayscale';
+      case 'sepia': return 'sepia';
+      case 'invert': return 'invert';
+      case 'blur': return 'blur-[2px]';
+      case 'warm': return 'sepia-[0.3] saturate-[1.3] hue-rotate-[-10deg]';
+      case 'cool': return 'saturate-[0.9] hue-rotate-[10deg] brightness-[1.05]';
+      case 'dramatic': return 'contrast-[1.2] brightness-[0.9]';
+      default: return '';
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[2000] flex flex-col bg-[#F8F8F7] animate-in slide-in-from-bottom duration-500">
@@ -116,54 +163,174 @@ export function PostCreatorPage() {
               <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                      <button className="text-gray-300 hover:text-[#010101] transition-colors cursor-pointer"><PlayCircle size={24} /></button>
-                     <div className="relative">
-                        <button 
-                          onClick={() => setShowTypeMenu(!showTypeMenu)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-100 transition-all cursor-pointer"
-                        >
-                           {youtubeType === 'video' ? (
-                             <Youtube className="text-[#FF0000] fill-[#FF0000]" size={20} />
-                           ) : (
-                             <ShortsIcon size={20} className="text-[#FF0000]" />
-                           )}
-                           <span className="text-[10px] font-bold text-gray-700 uppercase tracking-tighter">
-                             {youtubeType === 'video' ? 'Video' : 'Short'}
-                           </span>
-                           <ChevronDown size={12} className="text-gray-400" />
+                     
+                      {/* Platform Icons Toolbar */}
+                      <div className="flex items-center gap-3">
+                        {/* Facebook Item */}
+                        <div className="flex items-center gap-1.5">
+                          <button 
+                            type="button"
+                            onClick={() => setActivePlatform("facebook")}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                              activePlatform === 'facebook' 
+                                ? 'bg-[#1877F2] text-white' 
+                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                            }`}
+                          >
+                            <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                            </svg>
+                          </button>
+                          
+                          {activePlatform === 'facebook' && (
+                            <div className="relative">
+                              <button 
+                                type="button"
+                                onClick={() => setShowFacebookTypeMenu(!showFacebookTypeMenu)}
+                                className="flex items-center gap-1 px-2.5 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all text-[10px] font-bold text-gray-700 uppercase cursor-pointer"
+                              >
+                                {facebookType}
+                                <ChevronDown size={12} className="text-gray-500" />
+                              </button>
+
+                              {showFacebookTypeMenu && (
+                                <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFacebookType("post");
+                                      setShowFacebookTypeMenu(false);
+                                    }}
+                                    className={`w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-all text-left cursor-pointer ${
+                                      facebookType === 'post' ? 'bg-gray-100/80' : ''
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <LayoutGrid size={16} className="text-gray-600" />
+                                      <div>
+                                        <div className="text-xs font-bold text-gray-800">Post</div>
+                                        <div className="text-[10px] text-gray-400 font-medium">Standard Facebook publication</div>
+                                      </div>
+                                    </div>
+                                    {facebookType === 'post' && <Check size={14} className="text-gray-800" />}
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFacebookType("reel");
+                                      setShowFacebookTypeMenu(false);
+                                    }}
+                                    className={`w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-all text-left cursor-pointer ${
+                                      facebookType === 'reel' ? 'bg-gray-100/80' : ''
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <Film size={16} className="text-gray-600" />
+                                      <div>
+                                        <div className="text-xs font-bold text-gray-800">Reel</div>
+                                        <div className="text-[10px] text-gray-400 font-medium">Automatic posting</div>
+                                      </div>
+                                    </div>
+                                    {facebookType === 'reel' && <Check size={14} className="text-gray-800" />}
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFacebookType("story");
+                                      setShowFacebookTypeMenu(false);
+                                    }}
+                                    className={`w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-all text-left cursor-pointer ${
+                                      facebookType === 'story' ? 'bg-gray-100/80' : ''
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <PlusCircle size={16} className="text-gray-600" />
+                                      <div>
+                                        <div className="text-xs font-bold text-gray-800">Story</div>
+                                        <div className="text-[10px] text-gray-400 font-medium">Automatic posting</div>
+                                      </div>
+                                    </div>
+                                    {facebookType === 'story' && <Check size={14} className="text-gray-800" />}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Tiktok Item (inactive) */}
+                        <button type="button" className="w-7 h-7 rounded-full bg-gray-100 text-gray-400 hover:bg-gray-200 flex items-center justify-center transition-all cursor-pointer">
+                          <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                            <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.5-1.1-1.02-1.7-2.48-1.9-3.96-.03 2.49 0 4.99 0 7.48-.02 1.9-.38 3.82-1.39 5.43-1.46 2.42-4.13 3.84-6.93 3.55-3.05-.2-5.78-2.44-6.39-5.46-.73-3.27.97-6.9 4.13-7.91 1.09-.34 2.24-.39 3.37-.2v4.02c-1.22-.32-2.58-.09-3.55.74-.95.83-1.29 2.19-1.03 3.4.31 1.65 1.84 2.91 3.53 2.78 1.94-.04 3.42-1.8 3.25-3.73-.02-2.91 0-5.83 0-8.74.02-3.11-.02-6.22.02-9.33z"/>
+                          </svg>
                         </button>
 
-                        {showTypeMenu && (
-                           <div className="absolute top-full left-0 mt-2 w-60 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
+                        {/* Youtube Item */}
+                        <div className="flex items-center gap-1.5">
+                          <button 
+                            type="button"
+                            onClick={() => setActivePlatform("youtube")}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                              activePlatform === 'youtube' 
+                                ? 'bg-[#FF0000] text-white' 
+                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                            }`}
+                          >
+                            <Youtube size={14} className={activePlatform === 'youtube' ? 'fill-white' : ''} />
+                          </button>
+                          
+                          {activePlatform === 'youtube' && (
+                            <div className="relative">
                               <button 
-                                onClick={() => { setYoutubeType('video'); setShowTypeMenu(false); }}
-                                className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-all text-left cursor-pointer ${youtubeType === 'video' ? 'bg-gray-50' : ''}`}
+                                type="button"
+                                onClick={() => setShowTypeMenu(!showTypeMenu)}
+                                className="flex items-center gap-1 px-2.5 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all text-[10px] font-bold text-gray-700 uppercase cursor-pointer"
                               >
-                                 <div className="p-1.5 bg-gray-100 rounded-lg text-gray-600">
-                                    <Youtube size={16} className="text-[#FF0000] fill-[#FF0000]" />
-                                 </div>
-                                 <div>
-                                    <div className="text-[11px] font-bold text-gray-800">Video</div>
-                                    <div className="text-[9px] text-gray-400 font-medium">Standard YouTube video</div>
-                                 </div>
+                                {youtubeType}
+                                <ChevronDown size={12} className="text-gray-500" />
                               </button>
-                              <button 
-                                onClick={() => { setYoutubeType('short'); setShowTypeMenu(false); }}
-                                className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-all text-left cursor-pointer ${youtubeType === 'short' ? 'bg-gray-50' : ''}`}
-                              >
-                                 <div className="p-1.5 bg-gray-100 rounded-lg text-gray-600">
-                                    <ShortsIcon size={16} className="text-[#FF0000]" />
-                                 </div>
-                                 <div>
-                                    <div className="text-[11px] font-bold text-gray-800">Short</div>
-                                    <div className="text-[9px] text-gray-400 font-medium">Short-form, vertical video content</div>
-                                 </div>
-                              </button>
-                           </div>
-                        )}
-                     </div>
-                     <button className="w-8 h-8 rounded-lg border border-dashed border-gray-200 flex items-center justify-center text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-all cursor-pointer">
-                        <Plus size={16} />
-                     </button>
+
+                              {showTypeMenu && (
+                                <div className="absolute top-full left-0 mt-1 w-60 bg-white rounded-2xl shadow-2xl border border-gray-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-1">
+                                  <button 
+                                    type="button"
+                                    onClick={() => { setYoutubeType('video'); setShowTypeMenu(false); }}
+                                    className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-all text-left cursor-pointer ${youtubeType === 'video' ? 'bg-gray-50' : ''}`}
+                                  >
+                                    <div className="p-1 bg-gray-100 rounded text-gray-600">
+                                      <Youtube size={14} className="text-[#FF0000] fill-[#FF0000]" />
+                                    </div>
+                                    <div>
+                                      <div className="text-xs font-bold text-gray-800">Video</div>
+                                      <div className="text-[10px] text-gray-400 font-medium">Standard YouTube video</div>
+                                    </div>
+                                  </button>
+                                  <button 
+                                    type="button"
+                                    onClick={() => { setYoutubeType('short'); setShowTypeMenu(false); }}
+                                    className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-all text-left cursor-pointer ${youtubeType === 'short' ? 'bg-gray-50' : ''}`}
+                                  >
+                                    <div className="p-1 bg-gray-100 rounded text-gray-600">
+                                      <ShortsIcon size={14} className="text-[#FF0000]" />
+                                    </div>
+                                    <div>
+                                      <div className="text-xs font-bold text-gray-800">Short</div>
+                                      <div className="text-[10px] text-gray-400 font-medium">Short-form vertical video</div>
+                                    </div>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Plus Add Button */}
+                        <button type="button" className="w-7 h-7 rounded-full bg-gray-50 border border-dashed border-gray-200 flex items-center justify-center text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-all cursor-pointer">
+                          <Plus size={14} />
+                        </button>
+                      </div>
                   </div>
                   <button className="flex items-center gap-2 px-3 py-1.5 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">
                      <FileText size={16} />
@@ -180,7 +347,7 @@ export function PostCreatorPage() {
                     className="w-full p-6 text-sm font-medium leading-relaxed outline-none min-h-[350px] resize-none"
                     placeholder="What's on your mind?"
                   />
-                  {(videoFile || uploadedVideoPath) && (
+                  {(videoFile || uploadedVideoPath) && !isImageFile && (
                      <div className="px-6 py-3 border-t border-gray-50 bg-gray-50/50 flex items-center justify-between animate-in fade-in slide-in-from-top-1">
                        <div className="flex items-center gap-2 text-xs font-bold text-gray-700">
                          <Youtube className="text-red-500 fill-red-500" size={16} />
@@ -191,6 +358,71 @@ export function PostCreatorPage() {
                        <button onClick={handleRemoveVideo} className="text-[10px] font-black text-gray-400 hover:text-red-500 uppercase tracking-widest transition-colors cursor-pointer">Remove</button>
                      </div>
                    )}
+
+                  {/* Thumbnail Image display */}
+                  {isImageFile && videoFileUrl && (
+                    <div className="px-6 pb-4 bg-white flex flex-wrap gap-3 animate-in fade-in duration-300">
+                      <div className="relative">
+                        {/* Image Container with aspect ratio and rounded borders */}
+                        <div className="w-16 h-16 rounded-2xl overflow-hidden border border-gray-100 shadow-md">
+                          <img src={videoFileUrl} alt="Preview" style={getImageStyle(imageTransform)} className={`w-full h-full object-cover ${getImageFilterClass(imageTransform?.filter)}`} />
+                        </div>
+                        
+                        {/* Three dots button */}
+                        <button 
+                          type="button"
+                          onClick={() => setShowImageMenu(!showImageMenu)}
+                          className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center cursor-pointer transition-all shadow-md z-10"
+                        >
+                          <MoreHorizontal size={12} />
+                        </button>
+
+                        {/* Dropdown Menu (Floats on top) */}
+                        {showImageMenu && (
+                          <div className="absolute top-6 left-0 w-52 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50 text-left text-xs text-gray-700 animate-in fade-in slide-in-from-top-1">
+                            <button 
+                              type="button" 
+                              onClick={() => { setShowImageMenu(false); setShowImageEditor(true); }}
+                              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700"
+                            >
+                              <Edit size={14} className="text-gray-500" />
+                              Edit image
+                            </button>
+                            <button 
+                              type="button" 
+                              onClick={() => { setShowImageMenu(false); toast.info("Edit with Adobe Express clicked"); }}
+                              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700"
+                            >
+                              <svg className="w-3.5 h-3.5 text-red-500 fill-current" viewBox="0 0 24 24">
+                                <path d="M12 2L2 22h20L12 2zm0 4l6.5 13H5.5L12 6z"/>
+                              </svg>
+                              Edit with Adobe Express
+                            </button>
+                            <button 
+                              type="button" 
+                              onClick={() => { setShowImageMenu(false); toast.info("Add alt text clicked"); }}
+                              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700"
+                            >
+                              <Type size={14} className="text-gray-500" />
+                              Add alt text
+                            </button>
+                            <div className="h-px bg-gray-100 my-1" />
+                            <button 
+                              type="button" 
+                              onClick={() => {
+                                handleRemoveVideo();
+                                setShowImageMenu(false);
+                              }}
+                              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-red-50 text-red-600 transition-all cursor-pointer font-bold"
+                            >
+                              <Trash2 size={14} />
+                              Remove
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <div className="px-6 py-4 flex items-center justify-between bg-white border-t border-gray-50">
                      <div className="flex items-center gap-5">
                         {/* Media Button */}
@@ -205,7 +437,8 @@ export function PostCreatorPage() {
                           {activePopover === 'media' && (
                             <MediaDropdown 
                               onClose={() => setActivePopover(null)} 
-                              onSelectVideo={() => fileInputRef.current?.click()} 
+                              onSelectImage={() => setShowUploadModal(true)} 
+                              onSelectVideo={() => setShowUploadModal(true)} 
                               onSelectDrive={() => setIsDriveModalOpen(true)}
                             />
                           )}
@@ -278,9 +511,15 @@ export function PostCreatorPage() {
                               <p className="text-[10px] text-gray-500 leading-tight">Limited by the network with less character length support.</p>
                            </div>
                         </div>
-                        <div className="w-5 h-5 rounded bg-[#FF0000] flex items-center justify-center">
-                           <Youtube size={10} className="text-white fill-white" />
-                        </div>
+                         <div className={`w-5 h-5 rounded flex items-center justify-center ${activePlatform === 'youtube' ? 'bg-[#FF0000]' : 'bg-[#1877F2]'}`}>
+                           {activePlatform === 'youtube' ? (
+                             <Youtube size={10} className="text-white fill-white" />
+                           ) : (
+                             <svg className="w-3 h-3 text-white fill-white" viewBox="0 0 24 24">
+                               <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                             </svg>
+                           )}
+                         </div>
                      </div>
                   </div>
               </div>
@@ -317,6 +556,7 @@ export function PostCreatorPage() {
                  </div>
 
                  {/* YouTube Presets Accordion */}
+                  {activePlatform === 'youtube' && (
                  <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm transition-all duration-300">
                     <div 
                       onClick={() => setYoutubeOpen(!youtubeOpen)}
@@ -470,7 +710,70 @@ export function PostCreatorPage() {
                        </div>
                     </div>
                  </div>
+                 )}
+
+                 {/* Facebook Presets Accordion (Reel Title) */}
+                 {activePlatform === 'facebook' && facebookType === 'reel' && (
+                  <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm transition-all duration-300">
+                    <div 
+                      onClick={() => setFacebookOpen(!facebookOpen)}
+                      className="p-5 flex items-center justify-between hover:bg-gray-50/50 transition-all cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <svg className="w-[18px] h-[18px] text-[#1877F2] fill-[#1877F2]" viewBox="0 0 24 24">
+                          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                        <span className="text-[12px] font-bold text-gray-700">Facebook presets</span>
+                      </div>
+                      <ChevronDown size={16} className={`text-gray-400 transition-transform duration-300 ${facebookOpen ? 'rotate-180 text-black' : ''}`} />
+                    </div>
+
+                    <div className={`transition-all duration-300 ease-in-out overflow-hidden ${facebookOpen ? 'max-h-[300px] border-t border-gray-50 p-6' : 'max-h-0'}`}>
+                      <div className="space-y-4 text-left">
+                        <div>
+                          <label className="block text-[11px] font-bold text-gray-500 uppercase mb-2">Title</label>
+                          <input 
+                            type="text"
+                            value={facebookTitle}
+                            onChange={(e) => setFacebookTitle(e.target.value)}
+                            placeholder="Title"
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-xs font-semibold focus:border-black outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                 )}
               </div>
+
+              {/* Validation Errors Banner */}
+              {getValidationErrors().length > 0 && (
+                <div className="border border-red-100 rounded-3xl overflow-hidden bg-red-50/50 shadow-sm transition-all duration-300">
+                  <div className="p-5 flex items-center justify-between text-red-700">
+                    <div className="flex items-center gap-3">
+                      <AlertCircle size={18} className="text-red-500 shrink-0" />
+                      <span className="text-[12px] font-bold">{getValidationErrors().length} errors</span>
+                    </div>
+                  </div>
+                  <div className="border-t border-red-100/50 px-6 py-4 space-y-2 text-left">
+                    {getValidationErrors().map((err, idx) => {
+                      const isFacebookErr = err.includes("Reel ->") || err.includes("story) ->");
+                      return (
+                        <div key={idx} className="flex items-center gap-2.5 text-xs font-medium text-gray-700">
+                          {isFacebookErr ? (
+                            <svg className="w-3.5 h-3.5 text-[#1877F2] fill-[#1877F2] shrink-0" viewBox="0 0 24 24">
+                              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                            </svg>
+                          ) : (
+                            <Info size={14} className="text-gray-400 shrink-0" />
+                          )}
+                          <span>{err}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Composition Footer */}
               <div className="pt-4 flex items-center justify-between">
@@ -523,7 +826,13 @@ export function PostCreatorPage() {
            {/* Preview Toolbar */}
            <div className="p-6 flex items-center justify-between">
               <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm">
-                 <Youtube className="text-[#FF0000] fill-[#FF0000]" size={20} />
+                 {activePlatform === 'youtube' ? (
+                    <Youtube className="text-[#FF0000] fill-[#FF0000]" size={20} />
+                 ) : (
+                    <svg className="w-5 h-5 text-[#1877F2] fill-[#1877F2]" viewBox="0 0 24 24">
+                       <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                 )}
               </div>
               <div className="flex gap-2 bg-white/50 p-1 rounded-2xl backdrop-blur-md">
                  <button onClick={() => setPreviewDevice("mobile")} className={`p-2 rounded-xl transition-all cursor-pointer ${previewDevice === 'mobile' ? 'bg-black text-white' : 'text-gray-400 hover:text-black'}`}><Smartphone size={18} /></button>
@@ -546,11 +855,16 @@ export function PostCreatorPage() {
                       youtubeFirstComment={youtubeFirstComment}
                       globalFirstComment={globalFirstComment}
                       previewDevice={previewDevice}
+                       facebookType={facebookType}
+                       facebookTitle={facebookTitle}
+                       imageTransform={imageTransform}
                     />
                  )}
               </div>
               <p className="text-[10px] text-gray-400 text-center max-w-[280px] leading-normal font-medium uppercase tracking-tight">
-                  YouTube descriptions and setup parameters are fully simulated and will be included in your post
+                  {activePlatform === 'youtube' 
+                    ? 'YouTube descriptions and setup parameters are fully simulated and will be included in your post' 
+                    : 'Facebook status updates, photos, and videos are fully supported and will be published on your feed'}
                </p>
            </div>
 
@@ -582,6 +896,40 @@ export function PostCreatorPage() {
           onClose={() => setIsDriveModalOpen(false)}
           activeBrand={activeBrand}
           onSelectFile={handleSelectDriveFile}
+        />
+        <MediaUploadModal 
+          isOpen={showUploadModal}
+          onClose={() => setShowUploadModal(false)}
+          onAccept={(file, path) => {
+            if (file) {
+              setVideoFile(file);
+              const previewUrl = URL.createObjectURL(file);
+              setVideoFileUrl(previewUrl);
+            } else {
+              setVideoFile(null);
+              setVideoFileUrl(path);
+            }
+            setUploadedVideoPath(path);
+            setImageTransform({ rotation: 0, flipH: false, flipV: false, filter: 'none' }); // reset transform on new upload
+          }}
+        />
+        <ImageEditorModal 
+          isOpen={showImageEditor}
+          imageUrl={videoFileUrl}
+          currentTransform={imageTransform}
+          onClose={() => setShowImageEditor(false)}
+          onSave={(file, path, fallbackTransform) => {
+            if (file && path) {
+              setVideoFile(file);
+              const previewUrl = URL.createObjectURL(file);
+              setVideoFileUrl(previewUrl);
+              setUploadedVideoPath(path);
+              setImageTransform({ rotation: 0, flipH: false, flipV: false, filter: 'none' }); // reset transform since it's baked into the new image file
+            } else if (fallbackTransform) {
+              setImageTransform(fallbackTransform);
+            }
+            toast.success("Image edited successfully");
+          }}
         />
         </div>
       </div>

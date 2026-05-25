@@ -263,7 +263,7 @@ class SocialController {
       }
       const appId = process.env.FACEBOOK_APP_ID;
       const redirectUri = `${req.protocol}://${req.get('host')}/api/social/facebook/callback`;
-      const url = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${brandId}&scope=pages_show_list,pages_read_engagement,pages_read_user_content,read_insights`;
+      const url = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${brandId}&scope=pages_show_list,pages_read_engagement,pages_read_user_content,read_insights,pages_manage_engagement`;
       res.json({ url });
     } catch (error) {
       res.status(500).json({ message: error.message });

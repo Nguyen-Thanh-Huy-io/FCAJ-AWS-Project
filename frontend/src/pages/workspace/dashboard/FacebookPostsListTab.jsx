@@ -107,7 +107,7 @@ export function FacebookPostsListTab({
                     </td>
                     <td className="px-6 py-4 text-xs">
                       <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700">
-                        {((item.engagementRate || 0) * 100).toFixed(1)}%
+                        {(item.engagement || 0).toFixed(1)}%
                       </span>
                     </td>
                     <td className="px-6 py-4 text-xs text-gray-500">

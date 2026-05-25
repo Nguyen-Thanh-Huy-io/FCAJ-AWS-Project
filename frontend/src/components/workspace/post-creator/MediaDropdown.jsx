@@ -1,9 +1,9 @@
 import * as React from "react";
 import { Image as ImageIcon, PlayCircle, Folder, ChevronRight } from "lucide-react";
 
-export function MediaDropdown({ onClose, onSelectVideo, onSelectDrive }) {
+export function MediaDropdown({ onClose, onSelectImage, onSelectVideo, onSelectDrive }) {
   const menuItems = [
-    { id: 'image', label: 'Add image', icon: <ImageIcon size={16} className="text-gray-500" /> },
+    { id: 'image', label: 'Add image', icon: <ImageIcon size={16} className="text-gray-500" />, onClick: onSelectImage },
     { id: 'video', label: 'Add video', icon: <PlayCircle size={16} className="text-gray-500" />, onClick: onSelectVideo },
     { id: 'adobe', label: 'Adobe Express', icon: (
       <svg className="w-4 h-4 text-red-500 fill-current" viewBox="0 0 24 24">

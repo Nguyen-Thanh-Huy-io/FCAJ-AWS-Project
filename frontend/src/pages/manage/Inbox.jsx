@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { 
-  Search, RefreshCw, Youtube, Filter, MoreHorizontal, 
+  Search, RefreshCw, Youtube, Facebook, Filter, MoreHorizontal, 
   Loader2, MessageSquare, AlertCircle, EyeOff, CheckCircle, ExternalLink
 } from "lucide-react";
 import { useFilters } from "../../hooks/useFilters";
@@ -148,7 +148,7 @@ export function InboxPage() {
       setReplyText("");
       fetchThread();
     } catch (e) {
-      toast.error("Failed to send reply");
+      toast.error("Failed to send reply: " + (e.response?.data?.message || e.message));
     } finally {
       setIsReplying(false);
     }
@@ -158,10 +158,33 @@ export function InboxPage() {
     <div className="flex-1 flex overflow-hidden bg-[#F8F8F7] p-4 gap-4">
       {/* Sidebar (List) */}
       <div className="w-[380px] bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
-        <div className="p-4 flex items-center justify-center gap-4 relative border-b border-gray-50">
-           <div className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer"><Youtube className="text-[#FF0000] fill-[#FF0000]" size={28} /></div>
-           <button onClick={handleSync} disabled={isSyncing} className="p-1 hover:bg-gray-100 rounded-full text-gray-400 absolute right-4"><RefreshCw size={20} className={isSyncing ? "animate-spin" : ""} /></button>
-           <button className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-50 text-xl font-light">+</button>
+        <div className="p-4 flex items-center justify-between gap-4 relative border-b border-gray-50">
+           <div className="flex gap-2">
+             <button
+               onClick={() => updateFilters({ platform: "YouTube" })}
+               className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+                 platformFilter.toLowerCase() === "youtube"
+                   ? "bg-red-50 border border-red-100 shadow-sm"
+                   : "opacity-40 hover:opacity-80"
+               }`}
+             >
+               <Youtube className="text-[#FF0000] fill-[#FF0000]" size={20} />
+             </button>
+             <button
+               onClick={() => updateFilters({ platform: "Facebook" })}
+               className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+                 platformFilter.toLowerCase() === "facebook"
+                   ? "bg-blue-50 border border-blue-100 shadow-sm"
+                   : "opacity-40 hover:opacity-80"
+               }`}
+             >
+               <Facebook className="text-[#1877F2] fill-[#1877F2]" size={20} />
+             </button>
+           </div>
+           <div className="flex items-center gap-2">
+             <button onClick={handleSync} disabled={isSyncing} className="p-1.5 hover:bg-gray-100 rounded-full text-gray-400"><RefreshCw size={18} className={isSyncing ? "animate-spin" : ""} /></button>
+             <button className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-50 text-xl font-light">+</button>
+           </div>
         </div>
 
         <div className="p-4 flex gap-2">
@@ -231,7 +254,11 @@ export function InboxPage() {
                         </div>
                       )}
                       <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-white flex items-center justify-center shadow-sm z-20">
-                         <Youtube className="text-[#FF0000] fill-[#FF0000]" size={8} />
+                         {activeConv.platform?.toLowerCase() === "facebook" ? (
+                           <Facebook className="text-[#1877F2] fill-[#1877F2]" size={8} />
+                         ) : (
+                           <Youtube className="text-[#FF0000] fill-[#FF0000]" size={8} />
+                         )}
                       </div>
                    </div>
                    <div>

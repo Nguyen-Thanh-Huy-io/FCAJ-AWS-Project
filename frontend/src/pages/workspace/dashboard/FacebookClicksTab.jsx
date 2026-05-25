@@ -61,6 +61,12 @@ export function FacebookClicksTab({ realData = {} }) {
               tickLine={false} 
               tick={{ fontSize: 10, fill: "#9CA3AF", fontWeight: 600 }} 
               dy={10} 
+              interval={
+                clicksData.length <= 7 ? 0 :
+                clicksData.length <= 14 ? 1 :
+                clicksData.length <= 31 ? 2 :
+                Math.floor(clicksData.length / 10)
+              }
             />
             <YAxis 
               axisLine={false} 
