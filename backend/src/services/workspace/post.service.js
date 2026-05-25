@@ -110,6 +110,7 @@ class PostService {
           creator: p.creator?.name || 'Unknown',
           thumbnail: p.mediaThumbnailUrls ? p.mediaThumbnailUrls.split(',')[0] : null,
           mediaUrls: p.mediaUrls ? p.mediaUrls.split(',').map(m => m.trim()) : [],
+          altText: p.altText,
           options
         };
       }),
@@ -136,6 +137,7 @@ class PostService {
       mediaThumbnailUrls = [],
       scheduledAt,
       isLibrary = false,
+      altText = null,
       options = {}
     } = postData;
 
@@ -151,6 +153,7 @@ class PostService {
       mediaUrls: mediaUrls.join(','),
       mediaThumbnailUrls: mediaThumbnailUrls.join(','),
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+      altText: altText || null,
       firstComment: options.firstComment || null,
       isLibrary: isLibrary === true || isLibrary === 'true',
       metadata: options ? JSON.stringify(options) : null
@@ -205,7 +208,8 @@ class PostService {
           const result = await service.publishPost(post.brandId, {
             title: post.title,
             caption: post.caption,
-            mediaUrls: post.mediaUrls,
+            mediaUrls: post.mediaUrls ? post.mediaUrls.split(',').map(m => m.trim()) : [],
+            type: post.type,
             options: options
           });
 
@@ -248,7 +252,8 @@ class PostService {
       mediaUrls,
       mediaThumbnailUrls,
       scheduledAt,
-      isLibrary
+      isLibrary,
+      altText
     } = postData;
 
     const data = {};
@@ -261,6 +266,7 @@ class PostService {
     if (mediaThumbnailUrls !== undefined) data.mediaThumbnailUrls = mediaThumbnailUrls.join(',');
     if (scheduledAt !== undefined) data.scheduledAt = scheduledAt ? new Date(scheduledAt) : null;
     if (isLibrary !== undefined) data.isLibrary = isLibrary === true || isLibrary === 'true';
+    if (altText !== undefined) data.altText = altText;
     
     if (postData.options !== undefined) {
       data.metadata = JSON.stringify(postData.options);

@@ -37,7 +37,7 @@ class GoogleDriveService {
     const drive = await this.getDriveClient(brandId);
     
     const response = await drive.files.list({
-      q: "mimeType contains 'video/' and trashed = false",
+      q: "(mimeType contains 'video/' or mimeType contains 'image/' or mimeType = 'application/pdf') and trashed = false",
       fields: 'nextPageToken, files(id, name, mimeType, size, thumbnailLink, createdTime)',
       pageSize: 50,
       orderBy: 'createdTime desc'

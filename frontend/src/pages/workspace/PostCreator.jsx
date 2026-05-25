@@ -17,6 +17,7 @@ import { PreviewStrategies } from "../../components/workspace/post-creator/Previ
 import { GoogleDrivePickerModal } from "../../components/workspace/post-creator/GoogleDrivePickerModal";
 import { MediaUploadModal } from "../../components/workspace/post-creator/MediaUploadModal";
 import { ImageEditorModal } from "../../components/workspace/post-creator/ImageEditorModal";
+import { AltTextModal } from "../../components/workspace/post-creator/AltTextModal";
 import { toast } from "sonner";
 
 const PUBLISH_OPTIONS = [
@@ -105,13 +106,16 @@ export function PostCreatorPage() {
     setShowFacebookTypeMenu,
     facebookTitle,
     setFacebookTitle,
-    getValidationErrors
+    getValidationErrors,
+    altText,
+    setAltText
   } = usePostCreatorForm();
 
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showImageMenu, setShowImageMenu] = useState(false);
   const [showImageEditor, setShowImageEditor] = useState(false);
   const [imageTransform, setImageTransform] = useState({ rotation: 0, flipH: false, flipV: false, filter: 'none' });
+  const [showAltTextModal, setShowAltTextModal] = useState(false);
 
   if (!isOpen) return null;
 
@@ -377,13 +381,13 @@ export function PostCreatorPage() {
                           <MoreHorizontal size={12} />
                         </button>
 
-                        {/* Dropdown Menu (Floats on top) */}
+                        {/* Dropdown Menu (Floats on top, opening upwards to prevent clipping) */}
                         {showImageMenu && (
-                          <div className="absolute top-6 left-0 w-52 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50 text-left text-xs text-gray-700 animate-in fade-in slide-in-from-top-1">
+                          <div className="absolute bottom-full left-0 mb-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50 text-left text-xs text-gray-700 animate-in fade-in slide-in-from-bottom-1">
                             <button 
                               type="button" 
                               onClick={() => { setShowImageMenu(false); setShowImageEditor(true); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700"
+                              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700 whitespace-nowrap"
                             >
                               <Edit size={14} className="text-gray-500" />
                               Edit image
@@ -391,17 +395,15 @@ export function PostCreatorPage() {
                             <button 
                               type="button" 
                               onClick={() => { setShowImageMenu(false); toast.info("Edit with Adobe Express clicked"); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700"
+                              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700 whitespace-nowrap"
                             >
-                              <svg className="w-3.5 h-3.5 text-red-500 fill-current" viewBox="0 0 24 24">
-                                <path d="M12 2L2 22h20L12 2zm0 4l6.5 13H5.5L12 6z"/>
-                              </svg>
+                              <span className="w-4 h-4 rounded-md bg-gradient-to-tr from-[#FF0000] via-[#FF0080] to-[#7F00FF] flex items-center justify-center text-[9px] font-black text-white shrink-0 select-none">A</span>
                               Edit with Adobe Express
                             </button>
                             <button 
                               type="button" 
-                              onClick={() => { setShowImageMenu(false); toast.info("Add alt text clicked"); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700"
+                              onClick={() => { setShowImageMenu(false); setShowAltTextModal(true); }}
+                              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700 whitespace-nowrap"
                             >
                               <Type size={14} className="text-gray-500" />
                               Add alt text
@@ -413,7 +415,7 @@ export function PostCreatorPage() {
                                 handleRemoveVideo();
                                 setShowImageMenu(false);
                               }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-red-50 text-red-600 transition-all cursor-pointer font-bold"
+                              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-red-50 text-red-600 transition-all cursor-pointer font-bold whitespace-nowrap"
                             >
                               <Trash2 size={14} />
                               Remove
@@ -929,6 +931,18 @@ export function PostCreatorPage() {
               setImageTransform(fallbackTransform);
             }
             toast.success("Image edited successfully");
+          }}
+        />
+        <AltTextModal 
+          isOpen={showAltTextModal}
+          onClose={() => setShowAltTextModal(false)}
+          imageUrl={videoFileUrl}
+          imageTransform={imageTransform}
+          caption={caption}
+          initialAltText={altText}
+          onSave={(text) => {
+            setAltText(text);
+            toast.success("Alt text saved successfully");
           }}
         />
         </div>

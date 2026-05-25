@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useMemo } from 'react';
-import { Youtube } from 'lucide-react';
+import { Youtube, Facebook } from 'lucide-react';
 
 const getBestTimePercentage = (dayIdx, hourVal) => {
   // Deterministic but natural looking percentage distribution
@@ -180,6 +180,12 @@ export function WeeklyGrid({
                         ? (post.thumbnail.startsWith('/') ? `${backendUrl}${post.thumbnail}` : post.thumbnail) 
                         : null;
 
+                      const platform = post.platforms?.[0]?.toUpperCase() || 'YOUTUBE';
+                      const isFB = platform === 'FACEBOOK';
+                      const borderLeftClass = isFB ? 'border-l-[#1877F2]' : 'border-l-[#FF0000]';
+                      const badgeBgColor = isFB ? 'bg-blue-50' : 'bg-red-50';
+                      const videoPlaceholderBg = isFB ? 'bg-blue-50/50 text-[#1877F2]' : 'bg-red-50/50 text-[#FF0000]';
+
                       return (
                         <div 
                           key={post.id} 
@@ -187,16 +193,26 @@ export function WeeklyGrid({
                             e.stopPropagation();
                             if (onPostClick) onPostClick(post);
                           }}
-                          className="bg-white border border-gray-200/80 rounded-2xl p-2 shadow-sm hover:shadow-md transition-all border-l-4 border-l-[#FF0000] text-left flex flex-col justify-between space-y-1.5 w-full group/card"
+                          className={`bg-white border border-gray-200/80 rounded-2xl p-2 shadow-sm hover:shadow-md transition-all border-l-4 ${borderLeftClass} text-left flex flex-col justify-between space-y-1.5 w-full group/card`}
                         >
                           {/* Top Header Row */}
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
-                              <div className="p-0.5 bg-red-50 rounded-md">
-                                <Youtube size={10} className="text-[#FF0000] fill-[#FF0000]" />
+                              <div className={`p-0.5 ${badgeBgColor} rounded-md`}>
+                                {isFB ? (
+                                  <Facebook size={10} className="text-[#1877F2] fill-[#1877F2]" />
+                                ) : (
+                                  <Youtube size={10} className="text-[#FF0000] fill-[#FF0000]" />
+                                )}
                               </div>
-                              {post.options?.youtubeType === 'short' && (
+                              {!isFB && (post.options?.youtubeType === 'short' || post.type === 'SHORT') && (
                                 <span className="text-[7px] font-black text-red-600 bg-red-100/50 px-1 py-0.2 rounded uppercase tracking-wider">Short</span>
+                              )}
+                              {isFB && (post.options?.facebookType === 'reel' || post.type === 'REEL') && (
+                                <span className="text-[7px] font-black text-blue-600 bg-blue-100/50 px-1 py-0.2 rounded uppercase tracking-wider">Reel</span>
+                              )}
+                              {isFB && (post.options?.facebookType === 'story' || post.type === 'STORY') && (
+                                <span className="text-[7px] font-black text-purple-600 bg-purple-100/50 px-1 py-0.2 rounded uppercase tracking-wider">Story</span>
                               )}
                             </div>
                             <span className="text-[8px] font-black text-gray-500 uppercase tracking-tight">
@@ -218,7 +234,7 @@ export function WeeklyGrid({
                                 {thumbUrl ? (
                                   <img src={thumbUrl} alt="Thumbnail" className="w-full h-full object-cover animate-in fade-in" />
                                 ) : (
-                                  <div className="w-full h-full bg-red-50/50 flex items-center justify-center text-[7px] font-black text-red-500 uppercase">
+                                  <div className={`w-full h-full ${videoPlaceholderBg} flex items-center justify-center text-[7px] font-black uppercase`}>
                                     Video
                                   </div>
                                 )}

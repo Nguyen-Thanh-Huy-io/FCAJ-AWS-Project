@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Loader2, Play, FileVideo, RefreshCw, X, 
   MoreVertical, Filter, ArrowUpDown, Home, Folder, 
-  ChevronLeft 
+  ChevronLeft, FileImage, FileText
 } from 'lucide-react';
 import socialService from '../../../../services/social.service';
 import { toast } from 'sonner';
@@ -478,7 +478,7 @@ export function SidebarIntegrations({ activeBrand }) {
                           <div>
                             <span className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5">File Format</span>
                             <div className="flex flex-wrap gap-1">
-                              {['all', 'mp4', 'webm', 'mov'].map(fmt => (
+                              {['all', 'mp4', 'webm', 'mov', 'png', 'jpg', 'pdf'].map(fmt => (
                                 <button
                                   key={fmt}
                                   onClick={() => {
@@ -648,9 +648,9 @@ export function SidebarIntegrations({ activeBrand }) {
                     {filteredFiles.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12 text-center">
                         <FileVideo className="text-gray-300 mb-2" size={28} />
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">No video files found</span>
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">No matching files found</span>
                         <p className="text-[9px] text-gray-400 font-bold max-w-[180px] mt-1 leading-normal">
-                          Upload MP4 or WebM videos to this folder, then refresh.
+                          Upload videos, images, or PDFs to this folder, then refresh.
                         </p>
                       </div>
                     ) : (
@@ -673,8 +673,12 @@ export function SidebarIntegrations({ activeBrand }) {
                             <div className="w-12 h-12 bg-gray-50 rounded-xl overflow-hidden shrink-0 flex items-center justify-center border border-gray-50 relative">
                               {file.thumbnailLink ? (
                                 <img src={file.thumbnailLink} alt="Thumb" className="w-full h-full object-cover" />
-                              ) : (
+                              ) : file.mimeType?.startsWith('video/') ? (
                                 <FileVideo size={16} className="text-gray-400" />
+                              ) : file.mimeType?.startsWith('image/') ? (
+                                <FileImage size={16} className="text-gray-400" />
+                              ) : (
+                                <FileText size={16} className="text-gray-400" />
                               )}
                               <div className="absolute inset-0 bg-black/10 group-hover/item:bg-black/20 flex items-center justify-center transition-colors">
                                 <Play size={10} className="text-white fill-white shrink-0" />

@@ -159,19 +159,31 @@ class FacebookPostService {
     const pageId = socialAccount[0].platformAccountId;
     const pageAccessToken = socialAccount[0].accessToken;
 
-    const { title, caption, mediaUrls } = postData;
+    const { title, caption, mediaUrls, type } = postData;
     const mediaUrl = mediaUrls && mediaUrls.length > 0 ? mediaUrls[0] : null;
 
     let result;
-    if (mediaUrl) {
-      const isVideo = mediaUrl.endsWith('.mp4') || mediaUrl.endsWith('.mov') || mediaUrl.endsWith('.avi');
-      if (isVideo) {
-        result = await facebookGateway.publishVideo(pageId, pageAccessToken, mediaUrl, title || caption || 'New Video', caption);
-      } else {
-        result = await facebookGateway.publishPhoto(pageId, pageAccessToken, mediaUrl, caption);
+    if (type === 'REEL') {
+      if (!mediaUrl) {
+        throw new Error('Reel requires a video media file');
       }
+      result = await facebookGateway.publishReel(pageId, pageAccessToken, mediaUrl, caption);
+    } else if (type === 'STORY') {
+      if (!mediaUrl) {
+        throw new Error('Story requires a media file (image or video)');
+      }
+      result = await facebookGateway.publishStory(pageId, pageAccessToken, mediaUrl, caption);
     } else {
-      result = await facebookGateway.publishTextPost(pageId, pageAccessToken, caption);
+      if (mediaUrl) {
+        const isVideo = mediaUrl.endsWith('.mp4') || mediaUrl.endsWith('.mov') || mediaUrl.endsWith('.avi');
+        if (isVideo) {
+          result = await facebookGateway.publishVideo(pageId, pageAccessToken, mediaUrl, title || caption || 'New Video', caption);
+        } else {
+          result = await facebookGateway.publishPhoto(pageId, pageAccessToken, mediaUrl, caption);
+        }
+      } else {
+        result = await facebookGateway.publishTextPost(pageId, pageAccessToken, caption);
+      }
     }
 
     return {

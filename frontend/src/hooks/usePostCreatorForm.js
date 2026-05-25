@@ -36,6 +36,7 @@ export function usePostCreatorForm() {
   
   const [caption, setCaption] = useState("");
   const [title, setTitle] = useState("");
+  const [altText, setAltText] = useState("");
   const [activePlatform, setActivePlatform] = useState("youtube");
   const [previewDevice, setPreviewDevice] = useState("mobile");
   const [showPublishMenu, setShowPublishMenu] = useState(false);
@@ -69,6 +70,43 @@ export function usePostCreatorForm() {
   const [youtubeFirstComment, setYoutubeFirstComment] = useState("");
   const [globalFirstComment, setGlobalFirstComment] = useState("");
 
+  // Video metadata states for format validation
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [videoWidth, setVideoWidth] = useState(0);
+  const [videoHeight, setVideoHeight] = useState(0);
+
+  useEffect(() => {
+    if (!videoFileUrl) {
+      setVideoDuration(0);
+      setVideoWidth(0);
+      setVideoHeight(0);
+      return;
+    }
+
+    const isVid = videoFileUrl.endsWith(".mp4") || 
+                  videoFileUrl.endsWith(".mov") || 
+                  videoFileUrl.endsWith(".avi") || 
+                  (videoFile && videoFile.type.startsWith("video/"));
+    if (!isVid) {
+      setVideoDuration(0);
+      setVideoWidth(0);
+      setVideoHeight(0);
+      return;
+    }
+
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.src = videoFileUrl;
+    video.onloadedmetadata = () => {
+      setVideoDuration(video.duration);
+      setVideoWidth(video.videoWidth);
+      setVideoHeight(video.videoHeight);
+    };
+    video.onerror = () => {
+      console.warn("Failed to load video metadata");
+    };
+  }, [videoFileUrl, videoFile]);
+
   // Validation function
   const getValidationErrors = () => {
     const errors = [];
@@ -76,16 +114,53 @@ export function usePostCreatorForm() {
     if (isPastDate) {
       errors.push("Publish date can't be a past date.");
     }
-    if (activePlatform === 'facebook') {
-      if (facebookType === 'reel' && !uploadedVideoPath && !videoFile) {
-        errors.push("Reel -> Add at least 1 video.");
+
+    const isVid = videoFileUrl && (
+      videoFileUrl.endsWith(".mp4") || 
+      videoFileUrl.endsWith(".mov") || 
+      videoFileUrl.endsWith(".avi") || 
+      (videoFile && videoFile.type.startsWith("video/"))
+    );
+
+    if (activePlatform === "facebook") {
+      if (facebookType === "reel") {
+        if (!uploadedVideoPath && !videoFile) {
+          errors.push("Reel -> Add at least 1 video.");
+        } else if (!isVid) {
+          errors.push("Facebook Reel must be a video file.");
+        } else {
+          if (videoDuration > 0 && (videoDuration < 3 || videoDuration > 90)) {
+            errors.push(`Facebook Reels must be between 3 and 90 seconds. (Current: ${videoDuration.toFixed(1)}s)`);
+          }
+          if (videoWidth > 0 && videoHeight > 0 && videoWidth >= videoHeight) {
+            errors.push(`Facebook Reels must be vertical (9:16 aspect ratio). Current ratio is horizontal or square.`);
+          }
+        }
       }
-      if (facebookType === 'story' && !uploadedVideoPath && !videoFile) {
-        errors.push("Auto publish (story) -> Add at least 1 image or video.");
+      if (facebookType === "story") {
+        if (!uploadedVideoPath && !videoFile) {
+          errors.push("Auto publish (story) -> Add at least 1 image or video.");
+        } else if (isVid) {
+          if (videoDuration > 15) {
+            errors.push(`Facebook Story videos should be 15 seconds or less. (Current: ${videoDuration.toFixed(1)}s)`);
+          }
+          if (videoWidth > 0 && videoHeight > 0 && videoWidth >= videoHeight) {
+            errors.push(`Facebook Story videos should be vertical (9:16 aspect ratio).`);
+          }
+        }
       }
-    } else if (activePlatform === 'youtube') {
+    } else if (activePlatform === "youtube") {
       if (!uploadedVideoPath && !videoFile) {
         errors.push("YouTube -> Add at least 1 video.");
+      } else if (!isVid) {
+        errors.push("YouTube publication must be a video file.");
+      } else if (youtubeType === "short") {
+        if (videoDuration > 60) {
+          errors.push(`YouTube Shorts must be 60 seconds or less. (Current: ${videoDuration.toFixed(1)}s)`);
+        }
+        if (videoWidth > 0 && videoHeight > 0 && videoWidth > videoHeight) {
+          errors.push(`YouTube Shorts must be vertical or square. Current ratio is horizontal.`);
+        }
       }
     }
     return errors;
@@ -233,6 +308,7 @@ export function usePostCreatorForm() {
       if (editingPost) {
         setCaption(editingPost.caption || "");
         setTitle(editingPost.title || "");
+        setAltText(editingPost.altText || "");
         setActivePlatform(editingPost.platforms?.[0]?.toLowerCase() || "youtube");
         setScheduledDate(editingPost.scheduledAt ? toLocalDatetimeString(editingPost.scheduledAt) : toLocalDatetimeString(new Date()));
         setIsLibrary(editingPost.isLibrary || false);
@@ -285,6 +361,7 @@ export function usePostCreatorForm() {
         // Reset Facebook
         setFacebookType("post");
         setFacebookTitle("");
+        setAltText("");
       }
     }
   }, [isOpen, editingPost, defaultScheduledAt, initialIsLibrary]);
@@ -326,6 +403,7 @@ export function usePostCreatorForm() {
         type: postType,
         status,
         isLibrary,
+        altText,
         targetPlatforms: [activePlatform.toUpperCase()],
         scheduledAt: new Date(scheduledDate).toISOString(),
         mediaUrls: uploadedVideoPath ? [uploadedVideoPath] : [],
@@ -359,6 +437,7 @@ export function usePostCreatorForm() {
       setGlobalFirstComment("");
       setFacebookTitle("");
       setFacebookType("post");
+      setAltText("");
       setVideoFile(null);
       setVideoFileUrl("");
       setUploadedVideoPath("");
@@ -449,6 +528,8 @@ export function usePostCreatorForm() {
     setShowFacebookTypeMenu,
     facebookTitle,
     setFacebookTitle,
-    getValidationErrors
+    getValidationErrors,
+    altText,
+    setAltText
   };
 }

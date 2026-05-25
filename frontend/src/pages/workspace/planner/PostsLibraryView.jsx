@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { 
   Search, Filter, Plus, Diamond, 
   Grid3X3, List as ListIcon, MoreHorizontal,
-  Youtube, PlayCircle, Instagram, Image as ImageIcon, Loader2, Eye
+  Youtube, PlayCircle, Instagram, Image as ImageIcon, Loader2, Eye, Facebook
 } from "lucide-react";
 import { usePostCreator } from "../../../context/PostCreatorContext";
 import postService from "../../../services/post.service";
@@ -125,7 +125,13 @@ export function PostsLibraryView() {
                    <div className="absolute top-4 right-4 flex gap-1">
                       {item.platforms.map(plt => (
                         <div key={plt} className="w-8 h-8 rounded-full bg-white/80 backdrop-blur-md flex items-center justify-center shadow-sm border border-white/50">
-                           {plt === "YOUTUBE" ? <Youtube size={14} className="text-[#FF0000]" /> : <PlayCircle size={14} />}
+                           {plt === "YOUTUBE" ? (
+                              <Youtube size={14} className="text-[#FF0000]" />
+                            ) : plt === "FACEBOOK" ? (
+                              <Facebook size={14} className="text-[#1877F2] fill-[#1877F2]" />
+                            ) : (
+                              <PlayCircle size={14} />
+                            )}
                         </div>
                       ))}
                    </div>

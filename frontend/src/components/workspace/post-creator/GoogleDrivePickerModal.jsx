@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   X, Search, RefreshCw, Loader2, Folder, 
-  ChevronLeft, Home, FileVideo, Play 
+  ChevronLeft, Home, FileVideo, Play, FileImage, FileText 
 } from 'lucide-react';
 import socialService from '../../../services/social.service';
 import { toast } from 'sonner';
@@ -19,6 +19,7 @@ export function GoogleDrivePickerModal({ isOpen, onClose, activeBrand, onSelectF
   const [selectedFolder, setSelectedFolder] = useState('my-drive');
   const [searchQuery, setSearchQuery] = useState('');
   const [connected, setConnected] = useState(true);
+  const [fileTypeFilter, setFileTypeFilter] = useState('all'); // 'all' | 'video' | 'image' | 'pdf'
 
   const fetchFiles = async () => {
     if (!activeBrand) return;
@@ -38,6 +39,8 @@ export function GoogleDrivePickerModal({ isOpen, onClose, activeBrand, onSelectF
   useEffect(() => {
     if (isOpen && activeBrand) {
       fetchFiles();
+      setSearchQuery('');
+      setFileTypeFilter('all');
     }
   }, [isOpen, activeBrand]);
 
@@ -46,8 +49,16 @@ export function GoogleDrivePickerModal({ isOpen, onClose, activeBrand, onSelectF
     if (searchQuery) {
       result = result.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()));
     }
+    if (fileTypeFilter !== 'all') {
+      result = result.filter(f => {
+        if (fileTypeFilter === 'video') return f.mimeType?.startsWith('video/');
+        if (fileTypeFilter === 'image') return f.mimeType?.startsWith('image/');
+        if (fileTypeFilter === 'pdf') return f.mimeType === 'application/pdf';
+        return true;
+      });
+    }
     return result;
-  }, [files, searchQuery]);
+  }, [files, searchQuery, fileTypeFilter]);
 
   if (!isOpen) return null;
 
@@ -67,7 +78,7 @@ export function GoogleDrivePickerModal({ isOpen, onClose, activeBrand, onSelectF
             </div>
             <div>
               <h2 className="text-lg font-black text-[#0A0A0A] uppercase tracking-tight leading-none">Google Drive</h2>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Select a video to import</p>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Select a video, image, or PDF to import</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-all text-gray-400 hover:text-black">
@@ -76,23 +87,48 @@ export function GoogleDrivePickerModal({ isOpen, onClose, activeBrand, onSelectF
         </div>
 
         {/* Toolbar */}
-        <div className="px-8 py-4 border-b border-gray-50 flex items-center gap-4 bg-gray-50/30">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
-            <input 
-              type="text" 
-              placeholder="Search files in your drive..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none shadow-sm transition-all"
-            />
+        <div className="px-8 py-4 border-b border-gray-50 flex flex-col gap-3 bg-gray-50/30">
+          <div className="flex items-center gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
+              <input 
+                type="text" 
+                placeholder="Search files in your drive..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none shadow-sm transition-all"
+              />
+            </div>
+            <button 
+              onClick={fetchFiles}
+              className="p-2.5 bg-white border border-gray-200 rounded-xl text-gray-500 hover:text-black hover:shadow-sm transition-all cursor-pointer"
+            >
+              <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+            </button>
           </div>
-          <button 
-            onClick={fetchFiles}
-            className="p-2.5 bg-white border border-gray-200 rounded-xl text-gray-500 hover:text-black hover:shadow-sm transition-all"
-          >
-            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-          </button>
+
+          {viewMode === 'files' && (
+            <div className="flex gap-2 animate-in fade-in duration-250">
+              {[
+                { id: 'all', label: 'All Files' },
+                { id: 'video', label: 'Videos' },
+                { id: 'image', label: 'Images' },
+                { id: 'pdf', label: 'PDFs' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setFileTypeFilter(tab.id)}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border ${
+                    fileTypeFilter === tab.id
+                      ? 'bg-black text-white border-black shadow-sm'
+                      : 'bg-white text-gray-500 border-gray-200 hover:text-black hover:bg-gray-55'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Browser Area */}
@@ -152,8 +188,8 @@ export function GoogleDrivePickerModal({ isOpen, onClose, activeBrand, onSelectF
               </div>
             ) : filteredFiles.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center">
-                <FileVideo size={48} className="text-gray-100 mb-4" />
-                <p className="text-sm font-bold text-gray-400">No video files found in this folder.</p>
+                <FileText size={48} className="text-gray-100 mb-4" />
+                <p className="text-sm font-bold text-gray-400">No matching files found in this folder.</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-4">
@@ -166,8 +202,12 @@ export function GoogleDrivePickerModal({ isOpen, onClose, activeBrand, onSelectF
                     <div className="w-16 h-16 bg-gray-50 rounded-xl overflow-hidden shrink-0 relative flex items-center justify-center border border-gray-50">
                       {file.thumbnailLink ? (
                         <img src={file.thumbnailLink} alt="" className="w-full h-full object-cover" />
-                      ) : (
+                      ) : file.mimeType?.startsWith('video/') ? (
                         <FileVideo className="text-gray-300" size={24} />
+                      ) : file.mimeType?.startsWith('image/') ? (
+                        <FileImage className="text-gray-300" size={24} />
+                      ) : (
+                        <FileText className="text-gray-300" size={24} />
                       )}
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-all">
                         <Play size={16} className="text-white fill-white opacity-0 group-hover:opacity-100 scale-50 group-hover:scale-100 transition-all" />
@@ -189,7 +229,7 @@ export function GoogleDrivePickerModal({ isOpen, onClose, activeBrand, onSelectF
         {/* Footer */}
         <div className="p-6 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between shrink-0">
           <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter max-w-[300px]">
-            * Only video files (MP4, WebM) are displayed for YouTube publishing compatibility.
+            * Supports importing Videos, Images, and PDF documents from your Google Drive.
           </p>
           <div className="flex gap-3">
              <button onClick={onClose} className="px-6 py-2.5 rounded-xl border border-gray-200 text-[11px] font-black uppercase tracking-widest text-gray-500 hover:bg-white hover:text-black transition-all">Cancel</button>

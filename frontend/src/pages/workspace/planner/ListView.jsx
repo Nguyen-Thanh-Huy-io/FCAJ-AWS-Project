@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { 
   Search, Filter, MoreHorizontal, Plus, 
   Trash2, CheckCircle, Clock, AlertCircle,
-  ExternalLink, Eye, ChevronDown, Youtube, PlayCircle, Loader2
+  ExternalLink, Eye, ChevronDown, Youtube, PlayCircle, Loader2, Facebook
 } from "lucide-react";
 import { usePostCreator } from "../../../context/PostCreatorContext";
 import { useFilters } from "../../../hooks/useFilters";
@@ -268,7 +268,13 @@ export function ListView() {
                           <div className="flex items-center gap-1.5 flex-wrap">
                              {post.platforms.map(plt => (
                                <div key={plt} className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100 shadow-sm">
-                                  {plt === "YOUTUBE" ? <Youtube size={12} className="text-[#FF0000]" /> : <PlayCircle size={12} className="text-[#010101]" />}
+                                  {plt === "YOUTUBE" ? (
+                                    <Youtube size={12} className="text-[#FF0000]" />
+                                  ) : plt === "FACEBOOK" ? (
+                                    <Facebook size={12} className="text-[#1877F2] fill-[#1877F2]" />
+                                  ) : (
+                                    <PlayCircle size={12} className="text-[#010101]" />
+                                  )}
                                   <span className="text-[9px] font-black uppercase tracking-tighter text-gray-600">{plt}</span>
                                </div>
                              ))}
