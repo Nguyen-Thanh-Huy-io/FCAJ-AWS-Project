@@ -105,40 +105,22 @@ export function AutoListEdit() {
             
             setSelectedPlatforms(list.targetPlatforms.split(',').filter(Boolean));
             setSelectedDays(list.activeDays ? list.activeDays.split(',').filter(Boolean) : ['Mo', 'Tu', 'We', 'Th', 'Fr']);
-            // Load and apply custom post order from LocalStorage
-            let sortedPosts = list.posts || [];
-            try {
-              const savedOrder = localStorage.getItem(`autolist_post_order_${id}`);
-              if (savedOrder) {
-                const orderedIds = JSON.parse(savedOrder);
-                sortedPosts = [...sortedPosts].sort((a, b) => {
-                  const idxA = orderedIds.indexOf(a.id);
-                  const idxB = orderedIds.indexOf(b.id);
-                  if (idxA === -1 && idxB === -1) return 0;
-                  if (idxA === -1) return 1;
-                  if (idxB === -1) return -1;
-                  return idxA - idxB;
-                });
-              }
-            } catch (err) {
-              console.error("Failed to parse local post order", err);
-            }
-            setPosts(sortedPosts);
+            // Post order is now strictly from DB
+            setPosts(list.posts || []);
 
-            // Load configuration from LocalStorage
-            try {
-              const saved = localStorage.getItem(`autolist_config_${id}`);
-              if (saved) {
-                const parsed = JSON.parse(saved);
+            // Load configuration from metadata field (replacement for LocalStorage)
+            if (list.metadata) {
+              try {
+                const parsed = JSON.parse(list.metadata);
                 if (parsed.autoPublish !== undefined) setAutoPublish(parsed.autoPublish);
                 if (parsed.useUrlShortener !== undefined) setUseUrlShortener(parsed.useUrlShortener);
                 if (parsed.facebookContentType !== undefined) setFacebookContentType(parsed.facebookContentType);
                 if (parsed.youtubeVideoType !== undefined) setYoutubeVideoType(parsed.youtubeVideoType);
                 if (parsed.youtubePrivacy !== undefined) setYoutubePrivacy(parsed.youtubePrivacy);
                 if (parsed.youtubeMadeForKids !== undefined) setYoutubeMadeForKids(parsed.youtubeMadeForKids);
+              } catch (err) {
+                console.error("Failed to parse metadata", err);
               }
-            } catch (err) {
-              console.error("Failed to load local config", err);
             }
           }
         } else {
@@ -194,6 +176,15 @@ export function AutoListEdit() {
 
     setIsSaving(true);
     try {
+      const configMetadata = {
+        autoPublish,
+        useUrlShortener,
+        facebookContentType,
+        youtubeVideoType,
+        youtubePrivacy,
+        youtubeMadeForKids
+      };
+
       const payload = {
         brandId: activeBrand.id,
         name,
@@ -201,9 +192,10 @@ export function AutoListEdit() {
         scheduleType,
         intervalMinutes: scheduleType === 'INTERVAL' ? intervalMinutes : null,
         specificTimes: scheduleType === 'SPECIFIC' ? JSON.stringify(specificTimes) : null,
-        activeDays: allActiveDays.join(','), // Kept for backend compatibility
+        activeDays: allActiveDays.join(','),
         loopEnabled: repeat,
-        isActive: true
+        isActive: true,
+        metadata: JSON.stringify(configMetadata)
       };
 
       let savedId = id;
@@ -216,25 +208,10 @@ export function AutoListEdit() {
         toast.success("Autolist updated successfully");
       }
 
-      // Save configuration to LocalStorage
-      try {
-        const configData = {
-          autoPublish,
-          useUrlShortener,
-          facebookContentType,
-          youtubeVideoType,
-          youtubePrivacy,
-          youtubeMadeForKids
-        };
-        localStorage.setItem(`autolist_config_${savedId}`, JSON.stringify(configData));
-      } catch (err) {
-        console.error("Failed to save local config", err);
-      }
-
       if (isNew) {
         navigate(`/planner/autolist/${savedId}`);
       } else {
-        init(); // Reload details
+        init();
       }
     } catch (e) {
       toast.error("Failed to save autolist");
@@ -295,6 +272,15 @@ export function AutoListEdit() {
 
       setIsSaving(true);
       try {
+        const configMetadata = {
+          autoPublish,
+          useUrlShortener,
+          facebookContentType,
+          youtubeVideoType,
+          youtubePrivacy,
+          youtubeMadeForKids
+        };
+
         const payload = {
           brandId: activeBrand.id,
           name,
@@ -304,26 +290,12 @@ export function AutoListEdit() {
           specificTimes: scheduleType === 'SPECIFIC' ? JSON.stringify(specificTimes) : null,
           activeDays: allActiveDays.join(','),
           loopEnabled: repeat,
-          isActive: true
+          isActive: true,
+          metadata: JSON.stringify(configMetadata)
         };
 
         const created = await autoListService.createAutoList(payload);
         const savedId = created.data?.id || created.id;
-
-        // Save config
-        try {
-          const configData = {
-            autoPublish,
-            useUrlShortener,
-            facebookContentType,
-            youtubeVideoType,
-            youtubePrivacy,
-            youtubeMadeForKids
-          };
-          localStorage.setItem(`autolist_config_${savedId}`, JSON.stringify(configData));
-        } catch (err) {
-          console.error(err);
-        }
 
         // Now create the post for this list
         await postService.createPost({
@@ -401,14 +373,7 @@ export function AutoListEdit() {
     reorderedPosts.splice(idx, 0, draggedPost);
     setPosts(reorderedPosts);
 
-    // Save ordered ID list to LocalStorage
-    try {
-      localStorage.setItem(`autolist_post_order_${id}`, JSON.stringify(reorderedPosts.map(p => p.id)));
-    } catch (err) {
-      console.error("Failed to save drag drop order locally", err);
-    }
-
-    // Persist to server so scheduler updates slots
+    // Persist to server so scheduler updates slots - LocalStorage order is now removed
     try {
       await autoListService.reorderPosts(id, reorderedPosts.map(p => p.id));
       toast.success("Queue order saved to server");

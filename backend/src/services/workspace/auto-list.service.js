@@ -122,7 +122,8 @@ class AutoListService {
       specificTimes: data.specificTimes,
       activeDays: data.activeDays,
       loopEnabled: data.loopEnabled !== undefined ? (data.loopEnabled === true || data.loopEnabled === 'true') : undefined,
-      isActive: data.isActive !== undefined ? (data.isActive === true || data.isActive === 'true') : undefined
+      isActive: data.isActive !== undefined ? (data.isActive === true || data.isActive === 'true') : undefined,
+      metadata: data.metadata // Persistence for UI configs
     };
 
     // Clean up undefined keys for updates

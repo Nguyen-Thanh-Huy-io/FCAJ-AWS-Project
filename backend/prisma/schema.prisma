@@ -589,6 +589,7 @@ model AutoList {
   loopEnabled         Boolean        @default(false)
   totalPostsCount     Int            @default(0)
   publishedPostsCount Int            @default(0)
+  metadata            String?        @db.Text
   createdAt           DateTime       @default(now())
 
   brand Brand  @relation(fields: [brandId], references: [id], onDelete: Cascade)
@@ -668,9 +669,9 @@ model SocialAnalytics {
   avgVideoWatchTime        Float?
   profileVisits            Int?
   websiteClicks            Int?
-  topPostIds               String?  @db.Text
-  audienceDemographicsJson String?  @db.Text
-  hourlyEngagementJson     String?  @db.Text
+  topPostIds               String?  @db.LongText
+  audienceDemographicsJson String?  @db.LongText
+  hourlyEngagementJson     String?  @db.LongText
   createdAt                DateTime @default(now())
 
   analytics Analytics @relation(fields: [analyticsId], references: [id], onDelete: Cascade)

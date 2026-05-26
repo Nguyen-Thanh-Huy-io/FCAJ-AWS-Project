@@ -38,7 +38,8 @@ const AUTH_PROVIDERS = {
   LOCAL: 'LOCAL',
   GOOGLE: 'GOOGLE',
   FACEBOOK: 'FACEBOOK',
-  INSTAGRAM: 'INSTAGRAM'
+  INSTAGRAM: 'INSTAGRAM',
+  TIKTOK: 'TIKTOK'
 };
 
 const INBOX_STATUS = {
@@ -145,7 +146,8 @@ const ANALYTICS = {
   },
   TYPES: {
     YOUTUBE_DETAILED: 'YOUTUBE_DETAILED',
-    FACEBOOK_DETAILED: 'FACEBOOK_DETAILED'
+    FACEBOOK_DETAILED: 'FACEBOOK_DETAILED',
+    TIKTOK_DETAILED: 'TIKTOK_DETAILED'
   },
   METRICS: {
     FACEBOOK: {
@@ -209,6 +211,12 @@ const SOCIAL_TECHNICAL = {
     STATUS: 'status',
     REPLIES: 'replies'
   },
+  TIKTOK_SCOPES: [
+    'user.info.basic',
+    'user.info.stats',
+    'video.list',
+    'video.publish'
+  ],
   INBOX_LABELS: {
     ME: 'me',
     THEM: 'them'
@@ -250,7 +258,8 @@ const DEFAULT_CONFIG = {
 const API_VERSIONS = {
   FACEBOOK: 'v25.0',
   YOUTUBE: 'v3',
-  YOUTUBE_ANALYTICS: 'v2'
+  YOUTUBE_ANALYTICS: 'v2',
+  TIKTOK: 'v2'
 };
 
 const MEDIA_EXTENSIONS = {

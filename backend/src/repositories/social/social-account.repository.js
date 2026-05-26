@@ -5,6 +5,8 @@ class SocialAccountRepository {
   async upsertFacebookAccount(brandId, pageData, tokens) {
     const { pageId, username, displayName, profilePictureUrl, category, likesCount, followersCount, about, website } = pageData;
     
+    const finalUsername = username || displayName || 'facebook_page';
+
     const account = await prisma.socialAccount.upsert({
       where: {
         brandId_platform_platformAccountId: {
@@ -14,7 +16,7 @@ class SocialAccountRepository {
         }
       },
       update: {
-        username,
+        username: finalUsername,
         displayName,
         profilePictureUrl,
         accessToken: tokens.access_token,
@@ -47,7 +49,7 @@ class SocialAccountRepository {
         brandId,
         platform: PLATFORMS.FACEBOOK,
         platformAccountId: pageId,
-        username,
+        username: finalUsername,
         displayName,
         profilePictureUrl,
         accessToken: tokens.access_token,
@@ -76,6 +78,127 @@ class SocialAccountRepository {
     }
 
     return this.findById(account.id);
+  }
+
+  async upsertTikTokAccount(brandId, accountData, tokens) {
+    const { pageId, username, displayName, profilePictureUrl, followersCount = 0, followingCount = 0, likesCount = 0, videoCount = 0 } = accountData;
+
+    const finalUsername = username || displayName || 'tiktok_user';
+
+    const account = await prisma.socialAccount.upsert({
+      where: {
+        brandId_platform_platformAccountId: {
+          brandId,
+          platform: PLATFORMS.TIKTOK,
+          platformAccountId: pageId
+        }
+      },
+      update: {
+        username: finalUsername,
+        displayName,
+        profilePictureUrl,
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token || undefined,
+        tokenExpiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
+        scopes: tokens.scope,
+        isConnected: true,
+        updatedAt: new Date(),
+        tikTokAccount: {
+          upsert: {
+            create: {
+              followersCount,
+              followingCount,
+              likesCount,
+              videoCount
+            },
+            update: {
+              followersCount,
+              followingCount,
+              likesCount,
+              videoCount
+            }
+          }
+        }
+      },
+      create: {
+        brandId,
+        platform: PLATFORMS.TIKTOK,
+        platformAccountId: pageId,
+        username: finalUsername,
+        displayName,
+        profilePictureUrl,
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token || '',
+        tokenExpiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
+        scopes: tokens.scope || '',
+        connectedAt: new Date(),
+        tikTokAccount: {
+          create: {
+            followersCount,
+            followingCount,
+            likesCount,
+            videoCount
+          }
+        }
+      },
+      include: {
+        tikTokAccount: true
+      }
+    });
+
+    if (accountData.analytics) {
+      await this.saveTikTokAnalytics(brandId, account.id, accountData.analytics);
+    }
+
+    return this.findById(account.id);
+  }
+
+  async saveTikTokAnalytics(brandId, socialAccountId, analyticsData) {
+    const now = new Date();
+    
+    const followersTotal = analyticsData.summary?.followers || 0;
+    const followersGain = analyticsData.balance?.reduce((sum, item) => sum + (item.acquired || 0), 0) || 0;
+    const followersLost = analyticsData.balance?.reduce((sum, item) => sum + (item.lost || 0), 0) || 0;
+    const impressions = analyticsData.summary?.views || 0;
+    const reach = analyticsData.summary?.reach || 0;
+    const likes = analyticsData.interactions?.likes || 0;
+    const comments = analyticsData.interactions?.comments || 0;
+    const shares = analyticsData.interactions?.shares || 0;
+    const clicks = analyticsData.interactions?.clicks || 0;
+    
+    const engagements = likes + comments + shares;
+    const engagementRate = reach ? parseFloat(((engagements / reach) * 100).toFixed(2)) : 0;
+
+    const analyticsEntry = await prisma.analytics.create({
+      data: {
+        brandId,
+        socialAccountId,
+        dateFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        dateTo: now,
+        granularity: ANALYTICS.GRANULARITY.DAILY,
+        fetchedAt: now,
+        analyticsType: ANALYTICS.TYPES.TIKTOK_DETAILED
+      }
+    });
+
+    await prisma.socialAnalytics.create({
+      data: {
+        analyticsId: analyticsEntry.id,
+        followersTotal,
+        followersGain,
+        followersLost,
+        impressions,
+        reach,
+        engagements,
+        likes,
+        comments,
+        shares,
+        saves: 0,
+        clicks,
+        engagementRate,
+        audienceDemographicsJson: JSON.stringify(analyticsData)
+      }
+    });
   }
 
   async saveFacebookAnalytics(brandId, socialAccountId, analyticsData) {
@@ -130,6 +253,8 @@ class SocialAccountRepository {
   async upsertYouTubeAccount(brandId, channelData, tokens) {
     const { channelId, username, displayName, profilePictureUrl, statistics, snippet, analytics } = channelData;
     
+    const finalUsername = username || displayName || 'youtube_channel';
+
     const account = await prisma.socialAccount.upsert({
       where: {
         brandId_platform_platformAccountId: {
@@ -139,7 +264,7 @@ class SocialAccountRepository {
         }
       },
       update: {
-        username,
+        username: finalUsername,
         displayName,
         profilePictureUrl,
         accessToken: tokens.access_token,
@@ -164,7 +289,7 @@ class SocialAccountRepository {
         brandId,
         platform: PLATFORMS.YOUTUBE,
         platformAccountId: channelId,
-        username,
+        username: finalUsername,
         displayName,
         profilePictureUrl,
         accessToken: tokens.access_token,
@@ -242,6 +367,7 @@ class SocialAccountRepository {
       include: {
         youtubeChannel: true,
         facebookPage: true,
+        tikTokAccount: true,
         analytics: {
           orderBy: { fetchedAt: 'desc' },
           take: 1,

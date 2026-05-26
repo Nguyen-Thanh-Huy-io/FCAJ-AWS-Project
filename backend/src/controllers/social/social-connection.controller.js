@@ -18,6 +18,14 @@ class SocialConnectionController {
     await socialService.disconnectAccount(brandId, PLATFORMS.FACEBOOK);
     res.json({ success: true, message: 'Facebook page disconnected successfully' });
   });
+
+  disconnectTikTokAccount = asyncHandler(async (req, res) => {
+    const { brandId } = req.body;
+    if (!brandId) return res.status(400).json({ message: 'brandId is required' });
+
+    await socialService.disconnectAccount(brandId, PLATFORMS.TIKTOK);
+    res.json({ success: true, message: 'TikTok account disconnected successfully' });
+  });
 }
 
 module.exports = new SocialConnectionController();

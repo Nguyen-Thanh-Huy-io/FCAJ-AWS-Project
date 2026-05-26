@@ -64,6 +64,32 @@ export function ConnectionsGrid({ className = "", brand }) {
     }
   };
 
+  const handleConnectTikTok = async () => {
+    if (!brand) {
+      toast.error("Please select a brand first");
+      return;
+    }
+    const status = getStatus("tiktok_personal");
+    if (status.connected) {
+      try {
+        await socialService.disconnectTikTokAccount(brand.id);
+        toast.success("TikTok account disconnected");
+        window.location.reload();
+      } catch (error) {
+        toast.error(error.message || "Failed to disconnect TikTok");
+      }
+      return;
+    }
+    try {
+      const response = await socialService.getTikTokAuthUrl(brand.id);
+      if (response.url) {
+        window.location.href = response.url;
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to start TikTok connection");
+    }
+  };
+
   const getStatus = (platformId) => {
     if (!brand || !brand.socialAccounts) return { connected: false };
     // Map internal IDs to PlatformType enum in Backend
@@ -155,6 +181,7 @@ export function ConnectionsGrid({ className = "", brand }) {
                 onClick={() => {
                   if (net.id === "youtube") handleConnectYouTube();
                   if (net.id === "facebook") handleConnectFacebook();
+                  if (net.id === "tiktok_personal") handleConnectTikTok();
                 }}
                 className={`w-full h-[60px] rounded-2xl flex items-center justify-between px-6 transition-all transform active:scale-95 shadow-sm border border-black/5 ${net.btnBg} ${net.btnTextColor || 'text-white'}`}
               >

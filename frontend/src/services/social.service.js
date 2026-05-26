@@ -80,6 +80,22 @@ class SocialService {
     const response = await apiService.post('/social/facebook/disconnect', { brandId });
     return response.data;
   }
+
+  async getTikTokAuthUrl(brandId) {
+    const response = await apiService.get(`/social/tiktok/url?brandId=${brandId}`);
+    return response.data;
+  }
+
+  async getTikTokPublishedVideos(brandId, pageToken = null, limit = 10) {
+    const url = `/social/tiktok/published-videos?brandId=${brandId}${pageToken ? `&pageToken=${pageToken}` : ''}${limit ? `&limit=${limit}` : ''}`;
+    const response = await apiService.get(url);
+    return response.data;
+  }
+
+  async disconnectTikTokAccount(brandId) {
+    const response = await apiService.post('/social/tiktok/disconnect', { brandId });
+    return response.data;
+  }
 }
 
 const socialService = new SocialService();

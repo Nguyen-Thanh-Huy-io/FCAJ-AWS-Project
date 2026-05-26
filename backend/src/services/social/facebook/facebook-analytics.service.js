@@ -40,9 +40,24 @@ class FacebookAnalyticsService {
     const now = new Date();
     const defaultStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const defaultEnd = now.toISOString().split('T')[0];
+    
+    let start = startDate || defaultStart;
+    let end = endDate || defaultEnd;
+
+    // Check if the range is greater than 90 days to respect Facebook's 93-day API limit
+    const startMs = new Date(start).getTime();
+    const endMs = new Date(end).getTime();
+    const diffDays = (endMs - startMs) / (24 * 60 * 60 * 1000);
+
+    if (diffDays > 90) {
+      const adjustedStart = new Date(endMs - 90 * 24 * 60 * 60 * 1000);
+      start = adjustedStart.toISOString().split('T')[0];
+      console.warn(`[Facebook Analytics Service] Requested range (${diffDays.toFixed(1)} days) exceeds Facebook's limit. Adjusted start date to: ${start}`);
+    }
+
     return {
-      start: startDate || defaultStart,
-      end: endDate || defaultEnd
+      start,
+      end
     };
   }
 

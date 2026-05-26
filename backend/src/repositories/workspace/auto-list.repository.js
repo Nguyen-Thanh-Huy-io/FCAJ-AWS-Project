@@ -26,13 +26,17 @@ class AutoListRepository {
   }
 
   async create(data) {
-    return prisma.autoList.create({ data });
+    return prisma.autoList.create({ 
+      data,
+      include: { posts: true }
+    });
   }
 
   async update(id, data) {
     return prisma.autoList.update({
       where: { id },
-      data
+      data,
+      include: { posts: true }
     });
   }
 

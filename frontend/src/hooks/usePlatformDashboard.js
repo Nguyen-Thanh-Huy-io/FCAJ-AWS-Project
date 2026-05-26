@@ -120,6 +120,11 @@ export function usePlatformDashboard(platform) {
       if (platform === "facebook") {
         const res = await socialService.getFacebookPublishedPosts(activeBrand.id, limit);
         setPublishedVideos(res.data || []);
+      } else if (platform === "tiktok") {
+        const res = await socialService.getTikTokPublishedVideos(activeBrand.id, pageToken, limit);
+        setPublishedVideos(res.videos || []);
+        setNextPageToken(res.nextPageToken || null);
+        setPrevPageToken(res.prevPageToken || null);
       } else {
         const res = await socialService.getPublishedVideos(activeBrand.id, pageToken, limit);
         setPublishedVideos(res.videos || []);
@@ -184,7 +189,12 @@ export function usePlatformDashboard(platform) {
     if (!activeBrand) return;
     if (activeTab === "viewed" && platform !== "facebook") fetchTracked();
     if (activeTab === "competitors" && platform !== "facebook") fetchCompetitors();
-    if (activeTab === "published" || activeTab === "posts_list" || (activeTab === "community" && platform === "youtube")) {
+    if (
+      activeTab === "published" || 
+      activeTab === "posts_list" || 
+      (activeTab === "posts" && platform === "tiktok") ||
+      (activeTab === "community" && platform === "youtube")
+    ) {
       fetchPublishedVideos(null, pageSize);
     }
   }, [activeTab, activeBrand, pageSize]);
@@ -243,11 +253,17 @@ export function usePlatformDashboard(platform) {
     try {
       const raw = JSON.parse(metrics.analytics[0].socialAnalytics.audienceDemographicsJson);
       
-      if (platform === "facebook") {
+      if (platform === "facebook" || platform === "tiktok") {
         return {
           demographics: { gender: [], age: [], countries: [], trafficSource: [] },
           balance: raw.balance || [],
-          growth: raw.growth || [],
+          growth: (raw.growth || []).map(g => ({
+            ...g,
+            value: g.views || 0,
+            new: g.acquired || (raw.balance?.find(b => b.date === g.date)?.acquired) || 0,
+            lost: g.lost || (raw.balance?.find(b => b.date === g.date)?.lost) || 0,
+            videos: g.totalContent || 0
+          })),
           clicks: raw.clicks || [],
           postsPeriod: raw.postsPeriod || [],
           interactions: raw.interactions || {},
@@ -353,6 +369,15 @@ export function usePlatformDashboard(platform) {
         videos: 0
       };
     }
+    if (platform === "tiktok") {
+      if (!metrics.tikTokAccount) return { subscribers: 0, views: 0, videos: 0 };
+      const analytics = getAnalyticsData();
+      return {
+        subscribers: metrics.tikTokAccount.followersCount,
+        views: analytics.summary?.views || metrics.tikTokAccount.likesCount,
+        videos: metrics.tikTokAccount.videoCount
+      };
+    }
     if (!metrics.youtubeChannel) return { subscribers: 0, views: 0, videos: 0 };
     return {
       subscribers: metrics.youtubeChannel.subscribersCount,
@@ -372,7 +397,7 @@ export function usePlatformDashboard(platform) {
   const communityGrowthData = useMemo(() => {
     if (!dateRange.from || !dateRange.to) return [];
     try {
-      if (platform === "facebook") {
+      if (platform === "facebook" || platform === "tiktok") {
         return realData.growth || [];
       }
       const days = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });

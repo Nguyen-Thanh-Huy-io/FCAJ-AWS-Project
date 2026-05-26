@@ -17,13 +17,13 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
   ResponsiveContainer, AreaChart, Area
 } from "recharts";
-import { GrowthChart } from "./dashboard/GrowthChart";
-import { BalanceChart } from "./dashboard/BalanceChart";
+import { GenericDashboardTab } from "./dashboard/GenericDashboardTab";
 import { DemographicsTab } from "./dashboard/DemographicsTab";
 import { PublishedVideosTab } from "./dashboard/PublishedVideosTab";
 import { CompetitorsTab } from "./dashboard/CompetitorsTab";
 import { TrackedVideosTab } from "./dashboard/TrackedVideosTab";
 import { FacebookDashboard } from "./dashboard/FacebookDashboard";
+import { TikTokDashboard } from "./dashboard/TikTokDashboard";
 import { usePlatformDashboard } from "../../hooks/usePlatformDashboard";
 import { DateRangeFilter } from "../../components/app/DateRangeFilter";
 import socialService from "../../services/social.service";
@@ -32,7 +32,7 @@ const PLATFORM_CONFIG = {
   youtube: { name: "YouTube", color: "#FF0000", icon: <Youtube size={20} /> },
   instagram: { name: "Instagram", color: "#E1306C", icon: <Instagram size={20} /> },
   facebook: { name: "Facebook", color: "#1877F2", icon: <Facebook size={20} /> },
-  tiktok: { name: "TikTok", color: "#000", icon: <PlayCircle size={20} /> },
+  tiktok: { name: "TikTok", color: "#000000", icon: <PlayCircle size={20} /> },
   linkedin: { name: "LinkedIn", color: "#0A66C2", icon: <Linkedin size={20} /> },
 };
 
@@ -51,6 +51,11 @@ const FB_TABS = [
   { id: "posts", label: "POSTS" },
   { id: "interactions", label: "INTERACTIONS" },
   { id: "posts_list", label: "LIST OF POSTS" },
+];
+
+const TT_TABS = [
+  { id: "community", label: "COMMUNITY" },
+  { id: "posts", label: "POSTS" },
 ];
 
 export function PlatformDashboardPage() {
@@ -110,7 +115,7 @@ export function PlatformDashboardPage() {
   const navigate = useNavigate();
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
-  const tabs = platform === "facebook" ? FB_TABS : YT_TABS;
+  const tabs = platform === "facebook" ? FB_TABS : platform === "tiktok" ? TT_TABS : YT_TABS;
 
   useState(() => {
     if (platform === "facebook") {
@@ -276,24 +281,110 @@ export function PlatformDashboardPage() {
             setPageSize={setPageSize}
             fetchPublishedVideos={fetchPublishedVideos}
           />
+        ) : platform === "tiktok" ? (
+          <TikTokDashboard
+            metrics={metrics}
+            dateRange={dateRange}
+            setDateRange={setDateRange}
+            realData={realData}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            publishedVideos={publishedVideos}
+            isPublishedLoading={isPublishedLoading}
+            pageSize={pageSize}
+            setPageSize={setPageSize}
+            fetchPublishedVideos={fetchPublishedVideos}
+          />
         ) : (
           <>
             {activeTab === "community" && (
               <div className="space-y-6">
-                 <GrowthChart 
-                   communityGrowthData={communityGrowthData}
-                   stats={stats}
-                   totalPeriodViews={totalPeriodViews}
-                   selectedMetrics={selectedMetrics}
-                   handleMetricToggle={handleMetricToggle}
-                 />
-                 <BalanceChart 
-                   communityGrowthData={communityGrowthData}
-                   totalPeriodGained={totalPeriodGained}
-                   stats={stats}
-                   selectedBalanceMetrics={selectedBalanceMetrics}
-                   handleBalanceMetricToggle={handleBalanceMetricToggle}
-                 />
+                  {(() => {
+                    const ytGrowthConfig = [
+                      {
+                        key: "subscribers",
+                        label: "Subscribers",
+                        color: "bg-[#8E9BEE] text-white",
+                        chartColor: "#8E9BEE",
+                        type: "area",
+                        value: stats?.subscribers || totalPeriodGained || 12
+                      },
+                      {
+                        key: "views",
+                        label: "Video views",
+                        color: "bg-[#86EFAC] text-gray-900",
+                        chartColor: "#86EFAC",
+                        type: "line",
+                        value: totalPeriodViews || 13
+                      },
+                      {
+                        key: "revenue",
+                        label: "Revenue",
+                        color: "bg-[#C084FC] text-white",
+                        chartColor: "#C084FC",
+                        type: "line",
+                        value: "0"
+                      },
+                      {
+                        key: "videos",
+                        label: "Videos",
+                        color: "bg-[#E6A34A] text-white",
+                        chartColor: "#E6A34A",
+                        type: "bar",
+                        yAxisId: "right",
+                        value: stats?.videos || 3
+                      }
+                    ];
+
+                    const ytBalanceConfig = [
+                      {
+                        key: "gained",
+                        dataKey: "new",
+                        label: "Gained",
+                        color: "bg-[#8E9BEE] text-white",
+                        chartColor: "#8E9BEE",
+                        type: "area",
+                        value: totalPeriodGained || 0
+                      },
+                      {
+                        key: "lost",
+                        label: "Lost",
+                        color: "bg-[#F7A6E0] text-white",
+                        chartColor: "#F7A6E0",
+                        type: "area",
+                        value: "0"
+                      },
+                      {
+                        key: "videos",
+                        label: "Videos",
+                        color: "bg-[#E6A34A] text-white",
+                        chartColor: "#E6A34A",
+                        type: "bar",
+                        yAxisId: "right",
+                        value: stats?.videos || 3
+                      }
+                    ];
+
+                    return (
+                      <>
+                        <GenericDashboardTab
+                          title="Growth"
+                          description="Biểu đồ tăng trưởng người theo dõi, lượt xem và doanh thu"
+                          data={communityGrowthData}
+                          metricConfig={ytGrowthConfig}
+                          watermark="publicast"
+                        />
+                        <div className="h-6" />
+                        <GenericDashboardTab
+                          title="Balance of Subscribers"
+                          description="Biến động số lượng người đăng ký mới và hủy đăng ký"
+                          data={communityGrowthData}
+                          metricConfig={ytBalanceConfig}
+                          watermark="publicast"
+                        />
+                      </>
+                    );
+                  })()}
                  {realData.growth?.length === 0 && (
                    <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-center gap-3">
                       <Info className="text-amber-500" size={18} />

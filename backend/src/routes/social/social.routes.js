@@ -2,6 +2,7 @@ const express = require('express');
 const oauthController = require('../../controllers/social/oauth.controller');
 const youtubeController = require('../../controllers/social/youtube.controller');
 const facebookController = require('../../controllers/social/facebook.controller');
+const tiktokController = require('../../controllers/social/tiktok.controller');
 const googleDriveController = require('../../controllers/social/google-drive.controller');
 const socialAnalyticsController = require('../../controllers/social/social-analytics.controller');
 const socialConnectionController = require('../../controllers/social/social-connection.controller');
@@ -14,10 +15,16 @@ router.get('/google/url', verifyAuth, oauthController.getGoogleAuthUrl);
 router.get('/google/callback', oauthController.googleCallback);
 router.get('/facebook/url', verifyAuth, oauthController.getFacebookAuthUrl);
 router.get('/facebook/callback', oauthController.facebookCallback);
+router.get('/tiktok/url', verifyAuth, oauthController.getTikTokAuthUrl);
+router.get('/tiktok/callback', oauthController.tiktokCallback);
+router.get('/tiktok/webhook', oauthController.handleTikTokWebhook);
+router.post('/tiktok/webhook', oauthController.handleTikTokWebhook);
 
 // Facebook Features
 router.get('/facebook/published-posts', verifyAuth, facebookController.getFacebookPublishedPosts);
 router.post('/facebook/disconnect', verifyAuth, socialConnectionController.disconnectFacebookAccount);
+router.post('/tiktok/disconnect', verifyAuth, socialConnectionController.disconnectTikTokAccount);
+router.get('/tiktok/published-videos', verifyAuth, tiktokController.getTikTokPublishedVideos);
 
 // Real-time Metrics
 router.get('/metrics', verifyAuth, socialAnalyticsController.getMetrics);
