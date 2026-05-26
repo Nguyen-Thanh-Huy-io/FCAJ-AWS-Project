@@ -108,7 +108,22 @@ export function PostCreatorPage() {
     setFacebookTitle,
     getValidationErrors,
     altText,
-    setAltText
+    setAltText,
+    // TikTok
+    tiktokOpen,
+    setTiktokOpen,
+    tiktokPrivacy,
+    setTiktokPrivacy,
+    tiktokAllowComments,
+    setTiktokAllowComments,
+    tiktokAllowDuet,
+    setTiktokAllowDuet,
+    tiktokAllowStitch,
+    setTiktokAllowStitch,
+    tiktokAiGenerated,
+    setTiktokAiGenerated,
+    tiktokCommercialContent,
+    setTiktokCommercialContent
   } = usePostCreatorForm();
 
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -264,8 +279,16 @@ export function PostCreatorPage() {
                           )}
                         </div>
 
-                        {/* Tiktok Item (inactive) */}
-                        <button type="button" className="w-7 h-7 rounded-full bg-gray-100 text-gray-400 hover:bg-gray-200 flex items-center justify-center transition-all cursor-pointer">
+                        {/* Tiktok Item */}
+                        <button 
+                          type="button" 
+                          onClick={() => setActivePlatform("tiktok")}
+                          className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                            activePlatform === 'tiktok' 
+                              ? 'bg-black text-white' 
+                              : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                          }`}
+                        >
                           <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                             <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.5-1.1-1.02-1.7-2.48-1.9-3.96-.03 2.49 0 4.99 0 7.48-.02 1.9-.38 3.82-1.39 5.43-1.46 2.42-4.13 3.84-6.93 3.55-3.05-.2-5.78-2.44-6.39-5.46-.73-3.27.97-6.9 4.13-7.91 1.09-.34 2.24-.39 3.37-.2v4.02c-1.22-.32-2.58-.09-3.55.74-.95.83-1.29 2.19-1.03 3.4.31 1.65 1.84 2.91 3.53 2.78 1.94-.04 3.42-1.8 3.25-3.73-.02-2.91 0-5.83 0-8.74.02-3.11-.02-6.22.02-9.33z"/>
                           </svg>
@@ -513,9 +536,13 @@ export function PostCreatorPage() {
                               <p className="text-[10px] text-gray-500 leading-tight">Limited by the network with less character length support.</p>
                            </div>
                         </div>
-                         <div className={`w-5 h-5 rounded flex items-center justify-center ${activePlatform === 'youtube' ? 'bg-[#FF0000]' : 'bg-[#1877F2]'}`}>
+                         <div className={`w-5 h-5 rounded flex items-center justify-center ${activePlatform === 'youtube' ? 'bg-[#FF0000]' : activePlatform === 'tiktok' ? 'bg-black' : 'bg-[#1877F2]'}`}>
                            {activePlatform === 'youtube' ? (
                              <Youtube size={10} className="text-white fill-white" />
+                           ) : activePlatform === 'tiktok' ? (
+                              <svg className="w-2.5 h-2.5 text-white fill-white" viewBox="0 0 24 24">
+                                <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.5-1.1-1.02-1.7-2.48-1.9-3.96-.03 2.49 0 4.99 0 7.48-.02 1.9-.38 3.82-1.39 5.43-1.46 2.42-4.13 3.84-6.93 3.55-3.05-.2-5.78-2.44-6.39-5.46-.73-3.27.97-6.9 4.13-7.91 1.09-.34 2.24-.39 3.37-.2v4.02c-1.22-.32-2.58-.09-3.55.74-.95.83-1.29 2.19-1.03 3.4.31 1.65 1.84 2.91 3.53 2.78 1.94-.04 3.42-1.8 3.25-3.73-.02-2.91 0-5.83 0-8.74.02-3.11-.02-6.22.02-9.33z"/>
+                              </svg>
                            ) : (
                              <svg className="w-3 h-3 text-white fill-white" viewBox="0 0 24 24">
                                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
@@ -746,6 +773,144 @@ export function PostCreatorPage() {
                     </div>
                   </div>
                  )}
+
+                  {/* TikTok Presets Accordion */}
+                  {activePlatform === 'tiktok' && (
+                    <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm transition-all duration-300">
+                      <div 
+                        onClick={() => setTiktokOpen(!tiktokOpen)}
+                        className="p-5 flex items-center justify-between hover:bg-gray-50/50 transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <svg className="w-[18px] h-[18px] text-black fill-current" viewBox="0 0 24 24">
+                            <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.5-1.1-1.02-1.7-2.48-1.9-3.96-.03 2.49 0 4.99 0 7.48-.02 1.9-.38 3.82-1.39 5.43-1.46 2.42-4.13 3.84-6.93 3.55-3.05-.2-5.78-2.44-6.39-5.46-.73-3.27.97-6.9 4.13-7.91 1.09-.34 2.24-.39 3.37-.2v4.02c-1.22-.32-2.58-.09-3.55.74-.95.83-1.29 2.19-1.03 3.4.31 1.65 1.84 2.91 3.53 2.78 1.94-.04 3.42-1.8 3.25-3.73-.02-2.91 0-5.83 0-8.74.02-3.11-.02-6.22.02-9.33z"/>
+                          </svg>
+                          <span className="text-[12px] font-bold text-gray-700">Tiktok presets</span>
+                        </div>
+                        <ChevronDown size={16} className={`text-gray-400 transition-transform duration-300 ${tiktokOpen ? 'rotate-180 text-black' : ''}`} />
+                      </div>
+
+                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${tiktokOpen ? 'max-h-[500px] border-t border-gray-50 p-6' : 'max-h-0'}`}>
+                        <div className="space-y-5 text-left">
+                          
+                          {/* Privacy dropdown */}
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-500 uppercase mb-2">Who can view your post?</label>
+                            <div className="relative">
+                              <select
+                                value={tiktokPrivacy}
+                                onChange={(e) => setTiktokPrivacy(e.target.value)}
+                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-xs font-semibold focus:border-black outline-none appearance-none cursor-pointer"
+                              >
+                                <option value="public">Public</option>
+                                <option value="friends">Friends</option>
+                                <option value="self">Self</option>
+                              </select>
+                              <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                            </div>
+                          </div>
+
+                          {/* 3 Switches */}
+                          <div className="flex items-center justify-between gap-4 pt-2 border-t border-gray-50">
+                            <div className="flex flex-col items-start gap-1">
+                              <span className="text-[11px] font-bold text-gray-500 uppercase">Allow comments</span>
+                              <button
+                                type="button"
+                                onClick={() => setTiktokAllowComments(!tiktokAllowComments)}
+                                className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-all duration-300 ${
+                                  tiktokAllowComments ? 'bg-black' : 'bg-gray-200'
+                                }`}
+                              >
+                                <div
+                                  className={`bg-white w-4 h-4 rounded-full shadow-sm transform transition-all duration-300 ${
+                                    tiktokAllowComments ? 'translate-x-4' : 'translate-x-0'
+                                  }`}
+                                />
+                              </button>
+                            </div>
+                            <div className="flex flex-col items-start gap-1">
+                              <span className="text-[11px] font-bold text-gray-500 uppercase">Allow duet</span>
+                              <button
+                                type="button"
+                                onClick={() => setTiktokAllowDuet(!tiktokAllowDuet)}
+                                className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-all duration-300 ${
+                                  tiktokAllowDuet ? 'bg-black' : 'bg-gray-200'
+                                }`}
+                              >
+                                <div
+                                  className={`bg-white w-4 h-4 rounded-full shadow-sm transform transition-all duration-300 ${
+                                    tiktokAllowDuet ? 'translate-x-4' : 'translate-x-0'
+                                  }`}
+                                />
+                              </button>
+                            </div>
+                            <div className="flex flex-col items-start gap-1">
+                              <span className="text-[11px] font-bold text-gray-500 uppercase">Allow stitch</span>
+                              <button
+                                type="button"
+                                onClick={() => setTiktokAllowStitch(!tiktokAllowStitch)}
+                                className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-all duration-300 ${
+                                  tiktokAllowStitch ? 'bg-black' : 'bg-gray-200'
+                                }`}
+                              >
+                                <div
+                                  className={`bg-white w-4 h-4 rounded-full shadow-sm transform transition-all duration-300 ${
+                                    tiktokAllowStitch ? 'translate-x-4' : 'translate-x-0'
+                                  }`}
+                                />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* 2 Switches */}
+                          <div className="border-t border-gray-100 pt-4 space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex flex-col">
+                                <span className="block text-[11px] font-bold text-gray-500 uppercase">AI-generated content</span>
+                                <span className="text-[9px] text-gray-400 font-medium">Label your content as generated by AI</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setTiktokAiGenerated(!tiktokAiGenerated)}
+                                className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-all duration-300 shrink-0 ${
+                                  tiktokAiGenerated ? 'bg-black' : 'bg-gray-200'
+                                }`}
+                              >
+                                <div
+                                  className={`bg-white w-4 h-4 rounded-full shadow-sm transform transition-all duration-300 ${
+                                    tiktokAiGenerated ? 'translate-x-4' : 'translate-x-0'
+                                  }`}
+                                />
+                              </button>
+                            </div>
+
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="space-y-0.5">
+                                <span className="block text-[11px] font-bold text-gray-500 uppercase">Commercial content</span>
+                                <span className="block text-[9px] text-gray-400 font-medium leading-normal">
+                                  Turn on to disclose that this post promotes goods or services in exchange for something of value
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setTiktokCommercialContent(!tiktokCommercialContent)}
+                                className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-all duration-300 shrink-0 mt-0.5 ${
+                                  tiktokCommercialContent ? 'bg-black' : 'bg-gray-200'
+                                }`}
+                              >
+                                <div
+                                  className={`bg-white w-4 h-4 rounded-full shadow-sm transform transition-all duration-300 ${
+                                    tiktokCommercialContent ? 'translate-x-4' : 'translate-x-0'
+                                  }`}
+                                />
+                              </button>
+                            </div>
+                          </div>
+
+                        </div>
+                      </div>
+                    </div>
+                  )}
               </div>
 
               {/* Validation Errors Banner */}
@@ -760,11 +925,16 @@ export function PostCreatorPage() {
                   <div className="border-t border-red-100/50 px-6 py-4 space-y-2 text-left">
                     {getValidationErrors().map((err, idx) => {
                       const isFacebookErr = err.includes("Reel ->") || err.includes("story) ->");
+                      const isTiktokErr = err.includes("TikTok ->");
                       return (
                         <div key={idx} className="flex items-center gap-2.5 text-xs font-medium text-gray-700">
                           {isFacebookErr ? (
                             <svg className="w-3.5 h-3.5 text-[#1877F2] fill-[#1877F2] shrink-0" viewBox="0 0 24 24">
                               <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                            </svg>
+                          ) : isTiktokErr ? (
+                            <svg className="w-3.5 h-3.5 text-black fill-current shrink-0" viewBox="0 0 24 24">
+                              <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.5-1.1-1.02-1.7-2.48-1.9-3.96-.03 2.49 0 4.99 0 7.48-.02 1.9-.38 3.82-1.39 5.43-1.46 2.42-4.13 3.84-6.93 3.55-3.05-.2-5.78-2.44-6.39-5.46-.73-3.27.97-6.9 4.13-7.91 1.09-.34 2.24-.39 3.37-.2v4.02c-1.22-.32-2.58-.09-3.55.74-.95.83-1.29 2.19-1.03 3.4.31 1.65 1.84 2.91 3.53 2.78 1.94-.04 3.42-1.8 3.25-3.73-.02-2.91 0-5.83 0-8.74.02-3.11-.02-6.22.02-9.33z"/>
                             </svg>
                           ) : (
                             <Info size={14} className="text-gray-400 shrink-0" />
@@ -830,6 +1000,10 @@ export function PostCreatorPage() {
               <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm">
                  {activePlatform === 'youtube' ? (
                     <Youtube className="text-[#FF0000] fill-[#FF0000]" size={20} />
+                 ) : activePlatform === 'tiktok' ? (
+                    <svg className="w-5 h-5 text-black fill-current" viewBox="0 0 24 24">
+                       <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.5-1.1-1.02-1.7-2.48-1.9-3.96-.03 2.49 0 4.99 0 7.48-.02 1.9-.38 3.82-1.39 5.43-1.46 2.42-4.13 3.84-6.93 3.55-3.05-.2-5.78-2.44-6.39-5.46-.73-3.27.97-6.9 4.13-7.91 1.09-.34 2.24-.39 3.37-.2v4.02c-1.22-.32-2.58-.09-3.55.74-.95.83-1.29 2.19-1.03 3.4.31 1.65 1.84 2.91 3.53 2.78 1.94-.04 3.42-1.8 3.25-3.73-.02-2.91 0-5.83 0-8.74.02-3.11-.02-6.22.02-9.33z"/>
+                    </svg>
                  ) : (
                     <svg className="w-5 h-5 text-[#1877F2] fill-[#1877F2]" viewBox="0 0 24 24">
                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
@@ -866,6 +1040,8 @@ export function PostCreatorPage() {
               <p className="text-[10px] text-gray-400 text-center max-w-[280px] leading-normal font-medium uppercase tracking-tight">
                   {activePlatform === 'youtube' 
                     ? 'YouTube descriptions and setup parameters are fully simulated and will be included in your post' 
+                    : activePlatform === 'tiktok'
+                    ? 'TikTok video presets and details are fully simulated and will be included in your post'
                     : 'Facebook status updates, photos, and videos are fully supported and will be published on your feed'}
                </p>
            </div>

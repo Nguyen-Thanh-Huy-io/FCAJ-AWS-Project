@@ -50,6 +50,13 @@ export function usePostCreatorForm() {
   const [globalOpen, setGlobalOpen] = useState(false);
   const [youtubeOpen, setYoutubeOpen] = useState(false);
   const [facebookOpen, setFacebookOpen] = useState(false);
+  const [tiktokOpen, setTiktokOpen] = useState(false);
+  const [tiktokPrivacy, setTiktokPrivacy] = useState("public");
+  const [tiktokAllowComments, setTiktokAllowComments] = useState(true);
+  const [tiktokAllowDuet, setTiktokAllowDuet] = useState(true);
+  const [tiktokAllowStitch, setTiktokAllowStitch] = useState(true);
+  const [tiktokAiGenerated, setTiktokAiGenerated] = useState(false);
+  const [tiktokCommercialContent, setTiktokCommercialContent] = useState(false);
 
   // Selector Video/Short State
   const [youtubeType, setYoutubeType] = useState("video");
@@ -161,6 +168,10 @@ export function usePostCreatorForm() {
         if (videoWidth > 0 && videoHeight > 0 && videoWidth > videoHeight) {
           errors.push(`YouTube Shorts must be vertical or square. Current ratio is horizontal.`);
         }
+      }
+    } else if (activePlatform === "tiktok") {
+      if (!uploadedVideoPath && !videoFile) {
+        errors.push("TikTok -> Add at least 1 image or video.");
       }
     }
     return errors;
@@ -328,6 +339,14 @@ export function usePostCreatorForm() {
         // Setup Facebook
         setFacebookType(opts.facebookType || "post");
         setFacebookTitle(opts.facebookTitle || "");
+
+        // Setup TikTok
+        setTiktokPrivacy(opts.tiktokPrivacy || "public");
+        setTiktokAllowComments(opts.tiktokAllowComments !== undefined ? opts.tiktokAllowComments : true);
+        setTiktokAllowDuet(opts.tiktokAllowDuet !== undefined ? opts.tiktokAllowDuet : true);
+        setTiktokAllowStitch(opts.tiktokAllowStitch !== undefined ? opts.tiktokAllowStitch : true);
+        setTiktokAiGenerated(opts.tiktokAiGenerated || false);
+        setTiktokCommercialContent(opts.tiktokCommercialContent || false);
         
         // Setup media
         if (editingPost.mediaUrls?.[0]) {
@@ -364,6 +383,14 @@ export function usePostCreatorForm() {
         setFacebookType("post");
         setFacebookTitle("");
         setAltText("");
+
+        // Reset TikTok
+        setTiktokPrivacy("public");
+        setTiktokAllowComments(true);
+        setTiktokAllowDuet(true);
+        setTiktokAllowStitch(true);
+        setTiktokAiGenerated(false);
+        setTiktokCommercialContent(false);
       }
     }
   }, [isOpen, editingPost, defaultScheduledAt, initialIsLibrary]);
@@ -396,6 +423,8 @@ export function usePostCreatorForm() {
         }
       } else if (activePlatform === 'youtube') {
         postType = youtubeType === 'short' ? 'SHORT' : 'VIDEO';
+      } else if (activePlatform === 'tiktok') {
+        postType = 'VIDEO';
       }
 
       const payload = {
@@ -419,7 +448,13 @@ export function usePostCreatorForm() {
           madeForKids: youtubeMadeForKids,
           firstComment: youtubeFirstComment || globalFirstComment,
           facebookType,
-          facebookTitle
+          facebookTitle,
+          tiktokPrivacy,
+          tiktokAllowComments,
+          tiktokAllowDuet,
+          tiktokAllowStitch,
+          tiktokAiGenerated,
+          tiktokCommercialContent
         }
       };
 
@@ -440,6 +475,12 @@ export function usePostCreatorForm() {
       setFacebookTitle("");
       setFacebookType("post");
       setAltText("");
+      setTiktokPrivacy("public");
+      setTiktokAllowComments(true);
+      setTiktokAllowDuet(true);
+      setTiktokAllowStitch(true);
+      setTiktokAiGenerated(false);
+      setTiktokCommercialContent(false);
       setVideoFile(null);
       setVideoFileUrl("");
       setUploadedVideoPath("");
@@ -532,6 +573,21 @@ export function usePostCreatorForm() {
     setFacebookTitle,
     getValidationErrors,
     altText,
-    setAltText
+    setAltText,
+    // TikTok States
+    tiktokOpen,
+    setTiktokOpen,
+    tiktokPrivacy,
+    setTiktokPrivacy,
+    tiktokAllowComments,
+    setTiktokAllowComments,
+    tiktokAllowDuet,
+    setTiktokAllowDuet,
+    tiktokAllowStitch,
+    setTiktokAllowStitch,
+    tiktokAiGenerated,
+    setTiktokAiGenerated,
+    tiktokCommercialContent,
+    setTiktokCommercialContent
   };
 }

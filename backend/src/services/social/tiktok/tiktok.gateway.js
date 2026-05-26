@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const { API_VERSIONS } = require('../../../utils/constants');
 
 class TikTokGateway {
@@ -79,41 +81,116 @@ class TikTokGateway {
   }
 
   /**
-   * Post Video to TikTok
-   * Uses the Content Posting API (Direct Post)
+   * Get Creator Info to check allowed features (privacy levels, etc.)
    */
-  async publishVideo(accessToken, videoUrl, title) {
-    const url = `${this.apiBaseUrl}/v2/post/publish/video/init/`;
-    
-    // Step 1: Initialize upload
-    const initRes = await fetch(url, {
+  async getCreatorInfo(accessToken) {
+    const url = `${this.apiBaseUrl}/v2/post/publish/creator_info/query/`;
+    const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        post_info: {
-          title: title,
-          privacy_level: 'PUBLIC_TO_EVERYONE', // Default
-          disable_duet: false,
-          disable_stitch: false,
-          disable_comment: false
-        },
-        source_info: {
-          source: 'PULL_FROM_URL',
-          video_url: videoUrl
-        }
-      })
+      }
     });
 
-    if (!initRes.ok) {
-      const err = await initRes.json().catch(() => ({}));
-      throw new Error(err.error?.message || 'Failed to initialize TikTok video post');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.warn('[TikTok Gateway] Failed to fetch Creator Info:', JSON.stringify(data));
+      return null;
+    }
+    return data.data;
+  }
+
+  /**
+   * Post Video to TikTok
+   * Automatically handles FILE_UPLOAD (recommended for local files/non-verified domains)
+   */
+  async publishVideo(accessToken, filePath, title) {
+    const localPath = this._resolveLocalPath(filePath);
+    const stats = fs.statSync(localPath);
+    const videoSize = stats.size;
+
+    console.log(`[TikTok Gateway] Initializing FILE_UPLOAD for ${path.basename(localPath)} (${videoSize} bytes)`);
+
+    // Optional: Check creator info for debugging
+    const creatorInfo = await this.getCreatorInfo(accessToken);
+    if (creatorInfo) {
+      console.log(`[TikTok Gateway] Creator Info: Max Video Duration: ${creatorInfo.max_video_post_duration_sec}s, Allowed Privacy: ${creatorInfo.privacy_level_options?.join(', ')}`);
     }
 
-    const data = await initRes.json();
-    return data.data; // contains publish_id
+    // Step 1: Initialize upload
+    const initUrl = `${this.apiBaseUrl}/v2/post/publish/video/init/`;
+    
+    let privacyLevel = 'PUBLIC_TO_EVERYONE';
+    
+    const makeInitRequest = async (currentPrivacy) => {
+      return await fetch(initUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          post_info: {
+            title: title,
+            privacy_level: currentPrivacy,
+            disable_duet: false,
+            disable_stitch: false,
+            disable_comment: false
+          },
+          source_info: {
+            source: 'FILE_UPLOAD',
+            video_size: videoSize,
+            chunk_size: videoSize,
+            total_chunk_count: 1
+          }
+        })
+      });
+    };
+
+    let initRes = await makeInitRequest(privacyLevel);
+    let initData = await initRes.json().catch(() => ({}));
+
+    // Handle unaudited client error
+    if (!initRes.ok && initData.error?.code === 'unaudited_client_can_only_post_to_private_accounts') {
+      console.warn(`[TikTok Gateway] Client is unaudited. This error usually means your TikTok account MUST be set to "Private Account" in the TikTok app settings AND the video must be "SELF_ONLY". Trying fallback to SELF_ONLY...`);
+      
+      privacyLevel = 'SELF_ONLY';
+      initRes = await makeInitRequest(privacyLevel);
+      initData = await initRes.json().catch(() => ({}));
+      
+      if (!initRes.ok && initData.error?.code === 'unaudited_client_can_only_post_to_private_accounts') {
+        throw new Error('TikTok API Restriction: Unaudited apps can only post to TikTok accounts that are set to "Private Account" in TikTok settings. Please switch your TikTok account to Private to continue testing.');
+      }
+    }
+
+    if (!initRes.ok) {
+      console.error('[TikTok Gateway] Init Failed:', JSON.stringify(initData));
+      throw new Error(initData.error?.message || 'Failed to initialize TikTok video upload');
+    }
+
+    const { publish_id, upload_url } = initData.data;
+
+    // Step 2: Upload Video Binary
+    console.log(`[TikTok Gateway] Uploading binary to ${upload_url}`);
+    const videoBuffer = fs.readFileSync(localPath);
+    const uploadRes = await fetch(upload_url, {
+      method: 'PUT',
+      headers: {
+        'Content-Range': `bytes 0-${videoSize - 1}/${videoSize}`,
+        'Content-Type': 'video/mp4'
+      },
+      body: videoBuffer
+    });
+
+    if (!uploadRes.ok) {
+      const uploadErr = await uploadRes.text();
+      console.error('[TikTok Gateway] Binary Upload Failed:', uploadErr);
+      throw new Error('Failed to upload video binary to TikTok');
+    }
+
+    console.log(`[TikTok Gateway] Upload successful. Publish ID: ${publish_id} (Privacy: ${privacyLevel})`);
+    return { publish_id, privacy_level: privacyLevel };
   }
 
   /**
@@ -147,6 +224,19 @@ class TikTokGateway {
     }
 
     return data.data; // returns { videos: [...], cursor: number, has_more: boolean }
+  }
+
+  // ============= Private Helper Methods =============
+
+  _resolveLocalPath(mediaUrl) {
+    // If it's already an absolute path or doesn't need resolving
+    if (fs.existsSync(mediaUrl)) return mediaUrl;
+
+    const localPath = path.join(process.cwd(), mediaUrl.startsWith('/') ? mediaUrl.substring(1) : mediaUrl);
+    if (!fs.existsSync(localPath)) {
+      throw new Error(`Media file not found at ${localPath}`);
+    }
+    return localPath;
   }
 }
 
