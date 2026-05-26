@@ -1,117 +1,77 @@
 const livestreamRepository = require('../../repositories/workspace/livestream.repository');
+const QueryPipeline = require('../../core/query-pipeline/query.pipeline');
+const LivestreamSearchFilter = require('./livestream/filters/search.filter');
+const LivestreamPlatformFilter = require('./livestream/filters/platform.filter');
+const LivestreamStatusFilter = require('./livestream/filters/status.filter');
+const LivestreamDateRangeFilter = require('./livestream/filters/date-range.filter');
+const { SEPARATORS, DEFAULT_CONFIG } = require('../../utils/constants');
 
 const ALLOWED_SORT_FIELDS = ['scheduledAt', 'title', 'peakViewers', 'totalViews', 'durationMinutes'];
 const ALLOWED_SORT_ORDERS = ['asc', 'desc'];
 
 class LivestreamService {
-  /**
-   * Get filtered stream history with pagination
-   * @param {Object} queryParams - Raw query parameters
-   * @param {string} brandId - Scoped brand ID
-   * @returns {Promise<Object>} { data, meta }
-   */
-  async getStreamHistory(queryParams, brandId) {
-    const {
-      search,
-      platform,
-      status,
-      startDate,
-      endDate,
-      page = 1,
-      limit = 10,
-      sortBy = 'scheduledAt',
-      sortOrder = 'desc'
-    } = queryParams;
-
-    // 1. Sanitize & Validate Pagination
-    const safePage = Math.max(1, parseInt(page) || 1);
-    const safeLimit = Math.min(100, Math.max(1, parseInt(limit) || 10));
-    const skip = (safePage - 1) * safeLimit;
-
-    // 2. Validate Sorting
-    const safeSortBy = ALLOWED_SORT_FIELDS.includes(sortBy) ? sortBy : 'scheduledAt';
-    const safeSortOrder = ALLOWED_SORT_ORDERS.includes(sortOrder) ? sortOrder : 'desc';
-
-    // 3. Build Dynamic Where Conditions
-    const where = { brandId };
-
-    // Text search (Title or Description)
-    if (search && search.trim()) {
-      const searchKey = search.trim();
-      where.OR = [
-        { title: { contains: searchKey } },
-        { description: { contains: searchKey } }
-      ];
-    }
-
-    // Platform filter (stored as comma-separated or JSON string in targetPlatforms)
-    if (platform && platform !== 'All Platforms') {
-      where.targetPlatforms = { contains: platform };
-    }
-
-    // Status filter
-    if (status && status !== 'All Statuses') {
-      where.status = status;
-    }
-
-    // Date range filter
-    if (startDate || endDate) {
-      where.scheduledAt = {};
-      if (startDate) {
-        const start = new Date(startDate);
-        if (!isNaN(start.getTime())) {
-          where.scheduledAt.gte = start;
-        }
-      }
-      if (endDate) {
-        const end = new Date(endDate);
-        if (!isNaN(end.getTime())) {
-          where.scheduledAt.lte = end;
-        }
-      }
-    }
-
-    // 4. Fetch streams and count
-    const { streams, total } = await livestreamRepository.findManyAndCount(where, {
-      skip,
-      take: safeLimit,
-      orderBy: { [safeSortBy]: safeSortOrder }
-    });
-
-    // 5. Format response
-    return {
-      data: streams.map(s => ({
-        id: s.id,
-        title: s.title,
-        description: s.description,
-        thumbnail: s.thumbnailUrl,
-        date: new Date(s.scheduledAt).toLocaleDateString('vi-VN', { year: 'numeric', month: 'short', day: 'numeric' }),
-        start: new Date(s.scheduledAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false }),
-        duration: this.formatDuration(s.durationMinutes),
-        platforms: s.targetPlatforms ? s.targetPlatforms.split(',').map(p => p.trim()) : [],
-        peak: s.peakViewers,
-        views: s.totalViews,
-        status: s.status.toLowerCase(),
-        creator: s.creator?.name || 'Unknown'
-      })),
-      meta: {
-        total,
-        page: safePage,
-        limit: safeLimit,
-        totalPages: Math.ceil(total / safeLimit)
-      }
-    };
+  constructor() {
+    this.queryPipeline = new QueryPipeline([
+      new LivestreamSearchFilter(),
+      new LivestreamPlatformFilter(),
+      new LivestreamStatusFilter(),
+      new LivestreamDateRangeFilter()
+    ]);
   }
 
   /**
-   * Helper to format minutes into "1h 24m" style
+   * Get filtered stream history with pagination
    */
-  formatDuration(mins) {
+  async getStreamHistory(queryParams, brandId) {
+    const { page = 1, limit = 10, sortBy = 'scheduledAt', sortOrder = 'desc' } = queryParams;
+    const { skip, take } = this._getPagination(page, limit);
+    const order = this._getSortOrder(sortBy, sortOrder);
+
+    const where = this.queryPipeline.apply({ brandId }, queryParams);
+    const { streams, total } = await livestreamRepository.findManyAndCount(where, { skip, take, orderBy: order });
+
+    return {
+      data: streams.map(s => this._formatStreamResponse(s)),
+      meta: { total, page: Math.max(1, parseInt(page) || 1), limit: take, totalPages: Math.ceil(total / take) }
+    };
+  }
+
+  // ============= Private Helper Methods =============
+
+  _getPagination(page, limit) {
+    const safePage = Math.max(1, parseInt(page) || 1);
+    const safeLimit = Math.min(100, Math.max(1, parseInt(limit) || 10));
+    return { skip: (safePage - 1) * safeLimit, take: safeLimit };
+  }
+
+  _getSortOrder(sortBy, sortOrder) {
+    const safeSortBy = ALLOWED_SORT_FIELDS.includes(sortBy) ? sortBy : 'scheduledAt';
+    const safeSortOrder = ALLOWED_SORT_ORDERS.includes(sortOrder) ? sortOrder : 'desc';
+    return { [safeSortBy]: safeSortOrder };
+  }
+
+  _formatStreamResponse(s) {
+    return {
+      id: s.id,
+      title: s.title,
+      description: s.description,
+      thumbnail: s.thumbnailUrl,
+      date: new Date(s.scheduledAt).toLocaleDateString(DEFAULT_CONFIG.LOCALE, { year: 'numeric', month: 'short', day: 'numeric' }),
+      start: new Date(s.scheduledAt).toLocaleTimeString(DEFAULT_CONFIG.LOCALE, { hour: '2-digit', minute: '2-digit', hour12: false }),
+      duration: this._formatDuration(s.durationMinutes),
+      platforms: s.targetPlatforms ? s.targetPlatforms.split(SEPARATORS.COMMA).map(p => p.trim()) : [],
+      peak: s.peakViewers,
+      views: s.totalViews,
+      status: s.status.toLowerCase(),
+      creator: s.creator?.name || 'Unknown'
+    };
+  }
+
+  _formatDuration(mins) {
     if (!mins) return '0m';
     const h = Math.floor(mins / 60);
     const m = mins % 60;
-    if (h > 0) return `${h}h ${m}m`;
-    return `${m}m`;
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
   }
 }
 

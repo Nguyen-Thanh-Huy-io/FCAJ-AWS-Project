@@ -1,167 +1,124 @@
 const postService = require('../../services/workspace/post.service');
+const asyncHandler = require('../../utils/async-handler');
 
 class PostController {
   /**
    * GET /api/posts
    * Fetch all posts with filters
    */
-  async getPosts(req, res) {
-    try {
-      const brandId = req.query.brandId || 'default-brand';
-      const result = await postService.getPosts(req.query, brandId);
+  getPosts = asyncHandler(async (req, res) => {
+    const brandId = req.query.brandId || 'default-brand';
+    const result = await postService.getPosts(req.query, brandId);
 
-      res.status(200).json({
-        message: 'Posts retrieved successfully',
-        ...result
-      });
-    } catch (error) {
-      res.status(error.status || 500).json({
-        message: error.message || 'Failed to retrieve posts'
-      });
-    }
-  }
+    res.status(200).json({
+      message: 'Posts retrieved successfully',
+      ...result
+    });
+  });
 
   /**
    * POST /api/posts
    * Create a new post
    */
-  async createPost(req, res) {
-    try {
-      const { brandId } = req.body;
-      if (!brandId) return res.status(400).json({ message: 'brandId is required' });
+  createPost = asyncHandler(async (req, res) => {
+    const { brandId } = req.body;
+    if (!brandId) return res.status(400).json({ message: 'brandId is required' });
 
-      const userId = req.user.id;
-      const post = await postService.createPost(req.body, userId, brandId);
+    const userId = req.user.id;
+    const post = await postService.createPost(req.body, userId, brandId);
 
-      res.status(201).json({
-        message: 'Post created successfully',
-        data: post
-      });
-    } catch (error) {
-      res.status(error.status || 500).json({
-        message: error.message || 'Failed to create post'
-      });
-    }
-  }
+    res.status(201).json({
+      message: 'Post created successfully',
+      data: post
+    });
+  });
 
   /**
    * PUT /api/posts/:id
    * Update an existing post
    */
-  async updatePost(req, res) {
-    try {
-      const { id } = req.params;
-      const { brandId } = req.body;
-      if (!brandId) return res.status(400).json({ message: 'brandId is required' });
+  updatePost = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { brandId } = req.body;
+    if (!brandId) return res.status(400).json({ message: 'brandId is required' });
 
-      const post = await postService.updatePost(id, req.body, brandId);
+    const post = await postService.updatePost(id, req.body, brandId);
 
-      res.status(200).json({
-        message: 'Post updated successfully',
-        data: post
-      });
-    } catch (error) {
-      res.status(error.status || 500).json({
-        message: error.message || 'Failed to update post'
-      });
-    }
-  }
+    res.status(200).json({
+      message: 'Post updated successfully',
+      data: post
+    });
+  });
 
   /**
    * POST /api/posts/bulk-approve
-   * Bulk approve posts
    */
-  async bulkApprove(req, res) {
-    try {
-      const { postIds, ids, brandId } = req.body;
-      if (!brandId) return res.status(400).json({ message: 'brandId is required' });
-      
-      const targetIds = ids || postIds;
-      if (!targetIds || !Array.isArray(targetIds)) return res.status(400).json({ message: 'ids array is required' });
+  bulkApprove = asyncHandler(async (req, res) => {
+    const { brandId } = req.body;
+    if (!brandId) return res.status(400).json({ message: 'brandId is required' });
+    
+    const targetIds = this._getBulkIds(req.body);
+    if (!targetIds) return res.status(400).json({ message: 'ids array is required' });
 
-      const count = await postService.bulkApprove(targetIds, brandId);
-
-      res.status(200).json({
-        message: 'Posts approved successfully',
-        count
-      });
-    } catch (error) {
-      res.status(error.status || 500).json({
-        message: error.message || 'Failed to approve posts'
-      });
-    }
-  }
+    const count = await postService.bulkApprove(targetIds, brandId);
+    res.status(200).json({ message: 'Posts approved successfully', count });
+  });
 
   /**
    * DELETE /api/posts/bulk
-   * Bulk delete posts
    */
-  async bulkDelete(req, res) {
-    try {
-      const { postIds, ids, brandId } = req.body;
-      if (!brandId) return res.status(400).json({ message: 'brandId is required' });
-      
-      const targetIds = ids || postIds;
-      if (!targetIds || !Array.isArray(targetIds)) return res.status(400).json({ message: 'ids array is required' });
+  bulkDelete = asyncHandler(async (req, res) => {
+    const { brandId } = req.body;
+    if (!brandId) return res.status(400).json({ message: 'brandId is required' });
+    
+    const targetIds = this._getBulkIds(req.body);
+    if (!targetIds) return res.status(400).json({ message: 'ids array is required' });
 
-      const count = await postService.bulkDelete(targetIds, brandId);
-
-      res.status(200).json({
-        message: 'Posts deleted successfully',
-        count
-      });
-    } catch (error) {
-      res.status(error.status || 500).json({
-        message: error.message || 'Failed to delete posts'
-      });
-    }
-  }
+    const count = await postService.bulkDelete(targetIds, brandId);
+    res.status(200).json({ message: 'Posts deleted successfully', count });
+  });
 
   /**
    * POST /api/posts/bulk-restore
-   * Bulk restore posts from trash
    */
-  async bulkRestore(req, res) {
-    try {
-      const { postIds, ids, brandId } = req.body;
-      if (!brandId) return res.status(400).json({ message: 'brandId is required' });
-      
-      const targetIds = ids || postIds;
-      if (!targetIds || !Array.isArray(targetIds)) return res.status(400).json({ message: 'ids array is required' });
+  bulkRestore = asyncHandler(async (req, res) => {
+    const { brandId } = req.body;
+    if (!brandId) return res.status(400).json({ message: 'brandId is required' });
+    
+    const targetIds = this._getBulkIds(req.body);
+    if (!targetIds) return res.status(400).json({ message: 'ids array is required' });
 
-      const count = await postService.bulkRestore(targetIds, brandId);
-
-      res.status(200).json({
-        message: 'Posts restored successfully',
-        count
-      });
-    } catch (error) {
-      res.status(error.status || 500).json({
-        message: error.message || 'Failed to restore posts'
-      });
-    }
-  }
+    const count = await postService.bulkRestore(targetIds, brandId);
+    res.status(200).json({ message: 'Posts restored successfully', count });
+  });
 
   /**
    * DELETE /api/posts/trash
-   * Permanently delete all posts in trash
    */
-  async emptyTrash(req, res) {
-    try {
-      const { brandId } = req.query;
-      if (!brandId) return res.status(400).json({ message: 'brandId is required' });
+  emptyTrash = asyncHandler(async (req, res) => {
+    const { brandId } = req.query;
+    if (!brandId) return res.status(400).json({ message: 'brandId is required' });
 
-      const count = await postService.emptyTrash(brandId);
+    const count = await postService.emptyTrash(brandId);
+    res.status(200).json({ message: 'Trash emptied successfully', count });
+  });
 
-      res.status(200).json({
-        message: 'Trash emptied successfully',
-        count
-      });
-    } catch (error) {
-      res.status(error.status || 500).json({
-        message: error.message || 'Failed to empty trash'
-      });
+  /**
+   * POST /api/posts/upload
+   */
+  uploadVideo = asyncHandler(async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No video file uploaded' });
     }
+    const videoUrl = `/uploads/${req.file.filename}`;
+    res.status(200).json({ message: 'Video uploaded successfully', videoUrl });
+  });
+
+  // ============= Private Helper Methods =============
+
+  _getBulkIds(body) {
+    const targetIds = body.ids || body.postIds;
+    return (targetIds && Array.isArray(targetIds)) ? targetIds : null;
   }
 }
 

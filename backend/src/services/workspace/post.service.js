@@ -1,125 +1,50 @@
 const postRepository = require('../../repositories/workspace/post.repository');
 const socialPlatformFactory = require('../social/social-platform.factory');
-const { POST_STATUS } = require('../../utils/constants');
+const { POST_STATUS, POST_TYPES, SEPARATORS, WORKSPACE_DEFAULTS } = require('../../utils/constants');
+const { eventEmitter, EVENTS } = require('../../events/event-emitter');
+
+const QueryPipeline = require('../../core/query-pipeline/query.pipeline');
+const PostStatusFilter = require('./post/filters/status.filter');
+const PostSearchFilter = require('./post/filters/search.filter');
+const PostPlatformFilter = require('./post/filters/platform.filter');
+const PostDateRangeFilter = require('./post/filters/date-range.filter');
+const PostLibraryFilter = require('./post/filters/library.filter');
+const PostDeletedFilter = require('./post/filters/deleted.filter');
+
+const Pipeline = require('../../core/pipeline/pipeline.executor');
+const FetchPostStep = require('./post/publish-steps/fetch-post.step');
+const SocialPublishStep = require('./post/publish-steps/social-publish.step');
+const UpdatePostStatusStep = require('./post/publish-steps/update-db.step');
 
 const ALLOWED_SORT_FIELDS = ['createdAt', 'scheduledAt', 'publishedAt', 'title', 'status'];
 const ALLOWED_SORT_ORDERS = ['asc', 'desc'];
 
 class PostService {
+  constructor() {
+    this.queryPipeline = new QueryPipeline([
+      new PostStatusFilter(), new PostSearchFilter(), new PostPlatformFilter(),
+      new PostDateRangeFilter(), new PostLibraryFilter(), new PostDeletedFilter()
+    ]);
+
+    this.publishPipeline = new Pipeline([
+      new FetchPostStep(), new SocialPublishStep(), new UpdatePostStatusStep()
+    ]);
+  }
+
   /**
    * Get filtered posts with pagination
-   * @param {Object} queryParams - Raw query parameters
-   * @param {string} brandId - Scoped brand ID
-   * @returns {Promise<Object>} { data, meta }
    */
   async getPosts(queryParams, brandId) {
-    const {
-      search,
-      platform,
-      status,
-      startDate,
-      endDate,
-      page = 1,
-      limit = 10,
-      sortBy = 'createdAt',
-      sortOrder = 'desc',
-      isLibrary,
-      isDeleted
-    } = queryParams;
+    const { page = 1, limit = 10, sortBy = 'createdAt', sortOrder = 'desc' } = queryParams;
+    const { skip, take } = this._getPagination(page, limit);
+    const order = this._getSortOrder(sortBy, sortOrder);
 
-    // 1. Sanitize & Validate Pagination
-    const safePage = Math.max(1, parseInt(page) || 1);
-    const safeLimit = Math.min(100, Math.max(1, parseInt(limit) || 10));
-    const skip = (safePage - 1) * safeLimit;
+    const where = this.queryPipeline.apply({ brandId }, queryParams);
+    const { posts, total } = await postRepository.findManyAndCount(where, { skip, take, orderBy: order });
 
-    // 2. Validate Sorting
-    const safeSortBy = ALLOWED_SORT_FIELDS.includes(sortBy) ? sortBy : 'createdAt';
-    const safeSortOrder = ALLOWED_SORT_ORDERS.includes(sortOrder) ? sortOrder : 'desc';
-
-    // 3. Build Dynamic Where Conditions
-    const where = { 
-      brandId,
-      isLibrary: isLibrary === 'true' || isLibrary === true,
-      isDeleted: isDeleted === 'true' || isDeleted === true
-    };
-
-    // Text search (Title or Caption)
-    if (search && search.trim()) {
-      const searchKey = search.trim();
-      where.OR = [
-        { title: { contains: searchKey } },
-        { caption: { contains: searchKey } }
-      ];
-    }
-
-    // Platform filter
-    if (platform && platform !== 'All Platforms') {
-      where.targetPlatforms = { contains: platform };
-    }
-
-    // Status filter
-    if (status && status !== 'All') {
-      where.status = status.toUpperCase(); // Ensure uppercase for enum matching
-    }
-
-    // Date range filter
-    if (startDate || endDate) {
-      where.createdAt = {};
-      if (startDate) {
-        const start = new Date(startDate);
-        if (!isNaN(start.getTime())) {
-          where.createdAt.gte = start;
-        }
-      }
-      if (endDate) {
-        const end = new Date(endDate);
-        if (!isNaN(end.getTime())) {
-          where.createdAt.lte = end;
-        }
-      }
-    }
-
-    // 4. Fetch posts and count
-    const { posts, total } = await postRepository.findManyAndCount(where, {
-      skip,
-      take: safeLimit,
-      orderBy: { [safeSortBy]: safeSortOrder }
-    });
-
-    // 5. Format response
     return {
-      data: posts.map(p => {
-        let options = {};
-        if (p.metadata) {
-          try {
-            options = JSON.parse(p.metadata);
-          } catch (e) {
-            console.error('Failed to parse options JSON:', e.message);
-          }
-        }
-        return {
-          id: p.id,
-          title: p.title,
-          caption: p.caption,
-          status: p.status.toLowerCase(),
-          platforms: p.targetPlatforms ? p.targetPlatforms.split(',').map(plt => plt.trim()) : [],
-          scheduledAt: p.scheduledAt,
-          publishedAt: p.publishedAt,
-          createdAt: p.createdAt,
-          deletedAt: p.deletedAt,
-          creator: p.creator?.name || 'Unknown',
-          thumbnail: p.mediaThumbnailUrls ? p.mediaThumbnailUrls.split(',')[0] : null,
-          mediaUrls: p.mediaUrls ? p.mediaUrls.split(',').map(m => m.trim()) : [],
-          altText: p.altText,
-          options
-        };
-      }),
-      meta: {
-        total,
-        page: safePage,
-        limit: safeLimit,
-        totalPages: Math.ceil(total / safeLimit)
-      }
+      data: posts.map(p => this._formatPostResponse(p)),
+      meta: { total, page: Math.max(1, parseInt(page) || 1), limit: take, totalPages: Math.ceil(total / take) }
     };
   }
 
@@ -127,107 +52,11 @@ class PostService {
    * Create a new post
    */
   async createPost(postData, userId, brandId) {
-    const {
-      title,
-      caption,
-      type = 'VIDEO',
-      status = POST_STATUS.DRAFT,
-      targetPlatforms = [],
-      mediaUrls = [],
-      mediaThumbnailUrls = [],
-      scheduledAt,
-      isLibrary = false,
-      altText = null,
-      options = {}
-    } = postData;
-
-    // Build creation object
-    const data = {
-      brandId,
-      createdByUserId: userId,
-      title: title || 'Untitled Post',
-      caption,
-      type,
-      status: status.toUpperCase(),
-      targetPlatforms: targetPlatforms.join(','),
-      mediaUrls: mediaUrls.join(','),
-      mediaThumbnailUrls: mediaThumbnailUrls.join(','),
-      scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
-      altText: altText || null,
-      firstComment: options.firstComment || null,
-      isLibrary: isLibrary === true || isLibrary === 'true',
-      metadata: options ? JSON.stringify(options) : null
-    };
-
+    const data = this._preparePostData(postData, userId, brandId);
     const post = await postRepository.create(data);
 
-    if (data.status === POST_STATUS.PUBLISHED) {
-      try {
-        await this.publishToPlatforms(post.id, postData.options);
-      } catch (err) {
-        console.error('Publishing error inside createPost:', err.message);
-      }
-    }
-
-    let parsedOptions = {};
-    if (post.metadata) {
-      try {
-        parsedOptions = JSON.parse(post.metadata);
-      } catch (e) {}
-    }
-
-    return {
-      ...post,
-      options: parsedOptions
-    };
-  }
-
-  /**
-   * Đồng bộ xuất bản bài đăng lên các nền tảng xã hội
-   */
-  async publishToPlatforms(postId, postDataOptions = {}) {
-    const post = await postRepository.findById(postId);
-    if (!post) throw new Error('Post not found');
-
-    const platforms = post.targetPlatforms ? post.targetPlatforms.split(',').map(p => p.trim()) : [];
-
-    let options = postDataOptions;
-    if ((!options || Object.keys(options).length === 0) && post.metadata) {
-      try {
-        options = JSON.parse(post.metadata);
-      } catch (e) {
-        console.error('Failed to parse options in publishToPlatforms:', e.message);
-      }
-    }
-
-    for (const platform of platforms) {
-      try {
-        const service = socialPlatformFactory.getService(platform);
-        
-        if (service && typeof service.publishPost === 'function') {
-          const result = await service.publishPost(post.brandId, {
-            title: post.title,
-            caption: post.caption,
-            mediaUrls: post.mediaUrls ? post.mediaUrls.split(',').map(m => m.trim()) : [],
-            type: post.type,
-            options: options
-          });
-
-          await postRepository.update(post.id, {
-            status: POST_STATUS.PUBLISHED,
-            platformPostId: result.platformVideoId,
-            publishedAt: result.publishedAt
-          });
-        }
-      } catch (error) {
-        console.error(`Failed to publish post ${post.id} to ${platform}:`, error.message);
-        await postRepository.update(post.id, {
-          status: 'FAILED',
-          failureReason: `Failed to publish to ${platform}: ${error.message}`
-        });
-        throw error;
-      }
-    }
+    eventEmitter.emit(EVENTS.POST.CREATED, { post, options: postData.options });
+    return this._formatPostResponse(post);
   }
 
   /**
@@ -235,74 +64,24 @@ class PostService {
    */
   async updatePost(id, postData, brandId) {
     const post = await postRepository.findById(id);
-    if (!post || post.brandId !== brandId) {
-      throw new Error('Post not found or unauthorized');
-    }
+    if (!post || post.brandId !== brandId) throw new Error('Post not found or unauthorized');
+    if (post.status === POST_STATUS.PUBLISHED) throw new Error('Cannot update an already published post');
 
-    if (post.status === POST_STATUS.PUBLISHED) {
-      throw new Error('Cannot update an already published post');
-    }
-
-    const {
-      title,
-      caption,
-      type,
-      status,
-      targetPlatforms,
-      mediaUrls,
-      mediaThumbnailUrls,
-      scheduledAt,
-      isLibrary,
-      altText
-    } = postData;
-
-    const data = {};
-    if (title !== undefined) data.title = title || 'Untitled Post';
-    if (caption !== undefined) data.caption = caption;
-    if (type !== undefined) data.type = type;
-    if (status !== undefined) data.status = status.toUpperCase();
-    if (targetPlatforms !== undefined) data.targetPlatforms = targetPlatforms.join(',');
-    if (mediaUrls !== undefined) data.mediaUrls = mediaUrls.join(',');
-    if (mediaThumbnailUrls !== undefined) data.mediaThumbnailUrls = mediaThumbnailUrls.join(',');
-    if (scheduledAt !== undefined) data.scheduledAt = scheduledAt ? new Date(scheduledAt) : null;
-    if (isLibrary !== undefined) data.isLibrary = isLibrary === true || isLibrary === 'true';
-    if (altText !== undefined) data.altText = altText;
-    
-    if (postData.options !== undefined) {
-      data.metadata = JSON.stringify(postData.options);
-      data.firstComment = postData.options.firstComment || null;
-    }
-
+    const data = this._prepareUpdateData(postData);
     const updatedPost = await postRepository.update(id, data);
 
-    if (data.status === POST_STATUS.PUBLISHED) {
-      try {
-        await this.publishToPlatforms(updatedPost.id, postData.options);
-      } catch (err) {
-        console.error('Publishing error inside updatePost:', err.message);
-      }
-    }
+    const statusChangedToPublished = postData.status?.toUpperCase() === POST_STATUS.PUBLISHED;
+    eventEmitter.emit(EVENTS.POST.UPDATED, { post: updatedPost, options: postData.options, statusChangedToPublished });
 
-    let parsedOptions = {};
-    if (updatedPost.metadata) {
-      try {
-        parsedOptions = JSON.parse(updatedPost.metadata);
-      } catch (e) {}
-    }
-
-    return {
-      ...updatedPost,
-      options: parsedOptions
-    };
+    return this._formatPostResponse(updatedPost);
   }
 
-  /**
-   * Phê duyệt hàng loạt bài đăng
-   */
+  async publishToPlatforms(postId, postDataOptions = {}) {
+    await this.publishPipeline.execute({ postId, postDataOptions });
+  }
+
   async bulkApprove(ids, brandId) {
     const posts = await postRepository.findManyByIdsAndBrand(ids, brandId);
-    if (!posts || posts.length === 0) return 0;
-
     let count = 0;
     for (const post of posts) {
       if (post.status === POST_STATUS.PENDING_APPROVAL) {
@@ -313,37 +92,99 @@ class PostService {
     return count;
   }
 
-  /**
-   * Xóa hàng loạt bài đăng (Soft Delete)
-   */
   async bulkDelete(ids, brandId) {
-    const result = await postRepository.updateMany(
-      { id: { in: ids }, brandId },
-      { isDeleted: true, deletedAt: new Date() }
-    );
+    const posts = await postRepository.findManyByIdsAndBrand(ids, brandId);
+    const autolistIds = [...new Set(posts.map(p => p.autoListId).filter(Boolean))];
+
+    const result = await postRepository.updateMany({ id: { in: ids }, brandId }, { isDeleted: true, deletedAt: new Date() });
+    eventEmitter.emit(EVENTS.POST.BULK_DELETED, { autolistIds });
     return result.count;
   }
 
-  /**
-   * Khôi phục hàng loạt từ thùng rác
-   */
   async bulkRestore(ids, brandId) {
-    const result = await postRepository.updateMany(
-      { id: { in: ids }, brandId },
-      { isDeleted: false, deletedAt: null }
-    );
+    const posts = await postRepository.findManyByIdsAndBrand(ids, brandId);
+    const autolistIds = [...new Set(posts.map(p => p.autoListId).filter(Boolean))];
+
+    const result = await postRepository.updateMany({ id: { in: ids }, brandId }, { isDeleted: false, deletedAt: null });
+    eventEmitter.emit(EVENTS.POST.BULK_RESTORED, { autolistIds });
     return result.count;
   }
 
-  /**
-   * Xóa vĩnh viễn toàn bộ thùng rác
-   */
   async emptyTrash(brandId) {
-    const result = await postRepository.deleteMany({
-      brandId,
-      isDeleted: true
-    });
+    const result = await postRepository.deleteMany({ brandId, isDeleted: true });
     return result.count;
+  }
+
+  // ============= Private Helper Methods =============
+
+  _getPagination(page, limit) {
+    const safePage = Math.max(1, parseInt(page) || 1);
+    const safeLimit = Math.min(100, Math.max(1, parseInt(limit) || 10));
+    return { skip: (safePage - 1) * safeLimit, take: safeLimit };
+  }
+
+  _getSortOrder(sortBy, sortOrder) {
+    const safeSortBy = ALLOWED_SORT_FIELDS.includes(sortBy) ? sortBy : 'createdAt';
+    const safeSortOrder = ALLOWED_SORT_ORDERS.includes(sortOrder) ? sortOrder : 'desc';
+    return { [safeSortBy]: safeSortOrder };
+  }
+
+  _formatPostResponse(p) {
+    let options = {};
+    if (p.metadata) {
+      try { options = JSON.parse(p.metadata); } catch (e) {}
+    }
+    return {
+      id: p.id,
+      title: p.title,
+      caption: p.caption,
+      status: p.status.toLowerCase(),
+      platforms: p.targetPlatforms ? p.targetPlatforms.split(SEPARATORS.COMMA).map(plt => plt.trim()) : [],
+      scheduledAt: p.scheduledAt,
+      publishedAt: p.publishedAt,
+      createdAt: p.createdAt,
+      deletedAt: p.deletedAt,
+      creator: p.creator?.name || 'Unknown',
+      thumbnail: p.mediaThumbnailUrls ? p.mediaThumbnailUrls.split(SEPARATORS.COMMA)[0] : null,
+      mediaUrls: p.mediaUrls ? p.mediaUrls.split(SEPARATORS.COMMA).map(m => m.trim()) : [],
+      altText: p.altText,
+      options
+    };
+  }
+
+  _preparePostData(postData, userId, brandId) {
+    const { title, caption, type = POST_TYPES.VIDEO, status = POST_STATUS.DRAFT, targetPlatforms = [], mediaUrls = [], mediaThumbnailUrls = [], scheduledAt, isLibrary = false, altText = null, options = {} } = postData;
+    return {
+      brandId, createdByUserId: userId, title: title || WORKSPACE_DEFAULTS.UNTITLED, caption, type,
+      status: status.toUpperCase(),
+      targetPlatforms: targetPlatforms.join(SEPARATORS.COMMA),
+      mediaUrls: mediaUrls.join(SEPARATORS.COMMA),
+      mediaThumbnailUrls: mediaThumbnailUrls.join(SEPARATORS.COMMA),
+      scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+      altText, isLibrary: isLibrary === true || isLibrary === 'true',
+      firstComment: options.firstComment || null,
+      metadata: options ? JSON.stringify(options) : null
+    };
+  }
+
+  _prepareUpdateData(postData) {
+    const { title, caption, type, status, targetPlatforms, mediaUrls, mediaThumbnailUrls, scheduledAt, isLibrary, altText } = postData;
+    const data = {};
+    if (title !== undefined) data.title = title || WORKSPACE_DEFAULTS.UNTITLED;
+    if (caption !== undefined) data.caption = caption;
+    if (type !== undefined) data.type = type;
+    if (status !== undefined) data.status = status.toUpperCase();
+    if (targetPlatforms !== undefined) data.targetPlatforms = targetPlatforms.join(SEPARATORS.COMMA);
+    if (mediaUrls !== undefined) data.mediaUrls = mediaUrls.join(SEPARATORS.COMMA);
+    if (mediaThumbnailUrls !== undefined) data.mediaThumbnailUrls = mediaThumbnailUrls.join(SEPARATORS.COMMA);
+    if (scheduledAt !== undefined) data.scheduledAt = scheduledAt ? new Date(scheduledAt) : null;
+    if (isLibrary !== undefined) data.isLibrary = isLibrary === true || isLibrary === 'true';
+    if (altText !== undefined) data.altText = altText;
+    if (postData.options !== undefined) {
+      data.metadata = JSON.stringify(postData.options);
+      data.firstComment = postData.options.firstComment || null;
+    }
+    return data;
   }
 }
 

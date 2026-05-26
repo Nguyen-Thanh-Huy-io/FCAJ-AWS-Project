@@ -54,6 +54,11 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+// Initialize Event Subscribers
+require('./events/subscribers/post.subscriber')();
+require('./events/subscribers/user.subscriber')();
+require('./events/subscribers/autolist.subscriber')();
+
 // Serve static files from uploads directory with CORS headers enabled
 app.use('/uploads', express.static('uploads', {
   setHeaders: (res) => {
@@ -83,5 +88,9 @@ app.use('/api/auto-lists', autoListRoutes);
 app.get('/', (req, res) => {
   res.send('PubliCast API is running');
 });
+
+// Global Error Handler - Must be last
+const errorHandler = require('./middlewares/error-handler.middleware');
+app.use(errorHandler);
 
 module.exports = app;

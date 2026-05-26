@@ -1,4 +1,5 @@
 const prisma = require('../../config/prisma');
+const { SUBSCRIPTION_STATUS } = require('../../utils/constants');
 
 /**
  * Plan Repository - Data Access Layer
@@ -142,9 +143,9 @@ class PlanRepository {
 
     return {
       total: subscriptions.length,
-      active: subscriptions.filter(s => s.status === 'ACTIVE').length,
-      expired: subscriptions.filter(s => s.status === 'EXPIRED').length,
-      cancelled: subscriptions.filter(s => s.status === 'CANCELLED').length,
+      active: subscriptions.filter(s => s.status === SUBSCRIPTION_STATUS.ACTIVE).length,
+      expired: subscriptions.filter(s => s.status === SUBSCRIPTION_STATUS.EXPIRED).length,
+      cancelled: subscriptions.filter(s => s.status === SUBSCRIPTION_STATUS.CANCELLED).length,
       subscriptions
     };
   }

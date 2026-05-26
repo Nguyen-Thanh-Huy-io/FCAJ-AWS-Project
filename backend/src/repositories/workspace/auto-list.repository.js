@@ -18,6 +18,7 @@ class AutoListRepository {
       where: { id },
       include: {
         posts: {
+          where: { isDeleted: false },
           orderBy: { createdAt: 'asc' }
         }
       }
@@ -32,6 +33,13 @@ class AutoListRepository {
     return prisma.autoList.update({
       where: { id },
       data
+    });
+  }
+
+  async updateStats(id, stats) {
+    return prisma.autoList.update({
+      where: { id },
+      data: stats
     });
   }
 

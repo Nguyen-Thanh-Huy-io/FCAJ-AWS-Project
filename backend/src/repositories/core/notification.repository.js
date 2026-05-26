@@ -33,6 +33,10 @@ class NotificationRepository {
       data: { isRead: true }
     });
   }
+
+  async count(where) {
+    return prisma.systemNotification.count({ where });
+  }
 }
 
 module.exports = new NotificationRepository();

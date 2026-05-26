@@ -2,12 +2,12 @@ const bcrypt = require('bcryptjs');
 const userRepository = require('../../repositories/auth/user.repository');
 const otpService = require('./otp.service');
 const emailService = require('../core/email.service');
-const jwtUtils = require('../../utils/jwt.utils');
-const redisClient = require('../../config/redis');
+const tokenService = require('./token.service');
 const googleOAuthService = require('../social/google-oauth.service');
 const brandService = require('../workspace/brand.service');
-
+const { eventEmitter, EVENTS } = require('../../events/event-emitter');
 const { USER_STATUS, AUTH_PROVIDERS, ERROR_MESSAGES } = require('../../utils/constants');
+const redisClient = require('../../config/redis');
 
 const FORGOT_PASSWORD_OTP_PREFIX = 'forgot-otp';
 const FORGOT_PASSWORD_ATTEMPTS_PREFIX = 'forgot-otp-attempts';
@@ -17,11 +17,9 @@ const MAX_RESET_OTP_ATTEMPTS = 3;
 class AuthService {
   async register(name, email, password) {
     const normalizedEmail = email.toLowerCase();
-    console.log(`Starting registration for: ${normalizedEmail}`);
     
     const existingUser = await userRepository.findByEmail(normalizedEmail);
     if (existingUser) {
-      console.warn(`Registration failed: Email ${normalizedEmail} already exists`);
       const error = new Error(ERROR_MESSAGES.EMAIL_ALREADY_EXISTS);
       error.status = 409;
       throw error;
@@ -29,32 +27,17 @@ class AuthService {
 
     const passwordHash = await bcrypt.hash(password, 10);
     
-    console.log(`Creating user record for: ${normalizedEmail}`);
     // Create user with isEmailVerified = false (pending verification)
     const user = await userRepository.createUser(
       { name, email: normalizedEmail, isActive: false, isEmailVerified: false },
       { provider: AUTH_PROVIDERS.LOCAL, passwordHash }
     );
 
-    console.log(`User created with ID: ${user.id}. Creating default brand...`);
-    // Auto-create default brand
-    await brandService.createDefaultBrand(user.id);
-
     const otp = await otpService.generateOTP();
-    console.log(`Generated OTP for ${normalizedEmail}: ${otp}`);
-    
     await otpService.saveOTP(normalizedEmail, otp);
-    console.log(`Saved OTP to Redis for ${normalizedEmail}`);
-    
-    try {
-      await emailService.sendOTP(normalizedEmail, otp);
-      console.log(`OTP email sent successfully to ${normalizedEmail}`);
-    } catch (emailError) {
-      console.error(`Failed to send OTP email to ${normalizedEmail}:`, emailError);
-      // We don't throw here to avoid 500, but the user won't get the email
-      // Actually, maybe we SHOULD throw so the frontend knows it failed
-      throw new Error('Không thể gửi mã OTP. Vui lòng kiểm tra lại email hoặc thử lại sau.');
-    }
+
+    // Emit event for side-effects (Brand creation, Email sending)
+    eventEmitter.emit(EVENTS.USER.REGISTERED, { user, otp });
 
     return user;
   }
@@ -75,31 +58,11 @@ class AuthService {
       throw error;
     }
 
-    const user = await userRepository.updateStatus(normalizedEmail, 'ACTIVE', new Date());
+    const user = await userRepository.updateStatus(normalizedEmail, USER_STATUS.ACTIVE, new Date());
     await otpService.deleteOTP(normalizedEmail);
 
-    // Generate JWT tokens for auto-login
-    const accessToken = jwtUtils.generateAccessToken({
-      id: user.id,
-      email: user.email,
-      role: user.role
-    });
-
-    const refreshToken = jwtUtils.generateRefreshToken({
-      id: user.id
-    });
-
-    // Hash and save refresh token to Redis if available
-    const hashedRefreshToken = jwtUtils.hashRefreshToken(refreshToken);
-    if (redisClient.isOpen) {
-      await redisClient.setEx(
-        `refresh:${user.id}`,
-        jwtUtils.getRefreshTokenRedisExpiry(),
-        hashedRefreshToken
-      );
-    } else {
-      console.warn('Redis is not connected. Refresh token not persisted.');
-    }
+    // Generate JWT tokens for auto-login via TokenService
+    const { accessToken, refreshToken } = await tokenService.generateAndSaveTokens(user);
 
     return { 
       message: ERROR_MESSAGES.ACTIVATION_SUCCESS,
@@ -148,14 +111,7 @@ class AuthService {
     return { message: 'Mã OTP mới đã được gửi vào email của bạn' };
   }
 
-  /**
-   * Login user with email and password
-   * @param {string} email - user email
-   * @param {string} password - user password
-   * @returns {Promise<Object>} - { accessToken, refreshToken, role }
-   */
   async login(email, password) {
-    // Find user by email with password hash
     const user = await userRepository.findByEmailWithPassword(email);
 
     if (!user) {
@@ -164,7 +120,6 @@ class AuthService {
       throw error;
     }
 
-    // Check account status
     if (!user.isEmailVerified) {
       const error = new Error(ERROR_MESSAGES.ACCOUNT_NOT_ACTIVATED);
       error.status = 403;
@@ -177,7 +132,6 @@ class AuthService {
       throw error;
     }
 
-    // Verify password
     const isValidPassword = await bcrypt.compare(password, user.passwordHash);
     if (!isValidPassword) {
       const error = new Error(ERROR_MESSAGES.INVALID_PASSWORD);
@@ -185,31 +139,10 @@ class AuthService {
       throw error;
     }
 
-    // Update last login time
     await userRepository.updateProfile(user.id, { lastLoginAt: new Date() });
 
-    // Generate JWT tokens
-    const accessToken = jwtUtils.generateAccessToken({
-      id: user.id,
-      email: user.email,
-      role: user.role
-    });
-
-    const refreshToken = jwtUtils.generateRefreshToken({
-      id: user.id
-    });
-
-    // Hash and save refresh token to Redis if available
-    const hashedRefreshToken = jwtUtils.hashRefreshToken(refreshToken);
-    if (redisClient.isOpen) {
-      await redisClient.setEx(
-        `refresh:${user.id}`,
-        jwtUtils.getRefreshTokenRedisExpiry(),
-        hashedRefreshToken
-      );
-    } else {
-      console.warn('Redis is not connected. Refresh token not persisted.');
-    }
+    // Generate JWT tokens via TokenService
+    const { accessToken, refreshToken } = await tokenService.generateAndSaveTokens(user);
 
     return {
       accessToken,
@@ -224,53 +157,28 @@ class AuthService {
     };
   }
 
-  /**
-   * Refresh access token
-   * @param {string} refreshToken - refresh token from cookie/request
-   * @param {string} userId - user ID from token
-   * @returns {Promise<Object>} - { accessToken, refreshToken }
-   */
   async refreshTokens(refreshToken, userId) {
     try {
-      // Verify refresh token signature
+      const jwtUtils = require('../../utils/jwt.utils');
       const decoded = jwtUtils.verifyRefreshToken(refreshToken);
 
       if (decoded.id !== userId) {
         throw new Error('Token user mismatch');
       }
 
-      // Check refresh token in Redis
-      const storedHash = await redisClient.get(`refresh:${userId}`);
-      const tokenHash = jwtUtils.hashRefreshToken(refreshToken);
-
-      if (!storedHash || storedHash !== tokenHash) {
+      // Check refresh token in Redis via TokenService
+      const isValid = await tokenService.verifyRefreshTokenInRedis(userId, refreshToken);
+      if (!isValid) {
         throw new Error('Refresh token not found or invalid');
       }
 
-      // Get user data
       const user = await userRepository.findById(userId);
       if (!user || !user.isActive) {
         throw new Error('User not found or inactive');
       }
 
-      // Generate new tokens
-      const newAccessToken = jwtUtils.generateAccessToken({
-        id: user.id,
-        email: user.email,
-        role: user.role
-      });
-
-      const newRefreshToken = jwtUtils.generateRefreshToken({
-        id: user.id
-      });
-
-      // Update refresh token in Redis (rotation)
-      const newTokenHash = jwtUtils.hashRefreshToken(newRefreshToken);
-      await redisClient.setEx(
-        `refresh:${userId}`,
-        jwtUtils.getRefreshTokenRedisExpiry(),
-        newTokenHash
-      );
+      // Generate new tokens via TokenService
+      const { accessToken: newAccessToken, refreshToken: newRefreshToken } = await tokenService.generateAndSaveTokens(user);
 
       return {
         accessToken: newAccessToken,
@@ -283,12 +191,8 @@ class AuthService {
     }
   }
 
-  /**
-   * Logout user - delete refresh token
-   * @param {string} userId - user ID
-   */
   async logout(userId) {
-    await redisClient.del(`refresh:${userId}`);
+    await tokenService.clearTokens(userId);
     return { message: 'Logout successful' };
   }
 
@@ -322,35 +226,13 @@ class AuthService {
     const result = await userRepository.upsertSocialUser(userData, accountData);
     const user = result.user;
 
-    // Auto-create default brand if missing
     const brands = await brandService.getUserBrands(user.id);
     if (brands.length === 0) {
-      console.log(`Google user ${user.id} has no brands. Creating default 'Empty brand'...`);
       await brandService.createDefaultBrand(user.id);
     }
 
-    // Generate JWT tokens
-    const accessToken = jwtUtils.generateAccessToken({
-      id: user.id,
-      email: user.email,
-      role: user.role
-    });
-
-    const refreshToken = jwtUtils.generateRefreshToken({
-      id: user.id
-    });
-
-    // Hash and save refresh token to Redis if available
-    const hashedRefreshToken = jwtUtils.hashRefreshToken(refreshToken);
-    if (redisClient.isOpen) {
-      await redisClient.setEx(
-        `refresh:${user.id}`,
-        jwtUtils.getRefreshTokenRedisExpiry(),
-        hashedRefreshToken
-      );
-    } else {
-      console.warn('Redis is not connected. Refresh token not persisted.');
-    }
+    // Generate JWT tokens via TokenService
+    const { accessToken, refreshToken } = await tokenService.generateAndSaveTokens(user);
 
     return {
       accessToken,
@@ -364,10 +246,6 @@ class AuthService {
     };
   }
 
-  /**
-   * Request forgot password OTP.
-   * Always returns a generic success message to avoid leaking registered emails.
-   */
   async forgotPassword(email) {
     const normalizedEmail = email.toLowerCase();
     const user = await userRepository.findByEmailWithPassword(normalizedEmail);
@@ -386,9 +264,6 @@ class AuthService {
     return { message: ERROR_MESSAGES.FORGOT_PASSWORD_OTP_SENT };
   }
 
-  /**
-   * Verify forgot password OTP and update the LOCAL account password.
-   */
   async resetPassword(email, otp, newPassword) {
     const normalizedEmail = email.toLowerCase();
     const otpKey = `${FORGOT_PASSWORD_OTP_PREFIX}:${normalizedEmail}`;
@@ -450,7 +325,7 @@ class AuthService {
     await Promise.all([
       redisClient.del(otpKey),
       redisClient.del(attemptsKey),
-      redisClient.del(`refresh:${user.id}`)
+      tokenService.clearTokens(user.id)
     ]);
 
     return { message: ERROR_MESSAGES.RESET_PASSWORD_SUCCESS };

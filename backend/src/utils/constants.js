@@ -87,6 +87,223 @@ const ERROR_MESSAGES = {
   USER_NOT_FOUND: 'User not found'
 };
 
+const AUTOLIST_TYPES = {
+  SOURCE: {
+    MANUAL: 'MANUAL',
+    RSS: 'RSS',
+    DRIVE: 'DRIVE'
+  },
+  SCHEDULE: {
+    INTERVAL: 'INTERVAL',
+    SPECIFIC: 'SPECIFIC'
+  }
+};
+
+const SEPARATORS = {
+  COMMA: ','
+};
+
+const BILLING_CYCLES = {
+  MONTHLY: 'MONTHLY',
+  ANNUAL: 'ANNUAL'
+};
+
+const SUBSCRIPTION_STATUS = {
+  ACTIVE: 'ACTIVE',
+  EXPIRED: 'EXPIRED',
+  CANCELLED: 'CANCELLED'
+};
+
+const INVOICE_STATUS = {
+  PAID: 'PAID',
+  UNPAID: 'UNPAID'
+};
+
+const POST_TYPES = {
+  VIDEO: 'VIDEO',
+  IMAGE: 'IMAGE',
+  CAROUSEL: 'CAROUSEL',
+  REEL: 'REEL',
+  STORY: 'STORY',
+  TEXT: 'TEXT',
+  SHORT: 'SHORT'
+};
+
+const SYSTEM_PLANS = {
+  FREE: 'FREE',
+  BASIC: 'BASIC',
+  PRO: 'PRO',
+  BUSINESS: 'BUSINESS'
+};
+
+const ANALYTICS = {
+  GRANULARITY: {
+    DAILY: 'DAILY',
+    WEEKLY: 'WEEKLY',
+    MONTHLY: 'MONTHLY'
+  },
+  TYPES: {
+    YOUTUBE_DETAILED: 'YOUTUBE_DETAILED',
+    FACEBOOK_DETAILED: 'FACEBOOK_DETAILED'
+  },
+  METRICS: {
+    FACEBOOK: {
+      VIEWS: 'page_views_total',
+      IMPRESSIONS: 'page_impressions_unique',
+      FOLLOWS: 'page_daily_follows_unique',
+      ENGAGEMENTS: 'page_post_engagements',
+      ACTIONS: 'page_total_actions',
+      POST_REACH: 'post_impressions_unique',
+      POST_VIEWS: 'post_impressions',
+      POST_CLICKS: 'post_clicks_by_type'
+    },
+    YOUTUBE: {
+      VIEWS: 'views',
+      MINUTES_WATCHED: 'estimatedMinutesWatched',
+      SUBSCRIBERS_GAINED: 'subscribersGained',
+      SUBSCRIBERS_LOST: 'subscribersLost',
+      VIEWER_PERCENTAGE: 'viewerPercentage'
+    }
+  },
+  DIMENSIONS: {
+    YOUTUBE: {
+      TRAFFIC_SOURCE: 'insightTrafficSourceType',
+      COUNTRY: 'country',
+      DAY: 'day',
+      AGE_GROUP: 'ageGroup',
+      GENDER: 'gender',
+      VIDEO: 'video'
+    }
+  },
+  SORT: {
+    YOUTUBE: {
+      VIEWS_DESC: '-views',
+      DAY_ASC: 'day'
+    }
+  }
+};
+
+const SOCIAL_TECHNICAL = {
+  FB_ATTACHMENT: {
+    ALBUM: 'album',
+    VIDEO: 'video',
+    VIDEO_INLINE: 'video_inline',
+    PHOTO: 'photo',
+    STATUS: 'status'
+  },
+  ATTACHMENT_TYPES: {
+    VIDEO: 'video',
+    IMAGE: 'image',
+    PHOTO: 'photo'
+  },
+  YOUTUBE_RESOURCE: {
+    VIDEO: 'video',
+    CHANNEL: 'channel',
+    PLAYLIST: 'playlist'
+  },
+  YOUTUBE_PART: {
+    SNIPPET: 'snippet',
+    STATISTICS: 'statistics',
+    CONTENT_DETAILS: 'contentDetails',
+    STATUS: 'status',
+    REPLIES: 'replies'
+  },
+  INBOX_LABELS: {
+    ME: 'me',
+    THEM: 'them'
+  }
+};
+
+const YOUTUBE_PRIVACY = {
+  PRIVATE: 'private',
+  PUBLIC: 'public',
+  UNLISTED: 'unlisted'
+};
+
+const YOUTUBE_CATEGORIES = {
+  PEOPLE_BLOGS: '22',
+  ENTERTAINMENT: '24',
+  EDUCATION: '27',
+  SCIENCE_TECH: '28',
+  GAMING: '20'
+};
+
+const NOTIFICATION_TYPES = {
+  STREAM: 'stream',
+  CONTENT: 'content',
+  TEAM: 'team',
+  PLATFORM: 'platform',
+  SYSTEM: 'system'
+};
+
+const DEFAULT_CONFIG = {
+  LOCALE: 'vi-VN',
+  TIMEZONE: 'Asia/Ho_Chi_Minh',
+  LANGUAGE: 'vi',
+  TIME: '12:00',
+  CURRENCY: 'USD',
+  UNTITLED_POST: 'Untitled Post',
+  NO_CONTENT: 'No content'
+};
+
+const API_VERSIONS = {
+  FACEBOOK: 'v25.0',
+  YOUTUBE: 'v3',
+  YOUTUBE_ANALYTICS: 'v2'
+};
+
+const MEDIA_EXTENSIONS = {
+  VIDEO: ['.mp4', '.mov', '.avi', '.mkv', '.webm'],
+  IMAGE: ['.jpg', '.jpeg', '.png', '.gif', '.webp']
+};
+
+const AUDIT_CONFIG = {
+  SYSTEM_ACTOR: 'System',
+  ROOT_ROLE: 'Root',
+  DEFAULT_STATUS: 'success'
+};
+
+const WORKSPACE_DEFAULTS = {
+  BRAND_NAME: 'New Workspace',
+  DEFAULT_TIME: '12:00',
+  UNTITLED: 'Untitled',
+  FB_POST_FALLBACK: 'Facebook Post',
+  YT_POST_FALLBACK: 'New YouTube Post'
+};
+
+const SYSTEM_LABELS = {
+  ALL: 'All',
+  ALL_PLATFORMS: 'All Platforms',
+  ALL_STATUSES: 'All Statuses',
+  SYSTEM: 'System',
+  UNKNOWN: 'Unknown',
+  NEW: 'New',
+  RENEWAL: 'Renewal'
+};
+
+const SEARCH_PATHS = {
+  ADMIN_AUDIT: '/admin/audit',
+  DASHBOARD: '/dashboard',
+  SETTINGS: '/settings'
+};
+
+const NOTIFICATION_LABELS = {
+  ACTION: {
+    MONITOR: 'Monitor',
+    REVIEW: 'Review',
+    RECONNECT: 'Reconnect',
+    VIEW_TEAM: 'View Team',
+    MANAGE: 'Manage',
+    VIEW: 'View'
+  },
+  TIME: {
+    JUST_NOW: 'Just now',
+    MIN_AGO: 'min ago',
+    HOUR_AGO: 'h ago',
+    DAY_AGO: 'd ago'
+  }
+};
+
 module.exports = {
   PLATFORMS,
   USER_ROLES,
@@ -95,5 +312,25 @@ module.exports = {
   INBOX_STATUS,
   INBOX_TYPES,
   POST_STATUS,
-  ERROR_MESSAGES
+  ERROR_MESSAGES,
+  AUTOLIST_TYPES,
+  SEPARATORS,
+  BILLING_CYCLES,
+  SUBSCRIPTION_STATUS,
+  INVOICE_STATUS,
+  ANALYTICS,
+  POST_TYPES,
+  SYSTEM_PLANS,
+  YOUTUBE_PRIVACY,
+  YOUTUBE_CATEGORIES,
+  NOTIFICATION_TYPES,
+  DEFAULT_CONFIG,
+  API_VERSIONS,
+  MEDIA_EXTENSIONS,
+  AUDIT_CONFIG,
+  SOCIAL_TECHNICAL,
+  WORKSPACE_DEFAULTS,
+  SYSTEM_LABELS,
+  SEARCH_PATHS,
+  NOTIFICATION_LABELS
 };

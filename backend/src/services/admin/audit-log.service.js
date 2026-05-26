@@ -1,109 +1,67 @@
 const auditLogRepository = require('../../repositories/admin/audit-log.repository');
+const QueryPipeline = require('../../core/query-pipeline/query.pipeline');
+const AuditLogSearchFilter = require('./audit-log/filters/search.filter');
+const AuditLogCategoryFilter = require('./audit-log/filters/category.filter');
+const AuditLogStatusFilter = require('./audit-log/filters/status.filter');
+const AuditLogDateRangeFilter = require('./audit-log/filters/date-range.filter');
+const { DEFAULT_CONFIG, AUDIT_CONFIG } = require('../../utils/constants');
 
 const ALLOWED_SORT_FIELDS = ['createdAt', 'action', 'targetType'];
 const ALLOWED_SORT_ORDERS = ['asc', 'desc'];
 
 class AuditLogService {
+  constructor() {
+    this.queryPipeline = new QueryPipeline([
+      new AuditLogSearchFilter(),
+      new AuditLogCategoryFilter(),
+      new AuditLogStatusFilter(),
+      new AuditLogDateRangeFilter()
+    ]);
+  }
+
   /**
    * Get filtered audit logs with pagination metadata
-   * @param {Object} queryParams - Raw query parameters
-   * @returns {Promise<Object>} { data, meta }
    */
   async getAuditLogs(queryParams) {
-    const {
-      search,
-      category, // maps to targetType (e.g. Content, Team, Security, Billing, Data, Stream)
-      status,
-      startDate,
-      endDate,
-      page = 1,
-      limit = 5, // Default matching UI limit
-      sortBy = 'createdAt',
-      sortOrder = 'desc'
-    } = queryParams;
+    const { page = 1, limit = 5, sortBy = 'createdAt', sortOrder = 'desc' } = queryParams;
+    const { skip, take } = this._getPagination(page, limit);
+    const order = this._getSortOrder(sortBy, sortOrder);
 
-    // 1. Sanitize & Validate Pagination
+    const where = this.queryPipeline.apply({}, queryParams);
+    const { logs, total } = await auditLogRepository.findManyAndCount(where, { skip, take, orderBy: order });
+
+    return {
+      data: logs.map(log => this._formatAuditLog(log)),
+      meta: { total, page: Math.max(1, parseInt(page) || 1), limit: take, totalPages: Math.ceil(total / take) }
+    };
+  }
+
+  // ============= Private Helper Methods =============
+
+  _getPagination(page, limit) {
     const safePage = Math.max(1, parseInt(page) || 1);
-    // Enforce safeLimit >= 1 to prevent take: 0 in Prisma which returns an empty array
     const safeLimit = Math.min(100, Math.max(1, parseInt(limit) || 5));
-    const skip = (safePage - 1) * safeLimit;
+    return { skip: (safePage - 1) * safeLimit, take: safeLimit };
+  }
 
-    // 2. Validate Sorting
+  _getSortOrder(sortBy, sortOrder) {
     const safeSortBy = ALLOWED_SORT_FIELDS.includes(sortBy) ? sortBy : 'createdAt';
     const safeSortOrder = ALLOWED_SORT_ORDERS.includes(sortOrder) ? sortOrder : 'desc';
+    return { [safeSortBy]: safeSortOrder };
+  }
 
-    // 3. Build Dynamic Where Conditions
-    const where = {};
-
-    // Text search (Action, IP, target ID, user name)
-    if (search && search.trim()) {
-      const searchKey = search.trim();
-      where.OR = [
-        { action: { contains: searchKey } },
-        { ipAddress: { contains: searchKey } },
-        { targetId: { contains: searchKey } },
-        { user: { name: { contains: searchKey } } }
-      ];
-    }
-
-    // Category / TargetType / Action Prefix filter
-    if (category && category !== 'All') {
-      if (category.startsWith('AUTH_') || category.startsWith('PLAN_')) {
-        where.action = { startsWith: category };
-      } else {
-        where.targetType = category;
-      }
-    }
-
-    // Status filter (e.g. success, failed, matched with details status)
-    if (status && status !== 'All') {
-      where.details = { contains: status };
-    }
-
-    // Date range filter
-    if (startDate || endDate) {
-      where.createdAt = {};
-      if (startDate) {
-        const start = new Date(startDate);
-        if (!isNaN(start.getTime())) {
-          where.createdAt.gte = start;
-        }
-      }
-      if (endDate) {
-        const end = new Date(endDate);
-        if (!isNaN(end.getTime())) {
-          where.createdAt.lte = end;
-        }
-      }
-    }
-
-    // 4. Fetch logs and count
-    const { logs, total } = await auditLogRepository.findManyAndCount(where, {
-      skip,
-      take: safeLimit,
-      orderBy: { [safeSortBy]: safeSortOrder }
-    });
-
-    // 5. Format response with pagination metadata
+  _formatAuditLog(log) {
     return {
-      data: logs.map(log => ({
-        id: log.id,
-        createdAt: log.createdAt,
-        actor: log.user?.name || 'System',
-        role: log.user?.role || 'Root',
-        action: log.action,
-        category: log.targetType,
-        target: log.targetId || '—',
-        ip: log.ipAddress || '—',
-        status: log.details || 'success',
-        time: new Date(log.createdAt).toLocaleTimeString('vi-VN', { hour12: false })
-      })),
-      meta: {
-        total,
-        page: safePage,
-        limit: safeLimit,
-        totalPages: Math.ceil(total / safeLimit)
-      }
+      id: log.id,
+      createdAt: log.createdAt,
+      actor: log.user?.name || AUDIT_CONFIG.SYSTEM_ACTOR,
+      role: log.user?.role || AUDIT_CONFIG.ROOT_ROLE,
+      action: log.action,
+      category: log.targetType,
+      target: log.targetId || '—',
+      ip: log.ipAddress || '—',
+      status: log.details || AUDIT_CONFIG.DEFAULT_STATUS,
+      time: new Date(log.createdAt).toLocaleTimeString(DEFAULT_CONFIG.LOCALE, { hour12: false })
     };
   }
 }

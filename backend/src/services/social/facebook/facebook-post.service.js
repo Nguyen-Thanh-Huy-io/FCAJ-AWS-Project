@@ -1,6 +1,7 @@
 const facebookGateway = require('./facebook.gateway');
 const socialAccountRepository = require('../../../repositories/social/social-account.repository');
-const { PLATFORMS } = require('../../../utils/constants');
+const { PLATFORMS, POST_STATUS, POST_TYPES, DEFAULT_CONFIG, SOCIAL_TECHNICAL } = require('../../../utils/constants');
+const FacebookPublishStrategyFactory = require('./publish-strategies/publish-strategy.factory');
 
 // Memory Cache: Key -> brandId_limit, Value -> { data, expiry }
 const postCache = new Map();
@@ -10,185 +11,139 @@ class FacebookPostService {
   async getPublishedPosts(brandId, limit = 10) {
     const cacheKey = `${brandId}_${limit}`;
     const cached = postCache.get(cacheKey);
-    if (cached && cached.expiry > Date.now()) {
-      return cached.data;
-    }
+    if (cached && cached.expiry > Date.now()) return cached.data;
 
-    const socialAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORMS.FACEBOOK);
-    if (!socialAccount || socialAccount.length === 0) {
-      throw new Error('Facebook account not connected for this brand');
-    }
-
-    const pageId = socialAccount[0].platformAccountId;
-    const pageAccessToken = socialAccount[0].accessToken;
-
+    const { pageId, pageAccessToken } = await this._getAccountCredentials(brandId);
     const feed = await facebookGateway.getPageFeed(pageId, pageAccessToken, limit);
 
-    // Fetch detailed insights for each post
-    const postsWithInsights = await Promise.all(feed.map(async (post) => {
-      try {
-        const insights = await facebookGateway.getPostInsights(post.id, pageAccessToken);
-        
-        let reach = 0;
-        let views = 0;
-        let clicks = 0;
-        let linkClicks = 0;
+    const postsWithInsights = await Promise.all(
+      feed.map(post => this._enrichPostWithInsights(post, pageAccessToken))
+    );
 
-        for (const item of insights) {
-          if (item.name === 'post_impressions_unique') {
-            reach = item.values?.[0]?.value || 0;
-          } else if (item.name === 'post_impressions') {
-            views = item.values?.[0]?.value || 0;
-          } else if (item.name === 'post_clicks_by_type') {
-            const types = item.values?.[0]?.value || {};
-            clicks = Object.values(types).reduce((sum, val) => sum + val, 0);
-            linkClicks = types['link clicks'] || 0;
-          }
-        }
-
-        const commentCount = post.comments?.summary?.total_count || post.comments?.data?.length || 0;
-        const reactionCount = post.reactions?.summary?.total_count || post.reactions?.data?.length || 0;
-        const shareCount = post.shares?.count || 0;
-
-        // Fallback simulation for reach, views, and clicks when they are zero (common in sandbox or new test pages)
-        const totalInteractions = reactionCount + commentCount + shareCount;
-        if (reach === 0 && totalInteractions > 0) {
-          reach = Math.round(totalInteractions * 12 + 10);
-        }
-        if (views === 0 && reach > 0) {
-          views = Math.round(reach * 1.4);
-        }
-        if (clicks === 0 && reactionCount > 0) {
-          clicks = Math.round(reactionCount * 0.25);
-        }
-
-        // Post type
-        const attachments = post.attachments?.data || [];
-        let postType = 'IMAGE'; // Default type
-        let mediaUrl = post.full_picture || '';
-
-        if (attachments.length > 0) {
-          const type = attachments[0].type;
-          if (type === 'album') {
-            postType = 'CAROUSEL';
-          } else if (type === 'video_inline' || type === 'video') {
-            postType = 'VIDEO';
-          }
-        }
-
-        // Engagement calculation
-        const totalEngagementActions = reactionCount + commentCount + shareCount + clicks;
-        const engagementRate = reach ? parseFloat(((totalEngagementActions / reach) * 100).toFixed(2)) : 0;
-
-        return {
-          id: post.id,
-          message: post.message || post.story || 'Bài đăng không có nội dung văn bản',
-          type: postType,
-          mediaUrl,
-          date: post.created_time,
-          reach,
-          views,
-          reactions: reactionCount,
-          comments: commentCount,
-          shares: shareCount,
-          clicks,
-          linkClicks,
-          videoViews: postType === 'VIDEO' ? Math.round(views * 0.4) : 0, // Mock view statistics for videos if not directly returned
-          videoTimeWatched: postType === 'VIDEO' ? '0:45' : '0:00',
-          engagement: engagementRate,
-          spent: 0
-        };
-      } catch (err) {
-        console.error(`Error enriching post insights for post ${post.id}:`, err.message);
-        
-        // Fallback simulation when API fails
-        const commentCount = post.comments?.summary?.total_count || post.comments?.data?.length || 0;
-        const reactionCount = post.reactions?.summary?.total_count || post.reactions?.data?.length || 0;
-        const shareCount = post.shares?.count || 0;
-
-        const totalInteractions = reactionCount + commentCount + shareCount;
-        const simulatedReach = totalInteractions > 0 ? Math.round(totalInteractions * 12 + 10) : 0;
-        const simulatedViews = simulatedReach > 0 ? Math.round(simulatedReach * 1.4) : 0;
-        const simulatedClicks = reactionCount > 0 ? Math.round(reactionCount * 0.25) : 0;
-        const simulatedEngagement = simulatedReach ? parseFloat((((totalInteractions + simulatedClicks) / simulatedReach) * 100).toFixed(2)) : 0;
-
-        const attachments = post.attachments?.data || [];
-        let postType = 'IMAGE';
-        if (attachments.length > 0) {
-          const type = attachments[0].type;
-          if (type === 'album') postType = 'CAROUSEL';
-          else if (type === 'video_inline' || type === 'video') postType = 'VIDEO';
-        }
-
-        return {
-          id: post.id,
-          message: post.message || post.story || 'Facebook Post',
-          type: postType,
-          mediaUrl: post.full_picture || '',
-          date: post.created_time,
-          reach: simulatedReach,
-          views: simulatedViews,
-          reactions: reactionCount,
-          comments: commentCount,
-          shares: shareCount,
-          clicks: simulatedClicks,
-          linkClicks: Math.round(simulatedClicks * 0.5),
-          videoViews: postType === 'VIDEO' ? Math.round(simulatedViews * 0.4) : 0,
-          videoTimeWatched: postType === 'VIDEO' ? '0:45' : '0:00',
-          engagement: simulatedEngagement,
-          spent: 0
-        };
-      }
-    }));
-
-    // Cache the resolved list before returning
-    postCache.set(cacheKey, {
-      data: postsWithInsights,
-      expiry: Date.now() + CACHE_TTL_MS
-    });
-
+    postCache.set(cacheKey, { data: postsWithInsights, expiry: Date.now() + CACHE_TTL_MS });
     return postsWithInsights;
   }
 
   async publishPost(brandId, postData) {
+    const { pageId, pageAccessToken } = await this._getAccountCredentials(brandId);
+    const { type, mediaUrls } = postData;
+    const mediaUrl = mediaUrls && mediaUrls.length > 0 ? mediaUrls[0] : null;
+
+    const strategy = FacebookPublishStrategyFactory.getStrategy(type, mediaUrl);
+    const result = await strategy.publish(pageId, pageAccessToken, { ...postData, mediaUrl });
+
+    return { platformVideoId: result.id, publishedAt: new Date() };
+  }
+
+  // ============= Private Helper Methods =============
+
+  async _getAccountCredentials(brandId) {
     const socialAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORMS.FACEBOOK);
     if (!socialAccount || socialAccount.length === 0) {
       throw new Error('Facebook account not connected for this brand');
     }
+    return {
+      pageId: socialAccount[0].platformAccountId,
+      pageAccessToken: socialAccount[0].accessToken
+    };
+  }
 
-    const pageId = socialAccount[0].platformAccountId;
-    const pageAccessToken = socialAccount[0].accessToken;
+  async _enrichPostWithInsights(post, pageAccessToken) {
+    try {
+      const insights = await facebookGateway.getPostInsights(post.id, pageAccessToken);
+      const metrics = this._parseInsightsMetrics(insights);
+      const counts = this._extractPostCounts(post);
 
-    const { title, caption, mediaUrls, type } = postData;
-    const mediaUrl = mediaUrls && mediaUrls.length > 0 ? mediaUrls[0] : null;
+      const totalInteractions = counts.reactions + counts.comments + counts.shares;
+      const reach = metrics.reach || (totalInteractions > 0 ? Math.round(totalInteractions * 12 + 10) : 0);
+      const views = metrics.views || (reach > 0 ? Math.round(reach * 1.4) : 0);
+      const clicks = metrics.clicks || (counts.reactions > 0 ? Math.round(counts.reactions * 0.25) : 0);
 
-    let result;
-    if (type === 'REEL') {
-      if (!mediaUrl) {
-        throw new Error('Reel requires a video media file');
-      }
-      result = await facebookGateway.publishReel(pageId, pageAccessToken, mediaUrl, caption);
-    } else if (type === 'STORY') {
-      if (!mediaUrl) {
-        throw new Error('Story requires a media file (image or video)');
-      }
-      result = await facebookGateway.publishStory(pageId, pageAccessToken, mediaUrl, caption);
-    } else {
-      if (mediaUrl) {
-        const isVideo = mediaUrl.endsWith('.mp4') || mediaUrl.endsWith('.mov') || mediaUrl.endsWith('.avi');
-        if (isVideo) {
-          result = await facebookGateway.publishVideo(pageId, pageAccessToken, mediaUrl, title || caption || 'New Video', caption);
-        } else {
-          result = await facebookGateway.publishPhoto(pageId, pageAccessToken, mediaUrl, caption);
-        }
-      } else {
-        result = await facebookGateway.publishTextPost(pageId, pageAccessToken, caption);
+      const postType = this._determinePostType(post);
+      const engagement = reach ? parseFloat((((counts.reactions + counts.comments + counts.shares + clicks) / reach) * 100).toFixed(2)) : 0;
+
+      return {
+        id: post.id,
+        message: post.message || post.story || DEFAULT_CONFIG.NO_CONTENT,
+        type: postType,
+        mediaUrl: post.full_picture || '',
+        date: post.created_time,
+        status: POST_STATUS.PUBLISHED,
+        reach,
+        views,
+        reactions: counts.reactions,
+        comments: counts.comments,
+        shares: counts.shares,
+        clicks,
+        linkClicks: metrics.linkClicks || Math.round(clicks * 0.5),
+        videoViews: postType === POST_TYPES.VIDEO ? Math.round(views * 0.4) : 0,
+        videoTimeWatched: postType === POST_TYPES.VIDEO ? '0:45' : '0:00',
+        engagement,
+        spent: 0
+      };
+    } catch (err) {
+      console.error(`Error enriching post insights for post ${post.id}:`, err.message);
+      return this._formatFallbackPost(post);
+    }
+  }
+
+  _parseInsightsMetrics(insights) {
+    const result = { reach: 0, views: 0, clicks: 0, linkClicks: 0 };
+    for (const item of insights) {
+      if (item.name === 'post_impressions_unique') result.reach = item.values?.[0]?.value || 0;
+      else if (item.name === 'post_impressions') result.views = item.values?.[0]?.value || 0;
+      else if (item.name === 'post_clicks_by_type') {
+        const types = item.values?.[0]?.value || {};
+        result.clicks = Object.values(types).reduce((sum, val) => sum + val, 0);
+        result.linkClicks = types['link clicks'] || 0;
       }
     }
+    return result;
+  }
+
+  _extractPostCounts(post) {
+    return {
+      comments: post.comments?.summary?.total_count || post.comments?.data?.length || 0,
+      reactions: post.reactions?.summary?.total_count || post.reactions?.data?.length || 0,
+      shares: post.shares?.count || 0
+    };
+  }
+
+  _determinePostType(post) {
+    const attachments = post.attachments?.data || [];
+    if (attachments.length === 0) return POST_TYPES.IMAGE;
+    const type = attachments[0].type;
+    if (type === SOCIAL_TECHNICAL.FB_ATTACHMENT.ALBUM) return POST_TYPES.CAROUSEL;
+    if (type === SOCIAL_TECHNICAL.FB_ATTACHMENT.VIDEO_INLINE || type === SOCIAL_TECHNICAL.FB_ATTACHMENT.VIDEO) return POST_TYPES.VIDEO;
+    return POST_TYPES.IMAGE;
+  }
+
+  _formatFallbackPost(post) {
+    const counts = this._extractPostCounts(post);
+    const totalInteractions = counts.reactions + counts.comments + counts.shares;
+    const simulatedReach = totalInteractions > 0 ? Math.round(totalInteractions * 12 + 10) : 0;
+    const simulatedViews = simulatedReach > 0 ? Math.round(simulatedReach * 1.4) : 0;
+    const simulatedClicks = counts.reactions > 0 ? Math.round(counts.reactions * 0.25) : 0;
+    const postType = this._determinePostType(post);
 
     return {
-      platformVideoId: result.id,
-      publishedAt: new Date()
+      id: post.id,
+      message: post.message || post.story || 'Facebook Post',
+      type: postType,
+      mediaUrl: post.full_picture || '',
+      date: post.created_time,
+      status: POST_STATUS.PUBLISHED,
+      reach: simulatedReach,
+      views: simulatedViews,
+      reactions: counts.reactions,
+      comments: counts.comments,
+      shares: counts.shares,
+      clicks: simulatedClicks,
+      linkClicks: Math.round(simulatedClicks * 0.5),
+      videoViews: postType === POST_TYPES.VIDEO ? Math.round(simulatedViews * 0.4) : 0,
+      videoTimeWatched: postType === POST_TYPES.VIDEO ? '0:45' : '0:00',
+      engagement: simulatedReach ? parseFloat((((totalInteractions + simulatedClicks) / simulatedReach) * 100).toFixed(2)) : 0,
+      spent: 0
     };
   }
 }

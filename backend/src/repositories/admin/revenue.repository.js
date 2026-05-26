@@ -1,4 +1,5 @@
 const prisma = require('../../config/prisma');
+const { SUBSCRIPTION_STATUS } = require('../../utils/constants');
 
 class RevenueRepository {
   /**
@@ -7,7 +8,7 @@ class RevenueRepository {
   async getSubscriptionCounts() {
     const activeSubs = await prisma.subscription.groupBy({
       by: ['planId'],
-      where: { status: 'ACTIVE' },
+      where: { status: SUBSCRIPTION_STATUS.ACTIVE },
       _count: { _all: true }
     });
     return activeSubs;
@@ -42,7 +43,7 @@ class RevenueRepository {
    */
   async getActiveSubscriptionRevenue() {
     return await prisma.subscription.findMany({
-      where: { status: 'ACTIVE' },
+      where: { status: SUBSCRIPTION_STATUS.ACTIVE },
       include: {
         plan: {
           select: { priceAmount: true, billingCycle: true }

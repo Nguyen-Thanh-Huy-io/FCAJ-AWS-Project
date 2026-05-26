@@ -7,6 +7,16 @@ class PostRepository {
    * @param {Object} options - { skip, take, orderBy }
    * @returns {Promise<Object>} { posts, total }
    */
+  async findMany(where, options = {}) {
+    const { skip, take, orderBy } = options;
+    return prisma.post.findMany({
+      where,
+      skip,
+      take,
+      orderBy
+    });
+  }
+
   async findManyAndCount(where, options = {}) {
     const { skip = 0, take = 10, orderBy = { createdAt: 'desc' } } = options;
 
@@ -101,6 +111,13 @@ class PostRepository {
   async updateMany(where, data) {
     return prisma.post.updateMany({
       where,
+      data
+    });
+  }
+
+  async updateManyByIds(ids, data) {
+    return prisma.post.updateMany({
+      where: { id: { in: ids } },
       data
     });
   }

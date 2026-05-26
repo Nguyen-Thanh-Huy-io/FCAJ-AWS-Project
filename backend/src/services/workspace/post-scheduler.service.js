@@ -1,4 +1,4 @@
-const prisma = require('../../config/prisma');
+const postRepository = require('../../repositories/workspace/post.repository');
 const redisClient = require('../../config/redis');
 const postService = require('./post.service');
 const { POST_STATUS } = require('../../utils/constants');
@@ -58,13 +58,12 @@ class PostSchedulerService {
    */
   async checkAndPublishScheduledPosts() {
     // 1. Find all SCHEDULED posts due for publishing
-    const posts = await prisma.post.findMany({
-      where: {
-        status: POST_STATUS.SCHEDULED,
-        scheduledAt: {
-          lte: new Date()
-        }
-      },
+    const posts = await postRepository.findMany({
+      status: POST_STATUS.SCHEDULED,
+      scheduledAt: {
+        lte: new Date()
+      }
+    }, {
       orderBy: {
         scheduledAt: 'asc'
       }
@@ -113,12 +112,9 @@ class PostSchedulerService {
       
       // Update status in case it didn't get updated inside publishToPlatforms
       try {
-        await prisma.post.update({
-          where: { id: post.id },
-          data: {
-            status: POST_STATUS.FAILED,
-            failureReason: err.message
-          }
+        await postRepository.update(post.id, {
+          status: POST_STATUS.FAILED,
+          failureReason: err.message
         });
       } catch (dbErr) {
         console.error(`Failed to update error status for post ${post.id}:`, dbErr.message);
@@ -137,3 +133,4 @@ class PostSchedulerService {
 }
 
 module.exports = new PostSchedulerService();
+

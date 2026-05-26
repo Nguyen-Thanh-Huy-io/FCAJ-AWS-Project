@@ -2,47 +2,23 @@ const youtubeGateway = require('./youtube.gateway');
 const googleOAuthService = require('../google-oauth.service');
 const socialAccountRepository = require('../../../repositories/social/social-account.repository');
 const trackedVideoRepository = require('../../../repositories/social/tracked-video.repository');
-const { PLATFORMS } = require('../../../utils/constants');
+const { PLATFORMS, POST_STATUS, SEPARATORS } = require('../../../utils/constants');
 
 class YouTubeVideoService {
   async getPublishedVideos(brandId, pageToken = null, limit = 10) {
-    const socialAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORMS.YOUTUBE);
-    if (!socialAccount || socialAccount.length === 0) throw new Error('YouTube account not connected');
-
-    const account = socialAccount[0];
-    const auth = googleOAuthService.createClient();
-    auth.setCredentials({ access_token: account.accessToken });
+    const { auth, account } = await this._getAuthContext(brandId);
+    const uploadsId = await this._resolveUploadsPlaylistId(auth, account);
     
-    let uploadsId = account.youtubeChannel?.uploadsPlaylistId;
-    if (!uploadsId) {
-      const channelRes = await youtubeGateway.getChannelList(auth, true);
-      uploadsId = channelRes.data.items[0].contentDetails.relatedPlaylists.uploads;
-    }
-
     const playlistRes = await youtubeGateway.getPlaylistItems(auth, uploadsId, limit, pageToken);
-
     if (!playlistRes.data.items || playlistRes.data.items.length === 0) {
       return { videos: [], nextPageToken: null, prevPageToken: null };
     }
 
-    const videoIds = playlistRes.data.items.map(item => item.contentDetails.videoId).join(',');
-
+    const videoIds = playlistRes.data.items.map(item => item.contentDetails.videoId).join(SEPARATORS.COMMA);
     const videoDetails = await youtubeGateway.getVideosList(auth, videoIds);
 
-    const videos = videoDetails.data.items.map(v => ({
-      id: v.id,
-      title: v.snippet.title,
-      thumbnailUrl: v.snippet.thumbnails.medium?.url || v.snippet.thumbnails.default.url,
-      publishedAt: v.snippet.publishedAt,
-      views: v.statistics.viewCount,
-      likes: v.statistics.likeCount,
-      comments: v.statistics.commentCount,
-      duration: v.contentDetails.duration,
-      status: 'Published'
-    }));
-
     return {
-      videos,
+      videos: this._formatVideoList(videoDetails.data.items),
       nextPageToken: playlistRes.data.nextPageToken,
       prevPageToken: playlistRes.data.prevPageToken
     };
@@ -52,14 +28,7 @@ class YouTubeVideoService {
     const videoId = this.extractVideoId(videoUrl);
     if (!videoId) throw new Error('Invalid YouTube URL');
 
-    const socialAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORMS.YOUTUBE);
-    if (!socialAccount || socialAccount.length === 0) {
-      throw new Error('Please connect a YouTube account first to track videos');
-    }
-
-    const auth = googleOAuthService.createClient();
-    auth.setCredentials({ access_token: socialAccount[0].accessToken });
-
+    const { auth } = await this._getAuthContext(brandId);
     const response = await youtubeGateway.getVideosList(auth, videoId);
 
     if (!response.data.items || response.data.items.length === 0) {
@@ -67,16 +36,7 @@ class YouTubeVideoService {
     }
 
     const video = response.data.items[0];
-    return trackedVideoRepository.upsertTrackedVideo(brandId, videoId, {
-      title: video.snippet.title,
-      thumbnailUrl: video.snippet.thumbnails.high?.url || video.snippet.thumbnails.default.url,
-      lastViews: parseInt(video.statistics.viewCount) || 0,
-      lastLikes: parseInt(video.statistics.likeCount) || 0,
-      lastComments: parseInt(video.statistics.commentCount) || 0,
-      channelId: video.snippet.channelId,
-      channelName: video.snippet.channelTitle,
-      publishedAt: new Date(video.snippet.publishedAt)
-    });
+    return trackedVideoRepository.upsertTrackedVideo(brandId, videoId, this._prepareTrackedVideoData(video));
   }
 
   async getTrackedVideos(brandId) {
@@ -84,40 +44,20 @@ class YouTubeVideoService {
   }
 
   async getVideoDetails(brandId, videoId) {
-    const socialAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORMS.YOUTUBE);
-    if (!socialAccount || socialAccount.length === 0) return null;
-
-    const auth = googleOAuthService.createClient();
-    auth.setCredentials({ access_token: socialAccount[0].accessToken });
+    const { auth } = await this._getAuthContext(brandId, true);
+    if (!auth) return null;
 
     const response = await youtubeGateway.getVideosList(auth, videoId);
-
     if (!response.data.items || response.data.items.length === 0) return null;
 
     const video = response.data.items[0];
     const channelRes = await youtubeGateway.getChannelList(auth, false, video.snippet.channelId);
 
-    return {
-      id: video.id,
-      title: video.snippet.title,
-      description: video.snippet.description,
-      thumbnailUrl: video.snippet.thumbnails.high?.url || video.snippet.thumbnails.default.url,
-      channelId: video.snippet.channelId,
-      channelTitle: video.snippet.channelTitle,
-      subscriberCount: channelRes.data.items?.[0]?.statistics?.subscriberCount,
-      viewCount: video.statistics.viewCount,
-      likeCount: video.statistics.likeCount,
-      publishedAt: video.snippet.publishedAt
-    };
+    return this._formatVideoDetails(video, channelRes.data.items?.[0]);
   }
 
   async searchChannel(brandId, query) {
-    const socialAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORMS.YOUTUBE);
-    if (!socialAccount || socialAccount.length === 0) throw new Error('YouTube account not connected');
-
-    const auth = googleOAuthService.createClient();
-    auth.setCredentials({ access_token: socialAccount[0].accessToken });
-
+    const { auth } = await this._getAuthContext(brandId);
     const response = await youtubeGateway.searchChannels(auth, query);
 
     return response.data.items.map(item => ({
@@ -132,18 +72,10 @@ class YouTubeVideoService {
     const youtubePlaylistCache = require('./youtube-playlist-cache');
     if (!forceRefresh) {
       const cached = youtubePlaylistCache.get(brandId);
-      if (cached) {
-        return cached;
-      }
+      if (cached) return cached;
     }
 
-    const socialAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORMS.YOUTUBE);
-    if (!socialAccount || socialAccount.length === 0) throw new Error('YouTube account not connected');
-
-    const account = socialAccount[0];
-    const auth = googleOAuthService.createClient();
-    auth.setCredentials({ access_token: account.accessToken });
-
+    const { auth } = await this._getAuthContext(brandId);
     const res = await youtubeGateway.getPlaylists(auth);
     if (!res.data.items) return [];
 
@@ -156,6 +88,71 @@ class YouTubeVideoService {
 
     youtubePlaylistCache.set(brandId, playlists);
     return playlists;
+  }
+
+  // ============= Private Helper Methods =============
+
+  async _getAuthContext(brandId, optional = false) {
+    const socialAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORMS.YOUTUBE);
+    if (!socialAccount || socialAccount.length === 0) {
+      if (optional) return { auth: null, account: null };
+      throw new Error('YouTube account not connected');
+    }
+    const account = socialAccount[0];
+    const auth = googleOAuthService.createClient();
+    auth.setCredentials({ access_token: account.accessToken });
+    return { auth, account };
+  }
+
+  async _resolveUploadsPlaylistId(auth, account) {
+    let uploadsId = account.youtubeChannel?.uploadsPlaylistId;
+    if (!uploadsId) {
+      const channelRes = await youtubeGateway.getChannelList(auth, true);
+      uploadsId = channelRes.data.items[0]?.contentDetails?.relatedPlaylists?.uploads;
+    }
+    return uploadsId;
+  }
+
+  _formatVideoList(items) {
+    return items.map(v => ({
+      id: v.id,
+      title: v.snippet.title,
+      thumbnailUrl: v.snippet.thumbnails.medium?.url || v.snippet.thumbnails.default.url,
+      publishedAt: v.snippet.publishedAt,
+      views: v.statistics.viewCount,
+      likes: v.statistics.likeCount,
+      comments: v.statistics.commentCount,
+      duration: v.contentDetails.duration,
+      status: POST_STATUS.PUBLISHED
+    }));
+  }
+
+  _formatVideoDetails(video, channel) {
+    return {
+      id: video.id,
+      title: video.snippet.title,
+      description: video.snippet.description,
+      thumbnailUrl: video.snippet.thumbnails.high?.url || video.snippet.thumbnails.default.url,
+      channelId: video.snippet.channelId,
+      channelTitle: video.snippet.channelTitle,
+      subscriberCount: channel?.statistics?.subscriberCount,
+      viewCount: video.statistics.viewCount,
+      likeCount: video.statistics.likeCount,
+      publishedAt: video.snippet.publishedAt
+    };
+  }
+
+  _prepareTrackedVideoData(video) {
+    return {
+      title: video.snippet.title,
+      thumbnailUrl: video.snippet.thumbnails.high?.url || video.snippet.thumbnails.default.url,
+      lastViews: parseInt(video.statistics.viewCount) || 0,
+      lastLikes: parseInt(video.statistics.likeCount) || 0,
+      lastComments: parseInt(video.statistics.commentCount) || 0,
+      channelId: video.snippet.channelId,
+      channelName: video.snippet.channelTitle,
+      publishedAt: new Date(video.snippet.publishedAt)
+    };
   }
 
   extractVideoId(url) {

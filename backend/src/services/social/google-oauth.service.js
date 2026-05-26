@@ -1,4 +1,5 @@
 const { google } = require('googleapis');
+const { API_VERSIONS } = require('../../utils/constants');
 
 class GoogleOAuthService {
   constructor() {
@@ -33,7 +34,7 @@ class GoogleOAuthService {
   async getUserInfo(tokens) {
     const client = this.createClient();
     client.setCredentials(tokens);
-    const oauth2 = google.oauth2({ version: 'v2', auth: client });
+    const oauth2 = google.oauth2({ version: API_VERSIONS.YOUTUBE_ANALYTICS, auth: client });
     const { data } = await oauth2.userinfo.get();
     return data;
   }

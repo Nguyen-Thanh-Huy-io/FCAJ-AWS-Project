@@ -1,37 +1,43 @@
 const express = require('express');
-const socialController = require('../../controllers/social/social.controller');
+const oauthController = require('../../controllers/social/oauth.controller');
+const youtubeController = require('../../controllers/social/youtube.controller');
+const facebookController = require('../../controllers/social/facebook.controller');
+const googleDriveController = require('../../controllers/social/google-drive.controller');
+const socialAnalyticsController = require('../../controllers/social/social-analytics.controller');
+const socialConnectionController = require('../../controllers/social/social-connection.controller');
 const { verifyAuth } = require('../../middlewares/auth.middleware');
 
 const router = express.Router();
 
-// YouTube OAuth
-router.get('/google/url', verifyAuth, socialController.getGoogleAuthUrl);
-router.get('/google/callback', socialController.googleCallback);
+// OAuth
+router.get('/google/url', verifyAuth, oauthController.getGoogleAuthUrl);
+router.get('/google/callback', oauthController.googleCallback);
+router.get('/facebook/url', verifyAuth, oauthController.getFacebookAuthUrl);
+router.get('/facebook/callback', oauthController.facebookCallback);
 
-// Facebook OAuth
-router.get('/facebook/url', verifyAuth, socialController.getFacebookAuthUrl);
-router.get('/facebook/callback', socialController.facebookCallback);
-router.get('/facebook/published-posts', verifyAuth, socialController.getFacebookPublishedPosts);
-router.post('/facebook/disconnect', verifyAuth, socialController.disconnectFacebookAccount);
+// Facebook Features
+router.get('/facebook/published-posts', verifyAuth, facebookController.getFacebookPublishedPosts);
+router.post('/facebook/disconnect', verifyAuth, socialConnectionController.disconnectFacebookAccount);
 
 // Real-time Metrics
-router.get('/metrics', verifyAuth, socialController.getMetrics);
+router.get('/metrics', verifyAuth, socialAnalyticsController.getMetrics);
 
 // YouTube Tracked Videos
-router.post('/youtube/track', verifyAuth, socialController.trackYouTubeVideo);
-router.get('/youtube/tracked-videos', verifyAuth, socialController.getTrackedVideos);
-router.get('/youtube/published-videos', verifyAuth, socialController.getYouTubePublishedVideos);
-router.get('/youtube/video-analytics', verifyAuth, socialController.getYouTubeVideoAnalytics);
-router.get('/youtube/playlists', verifyAuth, socialController.getYouTubePlaylists);
+router.post('/youtube/track', verifyAuth, youtubeController.trackYouTubeVideo);
+router.get('/youtube/tracked-videos', verifyAuth, youtubeController.getTrackedVideos);
+router.get('/youtube/published-videos', verifyAuth, youtubeController.getYouTubePublishedVideos);
+router.get('/youtube/video-analytics', verifyAuth, youtubeController.getYouTubeVideoAnalytics);
+router.get('/youtube/playlists', verifyAuth, youtubeController.getYouTubePlaylists);
 
 // YouTube Competitors
-router.get('/youtube/search-channels', verifyAuth, socialController.searchYouTubeChannels);
-router.post('/youtube/competitors', verifyAuth, socialController.addYouTubeCompetitor);
-router.get('/youtube/competitors', verifyAuth, socialController.getYouTubeCompetitors);
+router.get('/youtube/search-channels', verifyAuth, youtubeController.searchYouTubeChannels);
+router.post('/youtube/competitors', verifyAuth, youtubeController.addYouTubeCompetitor);
+router.get('/youtube/competitors', verifyAuth, youtubeController.getYouTubeCompetitors);
 
 // Google Drive
-router.get('/google/drive/files', verifyAuth, socialController.getGoogleDriveFiles);
-router.post('/google/drive/download', verifyAuth, socialController.downloadGoogleDriveFile);
-router.post('/google/disconnect', verifyAuth, socialController.disconnectGoogleAccount);
+router.get('/google/drive/files', verifyAuth, googleDriveController.getGoogleDriveFiles);
+router.post('/google/drive/download', verifyAuth, googleDriveController.downloadGoogleDriveFile);
+router.post('/google/disconnect', verifyAuth, socialConnectionController.disconnectGoogleAccount);
 
 module.exports = router;
+

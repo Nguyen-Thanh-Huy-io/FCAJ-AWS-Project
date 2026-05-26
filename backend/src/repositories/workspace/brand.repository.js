@@ -1,4 +1,5 @@
 const prisma = require('../../config/prisma');
+const { BILLING_CYCLES, SUBSCRIPTION_STATUS, SYSTEM_PLANS, DEFAULT_CONFIG } = require('../../utils/constants');
 
 class BrandRepository {
   async findManyByUserId(userId) {
@@ -35,7 +36,7 @@ class BrandRepository {
   async create(data) {
     // Find a free plan to assign as default
     const freePlan = await prisma.plan.findFirst({
-      where: { name: 'FREE', billingCycle: 'MONTHLY' }
+      where: { name: SYSTEM_PLANS.FREE, billingCycle: BILLING_CYCLES.MONTHLY }
     });
 
     if (!freePlan) {
@@ -45,15 +46,15 @@ class BrandRepository {
     return await prisma.brand.create({
       data: {
         name: data.name,
-        timezone: data.timezone || 'Asia/Ho_Chi_Minh',
-        defaultLanguage: data.defaultLanguage || 'vi',
+        timezone: data.timezone || DEFAULT_CONFIG.TIMEZONE,
+        defaultLanguage: data.defaultLanguage || DEFAULT_CONFIG.LANGUAGE,
         owner: {
           connect: { id: data.ownerId }
         },
         subscription: {
           create: {
             planId: freePlan.id,
-            status: 'ACTIVE',
+            status: SUBSCRIPTION_STATUS.ACTIVE,
             currentPeriodStart: new Date(),
             currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
           }

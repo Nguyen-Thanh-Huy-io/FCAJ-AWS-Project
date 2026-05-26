@@ -1,67 +1,44 @@
 const autoListService = require('../../services/workspace/auto-list.service');
+const asyncHandler = require('../../utils/async-handler');
 
 class AutoListController {
-  async getAutoLists(req, res) {
-    try {
-      const { brandId } = req.query;
-      if (!brandId) return res.status(400).json({ message: 'brandId is required' });
-      const data = await autoListService.getAutoLists(brandId);
-      res.json({ data });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
+  getAutoLists = asyncHandler(async (req, res) => {
+    const { brandId } = req.query;
+    if (!brandId) return res.status(400).json({ message: 'brandId is required' });
+    const data = await autoListService.getAutoLists(brandId);
+    res.json({ data });
+  });
 
-  async getAutoListDetails(req, res) {
-    try {
-      const { id } = req.params;
-      const data = await autoListService.getAutoListDetails(id);
-      res.json({ data });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
+  getAutoListDetails = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const data = await autoListService.getAutoListDetails(id);
+    res.json({ data });
+  });
 
-  async createAutoList(req, res) {
-    try {
-      const { brandId } = req.body;
-      if (!brandId) return res.status(400).json({ message: 'brandId is required' });
-      const data = await autoListService.createAutoList(brandId, req.body);
-      res.status(201).json({ data });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
+  createAutoList = asyncHandler(async (req, res) => {
+    const { brandId } = req.body;
+    if (!brandId) return res.status(400).json({ message: 'brandId is required' });
+    const data = await autoListService.createAutoList(brandId, req.body);
+    res.status(201).json({ data });
+  });
 
-  async updateAutoList(req, res) {
-    try {
-      const { id } = req.params;
-      const data = await autoListService.updateAutoList(id, req.body);
-      res.json({ data });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
+  updateAutoList = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const data = await autoListService.updateAutoList(id, req.body);
+    res.json({ data });
+  });
 
-  async deleteAutoList(req, res) {
-    try {
-      const { id } = req.params;
-      await autoListService.deleteAutoList(id);
-      res.json({ message: 'AutoList deleted' });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
+  deleteAutoList = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    await autoListService.deleteAutoList(id);
+    res.json({ message: 'AutoList deleted' });
+  });
 
-  async toggleStatus(req, res) {
-    try {
-      const { id } = req.params;
-      const data = await autoListService.toggleStatus(id);
-      res.json({ data });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
+  toggleStatus = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const data = await autoListService.toggleStatus(id);
+    res.json({ data });
+  });
 }
 
 module.exports = new AutoListController();

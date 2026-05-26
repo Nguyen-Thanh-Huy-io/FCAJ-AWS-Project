@@ -1,21 +1,39 @@
-usePlatformDashboard.js:302 Error parsing analytics data: TypeError: object is not iterable (cannot read property Symbol(Symbol.iterator))
-    at usePlatformDashboard.js:289:38
-    at Array.map (<anonymous>)
-    at getAnalyticsData (usePlatformDashboard.js:289:34)
-    at usePlatformDashboard (usePlatformDashboard.js:335:20)
-    at PlatformDashboardPage (PlatformDashboard.jsx:108:7)
+[Error] PrismaClientValidationError: 
+Invalid `prisma.socialAccount.findMany()` invocation:
 
-usePlatformDashboard.js:168 Initial load failed: Error: Network Error
-    at api.js:31:31
-    at async BrandService.getBrands (brand.service.js:5:22)
-    at async loadData (usePlatformDashboard.js:161:27)
-:3000/api/brands:1 
- Failed to load resource: net::ERR_CONNECTION_REFUSED
-usePlatformDashboard.js:302 Error parsing analytics data: TypeError: object is not iterable (cannot read property Symbol(Symbol.iterator))
-    at usePlatformDashboard.js:289:38
-    at Array.map (<anonymous>)
-    at getAnalyticsData (usePlatformDashboard.js:289:34)
-    at usePlatformDashboard (usePlatformDashboard.js:335:20)
-    at PlatformDashboardPage (PlatformDashboard.jsx:108:7)
+{
+  where: {
+    brandId: "c3b4bfc4-372e-479d-bcac-c00243c9f48b",
++   platform: {
++     equals: PlatformType | EnumPlatformTypeFieldRefInput,
++     in: PlatformType[],
++     notIn: PlatformType[],
++     not: PlatformType | NestedEnumPlatformTypeFilter
++   }
+  },
+  include: {
+    youtubeChannel: true,
+    instagramAccount: true,
+    facebookPage: true,
+    tikTokAccount: true,
+    linkedInAccount: true,
+    analytics: {
+      orderBy: {
+        fetchedAt: "desc"
+      },
+      take: 1,
+      include: {
+        socialAnalytics: true
+      }
+    }
+  }
+}
 
-﻿
+Argument `platform` must not be null.
+    at Nn (D:\Fullit\projects\PubliCast\backend\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at ei.handleRequestError (D:\Fullit\projects\PubliCast\backend\node_modules\@prisma\client\runtime\library.js:121:6911)
+    at ei.handleAndLogRequestError (D:\Fullit\projects\PubliCast\backend\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\Fullit\projects\PubliCast\backend\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\Fullit\projects\PubliCast\backend\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async SocialService.getAggregatedMetrics (D:\Fullit\projects\PubliCast\backend\src\services\social\social.service.js:11:22)
+    at async D:\Fullit\projects\PubliCast\backend\src\controllers\social\social-analytics.controller.js:9:18

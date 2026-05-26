@@ -1,41 +1,30 @@
 const notificationService = require('../../services/core/notification.service');
+const asyncHandler = require('../../utils/async-handler');
 
 class NotificationController {
-  async getNotifications(req, res) {
-    try {
-      const userId = req.user.id;
-      const brandId = req.query.brandId || null;
-      const result = await notificationService.getNotifications(req.query, userId, brandId);
+  getNotifications = asyncHandler(async (req, res) => {
+    const userId = req.user.id;
+    const brandId = req.query.brandId || null;
+    const result = await notificationService.getNotifications(req.query, userId, brandId);
 
-      res.status(200).json({
-        message: 'Notifications retrieved successfully',
-        ...result
-      });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
+    res.status(200).json({
+      message: 'Notifications retrieved successfully',
+      ...result
+    });
+  });
 
-  async markAsRead(req, res) {
-    try {
-      const { id } = req.params;
-      await notificationService.markAsRead(id);
-      res.status(200).json({ message: 'Notification marked as read' });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
+  markAsRead = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    await notificationService.markAsRead(id);
+    res.status(200).json({ message: 'Notification marked as read' });
+  });
 
-  async markAllAsRead(req, res) {
-    try {
-      const userId = req.user.id;
-      const brandId = req.query.brandId || null;
-      await notificationService.markAllAsRead(userId, brandId);
-      res.status(200).json({ message: 'All notifications marked as read' });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
+  markAllAsRead = asyncHandler(async (req, res) => {
+    const userId = req.user.id;
+    const brandId = req.query.brandId || null;
+    await notificationService.markAllAsRead(userId, brandId);
+    res.status(200).json({ message: 'All notifications marked as read' });
+  });
 }
 
 module.exports = new NotificationController();

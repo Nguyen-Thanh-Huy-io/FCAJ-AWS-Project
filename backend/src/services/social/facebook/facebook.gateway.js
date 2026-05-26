@@ -1,10 +1,12 @@
-const { PLATFORMS } = require('../../../utils/constants');
+const fs = require('fs');
+const path = require('path');
+const { PLATFORMS, SEPARATORS, API_VERSIONS, MEDIA_EXTENSIONS } = require('../../../utils/constants');
 
 class FacebookGateway {
   constructor() {
     this.appId = process.env.FACEBOOK_APP_ID;
     this.appSecret = process.env.FACEBOOK_APP_SECRET;
-    this.graphBaseUrl = 'https://graph.facebook.com/v25.0';
+    this.graphBaseUrl = `https://graph.facebook.com/${API_VERSIONS.FACEBOOK}`;
   }
 
   async exchangeCodeForToken(code, redirectUri) {
@@ -56,7 +58,6 @@ class FacebookGateway {
   }
 
   async getPageInsights(pageId, pageAccessToken, startDate, endDate) {
-    // Facebook API format for since/until expects UNIX timestamps
     const since = Math.floor(new Date(startDate).getTime() / 1000);
     const until = Math.floor(new Date(endDate).getTime() / 1000);
 
@@ -68,7 +69,7 @@ class FacebookGateway {
     ];
 
     const tryFetch = async (metricList) => {
-      const url = `${this.graphBaseUrl}/${pageId}/insights?metric=${metricList.join(',')}&period=day&since=${since}&until=${until}&access_token=${pageAccessToken}`;
+      const url = `${this.graphBaseUrl}/${pageId}/insights?metric=${metricList.join(SEPARATORS.COMMA)}&period=day&since=${since}&until=${until}&access_token=${pageAccessToken}`;
       const res = await fetch(url);
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
@@ -77,13 +78,9 @@ class FacebookGateway {
       return { data: await res.json() };
     };
 
-    // First attempt with full metrics (including NPE ones)
     let result = await tryFetch(fullMetrics);
 
-    // If failed with code 100 (Invalid metric), it's likely a Classic Page that doesn't support NPE metrics
     if (result.error && result.error.code === 100) {
-      console.log(`Facebook Insights API error for NPE metrics: ${JSON.stringify(result.error)}. URL: ${result.url}`);
-      console.log('Retrying Facebook Insights with legacy metrics subset...');
       const legacyMetrics = [
         'page_views_total',
         'page_impressions_unique',
@@ -93,7 +90,7 @@ class FacebookGateway {
     }
 
     if (result.error) {
-      console.error(`Facebook Insights API final error: ${JSON.stringify(result.error)}. URL: ${result.url}`);
+      console.error(`Facebook Insights API final error: ${JSON.stringify(result.error)}.`);
       return [];
     }
 
@@ -119,10 +116,7 @@ class FacebookGateway {
     const url = `${this.graphBaseUrl}/${postId}/insights?metric=${metrics}&access_token=${pageAccessToken}`;
     
     const res = await fetch(url);
-    if (!res.ok) {
-      // In Facebook, some posts (like shared items or old posts) might fail to return insights
-      return [];
-    }
+    if (!res.ok) return [];
 
     const data = await res.json();
     return data.data || [];
@@ -158,29 +152,17 @@ class FacebookGateway {
   }
 
   async publishPhoto(pageId, pageAccessToken, mediaUrl, caption) {
-    const fs = require('fs');
-    const path = require('path');
+    const localPath = this._resolveLocalPath(mediaUrl);
     
-    // Resolve local path
-    const localPath = path.join(process.cwd(), mediaUrl.startsWith('/') ? mediaUrl.substring(1) : mediaUrl);
-    if (!fs.existsSync(localPath)) {
-      throw new Error(`Media file not found at ${localPath}`);
-    }
-
     const formData = new FormData();
     const fileBuffer = fs.readFileSync(localPath);
     const blob = new Blob([fileBuffer]);
     formData.append('source', blob, path.basename(localPath));
-    if (caption) {
-      formData.append('message', caption);
-    }
+    if (caption) formData.append('message', caption);
     formData.append('access_token', pageAccessToken);
 
     const url = `${this.graphBaseUrl}/${pageId}/photos`;
-    const res = await fetch(url, {
-      method: 'POST',
-      body: formData
-    });
+    const res = await fetch(url, { method: 'POST', body: formData });
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
@@ -190,32 +172,18 @@ class FacebookGateway {
   }
 
   async publishVideo(pageId, pageAccessToken, mediaUrl, title, description) {
-    const fs = require('fs');
-    const path = require('path');
-    
-    // Resolve local path
-    const localPath = path.join(process.cwd(), mediaUrl.startsWith('/') ? mediaUrl.substring(1) : mediaUrl);
-    if (!fs.existsSync(localPath)) {
-      throw new Error(`Media file not found at ${localPath}`);
-    }
+    const localPath = this._resolveLocalPath(mediaUrl);
 
     const formData = new FormData();
     const fileBuffer = fs.readFileSync(localPath);
     const blob = new Blob([fileBuffer]);
     formData.append('source', blob, path.basename(localPath));
-    if (title) {
-      formData.append('title', title);
-    }
-    if (description) {
-      formData.append('description', description);
-    }
+    if (title) formData.append('title', title);
+    if (description) formData.append('description', description);
     formData.append('access_token', pageAccessToken);
 
-    const url = `https://graph-video.facebook.com/v25.0/${pageId}/videos`;
-    const res = await fetch(url, {
-      method: 'POST',
-      body: formData
-    });
+    const url = `https://graph-video.facebook.com/${API_VERSIONS.FACEBOOK}/${pageId}/videos`;
+    const res = await fetch(url, { method: 'POST', body: formData });
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
@@ -225,25 +193,16 @@ class FacebookGateway {
   }
 
   async publishReel(pageId, pageAccessToken, mediaUrl, caption) {
-    const fs = require('fs');
-    const path = require('path');
-    
-    const localPath = path.join(process.cwd(), mediaUrl.startsWith('/') ? mediaUrl.substring(1) : mediaUrl);
-    if (!fs.existsSync(localPath)) {
-      throw new Error(`Media file not found at ${localPath}`);
-    }
+    const localPath = this._resolveLocalPath(mediaUrl);
 
     try {
       const startUrl = `${this.graphBaseUrl}/${pageId}/video_reels?upload_phase=start&access_token=${pageAccessToken}`;
       const startRes = await fetch(startUrl, { method: 'POST' });
-      if (!startRes.ok) {
-        const errData = await startRes.json().catch(() => ({}));
-        throw new Error(errData.error?.message || 'Failed to start Reel upload session');
-      }
-      const startData = await startRes.json();
-      const { video_id, upload_url } = startData;
-
+      if (!startRes.ok) throw new Error('Failed to start Reel upload session');
+      
+      const { video_id, upload_url } = await startRes.json();
       const fileBuffer = fs.readFileSync(localPath);
+      
       const uploadRes = await fetch(upload_url, {
         method: 'POST',
         headers: {
@@ -253,90 +212,62 @@ class FacebookGateway {
         },
         body: fileBuffer
       });
-      if (!uploadRes.ok) {
-        const errData = await uploadRes.json().catch(() => ({}));
-        throw new Error(errData.error?.message || 'Failed to upload Reel video binary');
-      }
+      if (!uploadRes.ok) throw new Error('Failed to upload Reel video binary');
 
       const finishUrl = `${this.graphBaseUrl}/${pageId}/video_reels?upload_phase=finish&video_id=${video_id}&video_state=PUBLISHED&description=${encodeURIComponent(caption || '')}&access_token=${pageAccessToken}`;
       const finishRes = await fetch(finishUrl, { method: 'POST' });
-      if (!finishRes.ok) {
-        const errData = await finishRes.json().catch(() => ({}));
-        throw new Error(errData.error?.message || 'Failed to finalize Reel publishing');
-      }
+      if (!finishRes.ok) throw new Error('Failed to finalize Reel publishing');
 
       return await finishRes.json();
     } catch (err) {
-      console.warn(`Facebook Reel publishing via API failed: ${err.message}. Falling back to simulated successful upload...`);
+      console.warn(`Facebook Reel API failure: ${err.message}. Falling back to simulation.`);
       return { id: `fb_reel_${Date.now()}` };
     }
   }
 
   async publishStory(pageId, pageAccessToken, mediaUrl, caption) {
-    const fs = require('fs');
-    const path = require('path');
-    
+    const localPath = this._resolveLocalPath(mediaUrl);
+    const isVideo = MEDIA_EXTENSIONS.VIDEO.some(ext => mediaUrl.toLowerCase().endsWith(ext));
+
+    try {
+      const formData = new FormData();
+      const fileBuffer = fs.readFileSync(localPath);
+      const blob = new Blob([fileBuffer]);
+      formData.append('source', blob, path.basename(localPath));
+      formData.append('published', 'false');
+      formData.append('access_token', pageAccessToken);
+
+      if (isVideo) {
+        const uploadUrl = `https://graph-video.facebook.com/${API_VERSIONS.FACEBOOK}/${pageId}/videos`;
+        const uploadRes = await fetch(uploadUrl, { method: 'POST', body: formData });
+        const { id: videoId } = await uploadRes.json();
+
+        const storyUrl = `${this.graphBaseUrl}/${pageId}/video_stories?video_id=${videoId}&access_token=${pageAccessToken}`;
+        const storyRes = await fetch(storyUrl, { method: 'POST' });
+        return await storyRes.json();
+      } else {
+        const uploadUrl = `${this.graphBaseUrl}/${pageId}/photos`;
+        const uploadRes = await fetch(uploadUrl, { method: 'POST', body: formData });
+        const { id: photoId } = await uploadRes.json();
+
+        const storyUrl = `${this.graphBaseUrl}/${pageId}/photo_stories?photo_id=${photoId}&access_token=${pageAccessToken}`;
+        const storyRes = await fetch(storyUrl, { method: 'POST' });
+        return await storyRes.json();
+      }
+    } catch (err) {
+      console.warn(`Facebook Story API failure: ${err.message}. Falling back to simulation.`);
+      return { id: `fb_story_${Date.now()}` };
+    }
+  }
+
+  // ============= Private Helper Methods =============
+
+  _resolveLocalPath(mediaUrl) {
     const localPath = path.join(process.cwd(), mediaUrl.startsWith('/') ? mediaUrl.substring(1) : mediaUrl);
     if (!fs.existsSync(localPath)) {
       throw new Error(`Media file not found at ${localPath}`);
     }
-
-    const isVideo = mediaUrl.endsWith('.mp4') || mediaUrl.endsWith('.mov') || mediaUrl.endsWith('.avi');
-
-    try {
-      if (isVideo) {
-        const formData = new FormData();
-        const fileBuffer = fs.readFileSync(localPath);
-        const blob = new Blob([fileBuffer]);
-        formData.append('source', blob, path.basename(localPath));
-        formData.append('published', 'false');
-        formData.append('access_token', pageAccessToken);
-
-        const uploadUrl = `https://graph-video.facebook.com/v25.0/${pageId}/videos`;
-        const uploadRes = await fetch(uploadUrl, { method: 'POST', body: formData });
-        if (!uploadRes.ok) {
-          const errData = await uploadRes.json().catch(() => ({}));
-          throw new Error(errData.error?.message || 'Failed to upload unpublished video for Story');
-        }
-        const uploadData = await uploadRes.json();
-        const videoId = uploadData.id;
-
-        const storyUrl = `${this.graphBaseUrl}/${pageId}/video_stories?video_id=${videoId}&access_token=${pageAccessToken}`;
-        const storyRes = await fetch(storyUrl, { method: 'POST' });
-        if (!storyRes.ok) {
-          const errData = await storyRes.json().catch(() => ({}));
-          throw new Error(errData.error?.message || 'Failed to publish video story');
-        }
-        return await storyRes.json();
-      } else {
-        const formData = new FormData();
-        const fileBuffer = fs.readFileSync(localPath);
-        const blob = new Blob([fileBuffer]);
-        formData.append('source', blob, path.basename(localPath));
-        formData.append('published', 'false');
-        formData.append('access_token', pageAccessToken);
-
-        const uploadUrl = `${this.graphBaseUrl}/${pageId}/photos`;
-        const uploadRes = await fetch(uploadUrl, { method: 'POST', body: formData });
-        if (!uploadRes.ok) {
-          const errData = await uploadRes.json().catch(() => ({}));
-          throw new Error(errData.error?.message || 'Failed to upload unpublished photo for Story');
-        }
-        const uploadData = await uploadRes.json();
-        const photoId = uploadData.id;
-
-        const storyUrl = `${this.graphBaseUrl}/${pageId}/photo_stories?photo_id=${photoId}&access_token=${pageAccessToken}`;
-        const storyRes = await fetch(storyUrl, { method: 'POST' });
-        if (!storyRes.ok) {
-          const errData = await storyRes.json().catch(() => ({}));
-          throw new Error(errData.error?.message || 'Failed to publish photo story');
-        }
-        return await storyRes.json();
-      }
-    } catch (err) {
-      console.warn(`Facebook Story publishing via API failed: ${err.message}. Falling back to simulated successful upload...`);
-      return { id: `fb_story_${Date.now()}` };
-    }
+    return localPath;
   }
 }
 

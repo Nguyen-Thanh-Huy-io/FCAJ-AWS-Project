@@ -1,4 +1,5 @@
 const revenueRepository = require('../../repositories/admin/revenue.repository');
+const { BILLING_CYCLES, INVOICE_STATUS, SYSTEM_LABELS } = require('../../utils/constants');
 
 class RevenueService {
   /**
@@ -10,55 +11,64 @@ class RevenueService {
       revenueRepository.getRecentInvoices(5)
     ]);
 
-    // 1. Calculate MRR and ARR
+    const mrrData = this._calculateMRR(activeSubscriptions);
+    const transactions = this._formatTransactions(recentInvoices);
+    const mrrTrend = this._generateMRRTrend(mrrData.totalMRR);
+
+    return {
+      kpis: this._buildKPIs(mrrData, activeSubscriptions.length),
+      mrrTrend,
+      transactions
+    };
+  }
+
+  _calculateMRR(subscriptions) {
     let totalMRR = 0;
-    activeSubscriptions.forEach(sub => {
+    subscriptions.forEach(sub => {
       const price = parseFloat(sub.plan.priceAmount);
-      if (sub.plan.billingCycle === 'MONTHLY') {
+      if (sub.plan.billingCycle === BILLING_CYCLES.MONTHLY) {
         totalMRR += price;
-      } else if (sub.plan.billingCycle === 'ANNUAL') {
+      } else if (sub.plan.billingCycle === BILLING_CYCLES.ANNUAL) {
         totalMRR += price / 12;
       }
     });
+    return { totalMRR, totalARR: totalMRR * 12 };
+  }
 
-    const totalARR = totalMRR * 12;
-
-    // 2. Format Transactions
-    const formattedTransactions = recentInvoices.map(inv => ({
-      user: inv.subscription.brand?.owner?.name || 'Unknown',
+  _formatTransactions(invoices) {
+    return invoices.map(inv => ({
+      user: inv.subscription.brand?.owner?.name || SYSTEM_LABELS.UNKNOWN,
       plan: inv.subscription.plan.name,
       amount: `$${parseFloat(inv.amount)}`,
       date: new Date(inv.paidAt || inv.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       status: inv.status.toLowerCase(),
       type: this.getTransactionType(inv)
     }));
+  }
 
-    // 3. Mock MRR Trend (for chart)
-    const mrrTrend = [
+  _generateMRRTrend(totalMRR) {
+    return [
       { month: "Jan", mrr: totalMRR * 0.85 },
       { month: "Feb", mrr: totalMRR * 0.88 },
       { month: "Mar", mrr: totalMRR * 0.92 },
       { month: "Apr", mrr: totalMRR * 0.96 },
       { month: "May", mrr: totalMRR }
     ];
+  }
 
-    return {
-      kpis: [
-        { label: "MRR", value: `$${totalMRR.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, delta: "↑ 12.4%" },
-        { label: "ARR", value: `$${totalARR.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, delta: "↑ 12.4%" },
-        { label: "Active Subscribers", value: activeSubscriptions.length.toString(), delta: "↑ 8.2%" },
-        { label: "New This Month", value: "89", delta: "↑ 14.1%" },
-        { label: "Churned This Month", value: "23", delta: "↓ 0.3%" },
-      ],
-      mrrTrend,
-      transactions: formattedTransactions
-    };
+  _buildKPIs(mrrData, activeSubCount) {
+    return [
+      { label: "MRR", value: `$${mrrData.totalMRR.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, delta: "↑ 12.4%" },
+      { label: "ARR", value: `$${mrrData.totalARR.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, delta: "↑ 12.4%" },
+      { label: "Active Subscribers", value: activeSubCount.toString(), delta: "↑ 8.2%" },
+      { label: "New This Month", value: "89", delta: "↑ 14.1%" },
+      { label: "Churned This Month", value: "23", delta: "↓ 0.3%" },
+    ];
   }
 
   getTransactionType(invoice) {
-    // Basic logic to determine type
-    if (invoice.status === 'PAID' && !invoice.paidAt) return 'New';
-    return 'Renewal';
+    if (invoice.status === INVOICE_STATUS.PAID && !invoice.paidAt) return SYSTEM_LABELS.NEW;
+    return SYSTEM_LABELS.RENEWAL;
   }
 }
 

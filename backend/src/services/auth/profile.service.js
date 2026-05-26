@@ -1,7 +1,47 @@
 const userRepository = require('../../repositories/auth/user.repository');
+const brandService = require('../../services/workspace/brand.service');
 const { ERROR_MESSAGES } = require('../../utils/constants');
 
 class ProfileService {
+  /**
+   * Get user profile with auto-healing brand logic
+   */
+  async getUserProfile(userId) {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      const error = new Error(ERROR_MESSAGES.USER_NOT_FOUND || 'User not found');
+      error.status = 404;
+      throw error;
+    }
+
+    // Business Logic: Self-healing for brands
+    const brands = await brandService.getUserBrands(userId);
+    if (brands.length === 0) {
+      try {
+        console.log(`Auto-creating brand for user ${userId}`);
+        await brandService.createDefaultBrand(userId);
+      } catch (err) {
+        console.error(`Brand auto-creation failed: ${err.message}`);
+      }
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      fullName: user.name,
+      avatarUrl: user.avatarUrl,
+      phone: user.phone,
+      address: user.address,
+      industry: user.industry,
+      bio: user.bio,
+      role: user.role,
+      isActive: user.isActive,
+      isEmailVerified: user.isEmailVerified,
+      createdAt: user.createdAt
+    };
+  }
+
   /**
    * Edit user profile
    * @param {string} userId - User ID

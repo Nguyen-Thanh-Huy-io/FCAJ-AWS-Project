@@ -1,4 +1,5 @@
 const prisma = require('../../config/prisma');
+const { PLATFORMS, ANALYTICS } = require('../../utils/constants');
 
 class SocialAccountRepository {
   async upsertFacebookAccount(brandId, pageData, tokens) {
@@ -8,7 +9,7 @@ class SocialAccountRepository {
       where: {
         brandId_platform_platformAccountId: {
           brandId,
-          platform: 'FACEBOOK',
+          platform: PLATFORMS.FACEBOOK,
           platformAccountId: pageId
         }
       },
@@ -44,7 +45,7 @@ class SocialAccountRepository {
       },
       create: {
         brandId,
-        platform: 'FACEBOOK',
+        platform: PLATFORMS.FACEBOOK,
         platformAccountId: pageId,
         username,
         displayName,
@@ -100,9 +101,9 @@ class SocialAccountRepository {
         socialAccountId,
         dateFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
         dateTo: now,
-        granularity: 'DAILY',
+        granularity: ANALYTICS.GRANULARITY.DAILY,
         fetchedAt: now,
-        analyticsType: 'FACEBOOK_DETAILED'
+        analyticsType: ANALYTICS.TYPES.FACEBOOK_DETAILED
       }
     });
 
@@ -133,7 +134,7 @@ class SocialAccountRepository {
       where: {
         brandId_platform_platformAccountId: {
           brandId,
-          platform: 'YOUTUBE',
+          platform: PLATFORMS.YOUTUBE,
           platformAccountId: channelId
         }
       },
@@ -161,7 +162,7 @@ class SocialAccountRepository {
       },
       create: {
         brandId,
-        platform: 'YOUTUBE',
+        platform: PLATFORMS.YOUTUBE,
         platformAccountId: channelId,
         username,
         displayName,
@@ -204,9 +205,9 @@ class SocialAccountRepository {
         socialAccountId,
         dateFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
         dateTo: now,
-        granularity: 'DAILY',
+        granularity: ANALYTICS.GRANULARITY.DAILY,
         fetchedAt: now,
-        analyticsType: 'YOUTUBE_DETAILED'
+        analyticsType: ANALYTICS.TYPES.YOUTUBE_DETAILED
       }
     });
 
@@ -265,8 +266,11 @@ class SocialAccountRepository {
   }
 
   async findByBrandAndPlatform(brandId, platform) {
+    const where = { brandId };
+    if (platform) where.platform = platform;
+
     return prisma.socialAccount.findMany({
-      where: { brandId, platform },
+      where,
       include: {
         youtubeChannel: true,
         instagramAccount: true,
@@ -281,6 +285,21 @@ class SocialAccountRepository {
           }
         }
       }
+    });
+  }
+
+  async findByBrandAndPlatformFirst(brandId, platform) {
+    const where = { brandId };
+    if (platform) where.platform = platform;
+    
+    return prisma.socialAccount.findFirst({
+      where
+    });
+  }
+
+  async deleteManyByBrandAndPlatform(brandId, platform) {
+    return prisma.socialAccount.deleteMany({
+      where: { brandId, platform }
     });
   }
 }

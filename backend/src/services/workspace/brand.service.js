@@ -1,4 +1,5 @@
 const brandRepository = require('../../repositories/workspace/brand.repository');
+const { WORKSPACE_DEFAULTS } = require('../../utils/constants');
 
 class BrandService {
   async getUserBrands(userId) {
@@ -7,7 +8,7 @@ class BrandService {
 
   async createDefaultBrand(userId) {
     return await brandRepository.create({
-      name: 'Empty brand',
+      name: WORKSPACE_DEFAULTS.BRAND_NAME,
       ownerId: userId
     });
   }

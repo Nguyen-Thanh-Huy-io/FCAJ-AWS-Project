@@ -64,15 +64,6 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-router.post('/upload', upload.single('video'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: 'No video file uploaded' });
-  }
-  const videoUrl = `/uploads/${req.file.filename}`;
-  res.status(200).json({
-    message: 'Video uploaded successfully',
-    videoUrl: videoUrl
-  });
-});
+router.post('/upload', upload.single('video'), postController.uploadVideo);
 
 module.exports = router;

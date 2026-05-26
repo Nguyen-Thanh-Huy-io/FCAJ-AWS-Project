@@ -1,3 +1,5 @@
+const { SUBSCRIPTION_STATUS } = require('../../utils/constants');
+
 const PLATFORMS = [
   { id: "YT", name: "YouTube", color: "#FF0000" },
   { id: "FB", name: "Facebook", color: "#1877F2" },
@@ -15,10 +17,10 @@ const MODULES = [
 ];
 
 const MATRIX = {
-  "M1-YT": { status: "Active", sku: "PL-YT-AN" },
-  "M1-FB": { status: "Active", sku: "PL-FB-AN" },
-  "M2-YT": { status: "Active", sku: "PL-YT-AU" },
-  "M3-FB": { status: "Active", sku: "PL-FB-EN" },
+  "M1-YT": { status: SUBSCRIPTION_STATUS.ACTIVE, sku: "PL-YT-AN" },
+  "M1-FB": { status: SUBSCRIPTION_STATUS.ACTIVE, sku: "PL-FB-AN" },
+  "M2-YT": { status: SUBSCRIPTION_STATUS.ACTIVE, sku: "PL-YT-AU" },
+  "M3-FB": { status: SUBSCRIPTION_STATUS.ACTIVE, sku: "PL-FB-EN" },
 };
 
 class ProductRepository {

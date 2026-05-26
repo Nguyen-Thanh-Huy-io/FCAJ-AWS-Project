@@ -1,4 +1,5 @@
 const prisma = require('../../config/prisma');
+const { USER_ROLES, AUTH_PROVIDERS, USER_STATUS } = require('../../utils/constants');
 
 class UserRepository {
   async findByEmail(email) {
@@ -21,7 +22,7 @@ class UserRepository {
         email: userData.email.toLowerCase(),
         name: userData.name || userData.fullName,
         avatarUrl: userData.avatarUrl,
-        role: 'OWNER',
+        role: USER_ROLES.OWNER,
         passwordHash: accountData.passwordHash,
         isActive: userData.isActive !== undefined ? userData.isActive : false,
         isEmailVerified: false,
@@ -35,8 +36,8 @@ class UserRepository {
 
   async updateStatus(email, status, verifiedAt) {
     // Map old status to new isEmailVerified and isActive
-    const isEmailVerified = status === 'ACTIVE';
-    const isActive = status === 'ACTIVE';
+    const isEmailVerified = status === USER_STATUS.ACTIVE;
+    const isActive = status === USER_STATUS.ACTIVE;
     
     return await prisma.user.update({
       where: { email: email.toLowerCase() },
@@ -58,7 +59,7 @@ class UserRepository {
         passwordHash,
         accounts: {
           updateMany: {
-            where: { provider: 'LOCAL' },
+            where: { provider: AUTH_PROVIDERS.LOCAL },
             data: { passwordHash }
           }
         }
@@ -157,7 +158,7 @@ class UserRepository {
         name: name,
         avatarUrl: avatarUrl,
         passwordHash: 'SOCIAL_AUTH_NO_PASSWORD',
-        role: 'OWNER',
+        role: USER_ROLES.OWNER,
         isActive: true,
         isEmailVerified: true,
         lastLoginAt: new Date(),
