@@ -33,6 +33,7 @@ class InboxController {
    */
   syncInbox = asyncHandler(async (req, res) => {
     const { brandId, platform } = req.body;
+    console.log(`[InboxController] Syncing inbox: Brand = ${brandId}, Platform = ${platform}`);
     if (!brandId) return res.status(400).json({ message: 'brandId is required' });
 
     const result = await inboxService.syncPlatformComments(brandId, platform);

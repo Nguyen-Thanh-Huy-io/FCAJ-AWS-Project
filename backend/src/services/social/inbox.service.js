@@ -1,5 +1,4 @@
 const inboxRepository = require('../../repositories/social/inbox.repository');
-const socialPlatformFactory = require('./social-platform.factory');
 const socialAccountRepository = require('../../repositories/social/social-account.repository');
 const { PLATFORMS, INBOX_STATUS, INBOX_TYPES, SOCIAL_TECHNICAL } = require('../../utils/constants');
 
@@ -8,6 +7,12 @@ const InboxSearchFilter = require('./inbox/filters/search.filter');
 const InboxPlatformFilter = require('./inbox/filters/platform.filter');
 const InboxTabFilter = require('./inbox/filters/tab.filter');
 const InboxStatusFilter = require('./inbox/filters/status.filter');
+const InboxTypeFilter = require('./inbox/filters/type.filter');
+
+const YoutubeCommentSyncStrategy = require('./inbox/strategies/youtube-comment.strategy');
+const FacebookCommentSyncStrategy = require('./inbox/strategies/facebook-comment.strategy');
+const FacebookDMSyncStrategy = require('./inbox/strategies/facebook-dm.strategy');
+const InstagramDMSyncStrategy = require('./inbox/strategies/instagram-dm.strategy');
 
 class InboxService {
   constructor() {
@@ -15,8 +20,16 @@ class InboxService {
       new InboxSearchFilter(),
       new InboxPlatformFilter(),
       new InboxTabFilter(),
-      new InboxStatusFilter()
+      new InboxStatusFilter(),
+      new InboxTypeFilter()
     ]);
+
+    this.strategies = [
+      new YoutubeCommentSyncStrategy(),
+      new FacebookCommentSyncStrategy(),
+      new FacebookDMSyncStrategy(),
+      new InstagramDMSyncStrategy()
+    ];
   }
 
   /**
@@ -59,22 +72,131 @@ class InboxService {
 
   async syncPlatformComments(brandId, platform) {
     try {
-      const service = socialPlatformFactory.getService(platform);
-      return await service.fetchChannelComments(brandId);
+      const inbox = await inboxRepository.findOrCreateInbox(brandId);
+      const activeStrategies = this.strategies.filter(s => s.supports(platform));
+      
+      if (activeStrategies.length === 0) {
+        console.warn(`No sync strategies found for platform: ${platform}`);
+        return [];
+      }
+
+      let allSyncedItems = [];
+      for (const strategy of activeStrategies) {
+        try {
+          const items = await strategy.sync(brandId, inbox);
+          if (items && items.length > 0) {
+            allSyncedItems = allSyncedItems.concat(items);
+          }
+        } catch (err) {
+          console.error(`Strategy ${strategy.constructor.name} failed during sync:`, err.message);
+        }
+      }
+
+      await inboxRepository.updateInboxLastSync(inbox.id);
+      return allSyncedItems;
     } catch (e) {
-      console.error(`Failed to sync platform comments for ${platform}:`, e.message);
+      console.error(`Failed to sync platform comments/messages for ${platform}:`, e.message);
       return [];
     }
+  }
+
+  async _seedMockInboxItems(brandId, platform) {
+    const inbox = await inboxRepository.findOrCreateInbox(brandId);
+    const platformUpper = platform.toUpperCase();
+    
+    const mockUsers = [
+      { name: "Nguyễn Văn Nam", avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop" },
+      { name: "Trần Thị Mai", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop" },
+      { name: "Lê Minh Tuấn", avatar: "https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=100&h=100&fit=crop" },
+      { name: "Phạm Hồng Nhung", avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&h=100&fit=crop" }
+    ];
+
+    const mockMessages = {
+      COMMENT: [
+        "Bài viết này hay quá, mình rất thích cách trình bày của bên bạn!",
+        "Cho mình hỏi video này quay bằng thiết bị gì mà đẹp thế ạ?",
+        "Mong bên bạn ra thêm nhiều nội dung chất lượng như thế này nữa nhé.",
+        "Thông tin rất hữu ích, cảm ơn PubliCast nhiều nhé!"
+      ],
+      DIRECT_MESSAGE: [
+        "Chào bạn, mình muốn hỏi về chi phí hợp tác truyền thông bên bạn.",
+        "Dịch vụ bên mình có hỗ trợ xuất hóa đơn VAT không ạ?",
+        "Mình đã gửi email liên hệ hợp tác, bạn check giúp mình nhé.",
+        "Tư vấn giúp mình gói dịch vụ Marketing cho doanh nghiệp nhỏ với ạ."
+      ]
+    };
+
+    const seededItems = [];
+
+    // Create 3 comments and 2 DMs
+    for (let i = 0; i < 5; i++) {
+      const type = i < 3 ? INBOX_TYPES.COMMENT : INBOX_TYPES.DIRECT_MESSAGE;
+      // Skip DMs for YouTube (YouTube doesn't have DMs)
+      if (platformUpper === 'YOUTUBE' && type === INBOX_TYPES.DIRECT_MESSAGE) {
+        continue;
+      }
+      
+      const user = mockUsers[i % mockUsers.length];
+      const content = mockMessages[type][i % mockMessages[type].length];
+      const platformItemId = `mock_${platform.toLowerCase()}_${type.toLowerCase()}_${Date.now()}_${i}`;
+
+      const item = await inboxRepository.createInboxItem({
+        inboxId: inbox.id,
+        platform: platformUpper,
+        type: type,
+        platformItemId,
+        authorId: `author_${i}`,
+        authorName: user.name,
+        authorAvatarUrl: user.avatar,
+        content,
+        platformCreatedAt: new Date(Date.now() - i * 3600000),
+        syncedAt: new Date(),
+        status: INBOX_STATUS.UNREAD
+      });
+
+      // Add a reply to first item to make thread look rich
+      if (i === 0) {
+        await inboxRepository.createInboxItem({
+          inboxId: inbox.id,
+          platform: platformUpper,
+          type: type,
+          platformItemId: `${platformItemId}_reply`,
+          parentItemId: item.id,
+          authorId: `author_brand`,
+          authorName: "PubliCast Agent",
+          authorAvatarUrl: "",
+          content: "Cảm ơn bạn rất nhiều! Chúng tôi sẽ liên hệ lại ngay nhé.",
+          platformCreatedAt: new Date(Date.now() - i * 3600000 + 600000),
+          syncedAt: new Date(),
+          status: INBOX_STATUS.READ
+        });
+      }
+
+      seededItems.push(item);
+    }
+
+    await inboxRepository.updateInboxLastSync(inbox.id);
+    return seededItems;
   }
 
   async replyToItem(brandId, itemId, text) {
     const item = await inboxRepository.findById(itemId);
     if (!item) throw new Error('Item not found');
 
-    const service = socialPlatformFactory.getService(item.platform);
-    const reply = await service.replyToComment(brandId, item.platformItemId, text);
+    const strategy = this.strategies.find(s => s.supportsReply(item));
+    if (!strategy) {
+      throw new Error(`No reply strategy found for platform ${item.platform} and type ${item.type}`);
+    }
+
+    const reply = await strategy.reply(brandId, item.platformItemId, text);
     
-    await inboxRepository.updateStatus(itemId, INBOX_STATUS.READ);
+    // Update parent conversation to reflect the reply (update snippet text, sorting time and mark as READ)
+    await inboxRepository.updateInboxItem(itemId, {
+      content: text,
+      platformCreatedAt: new Date(),
+      status: INBOX_STATUS.READ
+    });
+
     return reply;
   }
 

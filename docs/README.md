@@ -8,6 +8,7 @@ Chào mừng bạn đến với hệ thống tài liệu kỹ thuật của dự
 - [Đăng ký & Xác thực OTP (Logic)](./backend/auth/REGISTER_LOGIC.md)
 - [Hệ thống Đăng nhập (Existing)](../backend/docs/LOGIN_SYSTEM.md)
 - [Hệ thống Unified Inbox (Hòm thư Hợp nhất)](./backend/UNIFIED_INBOX.md)
+- [Quản lý Media Library (Tài nguyên)](./backend/MEDIA_LIBRARY_IMPLEMENTATION.md)
 - [Tích hợp MXH & Analytics (General)](./backend/SOCIAL_SERVICES.md)
 - [Chi tiết Triển khai YouTube](./backend/YOUTUBE_IMPLEMENTATION.md)
 - [Tích hợp TikTok & Facebook (Analytics & Publish)](./tiktok_integration_and_analytics.md)

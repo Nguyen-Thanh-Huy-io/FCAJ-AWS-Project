@@ -1,7 +1,9 @@
 import React from "react";
 import { X, Download } from "lucide-react";
+import { usePostCreator } from "../../../context/PostCreatorContext";
 
-export function MediaDetailPanel({ detail, setDetail }) {
+export function MediaDetailPanel({ detail, setDetail, onDelete }) {
+  const { openPostCreator } = usePostCreator();
   if (!detail) return null;
 
   return (
@@ -36,7 +38,7 @@ export function MediaDetailPanel({ detail, setDetail }) {
         }}
       >
         {detail.thumbnail ? (
-          <img src={detail.thumbnail} alt="" className="w-full h-full object-cover" />
+          <img src={detail.url} alt="" className="w-full h-full object-cover" />
         ) : (
           detail.emoji
         )}
@@ -79,6 +81,13 @@ export function MediaDetailPanel({ detail, setDetail }) {
       </div>
       <div className="flex flex-col gap-2 mt-2">
         <button
+          onClick={() => {
+            openPostCreator({
+              defaultVideoUrl: detail.url,
+              defaultVideoPath: detail.url
+            });
+            setDetail(null);
+          }}
           style={{
             padding: "7px 12px",
             borderRadius: 8,
@@ -99,22 +108,14 @@ export function MediaDetailPanel({ detail, setDetail }) {
             borderRadius: 8,
             border: "0.5px solid #E5E7EB",
             fontSize: 12,
-            color: "#6B7280",
-            cursor: "pointer",
-            background: "transparent"
-          }}
-        >
-          <Download size={12} /> Download
-        </button>
-        <button
-          style={{
-            padding: "7px 12px",
-            borderRadius: 8,
-            border: "0.5px solid #FEE2E2",
-            fontSize: 12,
             color: "#DC2626",
             cursor: "pointer",
             background: "transparent"
+          }}
+          onClick={() => {
+            if (window.confirm("Delete this file?")) {
+              onDelete(detail.id);
+            }
           }}
         >
           Delete
@@ -123,3 +124,4 @@ export function MediaDetailPanel({ detail, setDetail }) {
     </div>
   );
 }
+

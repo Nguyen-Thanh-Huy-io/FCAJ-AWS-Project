@@ -33,6 +33,50 @@ class MediaLibraryService {
     };
   }
 
+  /**
+   * Upload and save media file info
+   */
+  async uploadFile(file, brandId, userId) {
+    const storageUrl = `/uploads/${file.filename}`;
+
+    const media = await mediaLibraryRepository.create({
+      brandId,
+      uploadedByUserId: userId,
+      filename: file.originalname,
+      mimeType: file.mimetype,
+      sizeBytes: file.size,
+      storageUrl,
+      mediaId: file.filename.split('.')[0], // Unique ID from filename
+      uploadedAt: new Date()
+    });
+
+    return this._formatMediaFile(media);
+  }
+
+  /**
+   * Delete media file and physical file
+   */
+  async deleteMedia(id, brandId) {
+    const media = await mediaLibraryRepository.findById(id);
+    if (!media || media.brandId !== brandId) {
+      throw new Error('Media file not found');
+    }
+
+    // Delete from DB
+    await mediaLibraryRepository.delete(id);
+
+    // Delete physical file
+    const fs = require('fs');
+    const path = require('path');
+    const localPath = path.join(process.cwd(), media.storageUrl.startsWith('/') ? media.storageUrl.substring(1) : media.storageUrl);
+
+    if (fs.existsSync(localPath)) {
+      fs.unlinkSync(localPath);
+    }
+
+    return { success: true };
+  }
+
   // ============= Private Helper Methods =============
 
   _getPagination(page, limit) {

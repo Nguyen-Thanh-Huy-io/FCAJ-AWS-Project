@@ -5,6 +5,8 @@ import { usePostCreator } from "../../../context/PostCreatorContext";
 import apiService from "../../../services/api";
 import brandService from "../../../services/brand.service";
 import { useGoogleDriveImport } from "../../../hooks/useGoogleDriveImport";
+import { toast } from "sonner";
+import postService from "../../../services/post.service";
 
 // Import SOLID Subcomponents
 import { UpgradeBanner } from "./components/UpgradeBanner";
@@ -20,6 +22,16 @@ export function WeeklyCalendarView() {
   const [postData, setPostData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
+  const [rowHeight, setRowHeight] = useState(100);
+  const [visiblePlatforms, setVisiblePlatforms] = useState({
+    YOUTUBE: true,
+    FACEBOOK: true,
+    TIKTOK: true,
+    INSTAGRAM: true,
+    LINKEDIN: true,
+    X: true,
+    TWITTER: true
+  });
   
   // Center date of current selected week (Defaults to May 24, 2026 as per original system context)
   const [selectedDate, setSelectedDate] = useState(new Date("2026-05-24"));
@@ -78,9 +90,12 @@ export function WeeklyCalendarView() {
   // Group and search-filter posts dynamically
   const groupedPosts = useMemo(() => {
     const grid = {};
-    const filtered = postData.filter(post => 
-      !searchTerm || post.title?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filtered = postData.filter(post => {
+      const matchesSearch = !searchTerm || post.title?.toLowerCase().includes(searchTerm.toLowerCase());
+      // Check if at least one platform on the post is visible
+      const matchesPlatform = post.platforms?.some(p => visiblePlatforms[p.toUpperCase()] !== false) ?? true;
+      return matchesSearch && matchesPlatform;
+    });
     filtered.forEach(post => {
       const date = new Date(post.scheduledAt || post.createdAt);
       const dateStr = date.toISOString().split('T')[0];
@@ -90,7 +105,7 @@ export function WeeklyCalendarView() {
       grid[key].push(post);
     });
     return grid;
-  }, [postData, searchTerm]);
+  }, [postData, searchTerm, visiblePlatforms]);
 
   // Date handlers
   const handlePrevWeek = () => {
@@ -141,6 +156,13 @@ export function WeeklyCalendarView() {
         onCreatePostClick={openPostCreator}
         showSidebar={showSidebar}
         onToggleSidebar={() => setShowSidebar(prev => !prev)}
+        rowHeight={rowHeight}
+        onRowHeightChange={setRowHeight}
+        visiblePlatforms={visiblePlatforms}
+        onVisiblePlatformsChange={setVisiblePlatforms}
+        postData={postData}
+        activeBrand={activeBrand}
+        fetchPosts={fetchPosts}
       />
 
       {loading && (
@@ -161,6 +183,7 @@ export function WeeklyCalendarView() {
             onCellClick={handleCellClick}
             onPostClick={(post) => openPostCreator({ post })}
             onCellDrop={importFromDrive}
+            rowHeight={rowHeight}
           />
         </div>
 

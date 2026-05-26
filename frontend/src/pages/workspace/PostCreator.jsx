@@ -127,6 +127,7 @@ export function PostCreatorPage() {
   } = usePostCreatorForm();
 
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadModalTab, setUploadModalTab] = useState("computer");
   const [showImageMenu, setShowImageMenu] = useState(false);
   const [showImageEditor, setShowImageEditor] = useState(false);
   const [imageTransform, setImageTransform] = useState({ rotation: 0, flipH: false, flipV: false, filter: 'none' });
@@ -462,8 +463,9 @@ export function PostCreatorPage() {
                           {activePopover === 'media' && (
                             <MediaDropdown 
                               onClose={() => setActivePopover(null)} 
-                              onSelectImage={() => setShowUploadModal(true)} 
-                              onSelectVideo={() => setShowUploadModal(true)} 
+                              onSelectImage={() => { setUploadModalTab("computer"); setShowUploadModal(true); }} 
+                              onSelectVideo={() => { setUploadModalTab("computer"); setShowUploadModal(true); }} 
+                              onSelectLibrary={() => { setUploadModalTab("library"); setShowUploadModal(true); }}
                               onSelectDrive={() => setIsDriveModalOpen(true)}
                             />
                           )}
@@ -1077,6 +1079,7 @@ export function PostCreatorPage() {
         />
         <MediaUploadModal 
           isOpen={showUploadModal}
+          initialTab={uploadModalTab}
           onClose={() => setShowUploadModal(false)}
           onAccept={(file, path) => {
             if (file) {

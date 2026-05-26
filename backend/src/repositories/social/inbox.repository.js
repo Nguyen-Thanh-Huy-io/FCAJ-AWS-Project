@@ -55,6 +55,16 @@ class InboxRepository {
     });
   }
 
+  async updateInboxItem(id, data) {
+    if (data.authorAvatarUrl && data.authorAvatarUrl.length > 190) {
+      data.authorAvatarUrl = data.authorAvatarUrl.substring(0, 190);
+    }
+    return prisma.inboxItem.update({
+      where: { id },
+      data
+    });
+  }
+
   async findOrCreateInbox(brandId) {
     let inbox = await prisma.unifiedInbox.findUnique({ where: { brandId } });
     if (!inbox) {

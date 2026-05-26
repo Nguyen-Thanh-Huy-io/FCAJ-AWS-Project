@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { 
-  Search, RefreshCw, Youtube, Facebook, Filter, MoreHorizontal, 
-  Loader2, MessageSquare, AlertCircle, EyeOff, CheckCircle, ExternalLink
+  Search, RefreshCw, Youtube, Facebook, Instagram, Filter, MoreHorizontal, 
+  Loader2, MessageSquare, AlertCircle, EyeOff, CheckCircle, ExternalLink, Check
 } from "lucide-react";
 import { useFilters } from "../../hooks/useFilters";
 import { useDebounce } from "../../hooks/useDebounce";
@@ -10,7 +10,7 @@ import brandService from "../../services/brand.service";
 import { toast } from "sonner";
 
 // SOLID Components
-import { ConversationItem } from "../../components/inbox/ConversationItem";
+import { ConversationItem, SafeAvatar } from "../../components/inbox/ConversationItem";
 import { VideoContextCard } from "../../components/inbox/VideoContextCard";
 import { ReplyComposer } from "../../components/inbox/ReplyComposer";
 
@@ -23,6 +23,7 @@ export function InboxPage() {
 
   const tabFilter = filters.tab || "Unresolved";
   const platformFilter = filters.platform || "YouTube";
+  const currentPage = parseInt(filters.page || "1", 10);
   const [searchTerm, setSearchTerm] = useState(filters.search || "");
   const debouncedSearch = useDebounce(searchTerm, 300);
 
@@ -36,6 +37,7 @@ export function InboxPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [activeBrand, setActiveBrand] = useState(null);
   const [isReplying, setIsReplying] = useState(false);
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
 
   // Load Active Brand
   useEffect(() => {
@@ -110,7 +112,10 @@ export function InboxPage() {
       const platform = platformFilter.toUpperCase();
       await apiService.post('/inbox/sync', { brandId: activeBrand.id, platform });
       toast.success("Inbox synced successfully");
-      fetchInbox();
+      await fetchInbox();
+      if (activeConv) {
+        await fetchThread();
+      }
     } catch (e) {
       toast.error("Sync failed: " + (e.response?.data?.message || e.message));
     } finally {
@@ -146,7 +151,8 @@ export function InboxPage() {
       });
       toast.success("Reply sent");
       setReplyText("");
-      fetchThread();
+      await fetchThread();
+      await fetchInbox();
     } catch (e) {
       toast.error("Failed to send reply: " + (e.response?.data?.message || e.message));
     } finally {
@@ -155,32 +161,42 @@ export function InboxPage() {
   };
 
   return (
-    <div className="flex-1 flex overflow-hidden bg-[#F8F8F7] p-4 gap-4">
+    <div className="h-[calc(100vh-70px)] w-full flex overflow-hidden bg-[#F8F8F7] p-4 gap-4">
       {/* Sidebar (List) */}
       <div className="w-[380px] bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
         <div className="p-4 flex items-center justify-between gap-4 relative border-b border-gray-50">
-           <div className="flex gap-2">
-             <button
-               onClick={() => updateFilters({ platform: "YouTube" })}
-               className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
-                 platformFilter.toLowerCase() === "youtube"
-                   ? "bg-red-50 border border-red-100 shadow-sm"
-                   : "opacity-40 hover:opacity-80"
-               }`}
-             >
-               <Youtube className="text-[#FF0000] fill-[#FF0000]" size={20} />
-             </button>
-             <button
-               onClick={() => updateFilters({ platform: "Facebook" })}
-               className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
-                 platformFilter.toLowerCase() === "facebook"
-                   ? "bg-blue-50 border border-blue-100 shadow-sm"
-                   : "opacity-40 hover:opacity-80"
-               }`}
-             >
-               <Facebook className="text-[#1877F2] fill-[#1877F2]" size={20} />
-             </button>
-           </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => updateFilters({ platform: "YouTube" })}
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+                  platformFilter.toLowerCase() === "youtube"
+                    ? "bg-red-50 border border-red-100 shadow-sm"
+                    : "opacity-40 hover:opacity-80"
+                }`}
+              >
+                <Youtube className="text-[#FF0000] fill-[#FF0000]" size={20} />
+              </button>
+              <button
+                onClick={() => updateFilters({ platform: "Facebook" })}
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+                  platformFilter.toLowerCase() === "facebook"
+                    ? "bg-blue-50 border border-blue-100 shadow-sm"
+                    : "opacity-40 hover:opacity-80"
+                }`}
+              >
+                <Facebook className="text-[#1877F2] fill-[#1877F2]" size={20} />
+              </button>
+              <button
+                onClick={() => updateFilters({ platform: "Instagram" })}
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+                  platformFilter.toLowerCase() === "instagram"
+                    ? "bg-pink-50 border border-pink-100 shadow-sm"
+                    : "opacity-40 hover:opacity-80"
+                }`}
+              >
+                <Instagram className="text-[#E1306C]" size={20} />
+              </button>
+            </div>
            <div className="flex items-center gap-2">
              <button onClick={handleSync} disabled={isSyncing} className="p-1.5 hover:bg-gray-100 rounded-full text-gray-400"><RefreshCw size={18} className={isSyncing ? "animate-spin" : ""} /></button>
              <button className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-50 text-xl font-light">+</button>
@@ -192,7 +208,72 @@ export function InboxPage() {
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
               <input type="text" placeholder="Search conversation..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-gray-50/50 border border-gray-200 rounded-xl py-2.5 pl-10 pr-4 text-xs focus:outline-none" />
            </div>
-           <button className="w-11 h-11 rounded-xl border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50"><Filter size={18} /></button>
+            <div className="relative">
+              <button 
+                onClick={() => setIsFilterMenuOpen(prev => !prev)}
+                className={`w-11 h-11 rounded-xl border flex items-center justify-center text-gray-600 hover:bg-gray-50 cursor-pointer transition-colors ${
+                  isFilterMenuOpen || filters.type ? "border-black bg-gray-50" : "border-gray-200"
+                }`}
+              >
+                <Filter size={18} />
+              </button>
+              
+              {isFilterMenuOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40 cursor-default" 
+                    onClick={() => setIsFilterMenuOpen(false)} 
+                  />
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl border border-gray-100 shadow-xl py-2.5 z-50 text-left animate-in fade-in slide-in-from-top-3 duration-200 font-medium">
+                    <div className="px-4 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                      Filter by type
+                    </div>
+                    
+                    <button
+                      onClick={() => {
+                        updateFilters({ type: null });
+                        setIsFilterMenuOpen(false);
+                      }}
+                      className="w-full px-4 py-2.5 text-xs font-bold text-[#0A0A0A] hover:bg-[#F8F8F7] flex items-center justify-between cursor-pointer border-none bg-transparent"
+                    >
+                      <span>All messages</span>
+                      {(!filters.type || filters.type === 'all') && <Check size={12} className="text-green-500" />}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        updateFilters({ type: "DIRECT_MESSAGE" });
+                        setIsFilterMenuOpen(false);
+                      }}
+                      className="w-full px-4 py-2.5 text-xs font-bold text-[#0A0A0A] hover:bg-[#F8F8F7] flex items-center justify-between cursor-pointer border-none bg-transparent"
+                    >
+                      <span>Private messages</span>
+                      <div className="flex items-center gap-1.5">
+                        <Facebook className="text-[#1877F2] fill-[#1877F2]" size={14} />
+                        <Instagram className="text-[#E1306C]" size={14} />
+                        {filters.type === "DIRECT_MESSAGE" && <Check size={12} className="text-green-500 ml-1" />}
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        updateFilters({ type: "COMMENT" });
+                        setIsFilterMenuOpen(false);
+                      }}
+                      className="w-full px-4 py-2.5 text-xs font-bold text-[#0A0A0A] hover:bg-[#F8F8F7] flex items-center justify-between cursor-pointer border-none bg-transparent"
+                    >
+                      <span>Comments</span>
+                      <div className="flex items-center gap-1.5">
+                        <Facebook className="text-[#1877F2] fill-[#1877F2]" size={14} />
+                        <Youtube className="text-[#FF0000] fill-[#FF0000]" size={14} />
+                        <Instagram className="text-[#E1306C]" size={14} />
+                        {filters.type === "COMMENT" && <Check size={12} className="text-green-500 ml-1" />}
+                      </div>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
         </div>
 
         <div className="flex px-2 border-b border-gray-50">
@@ -219,6 +300,29 @@ export function InboxPage() {
              ))
            )}
         </div>
+
+        {/* Pagination Footer */}
+        {inboxData.meta && inboxData.meta.totalPages > 1 && (
+          <div className="px-4 py-3 border-t border-gray-50 flex items-center justify-between bg-white text-[11px] font-bold text-gray-500">
+            <button
+              onClick={() => updateFilters({ page: currentPage - 1 })}
+              disabled={currentPage <= 1}
+              className="px-2.5 py-1.5 rounded-lg border border-gray-100 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+            >
+              Previous
+            </button>
+            <span>
+              Page {currentPage} of {inboxData.meta.totalPages}
+            </span>
+            <button
+              onClick={() => updateFilters({ page: currentPage + 1 })}
+              disabled={currentPage >= inboxData.meta.totalPages}
+              className="px-2.5 py-1.5 rounded-lg border border-gray-100 disabled:opacity-40 hover:bg-gray-50 transition-colors"
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Main Content (Thread) */}
@@ -241,21 +345,23 @@ export function InboxPage() {
                    <div className="relative shrink-0 w-10 h-10">
                       {activeConv.participants?.length > 1 ? (
                         <>
-                           <div className="w-7 h-7 rounded-full overflow-hidden border-2 border-white shadow-sm bg-gray-50 absolute top-0 left-0 z-10">
-                              <img src={activeConv.participants[0].avatar} className="w-full h-full object-cover" />
+                           <div className="w-7 h-7 rounded-full overflow-hidden border-2 border-white shadow-sm bg-gray-50 absolute top-0 left-0 z-10 flex">
+                              <SafeAvatar src={activeConv.participants[0].avatar} name={activeConv.participants[0].name} className="w-full h-full object-cover" />
                            </div>
                            <div className="w-7 h-7 rounded-full overflow-hidden border-2 border-white shadow-sm bg-[#4A3AFF] absolute bottom-0 right-0 z-0 flex items-center justify-center text-[8px] font-bold text-white">
-                              {activeConv.participants[1].avatar ? <img src={activeConv.participants[1].avatar} className="w-full h-full object-cover" /> : activeConv.participants[1].name.charAt(0)}
+                              <SafeAvatar src={activeConv.participants[1].avatar} name={activeConv.participants[1].name} className="w-full h-full object-cover" />
                            </div>
                         </>
                       ) : (
-                        <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-100 bg-gray-50">
-                           <img src={activeConv.avatar} className="w-full h-full object-cover" />
+                        <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-100 bg-gray-50 flex">
+                           <SafeAvatar src={activeConv.avatar} name={activeConv.user} className="w-full h-full object-cover" />
                         </div>
                       )}
                       <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-white flex items-center justify-center shadow-sm z-20">
                          {activeConv.platform?.toLowerCase() === "facebook" ? (
                            <Facebook className="text-[#1877F2] fill-[#1877F2]" size={8} />
+                         ) : activeConv.platform?.toLowerCase() === "instagram" ? (
+                           <Instagram className="text-[#E1306C]" size={8} />
                          ) : (
                            <Youtube className="text-[#FF0000] fill-[#FF0000]" size={8} />
                          )}
@@ -263,7 +369,7 @@ export function InboxPage() {
                    </div>
                    <div>
                       <h4 className="text-[13px] font-bold text-[#0A0A0A]">{activeConv.user}</h4>
-                      <div className="flex items-center gap-1"><MessageSquare className="text-gray-400" size={10} /><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">COMMENT</span></div>
+                      <div className="flex items-center gap-1"><MessageSquare className="text-gray-400" size={10} /><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{activeConv.type === 'direct_message' ? 'PRIVATE MESSAGE' : 'COMMENT'}</span></div>
                    </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -275,7 +381,7 @@ export function InboxPage() {
                    )}
                 </div>
              </div>
-
+ 
              <div className="flex-1 overflow-y-auto p-8 flex flex-col gap-8 scrollbar-thin bg-[#FDFDFD]">
                 {threadLoading ? (
                   <div className="flex-1 flex items-center justify-center"><Loader2 className="animate-spin text-gray-100" size={40} /></div>
@@ -289,7 +395,7 @@ export function InboxPage() {
                               {msg.from === "me" ? (
                                 <div className="w-full h-full bg-[#FF4F9A] flex items-center justify-center text-white text-[11px] font-bold">{activeBrand?.name?.charAt(0) || "C"}</div>
                               ) : (
-                                <img src={msg.avatar} className="w-full h-full object-cover" />
+                                <SafeAvatar src={msg.avatar} name={msg.author} className="w-full h-full object-cover" />
                               )}
                            </div>
                            <div className={`max-w-[70%] space-y-1.5 flex flex-col ${msg.from === "me" ? "items-end" : "items-start"}`}>

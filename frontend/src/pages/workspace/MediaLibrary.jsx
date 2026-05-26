@@ -7,6 +7,7 @@ import { MediaDetailPanel } from "./media-library/MediaDetailPanel";
 import { BulkActionsBar } from "./media-library/BulkActionsBar";
 
 export function MediaLibraryPage() {
+  const fileInputRef = React.useRef(null);
   const {
     filters,
     updateFilters,
@@ -16,9 +17,12 @@ export function MediaLibraryPage() {
     searchTerm,
     setSearchTerm,
     loading,
+    uploading,
     selected,
     toggleSelect,
     clearSelection,
+    deleteSelected,
+    uploadFiles,
     detail,
     setDetail,
     dragging,
@@ -29,6 +33,20 @@ export function MediaLibraryPage() {
     currentPage
   } = useMediaLibrary();
 
+  const handleFileChange = (e) => {
+    if (e.target.files?.length > 0) {
+      uploadFiles(Array.from(e.target.files));
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragging(false);
+    if (e.dataTransfer.files?.length > 0) {
+      uploadFiles(Array.from(e.dataTransfer.files));
+    }
+  };
+
   return (
     <div
       className="flex-1 flex flex-col overflow-hidden"
@@ -38,12 +56,12 @@ export function MediaLibraryPage() {
         setDragging(true);
       }}
       onDragLeave={() => setDragging(false)}
-      onDrop={() => setDragging(false)}
+      onDrop={handleDrop}
     >
       {/* Drag overlay */}
       {dragging && (
         <div
-          className="fixed inset-0 flex items-center justify-center z-50"
+          className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none"
           style={{ background: "rgba(255,255,255,0.9)", border: "2px dashed #E5E7EB" }}
         >
           <div className="text-center">
@@ -52,6 +70,15 @@ export function MediaLibraryPage() {
           </div>
         </div>
       )}
+
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        multiple
+        accept="image/*,video/*"
+        style={{ display: "none" }}
+      />
 
       {/* Sub-header */}
       <div
@@ -149,10 +176,17 @@ export function MediaLibraryPage() {
           </button>
         </div>
         <button
-          className="flex items-center gap-2 cursor-pointer rounded-lg"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="flex items-center gap-2 cursor-pointer rounded-lg disabled:opacity-50 transition-all hover:bg-gray-800"
           style={{ padding: "7px 14px", background: "#0A0A0A", color: "#FFF", fontSize: 12, fontWeight: 500 }}
         >
-          <Upload size={13} /> Upload Files
+          {uploading ? (
+            <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-white" />
+          ) : (
+            <Upload size={13} />
+          )}
+          {uploading ? "Uploading..." : "Upload Files"}
         </button>
       </div>
 
@@ -183,7 +217,7 @@ export function MediaLibraryPage() {
         </div>
 
         {/* Detail Panel */}
-        {detail && <MediaDetailPanel detail={detail} setDetail={setDetail} />}
+        {detail && <MediaDetailPanel detail={detail} setDetail={setDetail} onDelete={deleteFile} />}
       </div>
 
       {/* Pagination Footer */}
@@ -210,7 +244,7 @@ export function MediaLibraryPage() {
       </div>
 
       {/* Bulk Actions */}
-      <BulkActionsBar selected={selected} clearSelection={clearSelection} />
+      <BulkActionsBar selected={selected} clearSelection={clearSelection} onDelete={deleteSelected} />
     </div>
   );
 }

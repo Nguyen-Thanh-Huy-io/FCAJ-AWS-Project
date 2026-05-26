@@ -141,6 +141,69 @@ class FacebookGateway {
     return res.json();
   }
 
+  async getPageConversations(pageId, pageAccessToken, platform = null, afterCursor = null) {
+    const fields = 'id,snippet,updated_time,participants,messages{id,message,created_time,from}';
+    let url = `${this.graphBaseUrl}/${pageId}/conversations?fields=${fields}&access_token=${pageAccessToken}`;
+    if (platform) {
+      url += `&platform=${platform}`;
+    }
+    if (afterCursor) {
+      url += `&after=${afterCursor}`;
+    }
+    console.log(`[Facebook Gateway] Calling GET /${pageId}/conversations (Platform: ${platform || 'default'}, After: ${afterCursor || 'none'})`);
+    const res = await fetch(url);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      console.error(`Failed to fetch Facebook conversations for platform ${platform}:`, errData.error?.message);
+      return { data: [], paging: {} };
+    }
+    return res.json();
+  }
+
+  async getConversationMessages(conversationId, pageAccessToken) {
+    const url = `${this.graphBaseUrl}/${conversationId}/messages?fields=message,from,to,created_time&access_token=${pageAccessToken}`;
+    console.log(`[Facebook Gateway] Calling GET /${conversationId}/messages`);
+    const res = await fetch(url);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      console.error(`Failed to fetch messages for conversation ${conversationId}:`, errData.error?.message);
+      return [];
+    }
+    const data = await res.json();
+    return data.data || [];
+  }
+
+  async sendDirectMessage(recipientPsid, text, pageAccessToken) {
+    const url = `${this.graphBaseUrl}/me/messages?access_token=${pageAccessToken}`;
+    console.log(`[Facebook Gateway] Calling POST /me/messages to PSID ${recipientPsid}`);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        recipient: { id: recipientPsid },
+        messaging_type: 'RESPONSE',
+        message: { text }
+      })
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error?.message || 'Failed to send direct message via Facebook/Instagram');
+    }
+    return res.json();
+  }
+
+  async getConversationRecipientPsid(conversationId, pageId, pageAccessToken) {
+    const url = `${this.graphBaseUrl}/${conversationId}?fields=participants&access_token=${pageAccessToken}`;
+    console.log(`[Facebook Gateway] Calling GET /${conversationId} to get recipient PSID`);
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const recipient = data.participants?.data?.find(p => p.id !== pageId);
+    return recipient ? recipient.id : null;
+  }
+
   async publishTextPost(pageId, pageAccessToken, message) {
     const url = `${this.graphBaseUrl}/${pageId}/feed?message=${encodeURIComponent(message)}&access_token=${pageAccessToken}`;
     const res = await fetch(url, { method: 'POST' });

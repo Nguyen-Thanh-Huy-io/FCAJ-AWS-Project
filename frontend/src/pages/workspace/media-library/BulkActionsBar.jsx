@@ -1,7 +1,7 @@
 import React from "react";
 import { X } from "lucide-react";
 
-export function BulkActionsBar({ selected, clearSelection }) {
+export function BulkActionsBar({ selected, clearSelection, onDelete }) {
   if (selected.size === 0) return null;
 
   return (
@@ -19,7 +19,25 @@ export function BulkActionsBar({ selected, clearSelection }) {
     >
       <span style={{ fontSize: 12, color: "#FFF" }}>{selected.size} items selected</span>
       <div style={{ flex: 1 }} />
-      {["Delete", "Download", "Add to post"].map((a) => (
+      <button
+        onClick={() => {
+          if (window.confirm(`Delete ${selected.size} items?`)) {
+            onDelete();
+          }
+        }}
+        style={{
+          padding: "6px 14px",
+          borderRadius: 6,
+          border: "0.5px solid #333",
+          background: "transparent",
+          color: "#EF4444",
+          fontSize: 12,
+          cursor: "pointer"
+        }}
+      >
+        Delete
+      </button>
+      {["Download", "Add to post"].map((a) => (
         <button
           key={a}
           style={{
@@ -27,7 +45,7 @@ export function BulkActionsBar({ selected, clearSelection }) {
             borderRadius: 6,
             border: "0.5px solid #333",
             background: "transparent",
-            color: a === "Delete" ? "#EF4444" : "#DDD",
+            color: "#DDD",
             fontSize: 12,
             cursor: "pointer"
           }}

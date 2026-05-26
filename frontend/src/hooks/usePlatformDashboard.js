@@ -180,8 +180,29 @@ export function usePlatformDashboard(platform) {
 
   // Reload metrics when dateRange changes
   useEffect(() => {
-    if (activeBrand && !loading) {
-      loadMetrics(activeBrand.id);
+    if (activeBrand) {
+      if (!loading) {
+        loadMetrics(activeBrand.id);
+      }
+      if (selectedVideo) {
+        const refetchVideoAnalytics = async () => {
+          setIsVideoDetailLoading(true);
+          try {
+            const res = await socialService.getVideoAnalytics(
+              activeBrand.id,
+              selectedVideo.id,
+              dateRange.from?.toISOString().split('T')[0],
+              dateRange.to?.toISOString().split('T')[0]
+            );
+            setVideoAnalytics(res.data || []);
+          } catch (e) {
+            console.error("Failed to refetch video analytics", e);
+          } finally {
+            setIsVideoDetailLoading(false);
+          }
+        };
+        refetchVideoAnalytics();
+      }
     }
   }, [dateRange]);
 
