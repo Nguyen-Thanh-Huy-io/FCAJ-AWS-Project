@@ -44,19 +44,49 @@ class AutoListService {
     return this.getAutoListDetails(id);
   }
 
-  /**
-   * Recalculate scheduledAt dates for all unpublished posts in the autolist
-   */
   async recalculateQueueSchedules(autoListId) {
     const autoList = await autoListRepository.findById(autoListId);
     if (!autoList) return;
 
     await this._updateAutoListStats(autoList);
     
-    const unpublishedPosts = (autoList.posts || []).filter(p => p.status !== POST_STATUS.PUBLISHED && p.status !== POST_STATUS.FAILED);
+    let unpublishedPosts = (autoList.posts || []).filter(p => p.status !== POST_STATUS.PUBLISHED && p.status !== POST_STATUS.FAILED && p.status !== POST_STATUS.REJECTED);
+    
+    // Logic: If Loop is enabled but everything is published, "Revive" all posts
+    if (unpublishedPosts.length === 0 && autoList.loopEnabled && (autoList.posts || []).length > 0) {
+      console.log(`[AutoList] 🔄 Queue ${autoListId} dry but Loop enabled. Reviving all posts...`);
+      await postRepository.updateMany(
+        { autoListId: autoList.id, isDeleted: false },
+        { status: POST_STATUS.DRAFT, platformPostId: null, publishedAt: null }
+      );
+      // Re-fetch to get the revived posts
+      const refreshedList = await autoListRepository.findById(autoListId);
+      unpublishedPosts = (refreshedList.posts || []).filter(p => p.status === POST_STATUS.DRAFT);
+    }
+
     if (unpublishedPosts.length === 0) return;
 
     await this._updatePostSchedules(autoList, unpublishedPosts);
+  }
+
+  /**
+   * Persist custom drag-and-drop order by updating createdAt timestamps sequentially
+   */
+  async reorderPosts(autoListId, orderedPostIds) {
+    if (!orderedPostIds || !Array.isArray(orderedPostIds)) return;
+    
+    const baseTime = new Date();
+    // Update sequentially to guarantee incremental timestamps
+    for (let i = 0; i < orderedPostIds.length; i++) {
+      const postTime = new Date(baseTime.getTime() + i * 1000);
+      await postRepository.update(orderedPostIds[i], {
+        createdAt: postTime
+      });
+    }
+
+    // Trigger recalculation using the new database sorting order
+    await this.recalculateQueueSchedules(autoListId);
+    return this.getAutoListDetails(autoListId);
   }
 
   // ============= Private Helper Methods =============

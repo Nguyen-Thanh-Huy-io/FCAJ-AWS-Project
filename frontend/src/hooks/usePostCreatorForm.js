@@ -334,8 +334,10 @@ export function usePostCreatorForm() {
           const path = editingPost.mediaUrls[0];
           setUploadedVideoPath(path);
           
-          const backendUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-          const fullUrl = (path.startsWith('/') || path.startsWith('\\')) ? `${backendUrl}${path.replace(/\\/g, '/')}` : path;
+          const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+          const serverBase = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
+          const cleanPath = path.replace(/\\/g, '/');
+          const fullUrl = (path.startsWith('/') || path.startsWith('\\')) ? `${serverBase}${cleanPath}` : `${serverBase}/${cleanPath}`;
           setVideoFileUrl(fullUrl);
         } else {
           setUploadedVideoPath("");

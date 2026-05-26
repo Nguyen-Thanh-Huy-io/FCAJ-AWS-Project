@@ -37,20 +37,38 @@ class IntervalScheduleStrategy extends AutoListScheduleStrategy {
 class SpecificTimesScheduleStrategy extends AutoListScheduleStrategy {
   calculateNextSlots(autoList, count, fromDate) {
     const slots = [];
-    const activeDaysList = (autoList.activeDays || DEFAULT_ACTIVE_DAYS).split(SEPARATORS.COMMA).map(d => d.trim());
-    const activeDaysNums = activeDaysList.map(d => DAYS_MAP[d]).filter(n => n !== undefined);
-    
-    const timeStrings = (autoList.specificTimes || DEFAULT_CONFIG.TIME).split(SEPARATORS.COMMA).map(t => t.trim()).filter(Boolean);
+    let scheduleConfig = [];
+
+    // Check if specificTimes is JSON or legacy comma-separated string
+    if (autoList.specificTimes && autoList.specificTimes.startsWith('[')) {
+      try {
+        scheduleConfig = JSON.parse(autoList.specificTimes);
+      } catch (e) {
+        console.error('Failed to parse specificTimes JSON:', e);
+      }
+    } else {
+      // Legacy fallback
+      const activeDaysList = (autoList.activeDays || DEFAULT_ACTIVE_DAYS).split(SEPARATORS.COMMA).map(d => d.trim());
+      const timeStrings = (autoList.specificTimes || DEFAULT_CONFIG.TIME).split(SEPARATORS.COMMA).map(t => t.trim()).filter(Boolean);
+      scheduleConfig = timeStrings.map(time => ({
+        time,
+        days: activeDaysList
+      }));
+    }
+
+    if (!scheduleConfig || scheduleConfig.length === 0) return slots;
     
     let dayOffset = 0;
     // Search up to 60 days ahead
     while (slots.length < count && dayOffset < 60) {
       const targetDate = new Date(fromDate.getTime());
       targetDate.setDate(targetDate.getDate() + dayOffset);
+      const dayName = Object.keys(DAYS_MAP).find(key => DAYS_MAP[key] === targetDate.getDay());
       
-      if (activeDaysNums.includes(targetDate.getDay())) {
-        for (const timeStr of timeStrings) {
-          const [hourStr, minStr] = timeStr.split(':');
+      for (const config of scheduleConfig) {
+        const days = config.days || [];
+        if (days.includes(dayName)) {
+          const [hourStr, minStr] = config.time.split(':');
           const hr = parseInt(hourStr) || 0;
           const min = parseInt(minStr) || 0;
           

@@ -153,36 +153,56 @@ class PostService {
   }
 
   _preparePostData(postData, userId, brandId) {
-    const { title, caption, type = POST_TYPES.VIDEO, status = POST_STATUS.DRAFT, targetPlatforms = [], mediaUrls = [], mediaThumbnailUrls = [], scheduledAt, isLibrary = false, altText = null, options = {} } = postData;
+    const { title, caption, type = POST_TYPES.VIDEO, status = POST_STATUS.DRAFT, targetPlatforms = [], mediaUrls = [], mediaThumbnailUrls = [], scheduledAt, isLibrary = false, altText = null, autoListId = null, options = {} } = postData;
+    
+    // Ensure status is valid or default to DRAFT
+    let finalStatus = status ? status.toUpperCase() : POST_STATUS.DRAFT;
+    if (!Object.values(POST_STATUS).includes(finalStatus)) {
+      finalStatus = POST_STATUS.DRAFT;
+    }
+
     return {
       brandId, createdByUserId: userId, title: title || WORKSPACE_DEFAULTS.UNTITLED, caption, type,
-      status: status.toUpperCase(),
-      targetPlatforms: targetPlatforms.join(SEPARATORS.COMMA),
-      mediaUrls: mediaUrls.join(SEPARATORS.COMMA),
-      mediaThumbnailUrls: mediaThumbnailUrls.join(SEPARATORS.COMMA),
+      status: finalStatus,
+      targetPlatforms: Array.isArray(targetPlatforms) ? targetPlatforms.join(SEPARATORS.COMMA) : targetPlatforms,
+      mediaUrls: Array.isArray(mediaUrls) ? mediaUrls.join(SEPARATORS.COMMA) : mediaUrls,
+      mediaThumbnailUrls: Array.isArray(mediaThumbnailUrls) ? mediaThumbnailUrls.join(SEPARATORS.COMMA) : mediaThumbnailUrls,
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
       altText, isLibrary: isLibrary === true || isLibrary === 'true',
+      autoListId,
       firstComment: options.firstComment || null,
       metadata: options ? JSON.stringify(options) : null
     };
   }
 
   _prepareUpdateData(postData) {
-    const { title, caption, type, status, targetPlatforms, mediaUrls, mediaThumbnailUrls, scheduledAt, isLibrary, altText } = postData;
+    const { title, caption, type, status, targetPlatforms, mediaUrls, mediaThumbnailUrls, scheduledAt, isLibrary, altText, autoListId, firstComment } = postData;
     const data = {};
     if (title !== undefined) data.title = title || WORKSPACE_DEFAULTS.UNTITLED;
     if (caption !== undefined) data.caption = caption;
     if (type !== undefined) data.type = type;
-    if (status !== undefined) data.status = status.toUpperCase();
-    if (targetPlatforms !== undefined) data.targetPlatforms = targetPlatforms.join(SEPARATORS.COMMA);
-    if (mediaUrls !== undefined) data.mediaUrls = mediaUrls.join(SEPARATORS.COMMA);
-    if (mediaThumbnailUrls !== undefined) data.mediaThumbnailUrls = mediaThumbnailUrls.join(SEPARATORS.COMMA);
-    if (scheduledAt !== undefined) data.scheduledAt = scheduledAt ? new Date(scheduledAt) : null;
+    
+    if (status !== undefined) {
+      const finalStatus = status.toUpperCase();
+      if (Object.values(POST_STATUS).includes(finalStatus)) {
+        data.status = finalStatus;
+      }
+    }
+
+    if (targetPlatforms !== undefined) data.targetPlatforms = Array.isArray(targetPlatforms) ? targetPlatforms.join(SEPARATORS.COMMA) : targetPlatforms;
+    if (mediaUrls !== undefined) data.mediaUrls = Array.isArray(mediaUrls) ? mediaUrls.join(SEPARATORS.COMMA) : mediaUrls;
+    if (mediaThumbnailUrls !== undefined) data.mediaThumbnailUrls = Array.isArray(mediaThumbnailUrls) ? mediaThumbnailUrls.join(SEPARATORS.COMMA) : mediaThumbnailUrls;
+    if (scheduledAt !== undefined) data.scheduledAt = (scheduledAt && !isNaN(new Date(scheduledAt).getTime())) ? new Date(scheduledAt) : null;
     if (isLibrary !== undefined) data.isLibrary = isLibrary === true || isLibrary === 'true';
     if (altText !== undefined) data.altText = altText;
+    if (autoListId !== undefined) data.autoListId = autoListId;
+    if (firstComment !== undefined) data.firstComment = firstComment;
+    
     if (postData.options !== undefined) {
       data.metadata = JSON.stringify(postData.options);
-      data.firstComment = postData.options.firstComment || null;
+      if (postData.options.firstComment !== undefined) {
+        data.firstComment = postData.options.firstComment || null;
+      }
     }
     return data;
   }

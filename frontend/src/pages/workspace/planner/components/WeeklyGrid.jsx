@@ -223,7 +223,7 @@ export function WeeklyGrid({
                           {/* Title / Description */}
                           <div>
                             <p className="text-[9.5px] font-bold text-gray-800 line-clamp-2 leading-snug">
-                              {post.title || post.caption}
+                              {post.caption || (post.title === "Untitled Queue Post" ? "Untitled Post" : post.title) || "Untitled Post"}
                             </p>
                           </div>
 

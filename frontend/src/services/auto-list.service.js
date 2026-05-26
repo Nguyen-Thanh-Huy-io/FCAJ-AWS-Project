@@ -30,6 +30,11 @@ class AutoListService {
     const response = await apiService.patch(`/auto-lists/${id}/toggle`);
     return response.data;
   }
+
+  async reorderPosts(id, orderedPostIds) {
+    const response = await apiService.put(`/auto-lists/${id}/reorder`, { orderedPostIds });
+    return response.data;
+  }
 }
 
 const autoListService = new AutoListService();

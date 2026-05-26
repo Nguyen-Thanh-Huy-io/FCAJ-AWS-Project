@@ -1111,6 +1111,7 @@ enum PostStatus {
   PUBLISHED
   FAILED
   REJECTED
+  PAUSED
 }
 
 enum CalendarView {

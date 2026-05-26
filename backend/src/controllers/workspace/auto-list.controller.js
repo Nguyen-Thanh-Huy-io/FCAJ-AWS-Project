@@ -39,6 +39,16 @@ class AutoListController {
     const data = await autoListService.toggleStatus(id);
     res.json({ data });
   });
+
+  reorderPosts = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { orderedPostIds } = req.body;
+    if (!orderedPostIds || !Array.isArray(orderedPostIds)) {
+      return res.status(400).json({ message: 'orderedPostIds array is required' });
+    }
+    const data = await autoListService.reorderPosts(id, orderedPostIds);
+    res.json({ data });
+  });
 }
 
 module.exports = new AutoListController();

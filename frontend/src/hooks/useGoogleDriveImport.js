@@ -38,8 +38,10 @@ export function useGoogleDriveImport(activeBrand) {
       if (res.videoUrl) {
         toast.success(`Successfully imported "${fileData.name}"!`, { id: 'import-drive-toast' });
 
-        const backendUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-        const fullUrl = res.videoUrl.startsWith('http') ? res.videoUrl : `${backendUrl}${res.videoUrl}`;
+        const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+        const serverBase = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
+        const cleanPath = res.videoUrl.replace(/\\/g, '/');
+        const fullUrl = res.videoUrl.startsWith('http') ? res.videoUrl : (cleanPath.startsWith('/') ? `${serverBase}${cleanPath}` : `${serverBase}/${cleanPath}`);
 
         // 3. Pre-fill files inside the open Post Creator modal
         setUploadedVideoPath(res.videoUrl);
