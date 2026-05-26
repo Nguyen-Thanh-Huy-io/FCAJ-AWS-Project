@@ -10,6 +10,7 @@ Chào mừng bạn đến với hệ thống tài liệu kỹ thuật của dự
 - [Hệ thống Unified Inbox (Hòm thư Hợp nhất)](./backend/UNIFIED_INBOX.md)
 - [Tích hợp MXH & Analytics (General)](./backend/SOCIAL_SERVICES.md)
 - [Chi tiết Triển khai YouTube](./backend/YOUTUBE_IMPLEMENTATION.md)
+- [Tích hợp TikTok & Facebook (Analytics & Publish)](./tiktok_integration_and_analytics.md)
 - [API Reference (Existing)](../backend/docs/API_REFERENCE.md)
 
 ### 🔹 Frontend

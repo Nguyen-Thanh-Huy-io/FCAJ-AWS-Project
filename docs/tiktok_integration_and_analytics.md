@@ -124,3 +124,29 @@ sequenceDiagram
 ### 5. Lỗi giới hạn khoảng thời gian truy vấn của Facebook Graph API (Lỗi 93 ngày)
 * **Triệu chứng**: Facebook Insights API báo lỗi `Khoảng thời gian quá dài` khi khoảng cách giữa `since` và `until` vượt quá 93 ngày.
 * **Khắc phục**: Cập nhật hàm `_resolveDates` trong [facebook-analytics.service.js](file:///d:/Fullit/projects/PubliCast/backend/src/services/social/facebook/facebook-analytics.service.js) để giới hạn khoảng thời gian truy vấn tối đa không vượt quá 90 ngày kể từ ngày kết thúc (`end`).
+
+---
+
+## 4. Tích hợp Content Posting API (Đăng bài lên TikTok)
+
+### Quy trình đăng Video (`FILE_UPLOAD`)
+Hệ thống sử dụng cơ chế `FILE_UPLOAD` để tải trực tiếp file video từ máy chủ lên TikTok. Quá trình này bao gồm 2 bước:
+1.  **Initialize (`/v2/post/publish/video/init/`)**: Khởi tạo yêu cầu đăng bài, thiết lập tiêu đề, quyền riêng tư (`privacy_level`), và khai báo kích thước file. API trả về `publish_id` và `upload_url`.
+2.  **Upload Binary**: Gửi dữ liệu nhị phân (binary) của video lên `upload_url` thông qua phương thức `PUT`.
+
+### Xử lý lỗi "Unaudited Client" (Chế độ Sandbox)
+**Triệu chứng:** Khi ứng dụng chưa được TikTok phê duyệt (Audit), việc đăng bài với `privacy_level` là `PUBLIC_TO_EVERYONE` sẽ gặp lỗi:
+`{"error":{"code":"unaudited_client_can_only_post_to_private_accounts","message":"Please review our integration guidelines..."}}`
+
+**Khắc phục (Fallback Mechanism):**
+Để hỗ trợ quá trình phát triển và kiểm thử (Testing), `TikTokGateway.publishVideo` đã được cập nhật logic tự động xử lý lỗi này:
+1.  Bắt lỗi `unaudited_client_can_only_post_to_private_accounts`.
+2.  Tự động đổi `privacy_level` thành `SELF_ONLY` (Chỉ mình tôi) và thử gọi lại API `init` lần hai.
+3.  **Yêu cầu bắt buộc từ TikTok:** Để fallback này hoạt động, **Tài khoản TikTok liên kết cũng phải được cài đặt là "Private Account" (Tài khoản riêng tư)** trong ứng dụng TikTok trên điện thoại. Nếu không, lỗi vẫn sẽ xảy ra.
+
+### Hỗ trợ Đăng Ảnh (Photo Posts / Carousel)
+TikTok API v2 có hỗ trợ đăng ảnh, tuy nhiên có những điểm khác biệt lớn so với đăng video:
+*   **Phương thức:** Đa số API đăng ảnh yêu cầu sử dụng cơ chế `PULL_FROM_URL` thay vì upload file trực tiếp.
+*   **Domain Verification:** Bạn **bắt buộc phải xác minh domain (Verify Domain)** trên TikTok Developer Console. Máy chủ của TikTok sẽ trực tiếp kéo ảnh từ các URL (thuộc domain đã xác minh) mà bạn cung cấp.
+*   Nếu không có domain (ví dụ đang dùng `ngrok` ngẫu nhiên), tính năng `PULL_FROM_URL` sẽ bị từ chối do lỗi `url_ownership_unverified`.
+*   **Giải pháp cho Local Dev:** Đối với tính năng đăng ảnh, nếu không thể xác minh domain, có thể nghiên cứu sử dụng `post_mode: "MEDIA_UPLOAD"` để đẩy nội dung vào thư mục **Nháp (Draft)** của người dùng thay vì đăng trực tiếp.
