@@ -2,6 +2,7 @@ const postRepository = require('../../repositories/workspace/post.repository');
 const socialPlatformFactory = require('../social/social-platform.factory');
 const { POST_STATUS, POST_TYPES, SEPARATORS, WORKSPACE_DEFAULTS } = require('../../utils/constants');
 const { eventEmitter, EVENTS } = require('../../events/event-emitter');
+const { upsertPublishJob, removePublishJob } = require('../../queues/publish.queue');
 
 const QueryPipeline = require('../../core/query-pipeline/query.pipeline');
 const PostStatusFilter = require('./post/filters/status.filter');
@@ -55,6 +56,11 @@ class PostService {
     const data = this._preparePostData(postData, userId, brandId);
     const post = await postRepository.create(data);
 
+    // If one-off post is scheduled, add to BullMQ
+    if (!post.autoListId && post.status === POST_STATUS.SCHEDULED && post.scheduledAt) {
+      await upsertPublishJob(post.id, post.scheduledAt);
+    }
+
     eventEmitter.emit(EVENTS.POST.CREATED, { post, options: postData.options });
     return this._formatPostResponse(post);
   }
@@ -69,6 +75,15 @@ class PostService {
 
     const data = this._prepareUpdateData(postData);
     const updatedPost = await postRepository.update(id, data);
+
+    // Sync BullMQ for one-off posts
+    if (!updatedPost.autoListId) {
+      if (updatedPost.status === POST_STATUS.SCHEDULED && updatedPost.scheduledAt) {
+        await upsertPublishJob(updatedPost.id, updatedPost.scheduledAt);
+      } else {
+        await removePublishJob(updatedPost.id);
+      }
+    }
 
     const statusChangedToPublished = postData.status?.toUpperCase() === POST_STATUS.PUBLISHED;
     eventEmitter.emit(EVENTS.POST.UPDATED, { post: updatedPost, options: postData.options, statusChangedToPublished });

@@ -29,6 +29,9 @@ const autoListRoutes = require('./routes/workspace/auto-list.routes');
 const searchRoutes = require('./routes/core/search.routes');
 const notificationRoutes = require('./routes/core/notification.routes');
 
+// BullMQ Dashboard
+const queueDashboard = require('./queues/dashboard');
+
 const app = express();
 
 // Request logger
@@ -84,6 +87,9 @@ app.use('/api/admin/products', productRoutes);
 app.use('/api/social', socialRoutes);
 app.use('/api/brands', brandRoutes);
 app.use('/api/auto-lists', autoListRoutes);
+
+// Mount Job Queue Dashboard (Visual Monitoring)
+app.use('/admin/queues', queueDashboard.getRouter());
 
 app.get('/', (req, res) => {
   res.send('PubliCast API is running');

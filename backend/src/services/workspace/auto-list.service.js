@@ -3,6 +3,7 @@ const postRepository = require('../../repositories/workspace/post.repository');
 const { ScheduleStrategyFactory } = require('../../utils/scheduler-strategies');
 const { eventEmitter, EVENTS } = require('../../events/event-emitter');
 const { AUTOLIST_TYPES, POST_STATUS } = require('../../utils/constants');
+const { upsertPublishJob, removePublishJob } = require('../../queues/publish.queue');
 
 class AutoListService {
   async getAutoLists(brandId) {
@@ -38,7 +39,17 @@ class AutoListService {
     const list = await autoListRepository.findById(id);
     if (!list) throw new Error('AutoList not found');
     
-    await autoListRepository.update(id, { isActive: !list.isActive });
+    const newActiveState = !list.isActive;
+    await autoListRepository.update(id, { isActive: newActiveState });
+
+    // If paused, remove all pending jobs from BullMQ
+    if (!newActiveState) {
+      const pendingPosts = (list.posts || []).filter(p => p.status === POST_STATUS.SCHEDULED);
+      for (const p of pendingPosts) {
+        await removePublishJob(p.id);
+      }
+    }
+
     eventEmitter.emit(EVENTS.AUTOLIST.TOGGLED, { autoListId: id });
     
     return this.getAutoListDetails(id);
@@ -131,15 +142,22 @@ class AutoListService {
     const strategy = ScheduleStrategyFactory.getStrategy(autoList.scheduleType);
     const slots = strategy.calculateNextSlots(autoList, unpublishedPosts.length, new Date());
 
-    const postIds = unpublishedPosts.map(p => p.id);
-    // Note: Prisma updateMany doesn't support setting different values per ID easily in one call
-    // but for schedules they are different. We must loop or use a more complex raw query.
-    // For now, we keep individual updates but use the repository.
     for (let i = 0; i < unpublishedPosts.length; i++) {
-      await postRepository.update(unpublishedPosts[i].id, {
-          scheduledAt: slots[i] || new Date(),
-          status: autoList.isActive ? POST_STATUS.SCHEDULED : POST_STATUS.DRAFT
+      const postId = unpublishedPosts[i].id;
+      const scheduledAt = slots[i] || new Date();
+      const newStatus = autoList.isActive ? POST_STATUS.SCHEDULED : POST_STATUS.DRAFT;
+
+      await postRepository.update(postId, {
+          scheduledAt,
+          status: newStatus
       });
+
+      // Update BullMQ queue based on current active state
+      if (autoList.isActive) {
+        await upsertPublishJob(postId, scheduledAt);
+      } else {
+        await removePublishJob(postId);
+      }
     }
   }
 }

@@ -1,0 +1,59 @@
+const { Queue } = require('bullmq');
+const { defaultConnection } = require('../config/bullmq');
+
+// Define the name of our publishing queue
+const PUBLISH_QUEUE_NAME = 'social-publish-queue';
+
+/**
+ * Main Publishing Queue
+ * Responsible for holding jobs until their scheduled time
+ */
+const publishQueue = new Queue(PUBLISH_QUEUE_NAME, {
+  ...defaultConnection,
+  defaultJobOptions: {
+    attempts: 3, // Retry 3 times if failed
+    backoff: {
+      type: 'exponential',
+      delay: 5000, // Wait 5s before first retry, then 10s, 20s...
+    },
+    removeOnComplete: true, // Keep Redis clean
+    removeOnFail: false, // Keep failed jobs for debugging
+  }
+});
+
+/**
+ * Upsert a publishing job
+ * @param {string} postId 
+ * @param {Date} scheduledAt 
+ */
+const upsertPublishJob = async (postId, scheduledAt) => {
+  const delay = Math.max(0, new Date(scheduledAt).getTime() - Date.now());
+  const jobId = `publish-post-${postId}`;
+  
+  // Remove existing job if any to reset the delay
+  await publishQueue.remove(jobId);
+  
+  await publishQueue.add('publish-post', { postId }, {
+    jobId,
+    delay
+  });
+
+  console.log(`[BullMQ Queue] 📅 Scheduled post ${postId} in ${Math.round(delay / 1000)}s`);
+};
+
+/**
+ * Remove a publishing job
+ * @param {string} postId 
+ */
+const removePublishJob = async (postId) => {
+  const jobId = `publish-post-${postId}`;
+  await publishQueue.remove(jobId);
+  console.log(`[BullMQ Queue] 🗑️ Removed scheduled job for post ${postId}`);
+};
+
+module.exports = {
+  publishQueue,
+  PUBLISH_QUEUE_NAME,
+  upsertPublishJob,
+  removePublishJob
+};
