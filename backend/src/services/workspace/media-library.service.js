@@ -3,6 +3,7 @@ const QueryPipeline = require('../../core/query-pipeline/query.pipeline');
 const MediaLibrarySearchFilter = require('./media-library/filters/search.filter');
 const MediaLibraryTypeFilter = require('./media-library/filters/type.filter');
 const MediaLibraryUsedFilter = require('./media-library/filters/used.filter');
+const MediaLibraryFolderFilter = require('./media-library/filters/folder.filter');
 const { cloudinary } = require('../../config/cloudinary');
 
 const ALLOWED_SORT_FIELDS = ['createdAt', 'filename', 'sizeBytes'];
@@ -13,7 +14,8 @@ class MediaLibraryService {
     this.queryPipeline = new QueryPipeline([
       new MediaLibrarySearchFilter(),
       new MediaLibraryTypeFilter(),
-      new MediaLibraryUsedFilter()
+      new MediaLibraryUsedFilter(),
+      new MediaLibraryFolderFilter()
     ]);
   }
 
@@ -37,7 +39,7 @@ class MediaLibraryService {
   /**
    * Upload and save media file info
    */
-  async uploadFile(file, brandId, userId) {
+  async uploadFile(file, brandId, userId, folderId = null) {
     const storageUrl = file.path;
 
     const media = await mediaLibraryRepository.create({
@@ -48,6 +50,7 @@ class MediaLibraryService {
       sizeBytes: file.size,
       storageUrl,
       mediaId: file.filename, // This is the public_id in Cloudinary
+      folderId: folderId || null,
       uploadedAt: new Date()
     });
 
@@ -77,6 +80,28 @@ class MediaLibraryService {
     return { success: true };
   }
 
+  /**
+   * Save media info after direct upload to Cloudinary
+   */
+  async saveDirectMedia(fileInfo, brandId, userId, folderId = null) {
+    const media = await mediaLibraryRepository.create({
+      brandId,
+      uploadedByUserId: userId,
+      filename: fileInfo.original_filename || fileInfo.filename,
+      mimeType: fileInfo.mimetype || `${fileInfo.resource_type}/${fileInfo.format}`,
+      sizeBytes: fileInfo.bytes,
+      storageUrl: fileInfo.secure_url,
+      mediaId: fileInfo.public_id,
+      folderId: folderId || null,
+      width: fileInfo.width,
+      height: fileInfo.height,
+      durationSeconds: fileInfo.duration,
+      uploadedAt: new Date()
+    });
+
+    return this._formatMediaFile(media);
+  }
+
   // ============= Private Helper Methods =============
 
   _getResourceType(mimeType) {
@@ -98,6 +123,19 @@ class MediaLibraryService {
   }
 
   _formatMediaFile(f) {
+    let thumbnail = f.thumbnailUrl;
+    
+    // Auto-generate thumbnail for Cloudinary if missing
+    if (!thumbnail && f.storageUrl.includes('cloudinary.com')) {
+      if (f.mimeType.startsWith('image/')) {
+        // For images, we can use the original URL or a transformed version
+        thumbnail = f.storageUrl.replace('/upload/', '/upload/c_thumb,w_200,g_face/');
+      } else if (f.mimeType.startsWith('video/')) {
+        // For videos, Cloudinary can generate a jpg thumbnail by changing the extension
+        thumbnail = f.storageUrl.replace(/\.[^/.]+$/, ".jpg").replace('/upload/', '/upload/c_thumb,w_200,g_face,so_auto/');
+      }
+    }
+
     return {
       id: f.id,
       name: f.filename,
@@ -107,7 +145,7 @@ class MediaLibraryService {
       date: new Date(f.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       used: f.isUsed,
       url: f.storageUrl,
-      thumbnail: f.thumbnailUrl,
+      thumbnail: thumbnail || f.storageUrl, // Fallback to storageUrl if still missing
       aspect: f.aspectRatio || '1/1',
       emoji: this._getEmoji(f.mimeType),
       duration: f.durationSeconds ? this._formatDuration(f.durationSeconds) : null

@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Upload, LayoutGrid, List } from "lucide-react";
+import { Search, Upload, LayoutGrid, List, Folder } from "lucide-react";
 import { useMediaLibrary } from "../../hooks/useMediaLibrary";
 import { MediaGrid } from "./media-library/MediaGrid";
 import { MediaListTable } from "./media-library/MediaListTable";
@@ -22,16 +22,24 @@ export function MediaLibraryPage() {
     toggleSelect,
     clearSelection,
     deleteSelected,
+    deleteFile,
     uploadFiles,
     detail,
     setDetail,
     dragging,
     setDragging,
     filteredMedia,
+    folders,
+    createFolder,
     totalEntries,
     totalPages,
     currentPage
   } = useMediaLibrary();
+
+  const handleCreateFolder = () => {
+    const name = prompt("Enter folder name:");
+    if (name) createFolder(name);
+  };
 
   const handleFileChange = (e) => {
     if (e.target.files?.length > 0) {
@@ -80,7 +88,6 @@ export function MediaLibraryPage() {
         style={{ display: "none" }}
       />
 
-      {/* Sub-header */}
       <div
         className="flex items-center gap-3 px-6 py-3"
         style={{ background: "#FFF", borderBottom: "0.5px solid #E5E7EB" }}
@@ -145,50 +152,45 @@ export function MediaLibraryPage() {
         )}
 
         <div style={{ flex: 1 }} />
-        <select
-          onChange={(e) => updateFilters({ sortBy: e.target.value.split(":")[0].toLowerCase(), sortOrder: "desc" })}
-          style={{
-            padding: "5px 10px",
-            borderRadius: 6,
-            border: "0.5px solid #E5E7EB",
-            fontSize: 11,
-            color: "#6B7280",
-            outline: "none",
-            cursor: "pointer"
-          }}
-        >
-          <option value="createdAt">Sort: Newest</option>
-          <option value="filename">Sort: Name</option>
-          <option value="sizeBytes">Sort: Size</option>
-        </select>
-        <div className="flex items-center overflow-hidden rounded-lg" style={{ border: "0.5px solid #E5E7EB" }}>
+        
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => updateFilters({ view: "grid" })}
-            style={{ padding: "5px 8px", background: view === "grid" ? "#0A0A0A" : "#FFF", cursor: "pointer", border: "none" }}
+            onClick={handleCreateFolder}
+            className="flex items-center gap-2 cursor-pointer px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 transition-all"
           >
-            <LayoutGrid size={13} style={{ color: view === "grid" ? "#FFF" : "#9CA3AF" }} />
+            <Folder size={14} className="text-yellow-500" />
+            New Folder
           </button>
+          
           <button
-            onClick={() => updateFilters({ view: "list" })}
-            style={{ padding: "5px 8px", background: view === "list" ? "#0A0A0A" : "#FFF", cursor: "pointer", border: "none" }}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="flex items-center gap-2 cursor-pointer rounded-xl disabled:opacity-50 transition-all bg-[#0A0A0A] text-white hover:bg-black shadow-lg shadow-black/5"
+            style={{ padding: "8px 16px", fontSize: 12, fontWeight: 700 }}
           >
-            <List size={13} style={{ color: view === "list" ? "#FFF" : "#9CA3AF" }} />
+            {uploading ? (
+              <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-white" />
+            ) : (
+              <Upload size={14} />
+            )}
+            {uploading ? "Uploading..." : "Upload Files"}
           </button>
         </div>
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-          className="flex items-center gap-2 cursor-pointer rounded-lg disabled:opacity-50 transition-all hover:bg-gray-800"
-          style={{ padding: "7px 14px", background: "#0A0A0A", color: "#FFF", fontSize: 12, fontWeight: 500 }}
-        >
-          {uploading ? (
-            <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-white" />
-          ) : (
-            <Upload size={13} />
-          )}
-          {uploading ? "Uploading..." : "Upload Files"}
-        </button>
       </div>
+
+      {/* Breadcrumbs */}
+      {filters.folderId && (
+        <div className="px-6 py-2 flex items-center gap-2 text-[11px] font-bold text-gray-400 bg-gray-50/50">
+           <button 
+             onClick={() => updateFilters({ folderId: null })}
+             className="hover:text-black cursor-pointer"
+           >
+             Media Library
+           </button>
+           <span>/</span>
+           <span className="text-gray-900">Folder</span>
+        </div>
+      )}
 
       <div className="flex flex-1 overflow-hidden">
         {/* Main content */}
@@ -199,11 +201,13 @@ export function MediaLibraryPage() {
             </div>
           ) : view === "grid" ? (
             <MediaGrid
+              folders={searchTerm ? [] : folders}
               filteredMedia={filteredMedia}
               setDetail={setDetail}
               selected={selected}
               toggleSelect={toggleSelect}
               clearFilters={clearFilters}
+              updateFilters={updateFilters}
             />
           ) : (
             <MediaListTable
@@ -214,6 +218,7 @@ export function MediaLibraryPage() {
               clearFilters={clearFilters}
             />
           )}
+
         </div>
 
         {/* Detail Panel */}

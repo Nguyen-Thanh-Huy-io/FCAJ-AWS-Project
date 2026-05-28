@@ -21,12 +21,12 @@ class MediaLibraryController {
    * POST /api/media/upload
    */
   uploadMedia = asyncHandler(async (req, res) => {
-    const { brandId } = req.body;
+    const { brandId, folderId } = req.body;
     if (!brandId) return res.status(400).json({ message: 'brandId is required' });
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
 
     const userId = req.user.id;
-    const media = await mediaLibraryService.uploadFile(req.file, brandId, userId);
+    const media = await mediaLibraryService.uploadFile(req.file, brandId, userId, folderId);
 
     res.status(201).json({
       message: 'File uploaded successfully',
@@ -47,6 +47,25 @@ class MediaLibraryController {
 
     res.status(200).json({
       message: 'Media file deleted successfully'
+    });
+  });
+
+  /**
+   * POST /api/media/save-direct
+   */
+  saveDirectMedia = asyncHandler(async (req, res) => {
+    const { brandId, fileInfo, folderId } = req.body;
+    const userId = req.user.id;
+    
+    if (!brandId || !fileInfo) {
+      return res.status(400).json({ message: 'brandId and fileInfo are required' });
+    }
+
+    const media = await mediaLibraryService.saveDirectMedia(fileInfo, brandId, userId, folderId);
+
+    res.status(201).json({
+      message: 'Media info saved successfully',
+      data: media
     });
   });
 }

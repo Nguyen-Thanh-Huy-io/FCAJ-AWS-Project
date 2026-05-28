@@ -1,28 +1,39 @@
 # 📂 Media Library Implementation Details
 
-Tài liệu này chi tiết về module quản lý tài nguyên nội dung (Media Library), bao gồm kiến trúc lưu trữ, xử lý tệp tin và tích hợp giao diện người dùng.
+Tài liệu này chi tiết về module quản lý tài nguyên nội dung (Media Library), bao gồm kiến trúc lưu trữ hiện đại, cơ chế tải lên trực tiếp và tích hợp trình phát đa phương tiện.
 
 ---
 
-## 🏗️ Kiến Trúc Hệ Thống
+## 🏗️ Kiến Trúc Hệ Thống (Mới)
 
-Module Media Library được thiết kế theo mô hình 3 lớp (Repository -> Service -> Controller) kết hợp với Middleware xử lý tệp tin.
+Hệ thống đã chuyển đổi từ cơ chế upload qua Server truyền thống sang **Direct Upload** kết hợp **Resumable Chunking** để tối ưu hiệu năng.
 
-### 1. Xử lý Tệp tin (Multer Middleware)
-- **File**: `backend/src/middlewares/upload.middleware.js`
-- **Cơ chế**:
-    - Lưu trữ cục bộ tại thư mục `uploads/`.
-    - Tự động tạo thư mục nếu chưa tồn tại.
-    - Đổi tên file bằng `timestamp` và `unique suffix` để tránh trùng lặp.
-    - Giới hạn dung lượng: **100MB** (phù hợp cho cả video ngắn).
-    - Hỗ trợ định dạng: `JPG, PNG, GIF, MP4, MOV, MKV, WEBP`.
+### 1. Cơ chế Tải lên Trực tiếp (Direct Upload)
+- **Luồng hoạt động**:
+    1. Frontend gọi API `/api/media/signature` để lấy chữ ký bảo mật từ Backend.
+    2. Frontend gửi file trực tiếp từ trình duyệt lên **Cloudinary API** (Bỏ qua băng thông của Server).
+    3. Sau khi thành công, Frontend gửi metadata về `/api/media/save-direct` để lưu vào cơ sở dữ liệu.
+- **Lợi ích**: Giảm tải CPU/RAM cho Server, không bị lỗi Timeout khi up file GB, tiết kiệm chi phí băng thông.
 
-### 2. Tầng Dữ liệu (Backend)
-- **Repository**: `media-library.repository.js` xử lý truy vấn Prisma, hỗ trợ `findManyAndCount` để phân trang hiệu quả.
-- **Service**: `media-library.service.js` 
-    - Áp dụng **Query Pipeline** để lọc theo loại file (`Images`, `Videos`, `GIFs`) và tìm kiếm tên file.
-    - Xử lý định dạng dữ liệu trả về cho Frontend (Kích thước file, Emoji đại diện, Ngày tháng).
-    - Quản lý việc xóa tệp: Xóa bản ghi trong Database đồng thời xóa file vật lý trên ổ đĩa bằng `fs.unlinkSync`.
+### 2. Tải lên bù (Resumable Upload - Cấp độ 2)
+- **Chunking**: File được chia nhỏ thành các mẩu **6MB** (sử dụng `file.slice`).
+- **Persistence**: Lưu trạng thái upload (`Unique-ID`, `Current-Byte`) vào `localStorage`.
+- **Phục hồi**: Nếu mất mạng hoặc F5 trang, hệ thống sẽ tự động bắt đầu lại từ mẩu dữ liệu cuối cùng đã thành công.
+- **Bảo vệ**: Sử dụng sự kiện `beforeunload` để cảnh báo người dùng khi đang upload.
+
+### 3. Xử lý Tệp tin & Định dạng
+- **Hỗ trợ MKV**: Hệ thống xử lý thông minh các MIME type không chuẩn của MKV (`application/x-matroska`, `video/webm`) và fallback kiểm tra phần mở rộng file.
+- **Cloudinary Integration**: Tự động phân loại `resource_type` (image/video/raw) và lưu vào đúng thư mục (`publicast/videos`, `publicast/images`).
+
+---
+
+## 🔍 Tìm kiếm & Lọc Dữ liệu (Server-side)
+
+Hệ thống sử dụng **Query Pipeline** để thực hiện truy vấn động trên MySQL:
+- **Tìm kiếm Toàn cục**: Khi có từ khóa tìm kiếm, hệ thống tự động bỏ qua lọc theo Folder để tìm trên toàn bộ Brand.
+- **Đa trường**: Tìm kiếm đồng thời trên `filename` và `tags`.
+- **Case-insensitive**: Tận dụng cơ chế Collation của MySQL để tìm kiếm không phân biệt hoa thường.
+- **Debounced Search**: Frontend trì hoãn gọi API 300ms để tối ưu số lượng request.
 
 ---
 
@@ -30,32 +41,17 @@ Module Media Library được thiết kế theo mô hình 3 lớp (Repository ->
 
 | Method | Endpoint | Mô tả |
 | :--- | :--- | :--- |
-| `GET` | `/api/media?brandId=...` | Lấy danh sách media (hỗ trợ search, filter, pagination). |
-| `POST` | `/api/media/upload` | Upload file mới (yêu cầu `brandId` trong body). |
-| `DELETE` | `/api/media/:id` | Xóa file (xóa cả DB và vật lý). |
+| `GET` | `/api/media/signature` | Sinh chữ ký bảo mật cho Direct Upload. |
+| `POST` | `/api/media/save-direct` | Lưu thông tin file vào DB sau khi upload trực tiếp thành công. |
+| `GET` | `/api/media` | Lấy danh sách media (phân trang, lọc, tìm kiếm). |
+| `DELETE` | `/api/media/:id` | Xóa file khỏi Database và Cloudinary Cloud. |
 
 ---
 
-## 🎨 Triển Khai Frontend
-
-### 1. Hook Quản lý Trạng thái (`useMediaLibrary.js`)
-- Quản lý đồng bộ giữa URL Params và State ứng dụng.
-- Hỗ trợ **Debounced Search** (300ms) để tối ưu hiệu năng gọi API.
-- Xử lý logic chọn nhiều file (Multi-select) và xóa hàng loạt (Bulk Actions).
-
-### 2. Giao diện Người dùng
-- **Drag-and-Drop**: Hỗ trợ kéo thả trực tiếp file từ máy tính vào trình duyệt để upload.
-- **View Modes**: Chuyển đổi linh hoạt giữa dạng lưới (Grid) và danh sách (List Table).
-- **Detail Panel**: Xem nhanh thông tin tệp và nút "Use in Post" để bắt đầu quy trình đăng bài.
+## 🎨 Giao diện & Trải nghiệm (UI/UX)
+- **Video Preview**: Tích hợp trình phát video HTML5 (Auto-play, Muted, Loop) trong bảng chi tiết file.
+- **Progress Tracking**: Hiển thị % tải lên thực tế theo từng mẩu dữ liệu (Chunk).
+- **Multi-view**: Hỗ trợ Grid (Lưới) và Table (Danh sách).
 
 ---
-
-## 🔄 Tích hợp với Post Creator
-
-Module Media Library được tích hợp sâu vào quy trình tạo bài viết:
-1.  **MediaUploadModal**: Bổ sung tab **Library** cho phép duyệt và chọn tệp đã có thay vì phải upload lại.
-2.  **MediaDropdown**: Thêm tùy chọn **From Media Library** trong menu chọn nguồn media.
-3.  **Luồng ngược**: Từ Media Library, người dùng nhấn **Use in Post** sẽ tự động mở modal tạo bài viết với tệp đó đã được đính kèm sẵn.
-
----
-*Tài liệu được cập nhật ngày 26/05/2026 bởi Gemini CLI Assistant.*
+*Tài liệu được cập nhật ngày 28/05/2026 bởi Gemini CLI Assistant.*

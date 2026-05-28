@@ -101,7 +101,7 @@ export default function App() {
           {/* Green accent line between Topbar and Content (Metricool style) */}
           {!isNoLayout && !isSuperadmin && <div style={{ height: 2, background: "#D9F99D", width: "100%" }} />}
           
-          <div className="flex-1 overflow-auto">
+          <div className={`flex-1 ${isNoLayout ? "overflow-auto" : "flex flex-col min-h-0 overflow-hidden"}`}>
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" /> : <LoginPage initialScreen="login" />} />

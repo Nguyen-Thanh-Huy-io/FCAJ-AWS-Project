@@ -116,6 +116,7 @@ model Brand {
   hashtagSets        HashtagSet[]
   aiAssistant        AIAssistant?
   mediaLibrary       MediaLibrary[]
+  mediaFolders       MediaFolder[]
   auditLogs          AuditLog[]
   notifications      SystemNotification[]
   subscriptionAddons SubscriptionAddon[]
@@ -971,11 +972,29 @@ model MediaLibrary {
   uploadedAt       DateTime
   createdAt        DateTime @default(now())
 
-  brand    Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  uploader User  @relation("MediaLibraryUploader", fields: [uploadedByUserId], references: [id], onDelete: Restrict)
+  brand    Brand        @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  uploader User         @relation("MediaLibraryUploader", fields: [uploadedByUserId], references: [id], onDelete: Restrict)
+  folder   MediaFolder? @relation("MediaInFolder", fields: [folderId], references: [id], onDelete: SetNull)
 
   @@index([brandId])
   @@map("media_library")
+}
+
+model MediaFolder {
+  id        String   @id @default(uuid())
+  brandId   String
+  name      String
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  brand    Brand          @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  parent   MediaFolder?   @relation("FolderToFolder", fields: [parentId], references: [id], onDelete: Cascade)
+  children MediaFolder[]  @relation("FolderToFolder")
+  media    MediaLibrary[] @relation("MediaInFolder")
+
+  @@index([brandId])
+  @@map("media_folders")
 }
 
 // ============================================

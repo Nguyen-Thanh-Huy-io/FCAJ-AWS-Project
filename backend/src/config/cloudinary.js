@@ -15,10 +15,14 @@ const storage = new CloudinaryStorage({
     let folder = 'publicast/others';
     let resource_type = 'auto';
 
+    const isVideoMime = file.mimetype.startsWith('video/') || 
+                       file.mimetype === 'application/x-matroska' || 
+                       file.mimetype === 'application/octet-stream' && file.originalname.toLowerCase().endsWith('.mkv');
+
     if (file.mimetype.startsWith('image/')) {
       folder = 'publicast/images';
       resource_type = 'image';
-    } else if (file.mimetype.startsWith('video/')) {
+    } else if (isVideoMime) {
       folder = 'publicast/videos';
       resource_type = 'video';
     } else if (file.mimetype === 'application/pdf') {
@@ -29,7 +33,7 @@ const storage = new CloudinaryStorage({
     return {
       folder: folder,
       resource_type: resource_type,
-      allowed_formats: ['jpg', 'png', 'gif', 'mp4', 'mov', 'mkv', 'pdf'],
+      allowed_formats: ['jpg', 'png', 'gif', 'webp', 'mp4', 'mov', 'mkv', 'avi', 'webm', 'pdf'],
       public_id: Date.now() + '-' + Math.round(Math.random() * 1E9),
     };
   },

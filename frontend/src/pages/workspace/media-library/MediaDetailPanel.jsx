@@ -1,5 +1,5 @@
 import React from "react";
-import { X, Download } from "lucide-react";
+import { X, Calendar, FileText, Maximize2, Trash2, ExternalLink } from "lucide-react";
 import { usePostCreator } from "../../../context/PostCreatorContext";
 
 export function MediaDetailPanel({ detail, setDetail, onDelete }) {
@@ -8,120 +8,101 @@ export function MediaDetailPanel({ detail, setDetail, onDelete }) {
 
   return (
     <div
-      style={{
-        width: 280,
-        background: "#FFF",
-        borderLeft: "0.5px solid #E5E7EB",
-        padding: 16,
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-        overflowY: "auto"
-      }}
+      className="flex flex-col bg-white border-l border-gray-100 shadow-2xl animate-in slide-in-from-right duration-300"
+      style={{ flex: "0 0 320px" }}
     >
-      <div className="flex items-center justify-between">
-        <span style={{ fontSize: 12, fontWeight: 500, color: "#0A0A0A" }}>File Details</span>
-        <button onClick={() => setDetail(null)} style={{ color: "#9CA3AF", cursor: "pointer", background: "none", border: "none" }}>
-          <X size={14} />
+      <div className="flex items-center justify-between px-5 py-4 border-bottom border-gray-50">
+        <h3 className="text-xs font-black uppercase tracking-widest text-gray-400">File Details</h3>
+        <button
+          onClick={() => setDetail(null)}
+          className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+        >
+          <X size={16} className="text-gray-400" />
         </button>
       </div>
-      <div
-        style={{
-          aspectRatio: "4/3",
-          background: "#F3F4F6",
-          borderRadius: 8,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 48,
-          overflow: "hidden"
-        }}
-      >
-        {detail.thumbnail ? (
-          <img src={detail.url} alt="" className="w-full h-full object-cover" />
-        ) : (
-          detail.emoji
-        )}
-      </div>
-      <div>
-        <input
-          defaultValue={detail.name}
-          style={{
-            width: "100%",
-            padding: "6px 8px",
-            borderRadius: 6,
-            border: "0.5px solid #E5E7EB",
-            fontSize: 11,
-            outline: "none"
-          }}
-        />
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        {[
-          { label: "Type", value: detail.type },
-          { label: "Size", value: detail.size },
-          { label: "Dimensions", value: detail.dim },
-          { label: "Uploaded", value: detail.date }
-        ].map((d) => (
-          <div key={d.label}>
-            <div
-              style={{
-                fontSize: 9,
-                color: "#9CA3AF",
-                marginBottom: 2,
-                textTransform: "uppercase",
-                letterSpacing: "0.6px"
+
+      <div className="flex-1 overflow-y-auto p-5 space-y-6 scrollbar-thin">
+        {/* Preview Area */}
+        <div className="aspect-square rounded-2xl bg-gray-50 border border-gray-100 overflow-hidden flex items-center justify-center relative group">
+          {detail.type === 'video' ? (
+            <video 
+              src={detail.url} 
+              controls 
+              autoPlay
+              loop
+              muted
+              className="w-full h-full object-contain bg-black"
+            />
+          ) : detail.thumbnail ? (
+            <img src={detail.url} alt="" className="w-full h-full object-contain" />
+          ) : (
+            <span className="text-6xl">{detail.emoji}</span>
+          )}
+          <a 
+            href={detail.url} 
+            target="_blank" 
+            rel="noreferrer"
+            className="absolute bottom-3 right-3 p-2 bg-white/90 backdrop-blur shadow-sm rounded-xl opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white z-10"
+          >
+             <Maximize2 size={14} className="text-gray-600" />
+          </a>
+        </div>
+
+        {/* Info List */}
+        <div className="space-y-4">
+           <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+              <input 
+                defaultValue={detail.name}
+                className="w-full bg-transparent border-none text-xs font-bold text-gray-800 focus:ring-0 outline-none"
+              />
+           </div>
+
+           <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                 <span className="text-[10px] font-black uppercase tracking-tighter text-gray-400">Type</span>
+                 <div className="text-xs font-bold text-gray-700 capitalize">{detail.type}</div>
+              </div>
+              <div className="space-y-1">
+                 <span className="text-[10px] font-black uppercase tracking-tighter text-gray-400">Size</span>
+                 <div className="text-xs font-bold text-gray-700">{detail.size}</div>
+              </div>
+              <div className="space-y-1">
+                 <span className="text-[10px] font-black uppercase tracking-tighter text-gray-400">Dimensions</span>
+                 <div className="text-xs font-bold text-gray-700">{detail.dim || '—'}</div>
+              </div>
+              <div className="space-y-1">
+                 <span className="text-[10px] font-black uppercase tracking-tighter text-gray-400">Uploaded</span>
+                 <div className="text-xs font-bold text-gray-700">{detail.date}</div>
+              </div>
+           </div>
+        </div>
+
+        <div className="pt-4 border-t border-gray-50 space-y-2">
+            <button
+              className="w-full py-3 bg-[#0A0A0A] hover:bg-black text-white text-[11px] font-black uppercase tracking-widest rounded-xl shadow-lg shadow-black/5 transition-all active:scale-[0.98]"
+              onClick={() => {
+                openPostCreator({
+                  defaultVideoUrl: detail.url,
+                  defaultVideoPath: detail.url
+                });
+                setDetail(null);
               }}
             >
-              {d.label}
-            </div>
-            <div style={{ fontSize: 11, color: "#0A0A0A" }}>{d.value}</div>
-          </div>
-        ))}
-      </div>
-      <div className="flex flex-col gap-2 mt-2">
-        <button
-          onClick={() => {
-            openPostCreator({
-              defaultVideoUrl: detail.url,
-              defaultVideoPath: detail.url
-            });
-            setDetail(null);
-          }}
-          style={{
-            padding: "7px 12px",
-            borderRadius: 8,
-            background: "#0A0A0A",
-            color: "#FFF",
-            fontSize: 12,
-            fontWeight: 500,
-            cursor: "pointer",
-            border: "none"
-          }}
-        >
-          Use in Post
-        </button>
-        <button
-          className="flex items-center justify-center gap-2"
-          style={{
-            padding: "7px 12px",
-            borderRadius: 8,
-            border: "0.5px solid #E5E7EB",
-            fontSize: 12,
-            color: "#DC2626",
-            cursor: "pointer",
-            background: "transparent"
-          }}
-          onClick={() => {
-            if (window.confirm("Delete this file?")) {
-              onDelete(detail.id);
-            }
-          }}
-        >
-          Delete
-        </button>
+              Use in Post
+            </button>
+            <button
+              className="w-full py-3 bg-white hover:bg-red-50 text-red-500 text-[11px] font-black uppercase tracking-widest rounded-xl border border-red-100 transition-all flex items-center justify-center gap-2"
+              onClick={() => {
+                if(window.confirm("Are you sure you want to delete this file?")) {
+                  onDelete(detail.id);
+                }
+              }}
+            >
+              <Trash2 size={13} />
+              Delete
+            </button>
+        </div>
       </div>
     </div>
   );
 }
-

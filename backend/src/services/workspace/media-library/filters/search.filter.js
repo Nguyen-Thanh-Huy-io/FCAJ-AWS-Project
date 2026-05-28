@@ -4,7 +4,11 @@ class MediaLibrarySearchFilter extends BaseFilter {
   apply(where, queryParams) {
     const { search } = queryParams;
     if (search && search.trim()) {
-      where.filename = { contains: search.trim() };
+      const term = search.trim();
+      where.OR = [
+        { filename: { contains: term } },
+        { tags: { contains: term } }
+      ];
     }
   }
 }

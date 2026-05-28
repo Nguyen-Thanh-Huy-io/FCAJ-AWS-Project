@@ -49,20 +49,7 @@ router.delete('/trash', postController.emptyTrash);
  */
 router.put('/:id', postController.updatePost);
 
-const multer = require('multer');
-const path = require('path');
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = Date.now() + path.extname(file.originalname);
-    cb(null, uniqueName);
-  },
-});
-
-const upload = multer({ storage });
+const upload = require('../../middlewares/upload.middleware');
 
 router.post('/upload', upload.single('video'), postController.uploadVideo);
 

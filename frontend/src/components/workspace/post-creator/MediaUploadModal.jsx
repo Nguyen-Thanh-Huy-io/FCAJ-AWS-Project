@@ -34,8 +34,9 @@ export function MediaUploadModal({ isOpen, onClose, onAccept, initialTab = "comp
     setIsLoadingLibrary(true);
     try {
       const brandsRes = await apiService.get("/brands");
-      if (brandsRes.data?.length > 0) {
-        const brandId = brandsRes.data[0].id;
+      const brands = brandsRes.data.data || brandsRes.data;
+      if (Array.isArray(brands) && brands.length > 0) {
+        const brandId = brands[0].id;
         const res = await apiService.get(`/media?brandId=${brandId}&limit=12`);
         setLibraryFiles(res.data.data);
       }

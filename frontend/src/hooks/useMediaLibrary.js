@@ -3,6 +3,7 @@ import { useFilters } from "./useFilters";
 import { useDebounce } from "./useDebounce";
 import apiService from "../services/api";
 import { toast } from "sonner";
+import CloudinaryResumableUploader from "../utils/cloudinaryUploader";
 
 export function useMediaLibrary() {
   const { filters, updateFilters, clearFilters, searchParamsString } = useFilters({
@@ -15,7 +16,9 @@ export function useMediaLibrary() {
 
   const [activeBrand, setActiveBrand] = useState(null);
   const [mediaData, setMediaData] = useState({ data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 1 } });
+  const [folders, setFolders] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingFolders, setLoadingFolders] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selected, setSelected] = useState(new Set());
   const [detail, setDetail] = useState(null);
@@ -23,15 +26,37 @@ export function useMediaLibrary() {
 
   const view = filters.view || "grid";
   const typeFilter = filters.type || "All";
+  const currentFolderId = filters.folderId || null;
   const [searchTerm, setSearchTerm] = useState(filters.search || "");
   const debouncedSearch = useDebounce(searchTerm, 300);
+
+  useEffect(() => {
+    if (debouncedSearch !== undefined) {
+      updateFilters({ search: debouncedSearch });
+    }
+  }, [debouncedSearch]);
+
+  // Prevent page reload during upload
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (uploading) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [uploading]);
 
   // Fetch Active Brand
   useEffect(() => {
     const fetchBrands = async () => {
       try {
         const res = await apiService.get("/brands");
-        if (res.data?.length > 0) setActiveBrand(res.data[0]);
+        const brands = res.data.data || res.data;
+        if (Array.isArray(brands) && brands.length > 0) {
+          setActiveBrand(brands[0]);
+        }
       } catch (err) {
         console.error("Failed to fetch brands", err);
       }
@@ -39,17 +64,23 @@ export function useMediaLibrary() {
     fetchBrands();
   }, []);
 
-  // Sync debounced search to URL params
-  useEffect(() => {
-    if (debouncedSearch !== (filters.search || "")) {
-      updateFilters({ search: debouncedSearch });
+  // Fetch Folders
+  const fetchFolders = async () => {
+    if (!activeBrand) return;
+    setLoadingFolders(true);
+    try {
+      const res = await apiService.get(`/media-folders?brandId=${activeBrand.id}${currentFolderId ? `&parentId=${currentFolderId}` : ""}`);
+      setFolders(res.data.data);
+    } catch (err) {
+      console.error("Failed to fetch folders", err);
+    } finally {
+      setLoadingFolders(false);
     }
-  }, [debouncedSearch]);
+  };
 
-  // Sync input value back if URL search parameter is cleared externally
   useEffect(() => {
-    setSearchTerm(filters.search || "");
-  }, [filters.search]);
+    fetchFolders();
+  }, [activeBrand, currentFolderId]);
 
   // Fetch real data from Backend
   const fetchMedia = async () => {
@@ -69,25 +100,64 @@ export function useMediaLibrary() {
     fetchMedia();
   }, [searchParamsString, activeBrand]);
 
-  const uploadFiles = async (files) => {
+  const createFolder = async (name) => {
     if (!activeBrand) return;
+    try {
+      await apiService.post("/media-folders", {
+        name,
+        brandId: activeBrand.id,
+        parentId: currentFolderId
+      });
+      toast.success("Folder created successfully");
+      fetchFolders();
+    } catch (error) {
+      toast.error(error.message || "Failed to create folder");
+    }
+  };
+
+  const uploadFiles = async (files) => {
+    if (!activeBrand) {
+      toast.error("Please select or create a Brand first");
+      return;
+    }
     setUploading(true);
-    const toastId = toast.loading(`Uploading ${files.length} file(s)...`);
+    const toastId = toast.loading(`Preparing ${files.length} file(s)...`);
 
     try {
       for (const file of files) {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("brandId", activeBrand.id);
+        // 1. Get signature from backend
+        const isVideo = file.type.startsWith('video/');
+        const folder = isVideo ? 'publicast/videos' : 'publicast/images';
+        const sigRes = await apiService.get(`/media/signature?folder=${folder}`);
+        const { signature, timestamp, apiKey, cloudName } = sigRes.data.data;
 
-        await apiService.post("/media/upload", formData, {
-          headers: { "Content-Type": "multipart/form-data" }
+        toast.loading(`Uploading ${file.name}... 0%`, { id: toastId });
+
+        // 2. Resumable Upload using chunks
+        const uploader = new CloudinaryResumableUploader(
+          cloudName, 
+          apiKey, 
+          folder, 
+          (percent) => {
+            toast.loading(`Uploading ${file.name}... ${percent}%`, { id: toastId });
+          }
+        );
+
+        const uploadData = await uploader.upload(file, signature, timestamp);
+
+        // 3. Save info to our backend
+        await apiService.post("/media/save-direct", {
+          brandId: activeBrand.id,
+          folderId: currentFolderId,
+          fileInfo: uploadData
         });
       }
       toast.success("All files uploaded successfully", { id: toastId });
       fetchMedia(); // Refresh list
     } catch (error) {
-      toast.error(error.message || "Upload failed", { id: toastId });
+      const errorMessage = error.response?.data?.message || error.message || "Upload failed";
+      toast.error(errorMessage, { id: toastId });
+      console.error("Upload error details:", error);
     } finally {
       setUploading(false);
       setDragging(false);
@@ -97,27 +167,48 @@ export function useMediaLibrary() {
   const deleteFile = async (id) => {
     if (!activeBrand) return;
     try {
+      // Optimistic UI update: Remove from local state immediately
+      setMediaData(prev => ({
+        ...prev,
+        data: prev.data.filter(item => item.id !== id),
+        meta: { ...prev.meta, total: prev.meta.total - 1 }
+      }));
+      
       await apiService.delete(`/media/${id}`, { data: { brandId: activeBrand.id } });
       toast.success("File deleted successfully");
       if (detail?.id === id) setDetail(null);
-      fetchMedia();
+      
+      // Sync with server
+      await fetchMedia();
     } catch (error) {
       toast.error(error.message || "Delete failed");
+      fetchMedia(); // Rollback/Refetch on error
     }
   };
 
   const deleteSelected = async () => {
     if (!activeBrand || selected.size === 0) return;
     const toastId = toast.loading(`Deleting ${selected.size} file(s)...`);
+    const idsToDelete = Array.from(selected);
+    
     try {
-      for (const id of selected) {
+      // Optimistic UI update
+      setMediaData(prev => ({
+        ...prev,
+        data: prev.data.filter(item => !selected.has(item.id)),
+        meta: { ...prev.meta, total: prev.meta.total - selected.size }
+      }));
+      
+      for (const id of idsToDelete) {
         await apiService.delete(`/media/${id}`, { data: { brandId: activeBrand.id } });
       }
+      
       toast.success("Selected files deleted", { id: toastId });
       setSelected(new Set());
-      fetchMedia();
+      await fetchMedia();
     } catch (error) {
       toast.error("Failed to delete some files", { id: toastId });
+      fetchMedia();
     }
   };
 
@@ -146,7 +237,9 @@ export function useMediaLibrary() {
     searchTerm,
     setSearchTerm,
     mediaData,
+    folders,
     loading,
+    loadingFolders,
     uploading,
     selected,
     setSelected,
@@ -155,6 +248,7 @@ export function useMediaLibrary() {
     deleteSelected,
     deleteFile,
     uploadFiles,
+    createFolder,
     detail,
     setDetail,
     dragging,
