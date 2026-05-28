@@ -41,13 +41,82 @@ class TikTokAnalyticsService {
     });
   }
 
+  async getOrRefreshAccount(account) {
+    if (!account) return null;
+
+    let accessToken = account.accessToken;
+    let refreshToken = account.refreshToken;
+    let tokenExpiresAt = account.tokenExpiresAt;
+
+    // Check if token is expired (or close to expiring - within 5 minutes)
+    const isExpired = tokenExpiresAt && (new Date(tokenExpiresAt).getTime() - 5 * 60 * 1000) < Date.now();
+
+    if (isExpired && refreshToken) {
+      try {
+        console.log(`[TikTok Token Refresh] Token for account ${account.id} is expired or expiring soon. Refreshing...`);
+        const refreshed = await tiktokGateway.refreshAccessToken(refreshToken);
+        
+        accessToken = refreshed.access_token;
+        refreshToken = refreshed.refresh_token || refreshToken;
+        const expiryDate = refreshed.expires_in ? Date.now() + (refreshed.expires_in * 1000) : null;
+
+        const updatedAccount = await socialAccountRepository.updateTokens(account.id, {
+          access_token: accessToken,
+          refresh_token: refreshToken,
+          expiry_date: expiryDate
+        });
+        
+        console.log(`[TikTok Token Refresh] Successfully refreshed token for account ${account.id}`);
+        return updatedAccount;
+      } catch (err) {
+        console.error(`[TikTok Token Refresh] Failed to refresh token for account ${account.id}:`, err.message);
+        // Fallback to returning original account
+        return account;
+      }
+    }
+
+    return account;
+  }
+
   async syncChannelMetrics(socialAccountId, startDate, endDate) {
-    const account = await socialAccountRepository.findById(socialAccountId);
+    let account = await socialAccountRepository.findById(socialAccountId);
     if (!account || account.platform !== PLATFORMS.TIKTOK) {
       throw new Error('Social account not found or is not a TikTok account');
     }
 
-    const userInfo = await tiktokGateway.getUserInfo(account.accessToken);
+    // Refresh token if expired according to metadata
+    account = await this.getOrRefreshAccount(account);
+
+    let userInfo;
+    try {
+      userInfo = await tiktokGateway.getUserInfo(account.accessToken);
+    } catch (error) {
+      // Force refresh if the token is invalid (even if database metadata said it was valid)
+      const isTokenError = error.status === 401 || error.code === 'access_token_invalid';
+      if (isTokenError && account.refreshToken) {
+        console.log(`[TikTok Sync] getUserInfo failed with token error. Attempting force refresh...`);
+        try {
+          const refreshed = await tiktokGateway.refreshAccessToken(account.refreshToken);
+          const accessToken = refreshed.access_token;
+          const refreshToken = refreshed.refresh_token || account.refreshToken;
+          const expiryDate = refreshed.expires_in ? Date.now() + (refreshed.expires_in * 1000) : null;
+
+          account = await socialAccountRepository.updateTokens(account.id, {
+            access_token: accessToken,
+            refresh_token: refreshToken,
+            expiry_date: expiryDate
+          });
+
+          userInfo = await tiktokGateway.getUserInfo(account.accessToken);
+        } catch (refreshError) {
+          console.error(`[TikTok Sync] Force refresh failed:`, refreshError.message);
+          throw error; // Throw original token error
+        }
+      } else {
+        throw error;
+      }
+    }
+
     const analyticsData = await this.getAnalyticsReport({ accessToken: account.accessToken }, startDate, endDate, userInfo.follower_count);
 
     const accountData = {

@@ -10,13 +10,33 @@ describe('TikTok Integration Service Tests', () => {
     jest.clearAllMocks();
   });
 
-  describe('TikTokService.generateMockTikTokAnalytics', () => {
-    it('should generate structured TikTok metrics matching the design spec', () => {
+  describe('TikTokService.getAnalyticsReport', () => {
+    it('should generate structured TikTok metrics matching the design spec', async () => {
       const startDate = '2026-05-01';
       const endDate = '2026-05-15';
       const currentFollowers = 1000;
 
-      const result = tiktokService.generateMockTikTokAnalytics(startDate, endDate, currentFollowers);
+      tiktokGateway.getVideoList.mockResolvedValue({
+        videos: [
+          {
+            id: 'vid1',
+            create_time: Math.floor(Date.now() / 1000) - 86400,
+            cover_image_url: 'http://pic.jpg',
+            share_url: 'http://share',
+            video_description: 'desc',
+            duration: 15,
+            title: 'title',
+            like_count: 50,
+            comment_count: 10,
+            share_count: 5,
+            view_count: 500
+          }
+        ],
+        cursor: 0,
+        has_more: false
+      });
+
+      const result = await tiktokService.getAnalyticsReport({ accessToken: 'mock_token' }, startDate, endDate, currentFollowers);
 
       expect(result).toBeDefined();
       expect(result.summary).toBeDefined();
@@ -57,6 +77,7 @@ describe('TikTok Integration Service Tests', () => {
         profilePictureUrl: 'http://pic.jpg/avatar',
         accessToken: 'mock_access_token',
         refreshToken: 'mock_refresh_token',
+        tokenExpiresAt: new Date(Date.now() + 3600 * 1000), // Not expired
         tikTokAccount: {
           followersCount: 1500,
           followingCount: 150,
@@ -66,6 +87,22 @@ describe('TikTok Integration Service Tests', () => {
       };
 
       socialAccountRepository.findById.mockResolvedValue(mockAccount);
+      tiktokGateway.getUserInfo.mockResolvedValue({
+        open_id: 'user_tiktok_id',
+        union_id: 'union_id',
+        username: 'tiktok_test_user',
+        avatar_url: 'http://pic.jpg/avatar',
+        display_name: 'TikTok Test User',
+        follower_count: 1500,
+        following_count: 150,
+        likes_count: 5000,
+        video_count: 25
+      });
+      tiktokGateway.getVideoList.mockResolvedValue({
+        videos: [],
+        cursor: 0,
+        has_more: false
+      });
       socialAccountRepository.upsertTikTokAccount.mockResolvedValue({ id: 'sa_tiktok_1' });
 
       const result = await tiktokService.syncChannelMetrics('sa_tiktok_1', '2026-05-01', '2026-05-15');

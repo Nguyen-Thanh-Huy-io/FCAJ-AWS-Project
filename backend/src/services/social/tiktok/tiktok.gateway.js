@@ -50,6 +50,33 @@ class TikTokGateway {
     return data;
   }
 
+  /**
+   * Refresh TikTok Access Token
+   */
+  async refreshAccessToken(refreshToken) {
+    const url = `${this.apiBaseUrl}/v2/oauth/token/`;
+    const params = new URLSearchParams();
+    params.append('client_key', this.clientKey);
+    params.append('client_secret', this.clientSecret);
+    params.append('grant_type', 'refresh_token');
+    params.append('refresh_token', refreshToken);
+
+    console.log(`[TikTok OAuth] Refreshing access token...`);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.error('[TikTok OAuth] Token Refresh Failed:', JSON.stringify(data));
+      throw new Error(data.error_description || data.message || 'Failed to refresh TikTok access token');
+    }
+
+    return data;
+  }
+
   async getUserInfo(accessToken) {
     // Request basic info AND statistics
     const fields = [
@@ -74,7 +101,11 @@ class TikTokGateway {
     
     if (!res.ok) {
       console.error(`[TikTok OAuth] User Info Failed (Status ${res.status}):`, JSON.stringify(data));
-      throw new Error(data.error?.message || data.message || 'Failed to fetch TikTok user info');
+      const errMsg = data.error?.message || data.message || 'Failed to fetch TikTok user info';
+      const err = new Error(errMsg);
+      err.status = res.status;
+      err.code = data.error?.code;
+      throw err;
     }
 
     return data.data?.user;
@@ -220,7 +251,11 @@ class TikTokGateway {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       console.error('[TikTok Gateway] Get Video List Failed:', JSON.stringify(data));
-      throw new Error(data.error?.message || data.message || 'Failed to fetch TikTok videos');
+      const errMsg = data.error?.message || data.message || 'Failed to fetch TikTok videos';
+      const err = new Error(errMsg);
+      err.status = res.status;
+      err.code = data.error?.code;
+      throw err;
     }
 
     return data.data; // returns { videos: [...], cursor: number, has_more: boolean }
