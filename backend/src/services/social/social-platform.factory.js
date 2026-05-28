@@ -1,14 +1,15 @@
 const youtubeService = require('./youtube');
 const facebookService = require('./facebook');
 const tiktokService = require('./tiktok');
+const createSyncCacheProxy = require('./sync-cache.proxy');
 const { PLATFORMS } = require('../../utils/constants');
 
 class SocialPlatformFactory {
   constructor() {
     this.services = {
-      [PLATFORMS.YOUTUBE]: youtubeService,
-      [PLATFORMS.FACEBOOK]: facebookService,
-      [PLATFORMS.TIKTOK]: tiktokService,
+      [PLATFORMS.YOUTUBE]: createSyncCacheProxy(youtubeService),
+      [PLATFORMS.FACEBOOK]: createSyncCacheProxy(facebookService),
+      [PLATFORMS.TIKTOK]: createSyncCacheProxy(tiktokService),
       // Khi tích hợp các nền tảng mới sau này, chỉ cần khai báo tại đây:
     };
   }

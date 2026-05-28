@@ -5,8 +5,9 @@ import {
   FileText, Loader2, RotateCw, Copy, ChevronDown, 
   Calendar, Youtube, PlayCircle, Smartphone, Monitor, Info, MessageSquare,
   Languages, Settings, LayoutGrid, Film, PlusCircle, AlertCircle, Check,
-  MoreHorizontal, Edit, Type, Trash2
+  MoreHorizontal, Edit, Type, Trash2, Diamond
 } from "lucide-react";
+import postService from "../../services/post.service";
 import { usePostCreatorForm } from "../../hooks/usePostCreatorForm";
 import { ShortsIcon } from "../../components/workspace/post-creator/ShortsIcon";
 import { MediaDropdown } from "../../components/workspace/post-creator/MediaDropdown";
@@ -123,7 +124,8 @@ export function PostCreatorPage() {
     tiktokAiGenerated,
     setTiktokAiGenerated,
     tiktokCommercialContent,
-    setTiktokCommercialContent
+    setTiktokCommercialContent,
+    loadTemplate
   } = usePostCreatorForm();
 
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -132,6 +134,24 @@ export function PostCreatorPage() {
   const [showImageEditor, setShowImageEditor] = useState(false);
   const [imageTransform, setImageTransform] = useState({ rotation: 0, flipH: false, flipV: false, filter: 'none' });
   const [showAltTextModal, setShowAltTextModal] = useState(false);
+  
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+
+  const handleOpenTemplatePicker = async () => {
+    if (!activeBrand) return;
+    setShowTemplatePicker(true);
+    setLoadingTemplates(true);
+    try {
+      const res = await postService.getPosts(activeBrand.id, { isLibrary: true });
+      setTemplates(res.data || []);
+    } catch (e) {
+      toast.error("Failed to load templates");
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -168,7 +188,22 @@ export function PostCreatorPage() {
     <div className="fixed inset-0 z-[2000] flex flex-col bg-[#F8F8F7] animate-in slide-in-from-bottom duration-500">
       {/* Header */}
       <div className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8 shrink-0">
-        <h1 className="text-lg font-bold text-[#0A0A0A]">{editingPost ? "Edit scheduled post" : "Create new post"}</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-bold text-[#0A0A0A]">
+            {isLibrary 
+              ? (editingPost ? "Edit post template" : "Create post template") 
+              : (editingPost ? "Edit scheduled post" : "Create new post")}
+          </h1>
+          {!editingPost && !isLibrary && (
+             <button 
+               onClick={handleOpenTemplatePicker}
+               className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all transform hover:scale-105 shadow-sm border border-purple-200 cursor-pointer"
+             >
+                <Diamond size={12} />
+                Load template
+             </button>
+          )}
+        </div>
         <button onClick={closePostCreator} className="flex items-center gap-2 text-gray-400 hover:text-black transition-colors group cursor-pointer">
            <X size={20} className="group-hover:rotate-90 transition-transform duration-300" />
            <span className="text-[11px] font-bold uppercase tracking-widest">Close</span>
@@ -954,43 +989,55 @@ export function PostCreatorPage() {
                  <button onClick={closePostCreator} className="px-6 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-500 hover:bg-gray-50 hover:text-black transition-all cursor-pointer">Cancel</button>
                  
                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-2xl px-5 py-2.5 hover:bg-gray-50 transition-all relative">
-                        <Calendar size={18} className="text-gray-400" />
-                        <input 
-                          type="datetime-local" 
-                          value={scheduledDate}
-                          onChange={(e) => setScheduledDate(e.target.value)}
-                          className="text-[11px] font-bold text-gray-600 uppercase tracking-widest outline-none bg-transparent cursor-pointer border-none p-0"
-                        />
-                     </div>
+                     {!isLibrary && (
+                       <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-2xl px-5 py-2.5 hover:bg-gray-50 transition-all relative">
+                           <Calendar size={18} className="text-gray-400" />
+                           <input 
+                             type="datetime-local" 
+                             value={scheduledDate}
+                             onChange={(e) => setScheduledDate(e.target.value)}
+                             className="text-[11px] font-bold text-gray-600 uppercase tracking-widest outline-none bg-transparent cursor-pointer border-none p-0"
+                           />
+                        </div>
+                     )}
                     
-                    <div className="flex items-center">
-                       <button 
-                         onClick={handleCreatePost}
-                         disabled={isCreating}
-                         className="px-8 py-3 bg-[#0A0A0A] text-white rounded-l-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-black transition-all disabled:opacity-50 cursor-pointer"
-                       >
-                          {isCreating ? <Loader2 size={16} className="animate-spin" /> : currentOption.label.split(' ')[0]}
-                       </button>
-                       <div className="relative">
-                          <button onClick={() => setShowPublishMenu(!showPublishMenu)} className="px-3 py-3 bg-[#2D1D35] text-white rounded-r-2xl border-l border-white/10 hover:bg-[#1E1B4B] transition-all cursor-pointer">
-                             <ChevronDown size={18} />
+                     {isLibrary ? (
+                        <button 
+                          onClick={handleCreatePost}
+                          disabled={isCreating}
+                          className="px-8 py-3 bg-[#0A0A0A] text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-black transition-all disabled:opacity-50 cursor-pointer"
+                        >
+                           {isCreating ? <Loader2 size={16} className="animate-spin" /> : "Save Template"}
+                        </button>
+                     ) : (
+                       <div className="flex items-center">
+                          <button 
+                            onClick={handleCreatePost}
+                            disabled={isCreating}
+                            className="px-8 py-3 bg-[#0A0A0A] text-white rounded-l-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-black transition-all disabled:opacity-50 cursor-pointer"
+                          >
+                             {isCreating ? <Loader2 size={16} className="animate-spin" /> : currentOption.label.split(' ')[0]}
                           </button>
-                          {showPublishMenu && (
-                             <div className="absolute bottom-full right-0 mb-4 w-64 bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-gray-100 py-3 z-50 animate-in slide-in-from-bottom-2">
-                                {PUBLISH_OPTIONS.map((opt) => (
-                                   <button key={opt.id} onClick={() => { setSelectedPublishId(opt.id); setShowPublishMenu(false); }} className={`w-full flex items-center justify-between px-6 py-3 hover:bg-gray-50 transition-all text-left cursor-pointer ${selectedPublishId === opt.id ? 'bg-gray-50' : ''}`}>
-                                      <div>
-                                         <div className="text-[10px] font-black text-gray-800 uppercase tracking-widest">{opt.label}</div>
-                                         <div className="text-[9px] text-gray-400 font-bold">{opt.sub}</div>
-                                      </div>
-                                   </button>
-                                ))}
-                             </div>
-                          )}
+                          <div className="relative">
+                             <button onClick={() => setShowPublishMenu(!showPublishMenu)} className="px-3 py-3 bg-[#2D1D35] text-white rounded-r-2xl border-l border-white/10 hover:bg-[#1E1B4B] transition-all cursor-pointer">
+                                <ChevronDown size={18} />
+                             </button>
+                             {showPublishMenu && (
+                                <div className="absolute bottom-full right-0 mb-4 w-64 bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-gray-100 py-3 z-50 animate-in slide-in-from-bottom-2">
+                                   {PUBLISH_OPTIONS.map((opt) => (
+                                      <button key={opt.id} onClick={() => { setSelectedPublishId(opt.id); setShowPublishMenu(false); }} className={`w-full flex items-center justify-between px-6 py-3 hover:bg-gray-50 transition-all text-left cursor-pointer ${selectedPublishId === opt.id ? 'bg-gray-50' : ''}`}>
+                                         <div>
+                                            <div className="text-[10px] font-black text-gray-800 uppercase tracking-widest">{opt.label}</div>
+                                            <div className="text-[9px] text-gray-400 font-bold">{opt.sub}</div>
+                                         </div>
+                                      </button>
+                                   ))}
+                                </div>
+                             )}
+                          </div>
                        </div>
-                    </div>
-                 </div>
+                     )}
+                  </div>
               </div>
            </div>
         </div>
@@ -1124,6 +1171,68 @@ export function PostCreatorPage() {
             toast.success("Alt text saved successfully");
           }}
         />
+        {showTemplatePicker && (
+          <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-[32px] w-full max-w-lg shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-gray-100 overflow-hidden animate-in zoom-in-95 duration-200">
+              <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Diamond size={16} className="text-purple-600" />
+                  <h3 className="font-bold text-[#0A0A0A] text-xs uppercase tracking-wider">Select a template</h3>
+                </div>
+                <button 
+                  onClick={() => setShowTemplatePicker(false)}
+                  className="text-gray-400 hover:text-black transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              
+              <div className="p-6 max-h-[400px] overflow-y-auto space-y-3 scrollbar-thin">
+                {loadingTemplates ? (
+                  <div className="py-12 flex flex-col items-center justify-center gap-2 text-gray-400">
+                    <Loader2 className="animate-spin" size={24} />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Loading templates...</span>
+                  </div>
+                ) : templates.length === 0 ? (
+                  <div className="py-12 text-center text-gray-400 space-y-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wider">No templates found</p>
+                    <p className="text-[11px] text-gray-400 font-medium">Create templates in the Library first to load them here.</p>
+                  </div>
+                ) : (
+                  templates.map((tpl) => (
+                    <button
+                      key={tpl.id}
+                      onClick={() => {
+                        loadTemplate(tpl);
+                        setShowTemplatePicker(false);
+                      }}
+                      className="w-full text-left p-4 rounded-2xl border border-gray-100 hover:border-purple-300 hover:bg-purple-50/20 transition-all flex items-center gap-4 group cursor-pointer"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center overflow-hidden shrink-0 border border-gray-100">
+                        {tpl.thumbnail ? (
+                          <img src={tpl.thumbnail} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-xl">📝</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-xs text-gray-900 group-hover:text-purple-700 transition-colors truncate uppercase tracking-tight">{tpl.title}</h4>
+                        <p className="text-[11px] text-gray-400 line-clamp-1 mt-0.5 font-medium">{tpl.caption || "No caption"}</p>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        {tpl.platforms?.map(plt => (
+                          <span key={plt} className="text-[9px] font-black bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded uppercase tracking-tighter">
+                            {plt.toLowerCase()}
+                          </span>
+                        ))}
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         </div>
       </div>
     </div>

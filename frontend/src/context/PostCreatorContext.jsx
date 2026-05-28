@@ -5,7 +5,9 @@ const PostCreatorContext = createContext();
 export function PostCreatorProvider({ children }) {
   const [isOpen, setIsOpen] = useState(false);
   const [editingPost, setEditingPost] = useState(null);
+  const [templatePost, setTemplatePost] = useState(null);
   const [defaultScheduledAt, setDefaultScheduledAt] = useState(null);
+  const [isLibrary, setIsLibrary] = useState(false);
   
   // Shared Video Upload States
   const [videoFile, setVideoFile] = useState(null);
@@ -15,7 +17,9 @@ export function PostCreatorProvider({ children }) {
 
   const openPostCreator = (options = {}) => {
     setEditingPost(options.post || null);
+    setTemplatePost(options.template || null);
     setDefaultScheduledAt(options.defaultScheduledAt || null);
+    setIsLibrary(options.isLibrary || false);
     setVideoFile(null);
     setVideoFileUrl(options.defaultVideoUrl || "");
     setUploadedVideoPath(options.defaultVideoPath || "");
@@ -25,7 +29,9 @@ export function PostCreatorProvider({ children }) {
 
   const closePostCreator = () => {
     setEditingPost(null);
+    setTemplatePost(null);
     setDefaultScheduledAt(null);
+    setIsLibrary(false);
     setVideoFile(null);
     setVideoFileUrl("");
     setUploadedVideoPath("");
@@ -37,7 +43,9 @@ export function PostCreatorProvider({ children }) {
     <PostCreatorContext.Provider value={{
       isOpen,
       editingPost,
+      templatePost,
       defaultScheduledAt,
+      isLibrary,
       videoFile,
       setVideoFile,
       videoFileUrl,

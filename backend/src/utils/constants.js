@@ -139,6 +139,7 @@ const SYSTEM_PLANS = {
 };
 
 const ANALYTICS = {
+  COOLDOWN_HOURS: parseInt(process.env.SOCIAL_SYNC_COOLDOWN_HOURS) || 12,
   GRANULARITY: {
     DAILY: 'DAILY',
     WEEKLY: 'WEEKLY',

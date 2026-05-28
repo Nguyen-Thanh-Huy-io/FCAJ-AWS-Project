@@ -110,7 +110,9 @@ export function PlatformDashboardPage() {
     handleTrackVideo,
     handleSearchCompetitors,
     handleAddCompetitor,
-    fetchPublishedVideos
+    fetchPublishedVideos,
+    isRefreshing,
+    handleRefresh
   } = usePlatformDashboard(platform);
 
   const navigate = useNavigate();
@@ -202,6 +204,20 @@ export function PlatformDashboardPage() {
         
         <div className="flex items-center gap-2">
            <DateRangeFilter date={dateRange} setDate={setDateRange} />
+           
+           <button 
+             onClick={handleRefresh}
+             disabled={isRefreshing}
+             className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 disabled:opacity-50 flex items-center justify-center"
+             title="Làm mới dữ liệu (Đồng bộ từ API)"
+           >
+             {isRefreshing ? (
+               <Loader2 size={16} className="animate-spin text-indigo-600" />
+             ) : (
+               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-rotate-cw"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
+             )}
+           </button>
+
            <button 
              onClick={() => setIsExportModalOpen(true)}
              className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500"

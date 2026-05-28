@@ -24,6 +24,7 @@ class SocialAccountRepository {
         tokenExpiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
         scopes: tokens.scope,
         isConnected: true,
+        lastSyncAt: new Date(),
         updatedAt: new Date(),
         facebookPage: {
           upsert: {
@@ -56,6 +57,7 @@ class SocialAccountRepository {
         refreshToken: tokens.refresh_token || '',
         tokenExpiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
         scopes: tokens.scope || '',
+        lastSyncAt: new Date(),
         connectedAt: new Date(),
         facebookPage: {
           create: {
@@ -102,6 +104,7 @@ class SocialAccountRepository {
         tokenExpiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
         scopes: tokens.scope,
         isConnected: true,
+        lastSyncAt: new Date(),
         updatedAt: new Date(),
         tikTokAccount: {
           upsert: {
@@ -131,6 +134,7 @@ class SocialAccountRepository {
         refreshToken: tokens.refresh_token || '',
         tokenExpiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
         scopes: tokens.scope || '',
+        lastSyncAt: new Date(),
         connectedAt: new Date(),
         tikTokAccount: {
           create: {
@@ -272,6 +276,7 @@ class SocialAccountRepository {
         tokenExpiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
         scopes: tokens.scope,
         isConnected: true,
+        lastSyncAt: new Date(),
         updatedAt: new Date(),
         youtubeChannel: {
           update: {
@@ -296,6 +301,7 @@ class SocialAccountRepository {
         refreshToken: tokens.refreshToken || tokens.refresh_token,
         tokenExpiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
         scopes: tokens.scope || '',
+        lastSyncAt: new Date(),
         connectedAt: new Date(),
         youtubeChannel: {
           create: {

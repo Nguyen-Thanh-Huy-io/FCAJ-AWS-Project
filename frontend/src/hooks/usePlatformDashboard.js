@@ -73,19 +73,36 @@ export function usePlatformDashboard(platform) {
   const [isVideoDetailLoading, setIsVideoDetailLoading] = useState(false);
   const [isVideoDetailModalOpen, setIsVideoDetailModalOpen] = useState(false);
 
-  const loadMetrics = async (brandId) => {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const loadMetrics = async (brandId, force = false) => {
+    if (force) setIsRefreshing(true);
     try {
       const metricsRes = await socialService.getMetrics(brandId, {
         startDate: dateRange.from?.toISOString().split('T')[0],
-        endDate: dateRange.to?.toISOString().split('T')[0]
+        endDate: dateRange.to?.toISOString().split('T')[0],
+        force: force
       });
       const platformType = platform.toUpperCase() === 'X' ? 'TWITTER_X' : platform.toUpperCase();
       const platformMetrics = metricsRes.data?.find(m => m.platform === platformType);
       setMetrics(platformMetrics || null);
+      if (force) {
+        toast.success("Đồng bộ số liệu thành công!");
+      }
     } catch (error) {
       console.error("Failed to load platform metrics:", error);
+      if (force) {
+        toast.error("Đồng bộ số liệu thất bại");
+      }
+    } finally {
+      if (force) setIsRefreshing(false);
     }
   };
+
+  const handleRefresh = useCallback(async () => {
+    if (!activeBrand) return;
+    await loadMetrics(activeBrand.id, true);
+  }, [activeBrand, dateRange]);
 
   const fetchTracked = async () => {
     if (!activeBrand) return;
@@ -562,6 +579,8 @@ export function usePlatformDashboard(platform) {
     handleTrackVideo,
     handleSearchCompetitors,
     handleAddCompetitor,
-    fetchPublishedVideos
+    fetchPublishedVideos,
+    isRefreshing,
+    handleRefresh
   };
 }

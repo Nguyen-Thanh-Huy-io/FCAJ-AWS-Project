@@ -7,13 +7,13 @@ class SocialService {
   /**
    * Sync and aggregate metrics for all social accounts of a brand
    */
-  async getAggregatedMetrics(brandId, startDate, endDate) {
+  async getAggregatedMetrics(brandId, startDate, endDate, force = false) {
     const accounts = await socialAccountRepository.findByBrandAndPlatform(brandId, null); // passing null to platform to get all platforms
 
     return await Promise.all(accounts.map(async (account) => {
       try {
         const service = socialPlatformFactory.getService(account.platform);
-        return await service.syncChannelMetrics(account.id, startDate, endDate);
+        return await service.syncChannelMetrics(account.id, startDate, endDate, force);
       } catch (error) {
         console.error(`Failed to sync metrics for ${account.platform} (${account.id}):`, error.message);
         return account; 

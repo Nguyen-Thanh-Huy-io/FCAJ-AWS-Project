@@ -22,6 +22,7 @@ export function usePostCreatorForm() {
     isOpen, 
     closePostCreator, 
     editingPost, 
+    templatePost,
     defaultScheduledAt,
     isLibrary: initialIsLibrary,
     videoFile, 
@@ -117,6 +118,10 @@ export function usePostCreatorForm() {
   // Validation function
   const getValidationErrors = () => {
     const errors = [];
+    if (isLibrary) {
+      return errors; // Templates do not require scheduled dates or media uploads
+    }
+
     const isPastDate = new Date(scheduledDate).getTime() < Date.now() - 60000;
     if (isPastDate) {
       errors.push("Publish date can't be a past date.");
@@ -362,6 +367,53 @@ export function usePostCreatorForm() {
           setUploadedVideoPath("");
           setVideoFileUrl("");
         }
+      } else if (templatePost) {
+        // Load presets from a template to create a new post
+        setCaption(templatePost.caption || "");
+        setTitle(templatePost.title || "");
+        setAltText(templatePost.altText || "");
+        setActivePlatform(templatePost.platforms?.[0]?.toLowerCase() || "youtube");
+        setScheduledDate(defaultScheduledAt ? toLocalDatetimeString(defaultScheduledAt) : toLocalDatetimeString(new Date()));
+        setIsLibrary(initialIsLibrary || false);
+        
+        // Setup options
+        const opts = templatePost.options || {};
+        setYoutubeType(opts.youtubeType || "video");
+        setYoutubeTitle(opts.youtubeTitle || "");
+        setYoutubeMadeForKids(opts.madeForKids || false);
+        setYoutubePrivacy(opts.privacyStatus || "public");
+        setYoutubeCategory(opts.categoryId || "22");
+        setYoutubePlaylistId(opts.playlistId || "");
+        setYoutubeTags(opts.tags || "");
+        setYoutubeFirstComment(opts.firstComment || "");
+        setGlobalFirstComment(opts.firstComment || "");
+
+        // Setup Facebook
+        setFacebookType(opts.facebookType || "post");
+        setFacebookTitle(opts.facebookTitle || "");
+
+        // Setup TikTok
+        setTiktokPrivacy(opts.tiktokPrivacy || "public");
+        setTiktokAllowComments(opts.tiktokAllowComments !== undefined ? opts.tiktokAllowComments : true);
+        setTiktokAllowDuet(opts.tiktokAllowDuet !== undefined ? opts.tiktokAllowDuet : true);
+        setTiktokAllowStitch(opts.tiktokAllowStitch !== undefined ? opts.tiktokAllowStitch : true);
+        setTiktokAiGenerated(opts.tiktokAiGenerated || false);
+        setTiktokCommercialContent(opts.tiktokCommercialContent || false);
+        
+        // Setup media
+        if (templatePost.mediaUrls?.[0]) {
+          const path = templatePost.mediaUrls[0];
+          setUploadedVideoPath(path);
+          
+          const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+          const serverBase = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
+          const cleanPath = path.replace(/\\/g, '/');
+          const fullUrl = (path.startsWith('/') || path.startsWith('\\')) ? `${serverBase}${cleanPath}` : `${serverBase}/${cleanPath}`;
+          setVideoFileUrl(fullUrl);
+        } else {
+          setUploadedVideoPath("");
+          setVideoFileUrl("");
+        }
       } else {
         // Reset for new creation
         setCaption("");
@@ -393,7 +445,55 @@ export function usePostCreatorForm() {
         setTiktokCommercialContent(false);
       }
     }
-  }, [isOpen, editingPost, defaultScheduledAt, initialIsLibrary]);
+  }, [isOpen, editingPost, templatePost, defaultScheduledAt, initialIsLibrary]);
+
+  const loadTemplate = (template) => {
+    if (!template) return;
+    setCaption(template.caption || "");
+    setTitle(template.title || "");
+    setAltText(template.altText || "");
+    setActivePlatform(template.platforms?.[0]?.toLowerCase() || "youtube");
+    
+    // Setup options
+    const opts = template.options || {};
+    setYoutubeType(opts.youtubeType || "video");
+    setYoutubeTitle(opts.youtubeTitle || "");
+    setYoutubeMadeForKids(opts.madeForKids || false);
+    setYoutubePrivacy(opts.privacyStatus || "public");
+    setYoutubeCategory(opts.categoryId || "22");
+    setYoutubePlaylistId(opts.playlistId || "");
+    setYoutubeTags(opts.tags || "");
+    setYoutubeFirstComment(opts.firstComment || "");
+    setGlobalFirstComment(opts.firstComment || "");
+
+    // Setup Facebook
+    setFacebookType(opts.facebookType || "post");
+    setFacebookTitle(opts.facebookTitle || "");
+
+    // Setup TikTok
+    setTiktokPrivacy(opts.tiktokPrivacy || "public");
+    setTiktokAllowComments(opts.tiktokAllowComments !== undefined ? opts.tiktokAllowComments : true);
+    setTiktokAllowDuet(opts.tiktokAllowDuet !== undefined ? opts.tiktokAllowDuet : true);
+    setTiktokAllowStitch(opts.tiktokAllowStitch !== undefined ? opts.tiktokAllowStitch : true);
+    setTiktokAiGenerated(opts.tiktokAiGenerated || false);
+    setTiktokCommercialContent(opts.tiktokCommercialContent || false);
+    
+    // Setup media
+    if (template.mediaUrls?.[0]) {
+      const path = template.mediaUrls[0];
+      setUploadedVideoPath(path);
+      
+      const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+      const serverBase = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
+      const cleanPath = path.replace(/\\/g, '/');
+      const fullUrl = (path.startsWith('/') || path.startsWith('\\')) ? `${serverBase}${cleanPath}` : `${serverBase}/${cleanPath}`;
+      setVideoFileUrl(fullUrl);
+    } else {
+      setUploadedVideoPath("");
+      setVideoFileUrl("");
+    }
+    toast.success(`Loaded template "${template.title}"`);
+  };
 
   const handleCreatePost = async () => {
     if (!activeBrand) {
@@ -588,6 +688,7 @@ export function usePostCreatorForm() {
     tiktokAiGenerated,
     setTiktokAiGenerated,
     tiktokCommercialContent,
-    setTiktokCommercialContent
+    setTiktokCommercialContent,
+    loadTemplate
   };
 }

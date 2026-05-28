@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { 
   Search, Filter, Plus, Diamond, 
   Grid3X3, List as ListIcon, MoreHorizontal,
-  Youtube, PlayCircle, Instagram, Image as ImageIcon, Loader2, Eye, Facebook
+  Youtube, PlayCircle, Instagram, Image as ImageIcon, Loader2, Eye, Facebook, Edit
 } from "lucide-react";
 import { usePostCreator } from "../../../context/PostCreatorContext";
 import postService from "../../../services/post.service";
@@ -106,7 +106,7 @@ export function PostsLibraryView() {
            {posts.map((item) => (
              <div 
                key={item.id} 
-               onClick={() => openPostCreator({ post: item })}
+               onClick={() => openPostCreator({ template: item })}
                className="bg-white border border-gray-100 rounded-[24px] overflow-hidden shadow-sm hover:shadow-xl hover:border-black transition-all group cursor-pointer active:scale-[0.98]"
              >
                 <div className="aspect-square bg-gray-50 flex items-center justify-center relative overflow-hidden">
@@ -116,10 +116,25 @@ export function PostsLibraryView() {
                       <div className="text-4xl opacity-20 group-hover:scale-110 transition-transform duration-500">📝</div>
                    )}
                    
-                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
-                      <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-lg">
-                        <Eye size={20} className="text-black" />
-                      </div>
+                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-2.5 transition-all">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openPostCreator({ template: item });
+                        }}
+                        className="px-4 py-2 bg-[#D9F99D] hover:bg-[#bef264] text-[#0A0A0A] rounded-xl text-xs font-black uppercase tracking-wider transition-all transform hover:scale-105 shadow-md flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Plus size={14} /> Use Template
+                      </button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openPostCreator({ post: item });
+                        }}
+                        className="px-4 py-2 bg-white hover:bg-gray-100 text-gray-800 rounded-xl text-xs font-bold uppercase tracking-wider transition-all transform hover:scale-105 shadow-md flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Edit size={14} /> Edit Template
+                      </button>
                    </div>
 
                    <div className="absolute top-4 right-4 flex gap-1">
