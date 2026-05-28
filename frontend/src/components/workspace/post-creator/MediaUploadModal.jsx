@@ -1,8 +1,9 @@
 import * as React from "react";
 import { useState, useRef } from "react";
-import { X, Upload, Link2, File, Image as ImageIcon, Video, CheckCircle2, Loader2 } from "lucide-react";
+import { X, Upload, Link2, File, Image as ImageIcon, Video, CheckCircle2, Loader2, Search, Folder, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import apiService from "../../../services/api";
+import { useMediaLibrary } from "../../../hooks/useMediaLibrary";
 
 export function MediaUploadModal({ isOpen, onClose, onAccept, initialTab = "computer" }) {
   const [activeTab, setActiveTab] = useState(initialTab); // 'computer' | 'url' | 'library'
@@ -11,41 +12,25 @@ export function MediaUploadModal({ isOpen, onClose, onAccept, initialTab = "comp
   const [fileUrlInput, setFileUrlInput] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   
-  // Library states
-  const [libraryFiles, setLibraryFiles] = useState([]);
-  const [isLoadingLibrary, setIsLoadingLibrary] = useState(false);
-  const [selectedLibraryFile, setSelectedLibraryFile] = useState(null);
+  // Library management using our custom hook
+  const {
+    filters,
+    updateFilters,
+    searchTerm,
+    setSearchTerm,
+    loading: isLoadingLibrary,
+    filteredMedia: libraryFiles,
+    folders,
+    loadingFolders
+  } = useMediaLibrary();
 
+  const [selectedLibraryFile, setSelectedLibraryFile] = useState(null);
   const fileInputRef = useRef(null);
 
   // Sync tab if initialTab changes
   React.useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
-
-  // Fetch library files when tab changes to library
-  React.useEffect(() => {
-    if (activeTab === "library" && isOpen) {
-      fetchLibrary();
-    }
-  }, [activeTab, isOpen]);
-
-  const fetchLibrary = async () => {
-    setIsLoadingLibrary(true);
-    try {
-      const brandsRes = await apiService.get("/brands");
-      const brands = brandsRes.data.data || brandsRes.data;
-      if (Array.isArray(brands) && brands.length > 0) {
-        const brandId = brands[0].id;
-        const res = await apiService.get(`/media?brandId=${brandId}&limit=12`);
-        setLibraryFiles(res.data.data);
-      }
-    } catch (err) {
-      toast.error("Failed to load media library");
-    } finally {
-      setIsLoadingLibrary(false);
-    }
-  };
 
   if (!isOpen) return null;
 
@@ -229,32 +214,90 @@ export function MediaUploadModal({ isOpen, onClose, onAccept, initialTab = "comp
           )}
 
           {activeTab === "library" && (
-            <div className="w-full">
-              {isLoadingLibrary ? (
-                <div className="flex items-center justify-center py-12">
+            <div className="w-full flex flex-col gap-4">
+              {/* Library Toolbar */}
+              <div className="flex items-center gap-3">
+                 <div className="relative flex-1">
+                   <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                   <input 
+                     placeholder="Search library..."
+                     value={searchTerm}
+                     onChange={(e) => setSearchTerm(e.target.value)}
+                     className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-xs font-medium focus:bg-white focus:border-purple-200 outline-none transition-all"
+                   />
+                 </div>
+              </div>
+
+              {/* Breadcrumbs for folder navigation */}
+              {filters.folderId && (
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400">
+                   <button 
+                     onClick={() => updateFilters({ folderId: null })}
+                     className="hover:text-purple-600 transition-colors cursor-pointer"
+                   >
+                     Media Library
+                   </button>
+                   <ChevronLeft size={10} className="rotate-180" />
+                   <span className="text-gray-800">Folder</span>
+                </div>
+              )}
+
+              {isLoadingLibrary || loadingFolders ? (
+                <div className="flex items-center justify-center py-20">
                    <Loader2 size={24} className="animate-spin text-purple-600" />
                 </div>
-              ) : libraryFiles.length === 0 ? (
-                <div className="text-center py-12">
-                   <p className="text-sm text-gray-500 font-medium">Your media library is empty.</p>
+              ) : libraryFiles.length === 0 && folders.length === 0 ? (
+                <div className="text-center py-20 bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+                   <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">No results found</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-4 gap-3 max-h-[300px] overflow-y-auto p-1 scrollbar-thin">
+                <div className="grid grid-cols-4 gap-3 max-h-[340px] overflow-y-auto p-1 scrollbar-thin pr-2">
+                   {/* Render Folders first (only if not searching) */}
+                   {!searchTerm && folders.map((folder) => (
+                     <button
+                       key={folder.id}
+                       onClick={() => updateFilters({ folderId: folder.id })}
+                       className="aspect-square rounded-2xl bg-white border border-gray-100 p-3 flex flex-col items-center justify-center gap-2 hover:border-purple-200 hover:shadow-md transition-all group cursor-pointer"
+                     >
+                        <div className="w-10 h-10 bg-yellow-50 rounded-xl flex items-center justify-center text-yellow-500 group-hover:scale-110 transition-transform">
+                           <Folder size={20} fill="currentColor" fillOpacity={0.2} />
+                        </div>
+                        <span className="text-[10px] font-bold text-gray-700 truncate w-full text-center">{folder.name}</span>
+                     </button>
+                   ))}
+
+                   {/* Render Media Files */}
                    {libraryFiles.map(file => (
                      <button
                        key={file.id}
                        onClick={() => setSelectedLibraryFile(file)}
-                       className={`aspect-square rounded-xl overflow-hidden border-2 transition-all relative group ${
-                         selectedLibraryFile?.id === file.id ? 'border-purple-600 ring-2 ring-purple-100' : 'border-transparent hover:border-gray-200'
+                       className={`aspect-square rounded-2xl overflow-hidden border-2 transition-all relative group ${
+                         selectedLibraryFile?.id === file.id ? 'border-purple-600 ring-4 ring-purple-100' : 'border-transparent hover:border-gray-200'
                        }`}
                      >
-                        <img src={file.url} alt="" className="w-full h-full object-cover" />
-                        {selectedLibraryFile?.id === file.id && (
-                          <div className="absolute inset-0 bg-purple-600/20 flex items-center justify-center">
-                             <CheckCircle2 size={20} className="text-white fill-purple-600" />
+                        {file.thumbnail ? (
+                          <img src={file.thumbnail} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-gray-50 flex items-center justify-center text-3xl">
+                             {file.emoji}
                           </div>
                         )}
-                        <div className="absolute bottom-0 left-0 right-0 p-1 bg-black/40 text-white text-[8px] truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                        
+                        {selectedLibraryFile?.id === file.id && (
+                          <div className="absolute inset-0 bg-purple-600/10 flex items-center justify-center">
+                             <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                               <CheckCircle2 size={16} className="text-white" />
+                             </div>
+                          </div>
+                        )}
+
+                        {file.type === 'video' && (
+                          <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-black/60 backdrop-blur rounded text-[8px] font-black text-white uppercase tracking-tighter">
+                            Video
+                          </div>
+                        )}
+
+                        <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/60 to-transparent text-white text-[9px] font-bold truncate opacity-0 group-hover:opacity-100 transition-opacity">
                            {file.name}
                         </div>
                      </button>

@@ -12,3 +12,5 @@ yarn-error.log*
 # Documentation and temporary files
 *.puml
 !docs/**/*.puml
+
+metricool_attributes_reference_v5.html
