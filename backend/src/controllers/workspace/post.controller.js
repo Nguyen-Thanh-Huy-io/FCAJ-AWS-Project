@@ -110,7 +110,7 @@ class PostController {
     if (!req.file) {
       return res.status(400).json({ message: 'No video file uploaded' });
     }
-    const videoUrl = `/uploads/${req.file.filename}`;
+    const videoUrl = req.file.path;
     res.status(200).json({ message: 'Video uploaded successfully', videoUrl });
   });
 

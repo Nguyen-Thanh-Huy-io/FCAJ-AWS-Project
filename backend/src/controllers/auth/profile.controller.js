@@ -81,7 +81,7 @@ class ProfileController {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    const avatarUrl = `/uploads/${req.file.filename}`;
+    const avatarUrl = req.file.path;
 
     // Update user avatarUrl
     const updatedUser = await profileService.editProfile(req.user.id, { avatarUrl });

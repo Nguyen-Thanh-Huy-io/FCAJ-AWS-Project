@@ -3,6 +3,7 @@ const QueryPipeline = require('../../core/query-pipeline/query.pipeline');
 const MediaLibrarySearchFilter = require('./media-library/filters/search.filter');
 const MediaLibraryTypeFilter = require('./media-library/filters/type.filter');
 const MediaLibraryUsedFilter = require('./media-library/filters/used.filter');
+const { cloudinary } = require('../../config/cloudinary');
 
 const ALLOWED_SORT_FIELDS = ['createdAt', 'filename', 'sizeBytes'];
 const ALLOWED_SORT_ORDERS = ['asc', 'desc'];
@@ -37,7 +38,7 @@ class MediaLibraryService {
    * Upload and save media file info
    */
   async uploadFile(file, brandId, userId) {
-    const storageUrl = `/uploads/${file.filename}`;
+    const storageUrl = file.path;
 
     const media = await mediaLibraryRepository.create({
       brandId,
@@ -46,7 +47,7 @@ class MediaLibraryService {
       mimeType: file.mimetype,
       sizeBytes: file.size,
       storageUrl,
-      mediaId: file.filename.split('.')[0], // Unique ID from filename
+      mediaId: file.filename, // This is the public_id in Cloudinary
       uploadedAt: new Date()
     });
 
@@ -65,19 +66,24 @@ class MediaLibraryService {
     // Delete from DB
     await mediaLibraryRepository.delete(id);
 
-    // Delete physical file
-    const fs = require('fs');
-    const path = require('path');
-    const localPath = path.join(process.cwd(), media.storageUrl.startsWith('/') ? media.storageUrl.substring(1) : media.storageUrl);
-
-    if (fs.existsSync(localPath)) {
-      fs.unlinkSync(localPath);
+    // Delete from Cloudinary
+    try {
+      const resourceType = this._getResourceType(media.mimeType);
+      await cloudinary.uploader.destroy(media.mediaId, { resource_type: resourceType });
+    } catch (err) {
+      console.error(`Cloudinary deletion failed for ${media.mediaId}:`, err.message);
     }
 
     return { success: true };
   }
 
   // ============= Private Helper Methods =============
+
+  _getResourceType(mimeType) {
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.startsWith('video/')) return 'video';
+    return 'raw';
+  }
 
   _getPagination(page, limit) {
     const safePage = Math.max(1, parseInt(page) || 1);
