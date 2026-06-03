@@ -206,6 +206,17 @@ class InboxService {
     return await inboxRepository.updateStatus(itemId, status.toUpperCase());
   }
 
+  async updateItemMetadata(itemId, { tags, internalNotes }) {
+    const item = await inboxRepository.findById(itemId);
+    if (!item) throw new Error('Item not found');
+
+    const updateData = {};
+    if (tags !== undefined) updateData.tags = tags;
+    if (internalNotes !== undefined) updateData.internalNotes = internalNotes;
+
+    return await inboxRepository.updateInboxItem(itemId, updateData);
+  }
+
   // ============= Private Helper Methods =============
 
   _getPagination(page, limit) {

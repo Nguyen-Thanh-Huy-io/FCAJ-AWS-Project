@@ -1,16 +1,16 @@
 # Hướng dẫn Tích hợp Google Drive & Kéo thả Lên lịch (Google Drive Integration)
 
-Tài liệu này mô tả chi tiết thiết kế kỹ thuật, kiến trúc và luồng xử lý dữ liệu của tính năng **Tích hợp Google Drive** trong dự án **PubliCast**, giúp người dùng có thể duyệt tệp video từ Google Drive cá nhân và kéo thả trực tiếp vào lịch tuần để lên lịch bài viết.
+Tài liệu này mô tả chi tiết thiết kế kỹ thuật, kiến trúc và luồng xử lý dữ liệu của tính năng **Tích hợp Google Drive** trong dự án **PubliCast**, giúp người dùng duyệt các tệp video từ Google Drive cá nhân và kéo thả trực tiếp vào lịch tuần để lập lịch bài đăng.
 
 ---
 
 ## 1. Tổng quan Luồng Nghiệp vụ (Overview)
 
 Tính năng Google Drive cung cấp hai giá trị cốt lõi:
-1. **Duyệt tệp tin trực quan (Explorer):** Tìm kiếm, lọc định dạng (`mp4`, `webm`, `mov`), lọc kích thước, và sắp xếp tệp tin video từ tài khoản Google Drive cá nhân của Brand.
-2. **Kéo thả không chặn (Non-blocking Drag-and-Drop):** Cho phép kéo thả video từ sidebar vào ô lịch tuần. Ngay khi thả tệp:
-   - Form tạo bài viết (`PostCreator`) được mở lên ngay lập tức và tự động điền các thông tin (Thời gian lập lịch, Tên file).
-   - Tiến trình tải tệp tin từ Google Drive về máy chủ PubliCast được thực hiện song song dưới nền (Background Import). Người dùng không cần phải chờ đợi quá trình tải hoàn tất rồi mới điền thông tin bài viết.
+1. **Duyệt tệp tin trực quan (Explorer):** Tìm kiếm, lọc theo định dạng (`mp4`, `webm`, `mov`), lọc theo kích thước và sắp xếp các tệp video từ tài khoản Google Drive cá nhân của thương hiệu (Brand).
+2. **Kéo thả không nghẽn (Non-blocking Drag-and-Drop):** Cho phép kéo thả video từ thanh bên (sidebar) vào ô lịch tuần. Ngay khi thả tệp:
+   - Biểu mẫu tạo bài viết (`PostCreator`) sẽ được mở ra ngay lập tức và tự động điền các thông tin như thời gian lập lịch và tên tệp.
+   - Tiến trình tải tệp từ Google Drive về máy chủ PubliCast được thực hiện song song dưới nền (Background Import). Người dùng không cần phải chờ đợi quá trình tải hoàn tất mới có thể điền thông tin bài viết.
 
 ---
 
@@ -19,18 +19,18 @@ Tính năng Google Drive cung cấp hai giá trị cốt lõi:
 ### Tầng Backend (Express/Prisma)
 - **GoogleDriveService (`google-drive.service.js`):** 
   - Sử dụng thư viện `googleapis` để xác thực và giao tiếp với Google Drive API v3.
-  - Sử dụng access token và refresh token lưu trữ trong bảng `social_accounts` (chung tài khoản YouTube liên kết của Brand).
+  - Sử dụng mã truy cập (access token) và mã làm mới (refresh token) được lưu trữ trong bảng `social_accounts` (dùng chung với tài khoản YouTube liên kết của Brand).
 - **SocialController & Routes:**
-  - `GET /api/social/google/drive/files`: Lấy danh sách video (`mimeType contains 'video/'`) và trả về thông tin tài khoản đang kết nối (Avatar, tên hiển thị) phục vụ giao diện cài đặt.
-  - `POST /api/social/google/drive/download`: Nhận `fileId`, thực hiện tải stream từ Google API (`drive.files.get({ fileId, alt: 'media' })`) và trực tiếp pipe vào một file write stream cục bộ trên đĩa cứng máy chủ.
+  - `GET /api/social/google/drive/files`: Lấy danh sách video (điều kiện lọc: `mimeType contains 'video/'`) và trả về thông tin tài khoản đang kết nối (ảnh đại diện, tên hiển thị) phục vụ cho giao diện cài đặt.
+  - `POST /api/social/google/drive/download`: Nhận `fileId`, thực hiện tải luồng dữ liệu (stream) từ Google API thông qua lệnh `drive.files.get({ fileId, alt: 'media' })`, rồi truyền (pipe) trực tiếp vào một luồng ghi tệp (write stream) cục bộ trên ổ cứng máy chủ.
 
 ### Tầng Frontend (React/Context)
-- **PostCreatorContext:** Quản lý trạng thái chia sẻ của video (Đường dẫn cục bộ, trạng thái đang tải lên, URL xem trước) để đồng bộ hóa ngay lập tức khi kéo thả.
-- **useGoogleDriveImport (Hook):** Điều phối tiến trình kết nối API tải về dưới nền, hiển thị trạng thái "Uploading..." trên form tạo bài viết và cập nhật đường dẫn chính xác khi hoàn thành.
+- **PostCreatorContext:** Quản lý trạng thái chia sẻ của video (đường dẫn cục bộ, trạng thái đang tải lên, URL xem trước) để đồng bộ hóa ngay lập tức khi thực hiện thao tác kéo thả.
+- **useGoogleDriveImport (Hook):** Điều phối tiến trình kết nối API tải về dưới nền, hiển thị trạng thái "Uploading..." trên biểu mẫu tạo bài viết và cập nhật đường dẫn chính xác sau khi hoàn thành.
 - **SidebarIntegrations (UI Explorer):** 
-  - Giao diện duyệt thư mục giả lập (My Drive, Shared, Starred, Recent).
-  - Tích hợp bộ lọc định dạng, kích thước file và sắp xếp theo Tên, Ngày, Dung lượng thông qua Popover.
-  - Lưu trạng thái bộ nhớ đệm `hasFetched` để ngăn chặn việc gọi API liên tục gây giật lag khi chuyển tab.
+  - Giao diện duyệt thư mục giả lập bao gồm các mục: Drive của tôi (My Drive), Được chia sẻ (Shared), Có gắn dấu sao (Starred), Gần đây (Recent).
+  - Tích hợp bộ lọc định dạng, kích thước tệp và hỗ trợ sắp xếp theo Tên, Ngày, Dung lượng thông qua Popover.
+  - Lưu trạng thái bộ nhớ đệm `hasFetched` để ngăn chặn việc gọi API liên tục gây giật lag khi chuyển đổi qua lại giữa các tab.
 
 ---
 
@@ -92,7 +92,7 @@ sequenceDiagram
     Grid->>Hook: importFromDrive(fileId, fileName, date, hour)
     activate Hook
     
-    Note over Hook, Context: Tiến trình không chặn bắt đầu (Non-blocking Flow)
+    Note over Hook, Context: Tiến trình không nghẽn bắt đầu (Non-blocking Flow)
     Hook->>Context: openPostCreator({ defaultScheduledAt, isUploadingVideo: true })
     activate Context
     Context->>Form: Mở modal và điền sẵn thời gian (Trạng thái tải: Uploading...)
@@ -123,6 +123,6 @@ sequenceDiagram
 
 Để tính năng Google Drive hoạt động, hệ thống yêu cầu các cấu hình sau trên **Google Cloud Console**:
 
-1. **Bổ sung Google Drive API:** Vào thư viện API của dự án Google Cloud Console và kích hoạt (Enable) dịch vụ **Google Drive API**.
-2. **Cập nhật Scopes:** Bổ sung scope `https://www.googleapis.com/auth/drive.readonly` vào cấu hình Google OAuth 2.0 client.
-3. **Thực hiện liên kết lại:** Các thương hiệu đã liên kết trước đó cần nhấn **Switch Account** hoặc **Disconnect Drive** và liên kết lại tài khoản để cấp thêm quyền truy cập tệp tin Drive.
+1. **Kích hoạt Google Drive API:** Truy cập vào thư viện API của dự án trên Google Cloud Console và kích hoạt (Enable) dịch vụ **Google Drive API**.
+2. **Cập nhật phạm vi quyền (Scopes):** Bổ sung scope `https://www.googleapis.com/auth/drive.readonly` vào cấu hình Google OAuth 2.0 client.
+3. **Thực hiện liên kết lại tài khoản:** Các thương hiệu đã liên kết trước đó cần nhấn **Switch Account** hoặc **Disconnect Drive** và thực hiện liên kết lại tài khoản để cấp thêm quyền truy cập tệp tin trên Drive.

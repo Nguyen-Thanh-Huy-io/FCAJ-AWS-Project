@@ -31,4 +31,9 @@ router.post('/reply', inboxController.replyToItem);
  */
 router.patch('/:id/status', inboxController.updateStatus);
 
+/**
+ * PATCH /api/inbox/:id/metadata
+ */
+router.patch('/:id/metadata', inboxController.updateMetadata);
+
 module.exports = router;

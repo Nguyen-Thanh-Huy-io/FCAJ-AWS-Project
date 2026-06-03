@@ -66,6 +66,17 @@ class InboxController {
     const result = await inboxService.updateItemStatus(id, status);
     res.json({ message: 'Status updated', data: result });
   });
+
+  /**
+   * PATCH /api/inbox/:id/metadata
+   */
+  updateMetadata = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { tags, internalNotes } = req.body;
+
+    const result = await inboxService.updateItemMetadata(id, { tags, internalNotes });
+    res.json({ message: 'Metadata updated successfully', data: result });
+  });
 }
 
 module.exports = new InboxController();

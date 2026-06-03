@@ -242,13 +242,16 @@ const data = await response.json();
 console.log(data);
 ```
 
-## Security Considerations
+## Security & Business Logic Considerations
 
 1. **JWT Verification**: All requests must include valid JWT token
 2. **Data Validation**: Input validation on both client and server
 3. **URL Validation**: Avatar URL must be valid
 4. **Account Status Check**: User cannot edit profile if account is banned
 5. **SQL Injection Prevention**: Uses Prisma ORM parameterized queries
+6. **Auto-Healing Brand Logic (Nghiệp vụ Tự phục hồi)**:
+   - Khi truy vấn hồ sơ (`getUserProfile`), hệ thống tự động kiểm tra số lượng Brand liên kết với tài khoản.
+   - Nếu phát hiện user không sở hữu bất kỳ thương hiệu nào (lỗi dữ liệu mồ côi), hệ thống sẽ bất đồng bộ tự khởi tạo lại một Brand mặc định (`brandService.createDefaultBrand`) để tránh crash luồng giao diện của người dùng.
 
 ## File Changes Summary
 
@@ -266,3 +269,5 @@ console.log(data);
 - fullName is trimmed before storing
 - Both fields are optional - at least one must be provided
 - Returns 400 if no fields are provided
+- Cập nhật tài liệu đối soát: 03/06/2026.
+

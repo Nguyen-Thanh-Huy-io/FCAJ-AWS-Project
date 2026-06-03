@@ -17,7 +17,8 @@ Mọi kết nối mạng xã hội đều tuân theo quy trình tiêu chuẩn:
 5.  **Data Layer**: `SocialAccountRepository` lưu trữ thông tin kết nối và khởi tạo các bảng dữ liệu liên quan (ví dụ: `YouTubeChannel`).
 
 ### 2. Quản Lý Phiên Làm Việc (Connection Management)
-- **Encryption**: Toàn bộ `accessToken` và `refreshToken` được lưu trữ an toàn trong Database.
+- **Token Storage (Lưu trữ Token)**: Toàn bộ `accessToken` và `refreshToken` hiện đang được lưu trữ trực tiếp dưới dạng **Plaintext** trong MySQL DB phục vụ cho giai đoạn chạy ổn định ban đầu.
+- **Security Backlog (Yêu cầu Bảo mật)**: Thiết lập cấu hình mã hóa đối xứng (Symmetric Encryption - ví dụ AES-256) cho các trường token này là hạng mục bắt buộc trước khi triển khai môi trường live production.
 - **Auto-Refresh**: Tích hợp cơ chế tự động làm mới Token khi phát hiện hết hạn trong quá trình gọi API đồng bộ.
 - **SocialAccount Model**: Lưu trữ metadata chung (Username, Display Name, Profile Picture) giúp Frontend hiển thị nhanh mà không cần gọi API ngoại vi.
 
@@ -46,3 +47,4 @@ Hệ thống hỗ trợ 2 chế độ:
 ---
 *Tài liệu chi tiết về từng nền tảng:*
 - [Chi tiết Triển khai YouTube](./YOUTUBE_IMPLEMENTATION.md)
+

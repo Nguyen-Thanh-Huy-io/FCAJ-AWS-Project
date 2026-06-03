@@ -4,7 +4,7 @@
 
 ### 1. Setup Environment
 - Import `postman-environment.json` vào Postman
-- Cập nhật `baseUrl` nếu cần (default: `http://localhost:5000/api`)
+- Cập nhật `baseUrl` nếu cần (default: `http://localhost:3000/api`)
 - Cập nhật `email` và `password` cho test user của bạn
 
 ### 2. Test Workflow
@@ -36,7 +36,7 @@
 #### 3.1 Success Test
 **Request:**
 ```http
-PUT http://localhost:5000/api/profile/edit
+PUT http://localhost:3000/api/profile/edit
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
@@ -77,53 +77,7 @@ Expected: `400 Bad Request`
 **Test: Full Name Too Short**
 ```json
 {
-  "fullName": "A"
-}
-```
-Expected: `400 Bad Request`
 
-**Test: Full Name Too Long**
-```json
-{
-  "fullName": "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua ut enim ad minim veniam quis nostrud exercitation ullamco"
-}
-```
-Expected: `400 Bad Request`
-
-#### 3.3 Authentication Errors
-
-**Test: Missing Token**
-```http
-PUT http://localhost:5000/api/profile/edit
-Content-Type: application/json
-
-{
-  "fullName": "John Doe"
-}
-```
-Expected: `401 Unauthorized` - "Access token required"
-
-**Test: Invalid Token**
-```http
-PUT http://localhost:5000/api/profile/edit
-Authorization: Bearer invalid_token_here
-Content-Type: application/json
-
-{
-  "fullName": "John Doe"
-}
-```
-Expected: `403 Forbidden` - "Invalid or expired token"
-
-**Test: Expired Token**
-(Use a token that has expired)
-Expected: `401 Unauthorized` - "Access token expired. Please refresh."
-
-#### 3.4 Account Status Errors
-
-**Test: Banned Account**
-(If your account is banned)
-Expected: `403 Forbidden` - "Account banned"
 
 #### 3.5 User Not Found
 
