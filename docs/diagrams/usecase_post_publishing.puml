@@ -1,0 +1,46 @@
+@startuml UseCase_Post_Publishing
+title Use Case: Post Creation & Publishing - PubliCast
+
+left to right direction
+
+actor "Thành viên Brand" as ActorMember
+actor "Chủ Brand (Owner)" as ActorOwner
+actor "BullMQ Worker (Hệ thống)" as ActorWorker
+
+rectangle "Post & Publishing Scope" {
+    usecase "Xem danh sách bài viết" as UC_GetPosts
+    usecase "Lọc & Tìm kiếm bài viết" as UC_FilterPosts
+    
+    usecase "Tạo bài viết mới" as UC_CreatePost
+    usecase "Chỉnh sửa bài viết nháp" as UC_UpdatePost
+    usecase "Xóa bài viết" as UC_DeletePost
+    usecase "Khôi phục bài viết đã xóa" as UC_RestorePost
+    
+    usecase "Đăng tải bài viết ngay" as UC_PublishNow
+    usecase "Lập lịch đăng bài" as UC_SchedulePost
+    usecase "Tự động đăng tải (AutoList)" as UC_AutoPublish
+    
+    usecase "Thực thi xuất bản lên MXH" as UC_ExecutePublish
+    usecase "Cập nhật trạng thái bài viết (Thành công/Thất bại)" as UC_UpdateStatus
+}
+
+' Tra cứu bài viết
+ActorMember --> UC_GetPosts
+UC_GetPosts <.. UC_FilterPosts : <<extend>>
+
+' Quản lý bài viết cơ bản
+ActorMember --> UC_CreatePost
+ActorMember --> UC_UpdatePost
+ActorMember --> UC_DeletePost
+ActorOwner --> UC_RestorePost
+
+' Xuất bản nội dung
+ActorMember --> UC_PublishNow
+ActorMember --> UC_SchedulePost
+ActorMember --> UC_AutoPublish
+
+' Tương tác của tiến trình nền
+ActorWorker --> UC_ExecutePublish
+UC_ExecutePublish ..> UC_UpdateStatus : <<include>>
+
+@enduml

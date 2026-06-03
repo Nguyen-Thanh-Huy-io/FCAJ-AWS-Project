@@ -1,7 +1,13 @@
 require('dotenv').config();
+
+// ── Validate environment variables at startup (fail-fast) ──────────────────
+const { validateEnv } = require('./config/env.validator');
+validateEnv();
+
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const logger = require('./utils/logger');
 
 // Routes - Auth Domain
 const authRoutes = require('./routes/auth/auth.routes');
@@ -35,18 +41,28 @@ const queueDashboard = require('./queues/dashboard');
 
 const app = express();
 
-// Request logger
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-  next();
-});
+// ── Structured HTTP request logger (replaces raw console.log) ──────────────
+app.use(logger.httpMiddleware());
 
-// CORS config - Allow local development origins
+// ── CORS — whitelist driven by env var, not hardcoded localhost ────────────
+const ALLOWED_ORIGINS = (process.env.CORS_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+    // Allow requests with no origin (e.g. mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+
+    // Always allow localhost/127.0.0.1 in development
+    const isLocalhost = origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1');
+    const isAllowed = isLocalhost || ALLOWED_ORIGINS.includes(origin);
+
+    if (isAllowed) {
       callback(null, true);
     } else {
+      logger.warn('CORS blocked origin', { origin });
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -55,15 +71,33 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(express.json());
+// ── Body parsers — limit JSON to 10MB to prevent payload DoS ──────────────
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
-// Initialize Event Subscribers
+// ── Health check endpoints (required for load balancers, k8s probes) ───────
+app.get('/health', (_req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.get('/ready', async (_req, res) => {
+  try {
+    const prisma = require('./config/prisma');
+    await prisma.$queryRaw`SELECT 1`;
+    res.status(200).json({ status: 'ready', db: 'connected', timestamp: new Date().toISOString() });
+  } catch (err) {
+    logger.error('Readiness check failed', err);
+    res.status(503).json({ status: 'not ready', db: 'disconnected' });
+  }
+});
+
+// ── Initialize Event Subscribers ───────────────────────────────────────────
 require('./events/subscribers/post.subscriber')();
 require('./events/subscribers/user.subscriber')();
 require('./events/subscribers/autolist.subscriber')();
 
-// Serve static files from uploads directory with CORS headers enabled
+// ── Static file serving ────────────────────────────────────────────────────
 app.use('/uploads', express.static('uploads', {
   setHeaders: (res) => {
     res.set('Access-Control-Allow-Origin', '*');
@@ -72,6 +106,7 @@ app.use('/uploads', express.static('uploads', {
   }
 }));
 
+// ── API Routes ─────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api', profileRoutes);
 app.use('/api/admin/pricing', pricingRoutes);
@@ -90,15 +125,18 @@ app.use('/api/social', socialRoutes);
 app.use('/api/brands', brandRoutes);
 app.use('/api/auto-lists', autoListRoutes);
 
-// Mount Job Queue Dashboard (Visual Monitoring)
+// ── BullMQ Dashboard — protected in production ─────────────────────────────
+// WARNING: In production, add authentication middleware before this route.
+// Example: app.use('/admin/queues', verifyAuth, authorize('ADMIN'), queueDashboard.getRouter())
 app.use('/admin/queues', queueDashboard.getRouter());
 
-app.get('/', (req, res) => {
-  res.send('PubliCast API is running');
+app.get('/', (_req, res) => {
+  res.json({ name: 'PubliCast API', status: 'running', version: '1.0.0' });
 });
 
-// Global Error Handler - Must be last
+// ── Global Error Handler — must be last ───────────────────────────────────
 const errorHandler = require('./middlewares/error-handler.middleware');
 app.use(errorHandler);
 
 module.exports = app;
+

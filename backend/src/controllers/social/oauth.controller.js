@@ -5,6 +5,7 @@ const tiktokService = require('../../services/social/tiktok');
 const tiktokGateway = require('../../services/social/tiktok/tiktok.gateway');
 const { SOCIAL_TECHNICAL } = require('../../utils/constants');
 const asyncHandler = require('../../utils/async-handler');
+const logger = require('../../utils/logger');
 
 class OAuthController {
   /**
@@ -33,8 +34,8 @@ class OAuthController {
   });
 
   googleCallback = asyncHandler(async (req, res) => {
-    const { code, state } = req.query; 
-    const brandId = state; 
+    const { code, state } = req.query;
+    const brandId = state;
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/google/callback`;
 
@@ -47,7 +48,7 @@ class OAuthController {
   getFacebookAuthUrl = asyncHandler(async (req, res) => {
     const { brandId } = req.query;
     if (!brandId) return res.status(400).json({ message: 'brandId is required' });
-    
+
     const appId = process.env.FACEBOOK_APP_ID;
     const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/facebook/callback`;
     const url = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${brandId}&scope=pages_show_list,pages_read_engagement,pages_read_user_content,read_insights,pages_manage_engagement`;
@@ -71,10 +72,9 @@ class OAuthController {
     if (!brandId) return res.status(400).json({ message: 'brandId is required' });
 
     const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/tiktok/callback`;
-    console.log(`[TikTok OAuth] Constructed Redirect URI: ${redirectUri}`);
-    
+    logger.debug('[TikTok OAuth] Constructing auth URL', { redirectUri });
+
     const url = tiktokGateway.getAuthUrl(SOCIAL_TECHNICAL.TIKTOK_SCOPES, brandId, redirectUri);
-    console.log(`[TikTok OAuth] FULL AUTH URL: ${url}`);
     res.json({ url });
   });
 
@@ -91,17 +91,17 @@ class OAuthController {
   });
 
   handleTikTokWebhook = asyncHandler(async (req, res) => {
-    // TikTok sends notifications here for video events, account updates, etc.
     const challenge = req.query.challenge || req.body.challenge;
-    
+
     if (challenge) {
-      console.log(`[TikTok Webhook] Verification Challenge received: ${challenge}`);
+      logger.debug('[TikTok Webhook] Verification challenge received');
       return res.status(200).send(challenge);
     }
 
-    console.log('[TikTok Webhook] Event received:', JSON.stringify(req.body || req.query));
+    logger.info('[TikTok Webhook] Event received', { type: req.body?.type || 'unknown' });
     res.status(200).json({ status: 'ok' });
   });
 }
 
 module.exports = new OAuthController();
+

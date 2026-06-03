@@ -1,4 +1,5 @@
 const { createClient } = require('redis');
+const logger = require('../utils/logger');
 
 const createMemoryRedisClient = () => {
   const store = new Map();
@@ -79,7 +80,7 @@ const createMemoryRedisClient = () => {
 };
 
 if (process.env.USE_MEMORY_REDIS === 'true') {
-  console.warn('Using in-memory Redis fallback. Do not use this in production.');
+  logger.warn('Using in-memory Redis fallback. Do not use this in production.');
   module.exports = createMemoryRedisClient();
 } else {
   const redisClient = createClient({
@@ -98,7 +99,7 @@ if (process.env.USE_MEMORY_REDIS === 'true') {
 
   redisClient.on('error', (err) => {
     if (process.env.NODE_ENV !== 'test') {
-      console.error('Redis Client Error:', err.message);
+      logger.error('Redis Client Error', { error: err.message });
     }
   });
 
@@ -106,9 +107,9 @@ if (process.env.USE_MEMORY_REDIS === 'true') {
     if (process.env.NODE_ENV !== 'test' && !redisClient.isOpen) {
       try {
         await redisClient.connect();
-        console.log('Connected to Redis');
+        logger.info('Connected to Redis');
       } catch (err) {
-        console.error('Could not connect to Redis', err);
+        logger.error('Could not connect to Redis', err);
       }
     }
   };

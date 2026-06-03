@@ -4,10 +4,13 @@ const asyncHandler = require('../../utils/async-handler');
 class PostController {
   /**
    * GET /api/posts
-   * Fetch all posts with filters
+   * Fetch all posts with filters.
+   * brandId is required — prevents cross-brand data leakage via omission.
    */
   getPosts = asyncHandler(async (req, res) => {
-    const brandId = req.query.brandId || 'default-brand';
+    const brandId = req.query.brandId;
+    if (!brandId) return res.status(400).json({ message: 'brandId is required' });
+
     const result = await postService.getPosts(req.query, brandId);
 
     res.status(200).json({

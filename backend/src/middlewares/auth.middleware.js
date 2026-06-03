@@ -1,7 +1,9 @@
 const jwtUtils = require('../utils/jwt.utils');
+const logger = require('../utils/logger');
 
 /**
- * Verify JWT token from cookies
+ * Verify JWT token from cookies or Authorization header.
+ * Sets req.user = decoded payload on success.
  */
 const verifyAuth = (req, res, next) => {
   try {
@@ -9,13 +11,13 @@ const verifyAuth = (req, res, next) => {
     const token = req.cookies?.accessToken || jwtUtils.extractToken(req.headers.authorization);
 
     if (!token) {
-      console.warn('Auth missing: No token in cookies or headers');
+      logger.warn('Auth failed: no token provided', { method: req.method, url: req.url });
       return res.status(401).json({ message: 'Access token required' });
     }
 
     // Verify token
     const decoded = jwtUtils.verifyAccessToken(token);
-    console.log('Auth success: User ID', decoded.id, 'Role', decoded.role);
+    logger.debug('Auth success', { userId: decoded.id, role: decoded.role });
 
     // Attach user info to request
     req.user = decoded;
@@ -24,6 +26,7 @@ const verifyAuth = (req, res, next) => {
     if (error.message === 'Access token expired') {
       return res.status(401).json({ message: 'Access token expired. Please refresh.' });
     }
+    logger.warn('Auth failed: invalid token', { error: error.message, url: req.url });
     res.status(403).json({ message: 'Invalid or expired token' });
   }
 };
@@ -31,3 +34,4 @@ const verifyAuth = (req, res, next) => {
 module.exports = {
   verifyAuth
 };
+

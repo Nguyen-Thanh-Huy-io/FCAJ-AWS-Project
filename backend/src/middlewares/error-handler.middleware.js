@@ -1,30 +1,50 @@
+const logger = require('../utils/logger');
+
 /**
  * Global Error Handling Middleware
- * Catch all errors passed via next(err) and return a standardized JSON response
+ * Catches all errors passed via next(err) and returns standardized JSON.
+ * Never leaks stack traces or internal details in production.
  */
-const errorHandler = (err, req, res, next) => {
-  console.error(`[Error] ${err.stack}`);
+const errorHandler = (err, req, res, _next) => {
+  const statusCode = err.status || err.statusCode || 500;
+  let message = err.message || 'Internal Server Error';
 
-  const statusCode = err.status || 500;
-  const message = err.message || 'Internal Server Error';
+  // ── Prisma-specific error mapping ──────────────────────────────────────
+  if (err.code === 'P2002') {
+    message = 'A record with these details already exists.';
+    return res.status(409).json({ message, status: 409 });
+  }
+  if (err.code === 'P2025') {
+    message = 'Record not found.';
+    return res.status(404).json({ message, status: 404 });
+  }
+  if (err.code === 'P2003') {
+    message = 'Related record not found (foreign key constraint).';
+    return res.status(400).json({ message, status: 400 });
+  }
 
-  const response = {
-    message,
-    status: statusCode
-  };
+  // ── Log the error with context ─────────────────────────────────────────
+  if (statusCode >= 500) {
+    logger.error('Unhandled server error', {
+      method: req.method,
+      url: req.url,
+      statusCode,
+      error: err.message,
+      stack: err.stack
+    });
+  } else {
+    logger.warn('Client error', { method: req.method, url: req.url, statusCode, message });
+  }
 
-  // Include stack trace only in development mode
+  const response = { message, status: statusCode };
+
+  // Include stack trace only in development
   if (process.env.NODE_ENV === 'development') {
     response.stack = err.stack;
   }
 
-  // Handle Prisma specific errors if needed
-  if (err.code === 'P2002') {
-    response.message = 'Unique constraint failed on one or more fields';
-    response.status = 409;
-  }
-
-  res.status(response.status).json(response);
+  res.status(statusCode).json(response);
 };
 
 module.exports = errorHandler;
+

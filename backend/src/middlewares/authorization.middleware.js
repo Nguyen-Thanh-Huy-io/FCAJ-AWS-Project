@@ -1,7 +1,8 @@
 const { USER_ROLES } = require('../utils/constants');
+const logger = require('../utils/logger');
 
 /**
- * Middleware factory to check user role
+ * Middleware factory to check user role.
  * @param {...string} allowedRoles - roles that have access
  * @returns {Function} express middleware
  */
@@ -18,7 +19,7 @@ const authorize = (...allowedRoles) => {
 
     if (!userRole || !allowedRoles.includes(userRole)) {
       const rolesList = allowedRoles.filter(Boolean).join(', ');
-      console.warn(`Access denied for role: ${userRole}. Required one of: ${rolesList}`);
+      logger.warn('Access denied', { userId: req.user.id, userRole, requiredRoles: rolesList, url: req.url });
       return res.status(403).json({
         message: `Access denied. Only ${rolesList} roles are allowed.`
       });

@@ -42,7 +42,7 @@ class RevenueService {
       amount: `$${parseFloat(inv.amount)}`,
       date: new Date(inv.paidAt || inv.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       status: inv.status.toLowerCase(),
-      type: this.getTransactionType(inv)
+      type: this._getTransactionType(inv)
     }));
   }
 
@@ -58,15 +58,13 @@ class RevenueService {
 
   _buildKPIs(mrrData, activeSubCount) {
     return [
-      { label: "MRR", value: `$${mrrData.totalMRR.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, delta: "↑ 12.4%" },
-      { label: "ARR", value: `$${mrrData.totalARR.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, delta: "↑ 12.4%" },
-      { label: "Active Subscribers", value: activeSubCount.toString(), delta: "↑ 8.2%" },
-      { label: "New This Month", value: "89", delta: "↑ 14.1%" },
-      { label: "Churned This Month", value: "23", delta: "↓ 0.3%" },
+      { label: 'MRR', value: `$${mrrData.totalMRR.toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
+      { label: 'ARR', value: `$${mrrData.totalARR.toLocaleString(undefined, { maximumFractionDigits: 0 })}` },
+      { label: 'Active Subscribers', value: activeSubCount.toString() }
     ];
   }
 
-  getTransactionType(invoice) {
+  _getTransactionType(invoice) {
     if (invoice.status === INVOICE_STATUS.PAID && !invoice.paidAt) return SYSTEM_LABELS.NEW;
     return SYSTEM_LABELS.RENEWAL;
   }

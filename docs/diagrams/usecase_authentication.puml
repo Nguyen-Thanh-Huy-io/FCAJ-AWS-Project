@@ -1,0 +1,35 @@
+@startuml UseCase_Authentication
+title Use Case: Authentication & Account Management - PubliCast
+
+left to right direction
+
+actor "Người dùng vãng lai" as ActorAnonymous
+actor "Thành viên Brand" as ActorMember
+
+rectangle "Authentication & Account Scope" {
+    usecase "Đăng ký tài khoản mới" as UC_Register
+    usecase "Xác thực mã OTP" as UC_VerifyOTP
+    usecase "Gửi lại mã OTP" as UC_ResendOTP
+    
+    usecase "Đăng nhập hệ thống" as UC_Login
+    usecase "Đăng nhập bằng Google OAuth" as UC_GoogleLogin
+    
+    usecase "Yêu cầu khôi phục mật khẩu" as UC_ForgotPass
+    usecase "Thiết lập lại mật khẩu mới" as UC_ResetPass
+}
+
+' Mối liên hệ đăng ký & OTP
+ActorAnonymous --> UC_Register
+UC_Register ..> UC_VerifyOTP : <<include>>
+UC_VerifyOTP <.. UC_ResendOTP : <<extend>>
+
+' Đăng nhập
+ActorAnonymous --> UC_Login
+ActorMember --> UC_Login
+UC_Login <|-- UC_GoogleLogin
+
+' Quên mật khẩu
+ActorAnonymous --> UC_ForgotPass
+UC_ForgotPass ..> UC_ResetPass : <<include>>
+
+@enduml

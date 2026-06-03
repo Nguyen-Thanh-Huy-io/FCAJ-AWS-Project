@@ -1,5 +1,7 @@
 const authService = require('../../services/auth/auth.service');
+const jwtUtils = require('../../utils/jwt.utils');
 const loginRateLimiter = require('../../middlewares/login-rate-limit.middleware');
+const { setAuthCookies } = require('../../utils/cookie.utils');
 const { ERROR_MESSAGES, USER_ROLES } = require('../../utils/constants');
 const asyncHandler = require('../../utils/async-handler');
 
@@ -24,28 +26,8 @@ class AuthController {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
     const result = await authService.handleGoogleCallback(code, redirectUri);
+    setAuthCookies(res, result.accessToken, result.refreshToken);
 
-    // Set HttpOnly cookies for tokens
-    const accessTokenMaxAge = 15 * 60 * 1000;
-    const refreshTokenMaxAge = 7 * 24 * 60 * 60 * 1000;
-
-    res.cookie('accessToken', result.accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: accessTokenMaxAge,
-      path: '/'
-    });
-
-    res.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: refreshTokenMaxAge,
-      path: '/'
-    });
-
-    // Redirect to dashboard with success
     res.redirect(`${frontendUrl}/dashboard?success=google_login`);
   });
 
@@ -62,26 +44,8 @@ class AuthController {
     const { email, otp } = req.body;
     const result = await authService.verifyOTP(email, otp);
 
-    // Set HttpOnly cookies for tokens (Auto-login)
     if (result.accessToken && result.refreshToken) {
-      const accessTokenMaxAge = 15 * 60 * 1000;
-      const refreshTokenMaxAge = 7 * 24 * 60 * 60 * 1000;
-
-      res.cookie('accessToken', result.accessToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: accessTokenMaxAge,
-        path: '/'
-      });
-
-      res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: refreshTokenMaxAge,
-        path: '/'
-      });
+      setAuthCookies(res, result.accessToken, result.refreshToken);
     }
 
     res.status(200).json({
@@ -123,7 +87,6 @@ class AuthController {
   login = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
-    // Attempt login
     const result = await authService.login(email.toLowerCase(), password);
 
     // Reset rate limit on successful login
@@ -131,31 +94,12 @@ class AuthController {
       await loginRateLimiter.resetAttempts(req.rateLimit.email, req.rateLimit.ip);
     }
 
-    // Set HttpOnly cookies for tokens
-    const accessTokenMaxAge = 15 * 60 * 1000; // 15 minutes
-    const refreshTokenMaxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
-
-    res.cookie('accessToken', result.accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: accessTokenMaxAge,
-      path: '/'
-    });
-
-    res.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: refreshTokenMaxAge,
-      path: '/'
-    });
+    // Set tokens via HttpOnly cookies only — do NOT return raw tokens in body (XSS risk)
+    setAuthCookies(res, result.accessToken, result.refreshToken);
 
     res.status(200).json({
       message: ERROR_MESSAGES.LOGIN_SUCCESS,
       role: result.role,
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
       redirectUrl: result.role === USER_ROLES.ADMIN ? '/admin/profile' : '/user/profile',
       user: result.user
     });
@@ -172,32 +116,11 @@ class AuthController {
       return res.status(401).json({ message: 'Refresh token required' });
     }
 
-    // Extract user ID from refresh token
-    const jwtUtils = require('../../utils/jwt.utils');
     const decoded = jwtUtils.verifyRefreshToken(refreshToken);
     const userId = decoded.id;
 
     const result = await authService.refreshTokens(refreshToken, userId);
-
-    // Set new tokens in cookies
-    const accessTokenMaxAge = 15 * 60 * 1000;
-    const refreshTokenMaxAge = 7 * 24 * 60 * 60 * 1000;
-
-    res.cookie('accessToken', result.accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: accessTokenMaxAge,
-      path: '/'
-    });
-
-    res.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: refreshTokenMaxAge,
-      path: '/'
-    });
+    setAuthCookies(res, result.accessToken, result.refreshToken);
 
     res.status(200).json({ message: 'Token refreshed successfully' });
   });
@@ -216,8 +139,8 @@ class AuthController {
     await authService.logout(userId);
 
     // Clear cookies
-    res.clearCookie('accessToken');
-    res.clearCookie('refreshToken');
+    res.clearCookie('accessToken', { path: '/' });
+    res.clearCookie('refreshToken', { path: '/' });
 
     res.status(200).json({ message: 'Logout successful' });
   });
