@@ -9,7 +9,7 @@ import { usePostCreator } from "../../../context/PostCreatorContext";
 import { useFilters } from "../../../hooks/useFilters";
 import { useDebounce } from "../../../hooks/useDebounce";
 import postService from "../../../services/post.service";
-import brandService from "../../../services/brand.service";
+import { useBrand } from "../../../context/BrandContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -27,7 +27,7 @@ export function ListView() {
   const [selected, setSelected] = useState([]);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeBrand, setActiveBrand] = useState(null);
+  const { activeBrand } = useBrand();
   const [meta, setMeta] = useState({ total: 0, page: 1, totalPages: 1 });
   const [activeMenuId, setActiveMenuId] = useState(null);
 
@@ -42,21 +42,6 @@ export function ListView() {
 
   const [searchTerm, setSearchTerm] = useState(filters.search || "");
   const debouncedSearch = useDebounce(searchTerm, 500);
-
-  // Initial load
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const brandsRes = await brandService.getBrands();
-        if (brandsRes.data && brandsRes.data.length > 0) {
-          setActiveBrand(brandsRes.data[0]);
-        }
-      } catch (e) {
-        console.error("Failed to load brands", e);
-      }
-    };
-    init();
-  }, []);
 
   // Sync search
   useEffect(() => {

@@ -4,10 +4,11 @@ import {
   BarChart2, MessageSquare, Calendar, Link2, Megaphone, Zap,
   Menu, ChevronDown, Sparkles, Radio, X, Diamond, Globe, 
   Settings, LogOut, HelpCircle, Gift, ChevronRight, Bell, Search,
-  MessageCircle
+  MessageCircle, Check
 } from "lucide-react";
 import { useConnections } from "../context/ConnectionsContext";
 import { useAuth } from "../context/AuthContext";
+import { useBrand } from "../context/BrandContext";
 import { useDebounce } from "../hooks/useDebounce";
 import apiService from "../services/api";
 
@@ -103,6 +104,7 @@ export function Topbar() {
   const location = useLocation();
   const [brandOpen, setBrandOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { brands, activeBrand, selectBrand } = useBrand();
 
   // Search states
   const [searchQuery, setSearchQuery] = useState("");
@@ -315,9 +317,11 @@ export function Topbar() {
                 onClick={() => setBrandOpen(!brandOpen)}
                 className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
               >
-                <div className="w-7 h-7 rounded-lg bg-[#E1306C] flex items-center justify-center text-xs font-bold shadow-sm">T</div>
+                <div className="w-7 h-7 rounded-lg bg-[#E1306C] flex items-center justify-center text-xs font-bold shadow-sm uppercase">
+                  {activeBrand ? activeBrand.name.charAt(0) : "B"}
+                </div>
                 <div className="hidden md:flex flex-col items-start text-left min-w-[80px]">
-                  <span style={{ fontSize: 11, fontWeight: 600 }}>TechVN Brand</span>
+                  <span style={{ fontSize: 11, fontWeight: 600 }}>{activeBrand ? activeBrand.name : "Select Brand"}</span>
                   <span style={{ fontSize: 9, color: "#AAA" }}>{currentPath.startsWith("/manage") ? "Manager" : "Work"} mode</span>
                 </div>
                 <ChevronDown size={14} color="#666" />
@@ -326,10 +330,23 @@ export function Topbar() {
               {brandOpen && (
                 <div className="absolute top-12 right-0 bg-white text-[#0A0A0A] rounded-xl shadow-xl p-2 z-50 min-w-[200px]" style={{ border: "1px solid #E5E7EB" }}>
                   <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">Your Workplaces</div>
-                  {["TechVN Studio", "Personal Account"].map(w => (
-                    <button key={w} onClick={() => setBrandOpen(false)} className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 text-sm font-medium">{w}</button>
+                  {brands.map(b => (
+                    <button 
+                      key={b.id} 
+                      onClick={() => { selectBrand(b.id); setBrandOpen(false); }} 
+                      className={`w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 text-sm font-medium flex items-center justify-between ${activeBrand?.id === b.id ? "bg-purple-50 text-purple-700 font-bold" : ""}`}
+                    >
+                      <span>{b.name}</span>
+                      {activeBrand?.id === b.id && <Check size={12} />}
+                    </button>
                   ))}
                   <div className="h-px bg-gray-100 my-1" />
+                  <button 
+                    onClick={() => { navigate("/manage/connections?tab=brand-settings"); setBrandOpen(false); }} 
+                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 text-sm font-bold text-purple-600 flex items-center gap-1"
+                  >
+                    <Settings size={12} /> Manage Brands
+                  </button>
                   <button 
                     onClick={() => { navigate(currentPath.startsWith("/manage") ? "/dashboard" : "/manage/team"); setBrandOpen(false); }} 
                     className="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 text-sm font-bold text-blue-600"

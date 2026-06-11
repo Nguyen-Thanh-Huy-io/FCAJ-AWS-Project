@@ -5,7 +5,7 @@ import {
   AlertTriangle, Youtube, PlayCircle, Instagram, 
   Facebook, Linkedin, Loader2, Calendar, Plus 
 } from "lucide-react";
-import brandService from "../../../services/brand.service";
+import { useBrand } from "../../../context/BrandContext";
 import socialService from "../../../services/social.service";
 import autoListService from "../../../services/auto-list.service";
 import postService from "../../../services/post.service";
@@ -56,78 +56,73 @@ export function AutoListEdit() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeBrand, setActiveBrand] = useState(null);
+  const { activeBrand } = useBrand();
 
   const init = async () => {
+    if (!activeBrand) return;
     setIsLoading(true);
     try {
-      const brandsRes = await brandService.getBrands();
-      if (brandsRes.data?.length > 0) {
-        const brand = brandsRes.data[0];
-        setActiveBrand(brand);
-        
-        // Load connected platforms
-        const metricsRes = await socialService.getMetrics(brand.id);
-        const platforms = (metricsRes.data || []).map(m => ({
-          id: m.platform,
-          name: m.platform.charAt(0) + m.platform.slice(1).toLowerCase(),
-          icon: PLATFORM_ICONS[m.platform] || <PlayCircle size={18} />
-        }));
-        setConnectedPlatforms(platforms);
+      // Load connected platforms
+      const metricsRes = await socialService.getMetrics(activeBrand.id);
+      const platforms = (metricsRes.data || []).map(m => ({
+        id: m.platform,
+        name: m.platform.charAt(0) + m.platform.slice(1).toLowerCase(),
+        icon: PLATFORM_ICONS[m.platform] || <PlayCircle size={18} />
+      }));
+      setConnectedPlatforms(platforms);
 
-        // Load list details if editing
-        if (!isNew) {
-          const listRes = await autoListService.getAutoListDetails(id);
-          if (listRes.data) {
-            const list = listRes.data;
-            setName(list.name);
-            setRepeat(list.loopEnabled);
-            setScheduleType(list.scheduleType);
-            setIntervalMinutes(list.intervalMinutes || 60);
-            
-            if (list.specificTimes) {
-              try {
-                const parsed = JSON.parse(list.specificTimes);
-                if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object') {
-                  setSpecificTimes(parsed);
-                } else {
-                  throw new Error('Legacy format');
-                }
-              } catch (e) {
-                // Fallback for legacy format (comma separated times)
-                const times = list.specificTimes.split(',').filter(Boolean);
-                const legacyDays = list.activeDays ? list.activeDays.split(',').filter(Boolean) : ['Mo', 'Tu', 'We', 'Th', 'Fr'];
-                setSpecificTimes(times.map(t => ({ time: t, days: legacyDays })));
+      // Load list details if editing
+      if (!isNew) {
+        const listRes = await autoListService.getAutoListDetails(id);
+        if (listRes.data) {
+          const list = listRes.data;
+          setName(list.name);
+          setRepeat(list.loopEnabled);
+          setScheduleType(list.scheduleType);
+          setIntervalMinutes(list.intervalMinutes || 60);
+          
+          if (list.specificTimes) {
+            try {
+              const parsed = JSON.parse(list.specificTimes);
+              if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object') {
+                setSpecificTimes(parsed);
+              } else {
+                throw new Error('Legacy format');
               }
-            } else {
-              setSpecificTimes([]);
+            } catch (e) {
+              // Fallback for legacy format (comma separated times)
+              const times = list.specificTimes.split(',').filter(Boolean);
+              const legacyDays = list.activeDays ? list.activeDays.split(',').filter(Boolean) : ['Mo', 'Tu', 'We', 'Th', 'Fr'];
+              setSpecificTimes(times.map(t => ({ time: t, days: legacyDays })));
             }
-            
-            setSelectedPlatforms(list.targetPlatforms.split(',').filter(Boolean));
-            setSelectedDays(list.activeDays ? list.activeDays.split(',').filter(Boolean) : ['Mo', 'Tu', 'We', 'Th', 'Fr']);
-            // Post order is now strictly from DB
-            setPosts(list.posts || []);
+          } else {
+            setSpecificTimes([]);
+          }
+          
+          setSelectedPlatforms(list.targetPlatforms.split(',').filter(Boolean));
+          setSelectedDays(list.activeDays ? list.activeDays.split(',').filter(Boolean) : ['Mo', 'Tu', 'We', 'Th', 'Fr']);
+          // Post order is now strictly from DB
+          setPosts(list.posts || []);
 
-            // Load configuration from metadata field (replacement for LocalStorage)
-            if (list.metadata) {
-              try {
-                const parsed = JSON.parse(list.metadata);
-                if (parsed.autoPublish !== undefined) setAutoPublish(parsed.autoPublish);
-                if (parsed.useUrlShortener !== undefined) setUseUrlShortener(parsed.useUrlShortener);
-                if (parsed.facebookContentType !== undefined) setFacebookContentType(parsed.facebookContentType);
-                if (parsed.youtubeVideoType !== undefined) setYoutubeVideoType(parsed.youtubeVideoType);
-                if (parsed.youtubePrivacy !== undefined) setYoutubePrivacy(parsed.youtubePrivacy);
-                if (parsed.youtubeMadeForKids !== undefined) setYoutubeMadeForKids(parsed.youtubeMadeForKids);
-              } catch (err) {
-                console.error("Failed to parse metadata", err);
-              }
+          // Load configuration from metadata field (replacement for LocalStorage)
+          if (list.metadata) {
+            try {
+              const parsed = JSON.parse(list.metadata);
+              if (parsed.autoPublish !== undefined) setAutoPublish(parsed.autoPublish);
+              if (parsed.useUrlShortener !== undefined) setUseUrlShortener(parsed.useUrlShortener);
+              if (parsed.facebookContentType !== undefined) setFacebookContentType(parsed.facebookContentType);
+              if (parsed.youtubeVideoType !== undefined) setYoutubeVideoType(parsed.youtubeVideoType);
+              if (parsed.youtubePrivacy !== undefined) setYoutubePrivacy(parsed.youtubePrivacy);
+              if (parsed.youtubeMadeForKids !== undefined) setYoutubeMadeForKids(parsed.youtubeMadeForKids);
+            } catch (err) {
+              console.error("Failed to parse metadata", err);
             }
           }
-        } else {
-          // Defaults for new autolist
-          if (platforms.length > 0) {
-            setSelectedPlatforms([platforms[0].id]);
-          }
+        }
+      } else {
+        // Defaults for new autolist
+        if (platforms.length > 0) {
+          setSelectedPlatforms([platforms[0].id]);
         }
       }
     } catch (e) {
@@ -139,8 +134,10 @@ export function AutoListEdit() {
   };
 
   useEffect(() => {
-    init();
-  }, [id, isNew]);
+    if (activeBrand) {
+      init();
+    }
+  }, [id, isNew, activeBrand]);
 
   const togglePlatform = (platformId) => {
     setSelectedPlatforms(prev => 

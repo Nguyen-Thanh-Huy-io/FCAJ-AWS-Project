@@ -7,37 +7,36 @@ import {
 import { ConnectionsGrid } from "../../components/shared/ConnectionsGrid";
 import { WorkplaceHeader } from "../../components/shared/WorkplaceHeader";
 import { BrandTableOverlay } from "../../components/shared/BrandTableOverlay";
-import brandService from "../../services/brand.service";
+import { CreateBrandModal } from "../../components/shared/CreateBrandModal";
+import { useBrand } from "../../context/BrandContext";
 import { toast } from "sonner";
 
 export function BrandSettingsPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("brand-settings");
-  const [brands, setBrands] = useState([]);
+  
+  const { brands, createBrand, updateBrand, deleteBrand, activeBrand, selectBrand, loading } = useBrand();
+  
   const [selectedBrand, setSelectedBrand] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isTableOverlayOpen, setIsTableOverlayOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   const dropdownRef = useRef(null);
 
+  // Sync selected brand with activeBrand on initial load or switch
   useEffect(() => {
-    const fetchBrands = async () => {
-      setLoading(true);
-      try {
-        const response = await brandService.getBrands();
-        setBrands(response.data);
-        if (response.data.length > 0) {
-          setSelectedBrand(response.data[0]);
-        }
-      } catch (error) {
-        toast.error("Failed to fetch brands");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchBrands();
-  }, []);
+    if (activeBrand) {
+      setSelectedBrand({ ...activeBrand });
+    } else if (brands.length > 0) {
+      setSelectedBrand({ ...brands[0] });
+    } else {
+      setSelectedBrand(null);
+    }
+  }, [activeBrand, brands]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -76,7 +75,48 @@ export function BrandSettingsPage() {
     navigate(`${location.pathname}${query}`);
   };
 
-  if (loading) {
+  const handleSaveBrand = async () => {
+    if (!selectedBrand || !selectedBrand.name.trim()) return;
+    setIsUpdating(true);
+    try {
+      await updateBrand(selectedBrand.id, { name: selectedBrand.name.trim() });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDeleteBrand = async () => {
+    if (!selectedBrand) return;
+    if (brands.length <= 1) {
+      toast.error("Không thể xóa thương hiệu duy nhất của bạn!");
+      return;
+    }
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa thương hiệu "${selectedBrand.name}" không? Thao tác này không thể hoàn tác!`)) return;
+    setIsDeleting(true);
+    try {
+      await deleteBrand(selectedBrand.id);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleCreateBrand = async (brandData) => {
+    try {
+      const newBrand = await createBrand(brandData);
+      if (newBrand) {
+        setSelectedBrand({ ...newBrand });
+        selectBrand(newBrand.id);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  if (loading && brands.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center bg-white">
         <Loader2 className="animate-spin text-gray-300" size={40} />
@@ -96,7 +136,10 @@ export function BrandSettingsPage() {
             <span className="text-xs text-gray-400 font-medium">{brands.length > 0 ? "1 of " + brands.length : "0 of 0"}</span>
             <HelpCircle size={14} className="text-gray-300 ml-1" />
           </div>
-          <button className="flex items-center gap-2 px-4 py-1.5 bg-[#FEFCE8] border border-[#FEF08A] rounded-lg text-xs font-bold text-[#854D0E] hover:bg-[#FEF9C3] transition-all shadow-sm">
+          <button 
+            onClick={() => setIsCreateModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-1.5 bg-[#FEFCE8] border border-[#FEF08A] rounded-lg text-xs font-bold text-[#854D0E] hover:bg-[#FEF9C3] transition-all shadow-sm cursor-pointer"
+          >
             <Plus size={14} /> Add brand <Diamond size={12} className="fill-current" />
           </button>
         </div>
@@ -128,7 +171,7 @@ export function BrandSettingsPage() {
                   {brands.map((brand) => (
                     <div 
                       key={brand.id}
-                      onClick={() => { setSelectedBrand(brand); setIsDropdownOpen(false); }}
+                      onClick={() => { setSelectedBrand({ ...brand }); selectBrand(brand.id); setIsDropdownOpen(false); }}
                       className="p-3 flex items-center gap-3 hover:bg-[#E5E7EB] transition-colors cursor-pointer group"
                     >
                        <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-sm" style={{ backgroundColor: '#E1306C' }}>
@@ -176,31 +219,61 @@ export function BrandSettingsPage() {
 
       <div className="max-w-6xl pb-20">
         {activeTab === "brand-settings" && selectedBrand && (
-          <div className="grid grid-cols-2 gap-x-20 gap-y-10 animate-in fade-in duration-300 max-w-4xl">
-            <div className="space-y-8">
-              <div>
-                <h3 className="text-lg font-bold text-[#0A0A0A] mb-2">Name</h3>
-                <p className="text-sm text-gray-500 mb-4">Define a name to properly identify this brand.</p>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Brand name</label>
-                  <input placeholder="Brand name" value={selectedBrand.name} onChange={(e) => setSelectedBrand({...selectedBrand, name: e.target.value})} className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none text-sm font-medium" />
+          <div className="space-y-8 animate-in fade-in duration-300 max-w-4xl">
+            <div className="grid grid-cols-2 gap-x-20 gap-y-10">
+              <div className="space-y-8 col-span-2 md:col-span-1">
+                <div>
+                  <h3 className="text-lg font-bold text-[#0A0A0A] mb-2">Name</h3>
+                  <p className="text-sm text-gray-500 mb-4">Define a name to properly identify this brand.</p>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Brand name</label>
+                    <input 
+                      placeholder="Brand name" 
+                      value={selectedBrand.name} 
+                      onChange={(e) => setSelectedBrand({...selectedBrand, name: e.target.value})} 
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none text-sm font-medium" 
+                    />
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-[#0A0A0A] mb-2">Engagement</h3>
+                  <p className="text-sm text-gray-400 leading-relaxed">You can configure which ratio to use when calculating the engagement metric. This way, your reports will be more aligned with your own business goals.</p>
                 </div>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-[#0A0A0A] mb-2">Engagement</h3>
-                <p className="text-sm text-gray-400 leading-relaxed">You can configure which ratio to use when calculating the engagement metric. This way, your reports will be more aligned with your own business goals.</p>
+              <div className="col-span-2 md:col-span-1">
+                <h3 className="text-lg font-bold text-[#0A0A0A] mb-2">Image</h3>
+                <p className="text-sm text-gray-500 mb-4">Choose an image from your connected accounts:</p>
+                <div className="w-16 h-16 rounded-xl bg-[#581C2C] flex items-center justify-center relative cursor-pointer border-2 border-transparent hover:border-gray-200 shadow-sm">
+                  {selectedBrand.logoUrl ? (
+                     <img src={selectedBrand.logoUrl} className="w-full h-full object-cover rounded-xl" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-[#34D399] flex items-center justify-center absolute -top-2 -right-2 border-2 border-white shadow-sm"><Check size={14} className="text-white" strokeWidth={3} /></div>
+                  )}
+                </div>
               </div>
             </div>
-            <div>
-              <h3 className="text-lg font-bold text-[#0A0A0A] mb-2">Image</h3>
-              <p className="text-sm text-gray-500 mb-4">Choose an image from your connected accounts:</p>
-              <div className="w-16 h-16 rounded-xl bg-[#581C2C] flex items-center justify-center relative cursor-pointer border-2 border-transparent hover:border-gray-200 shadow-sm">
-                {selectedBrand.logoUrl ? (
-                   <img src={selectedBrand.logoUrl} className="w-full h-full object-cover rounded-xl" />
-                ) : (
-                  <div className="w-6 h-6 rounded-full bg-[#34D399] flex items-center justify-center absolute -top-2 -right-2 border-2 border-white shadow-sm"><Check size={14} className="text-white" strokeWidth={3} /></div>
-                )}
-              </div>
+
+            {/* Actions Section */}
+            <div className="border-t border-gray-100 pt-8 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={handleDeleteBrand}
+                disabled={isDeleting || brands.length <= 1}
+                className="px-6 py-3 border border-red-200 hover:bg-red-50 text-red-600 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                title={brands.length <= 1 ? "Không thể xóa thương hiệu duy nhất của bạn" : ""}
+              >
+                {isDeleting ? "Đang xóa..." : "Xóa thương hiệu"}
+              </button>
+              
+              <button
+                type="button"
+                onClick={handleSaveBrand}
+                disabled={isUpdating || !selectedBrand.name.trim() || selectedBrand.name.trim() === activeBrand?.name}
+                className="px-6 py-3 bg-[#2D1D35] hover:bg-[#3D2D45] text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isUpdating && <Loader2 className="animate-spin" size={12} />}
+                Lưu thay đổi
+              </button>
             </div>
           </div>
         )}
@@ -223,8 +296,18 @@ export function BrandSettingsPage() {
         brands={brands}
         onSelect={(brandName) => {
           const brand = brands.find(b => b.name === brandName);
-          if (brand) setSelectedBrand(brand);
+          if (brand) {
+            setSelectedBrand({ ...brand });
+            selectBrand(brand.id);
+          }
         }}
+      />
+
+      {/* Create Brand Modal */}
+      <CreateBrandModal 
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCreate={handleCreateBrand}
       />
     </div>
   );

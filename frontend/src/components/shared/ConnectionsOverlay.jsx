@@ -2,44 +2,29 @@ import React, { useState, useEffect, useRef } from "react";
 import { X, ChevronDown, ChevronUp, Loader2, Plus } from "lucide-react";
 import { useConnections } from "../../context/ConnectionsContext";
 import { ConnectionsGrid } from "./ConnectionsGrid";
-import brandService from "../../services/brand.service";
+import { useBrand } from "../../context/BrandContext";
 
 export function ConnectionsOverlay() {
   const { isOpen, defaultBrandId, closeConnections } = useConnections();
-  const [brands, setBrands] = useState([]);
+  const { brands, activeBrand, loading: loadingBrands } = useBrand();
   const [selectedBrand, setSelectedBrand] = useState(null);
-  const [loadingBrands, setLoadingBrands] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
     if (isOpen) {
-      const fetchBrands = async () => {
-        setLoadingBrands(true);
-        try {
-          const response = await brandService.getBrands();
-          const fetchedBrands = response.data || [];
-          setBrands(fetchedBrands);
-          
-          if (fetchedBrands.length > 0) {
-            // Tự động chọn brand đang hoạt động từ Dashboard (defaultBrandId)
-            // Nếu không có, mặc định chọn brand đầu tiên
-            const foundBrand = defaultBrandId 
-              ? fetchedBrands.find(b => b.id === defaultBrandId) 
-              : null;
-            setSelectedBrand(foundBrand || fetchedBrands[0]);
-          } else {
-            setSelectedBrand(null);
-          }
-        } catch (error) {
-          console.error("Failed to fetch brands in overlay:", error);
-        } finally {
-          setLoadingBrands(false);
-        }
-      };
-      fetchBrands();
+      if (activeBrand) {
+        setSelectedBrand(activeBrand);
+      } else if (brands.length > 0) {
+        const foundBrand = defaultBrandId 
+          ? brands.find(b => b.id === defaultBrandId) 
+          : null;
+        setSelectedBrand(foundBrand || brands[0]);
+      } else {
+        setSelectedBrand(null);
+      }
     }
-  }, [isOpen, defaultBrandId]);
+  }, [isOpen, activeBrand, brands, defaultBrandId]);
 
   useEffect(() => {
     function handleClickOutside(e) {

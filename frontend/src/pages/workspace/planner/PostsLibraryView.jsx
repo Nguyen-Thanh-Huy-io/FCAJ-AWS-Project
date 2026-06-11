@@ -7,13 +7,13 @@ import {
 } from "lucide-react";
 import { usePostCreator } from "../../../context/PostCreatorContext";
 import postService from "../../../services/post.service";
-import brandService from "../../../services/brand.service";
+import { useBrand } from "../../../context/BrandContext";
 import { toast } from "sonner";
 
 export function PostsLibraryView() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeBrand, setActiveBrand] = useState(null);
+  const { activeBrand } = useBrand();
   const [searchTerm, setSearchTerm] = useState("");
 
   const { openPostCreator } = usePostCreator();
@@ -33,16 +33,6 @@ export function PostsLibraryView() {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    const init = async () => {
-      const brandsRes = await brandService.getBrands();
-      if (brandsRes.data?.length > 0) {
-        setActiveBrand(brandsRes.data[0]);
-      }
-    };
-    init();
-  }, []);
 
   useEffect(() => {
     fetchLibrary();

@@ -5,14 +5,14 @@ import {
   MoreHorizontal, Eye, Youtube, PlayCircle, Loader2, Facebook
 } from "lucide-react";
 import postService from "../../../services/post.service";
-import brandService from "../../../services/brand.service";
+import { useBrand } from "../../../context/BrandContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
 export function HistoryView() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeBrand, setActiveBrand] = useState(null);
+  const { activeBrand } = useBrand();
   const [searchTerm, setSearchTerm] = useState("");
 
   const fetchDeletedPosts = async () => {
@@ -30,16 +30,6 @@ export function HistoryView() {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    const init = async () => {
-      const brandsRes = await brandService.getBrands();
-      if (brandsRes.data?.length > 0) {
-        setActiveBrand(brandsRes.data[0]);
-      }
-    };
-    init();
-  }, []);
 
   useEffect(() => {
     fetchDeletedPosts();

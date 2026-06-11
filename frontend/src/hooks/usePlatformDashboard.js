@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { subDays, eachDayOfInterval, format } from "date-fns";
 import { toast } from "sonner";
-import brandService from "../services/brand.service";
+import { useBrand } from "../context/BrandContext";
 import socialService from "../services/social.service";
 
 export function usePlatformDashboard(platform) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { activeBrand } = useBrand();
   
   const [activeTab, setActiveTabState] = useState(() => {
     const tabParam = searchParams.get("tab");
@@ -26,7 +27,6 @@ export function usePlatformDashboard(platform) {
   const [showInfo, setShowInfo] = useState(true);
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState(null);
-  const [activeBrand, setActiveBrand] = useState(null);
   
   // Date Range State
   const [dateRange, setDateRange] = useState({
@@ -193,23 +193,13 @@ export function usePlatformDashboard(platform) {
   };
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const brandsRes = await brandService.getBrands();
-        if (brandsRes.data && brandsRes.data.length > 0) {
-          const brand = brandsRes.data[0];
-          setActiveBrand(brand);
-          await loadMetrics(brand.id);
-        }
-      } catch (error) {
-        console.error("Initial load failed:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, [platform]);
+    if (activeBrand) {
+      setLoading(true);
+      loadMetrics(activeBrand.id).finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
+  }, [activeBrand, platform]);
 
   useEffect(() => {
     const tabParam = searchParams.get("tab");
@@ -247,7 +237,7 @@ export function usePlatformDashboard(platform) {
     }
   }, [platform, searchParams, setSearchParams]);
 
-  // Reload metrics when dateRange changes
+  // Reload metrics when dateRange changes or activeBrand changes
   useEffect(() => {
     if (activeBrand) {
       if (!loading) {
@@ -273,7 +263,7 @@ export function usePlatformDashboard(platform) {
         refetchVideoAnalytics();
       }
     }
-  }, [dateRange]);
+  }, [activeBrand, dateRange]);
 
   useEffect(() => {
     if (!activeBrand) return;

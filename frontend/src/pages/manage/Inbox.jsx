@@ -6,7 +6,7 @@ import {
 import { useFilters } from "../../hooks/useFilters";
 import { useDebounce } from "../../hooks/useDebounce";
 import apiService from "../../services/api";
-import brandService from "../../services/brand.service";
+import { useBrand } from "../../context/BrandContext";
 import { toast } from "sonner";
 
 // SOLID Components
@@ -35,22 +35,9 @@ export function InboxPage() {
   const [threadLoading, setThreadLoading] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
-  const [activeBrand, setActiveBrand] = useState(null);
+  const { activeBrand } = useBrand();
   const [isReplying, setIsReplying] = useState(false);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
-
-  // Load Active Brand
-  useEffect(() => {
-    const loadBrand = async () => {
-      try {
-        const res = await brandService.getBrands();
-        if (res.data?.length > 0) setActiveBrand(res.data[0]);
-      } catch (e) {
-        console.error("Failed to load brands:", e);
-      }
-    };
-    loadBrand();
-  }, []);
 
   // Sync debounced search
   useEffect(() => {

@@ -10,7 +10,7 @@ import {
 import { PlatformIcon } from "../../components/shared/PlatformIcon";
 import { StatCard } from "../../components/shared/StatCard";
 import { MetricToggle } from "../../components/shared/MetricToggle";
-import brandService from "../../services/brand.service";
+import { useBrand } from "../../context/BrandContext";
 import socialService from "../../services/social.service";
 
 const PLATFORM_COLORS = {
@@ -28,7 +28,7 @@ export function DashboardPage() {
   const location = useLocation();
   const [metrics, setMetrics] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeBrand, setActiveBrand] = useState(null);
+  const { activeBrand } = useBrand();
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -40,15 +40,14 @@ export function DashboardPage() {
 
   useEffect(() => {
     const loadData = async () => {
+      if (!activeBrand) {
+        setLoading(false);
+        return;
+      }
       try {
-        const brandsRes = await brandService.getBrands();
-        if (brandsRes.data && brandsRes.data.length > 0) {
-          const brand = brandsRes.data[0]; // For now, use the first brand
-          setActiveBrand(brand);
-          
-          const metricsRes = await socialService.getMetrics(brand.id);
-          setMetrics(metricsRes.data || []);
-        }
+        setLoading(true);
+        const metricsRes = await socialService.getMetrics(activeBrand.id);
+        setMetrics(metricsRes.data || []);
       } catch (error) {
         console.error("Failed to load dashboard data:", error);
       } finally {
@@ -56,7 +55,7 @@ export function DashboardPage() {
       }
     };
     loadData();
-  }, []);
+  }, [activeBrand]);
 
   const getYouTubeStats = () => {
     const ytAccount = metrics.find(m => m.platform === 'YOUTUBE');

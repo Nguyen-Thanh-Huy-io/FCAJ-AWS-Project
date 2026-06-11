@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import apiService from "../services/api";
-import brandService from "../services/brand.service";
+import { useBrand } from "../context/BrandContext";
 import socialService from "../services/social.service";
 import { usePostCreator } from "../context/PostCreatorContext";
 
@@ -42,7 +42,7 @@ export function usePostCreatorForm() {
   const [previewDevice, setPreviewDevice] = useState("mobile");
   const [showPublishMenu, setShowPublishMenu] = useState(false);
   const [selectedPublishId, setSelectedPublishId] = useState("now");
-  const [activeBrand, setActiveBrand] = useState(null);
+  const { activeBrand } = useBrand();
   const [isCreating, setIsCreating] = useState(false);
   const [scheduledDate, setScheduledDate] = useState(() => toLocalDatetimeString(new Date()));
   const [isLibrary, setIsLibrary] = useState(false);
@@ -303,20 +303,6 @@ export function usePostCreatorForm() {
       fetchPlaylists();
     }
   }, [isOpen, activeBrand]);
-
-  // Load Active Brand
-  useEffect(() => {
-    if (!isOpen) return;
-    const loadBrand = async () => {
-      try {
-        const res = await brandService.getBrands();
-        if (res.data?.length > 0) setActiveBrand(res.data[0]);
-      } catch (e) {
-        console.error("Failed to load brands:", e);
-      }
-    };
-    loadBrand();
-  }, [isOpen]);
 
   // Populate form states when editing a post
   useEffect(() => {

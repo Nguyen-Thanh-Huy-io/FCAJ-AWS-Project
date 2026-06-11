@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Loader2 } from "lucide-react";
 import autoListService from "../../../services/auto-list.service";
-import brandService from "../../../services/brand.service";
+import { useBrand } from "../../../context/BrandContext";
 import { toast } from "sonner";
 
 // Import Refactored Subcomponents
@@ -14,7 +14,7 @@ import { AutoListHelpCard } from "./components/autolist/AutoListHelpCard";
 export function AutoListsView() {
   const [lists, setLists] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeBrand, setActiveBrand] = useState(null);
+  const { activeBrand } = useBrand();
   const navigate = useNavigate();
 
   const fetchLists = async () => {
@@ -29,20 +29,6 @@ export function AutoListsView() {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const brandsRes = await brandService.getBrands();
-        if (brandsRes.data?.length > 0) {
-          setActiveBrand(brandsRes.data[0]);
-        }
-      } catch (e) {
-        console.error("Failed to fetch brands", e);
-      }
-    };
-    init();
-  }, []);
 
   useEffect(() => {
     fetchLists();

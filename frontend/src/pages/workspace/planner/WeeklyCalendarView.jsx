@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import { usePostCreator } from "../../../context/PostCreatorContext";
 import apiService from "../../../services/api";
-import brandService from "../../../services/brand.service";
+import { useBrand } from "../../../context/BrandContext";
 import { useGoogleDriveImport } from "../../../hooks/useGoogleDriveImport";
 import { toast } from "sonner";
 import postService from "../../../services/post.service";
@@ -18,7 +18,7 @@ import { ImportOverlay } from "./components/ImportOverlay";
 export function WeeklyCalendarView() {
   const [searchTerm, setSearchTerm] = useState("");
   const { openPostCreator, isOpen } = usePostCreator();
-  const [activeBrand, setActiveBrand] = useState(null);
+  const { activeBrand } = useBrand();
   const [postData, setPostData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
@@ -39,24 +39,11 @@ export function WeeklyCalendarView() {
   
   // Custom Hook for Drive Imports (SOLID/SRP)
   const { isImporting, importFromDrive } = useGoogleDriveImport(activeBrand);
-
+  
   // Update current time every minute
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
-  }, []);
-
-  // Load Active Brand
-  useEffect(() => {
-    const loadBrand = async () => {
-      try {
-        const res = await brandService.getBrands();
-        if (res.data?.length > 0) setActiveBrand(res.data[0]);
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    loadBrand();
   }, []);
 
   // Fetch Posts based on selectedDate
