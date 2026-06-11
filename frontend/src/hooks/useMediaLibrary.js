@@ -4,6 +4,7 @@ import { useDebounce } from "./useDebounce";
 import apiService from "../services/api";
 import { toast } from "sonner";
 import CloudinaryResumableUploader from "../utils/cloudinaryUploader";
+import { useBrand } from "../context/BrandContext";
 
 export function useMediaLibrary() {
   const { filters, updateFilters, clearFilters, searchParamsString } = useFilters({
@@ -14,7 +15,7 @@ export function useMediaLibrary() {
     limit: "20"
   });
 
-  const [activeBrand, setActiveBrand] = useState(null);
+  const { activeBrand } = useBrand();
   const [mediaData, setMediaData] = useState({ data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 1 } });
   const [folders, setFolders] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -47,22 +48,6 @@ export function useMediaLibrary() {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [uploading]);
-
-  // Fetch Active Brand
-  useEffect(() => {
-    const fetchBrands = async () => {
-      try {
-        const res = await apiService.get("/brands");
-        const brands = res.data.data || res.data;
-        if (Array.isArray(brands) && brands.length > 0) {
-          setActiveBrand(brands[0]);
-        }
-      } catch (err) {
-        console.error("Failed to fetch brands", err);
-      }
-    };
-    fetchBrands();
-  }, []);
 
   // Fetch Folders
   const fetchFolders = async () => {

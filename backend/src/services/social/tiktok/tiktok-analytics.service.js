@@ -33,6 +33,19 @@ class TikTokAnalyticsService {
       videoCount: userInfo.video_count || 0
     };
 
+    const { ConnectionConflictGuard, ConnectionConflictError } = require('../connection-conflict.guard');
+    const conflictResult = await ConnectionConflictGuard.validateConflict(brandId, PLATFORMS.TIKTOK, pageData.pageId);
+    
+    if (conflictResult.conflict) {
+      throw new ConnectionConflictError(
+        conflictResult.type,
+        pageData.displayName,
+        pageData.pageId,
+        PLATFORMS.TIKTOK,
+        conflictResult.existingAccount.brand.name
+      );
+    }
+
     return socialAccountRepository.upsertTikTokAccount(brandId, pageData, {
       access_token: tokenData.access_token,
       refresh_token: tokenData.refresh_token,

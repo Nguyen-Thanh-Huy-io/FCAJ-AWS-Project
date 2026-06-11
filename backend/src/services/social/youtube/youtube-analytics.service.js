@@ -244,6 +244,19 @@ class YouTubeAnalyticsService {
     
     const channelData = await this.getChannelInfo(client);
     
+    const { ConnectionConflictGuard, ConnectionConflictError } = require('../connection-conflict.guard');
+    const conflictResult = await ConnectionConflictGuard.validateConflict(brandId, PLATFORMS.YOUTUBE, channelData.channelId);
+    
+    if (conflictResult.conflict) {
+      throw new ConnectionConflictError(
+        conflictResult.type,
+        channelData.displayName,
+        channelData.channelId,
+        PLATFORMS.YOUTUBE,
+        conflictResult.existingAccount.brand.name
+      );
+    }
+    
     return socialAccountRepository.upsertYouTubeAccount(brandId, channelData, tokens);
   }
 

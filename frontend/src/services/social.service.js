@@ -102,6 +102,11 @@ class SocialService {
     const response = await apiService.post('/social/tiktok/disconnect', { brandId });
     return response.data;
   }
+
+  async reassignSocialAccount(platform, platformAccountId, targetBrandId) {
+    const response = await apiService.post('/social/reassign', { platform, platformAccountId, targetBrandId });
+    return response.data;
+  }
 }
 
 const socialService = new SocialService();

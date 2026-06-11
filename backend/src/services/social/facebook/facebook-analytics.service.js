@@ -284,6 +284,19 @@ class FacebookAnalyticsService {
 
     const pageInfo = await this.getChannelInfo({ pageId, pageAccessToken });
     
+    const { ConnectionConflictGuard, ConnectionConflictError } = require('../connection-conflict.guard');
+    const conflictResult = await ConnectionConflictGuard.validateConflict(brandId, PLATFORMS.FACEBOOK, pageId);
+    
+    if (conflictResult.conflict) {
+      throw new ConnectionConflictError(
+        conflictResult.type,
+        selectedPage.name,
+        pageId,
+        PLATFORMS.FACEBOOK,
+        conflictResult.existingAccount.brand.name
+      );
+    }
+    
     return socialAccountRepository.upsertFacebookAccount(brandId, {
       pageId,
       username: selectedPage.name,

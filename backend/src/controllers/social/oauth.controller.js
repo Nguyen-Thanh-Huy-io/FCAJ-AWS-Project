@@ -33,6 +33,22 @@ class OAuthController {
     res.json({ url });
   });
 
+  _handleCallbackError(error, frontendUrl, res) {
+    if (error.name === 'ConnectionConflictError') {
+      const queryParams = new URLSearchParams({
+        error: 'social_connection_conflict',
+        conflictType: error.type,
+        channelName: error.channelName,
+        platformAccountId: error.platformAccountId,
+        platform: error.platform,
+        existingBrandName: error.existingBrandName || ''
+      }).toString();
+      return res.redirect(`${frontendUrl}/manage/connections?${queryParams}`);
+    }
+    logger.error('Social OAuth Connection Error:', error);
+    return res.redirect(`${frontendUrl}/manage/connections?error=connection_failed`);
+  }
+
   googleCallback = asyncHandler(async (req, res) => {
     const { code, state } = req.query;
     const brandId = state;
@@ -41,8 +57,12 @@ class OAuthController {
 
     if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
 
-    await youtubeService.connectChannel(brandId, code, redirectUri);
-    res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=youtube_connected`);
+    try {
+      await youtubeService.connectChannel(brandId, code, redirectUri);
+      return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=youtube_connected`);
+    } catch (error) {
+      return this._handleCallbackError(error, frontendUrl, res);
+    }
   });
 
   getFacebookAuthUrl = asyncHandler(async (req, res) => {
@@ -63,8 +83,12 @@ class OAuthController {
 
     if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
 
-    await facebookService.connectChannel(brandId, code, redirectUri);
-    res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=facebook_connected`);
+    try {
+      await facebookService.connectChannel(brandId, code, redirectUri);
+      return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=facebook_connected`);
+    } catch (error) {
+      return this._handleCallbackError(error, frontendUrl, res);
+    }
   });
 
   getTikTokAuthUrl = asyncHandler(async (req, res) => {
@@ -86,8 +110,12 @@ class OAuthController {
 
     if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
 
-    await tiktokService.connectChannel(brandId, code, redirectUri);
-    res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=tiktok_connected`);
+    try {
+      await tiktokService.connectChannel(brandId, code, redirectUri);
+      return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=tiktok_connected`);
+    } catch (error) {
+      return this._handleCallbackError(error, frontendUrl, res);
+    }
   });
 
   handleTikTokWebhook = asyncHandler(async (req, res) => {

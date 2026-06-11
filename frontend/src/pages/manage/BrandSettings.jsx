@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { 
   ChevronDown, HelpCircle, Plus, Diamond, Share2, 
-  Check, Youtube, ChevronUp, Loader2
+  Check, Youtube, ChevronUp, Loader2, AlertTriangle
 } from "lucide-react";
 import { ConnectionsGrid } from "../../components/shared/ConnectionsGrid";
 import { WorkplaceHeader } from "../../components/shared/WorkplaceHeader";
@@ -10,13 +10,14 @@ import { BrandTableOverlay } from "../../components/shared/BrandTableOverlay";
 import { CreateBrandModal } from "../../components/shared/CreateBrandModal";
 import { useBrand } from "../../context/BrandContext";
 import { toast } from "sonner";
+import socialService from "../../services/social.service";
 
 export function BrandSettingsPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("brand-settings");
   
-  const { brands, createBrand, updateBrand, deleteBrand, activeBrand, selectBrand, loading } = useBrand();
+  const { brands, createBrand, updateBrand, deleteBrand, activeBrand, selectBrand, loading, refreshBrands } = useBrand();
   
   const [selectedBrand, setSelectedBrand] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -24,6 +25,7 @@ export function BrandSettingsPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [conflictData, setConflictData] = useState(null);
   
   const dropdownRef = useRef(null);
 
@@ -46,8 +48,25 @@ export function BrandSettingsPage() {
 
     if (success === "youtube_connected") {
       toast.success("YouTube channel connected successfully!");
+    } else if (success === "facebook_connected") {
+      toast.success("Facebook page connected successfully!");
+    } else if (success === "tiktok_connected") {
+      toast.success("TikTok account connected successfully!");
     }
-    if (error) {
+
+    if (error === "social_connection_conflict") {
+      const conflictType = params.get("conflictType");
+      const channelName = params.get("channelName");
+      const platformAccountId = params.get("platformAccountId");
+      const platform = params.get("platform");
+      const existingBrandName = params.get("existingBrandName");
+
+      if (conflictType === "DIFFERENT_OWNER") {
+        toast.error(`Kênh "${channelName}" đang liên kết với một Workspace/Brand thuộc tài khoản khác. Vui lòng ngắt liên kết trước.`);
+      } else if (conflictType === "SAME_OWNER") {
+        setConflictData({ channelName, platformAccountId, platform, existingBrandName });
+      }
+    } else if (error) {
       toast.error(`Connection error: ${error}`);
     }
     
@@ -113,6 +132,22 @@ export function BrandSettingsPage() {
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleReassign = async () => {
+    if (!conflictData || !activeBrand) return;
+    setIsUpdating(true);
+    try {
+      await socialService.reassignSocialAccount(conflictData.platform, conflictData.platformAccountId, activeBrand.id);
+      toast.success(`Đã chuyển kênh "${conflictData.channelName}" thành công sang brand "${activeBrand.name}"!`);
+      await refreshBrands(activeBrand.id);
+      setConflictData(null);
+      navigate(location.pathname + "?tab=connections");
+    } catch (e) {
+      toast.error(e.message || "Chuyển kênh thất bại");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -309,6 +344,47 @@ export function BrandSettingsPage() {
         onClose={() => setIsCreateModalOpen(false)}
         onCreate={handleCreateBrand}
       />
+
+      {/* Social Connection Conflict Modal */}
+      {conflictData && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full border border-gray-100 shadow-2xl mx-4 transform animate-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 mb-6">
+              <AlertTriangle size={24} />
+            </div>
+            
+            <h3 className="text-lg font-bold text-[#0A0A0A] mb-2 font-sans">Trùng lặp liên kết kênh</h3>
+            <p className="text-sm text-gray-500 leading-relaxed mb-6 font-sans">
+              Kênh <span className="font-bold text-[#0A0A0A]">"{conflictData.channelName}"</span> hiện đang được liên kết với Brand <span className="font-bold text-[#0A0A0A]">"{conflictData.existingBrandName}"</span> của bạn.
+              <br /><br />
+              Bạn có muốn di chuyển kênh này sang Brand hiện tại <span className="font-bold text-[#0A0A0A]">"{activeBrand?.name}"</span> không?
+            </p>
+            
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setConflictData(null);
+                  navigate(location.pathname + "?tab=connections");
+                }}
+                className="flex-1 py-3 border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-bold transition-all cursor-pointer text-center font-sans"
+              >
+                Hủy bỏ
+              </button>
+              
+              <button
+                type="button"
+                onClick={handleReassign}
+                disabled={isUpdating}
+                className="flex-1 py-3 bg-[#2D1D35] hover:bg-[#3D2D45] text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5 font-sans"
+              >
+                {isUpdating && <Loader2 className="animate-spin" size={12} />}
+                Di chuyển kênh
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

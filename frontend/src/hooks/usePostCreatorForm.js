@@ -593,7 +593,6 @@ export function usePostCreatorForm() {
     selectedPublishId,
     setSelectedPublishId,
     activeBrand,
-    setActiveBrand,
     isCreating,
     setIsCreating,
     scheduledDate,

@@ -24,6 +24,7 @@ router.post('/tiktok/webhook', oauthController.handleTikTokWebhook);
 router.get('/facebook/published-posts', verifyAuth, facebookController.getFacebookPublishedPosts);
 router.post('/facebook/disconnect', verifyAuth, socialConnectionController.disconnectFacebookAccount);
 router.post('/tiktok/disconnect', verifyAuth, socialConnectionController.disconnectTikTokAccount);
+router.post('/reassign', verifyAuth, socialConnectionController.reassignSocialAccount);
 router.get('/tiktok/published-videos', verifyAuth, tiktokController.getTikTokPublishedVideos);
 
 // Real-time Metrics
