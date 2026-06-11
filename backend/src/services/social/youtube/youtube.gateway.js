@@ -13,7 +13,11 @@ class YouTubeGateway {
     if (mine) {
       params.mine = true;
     } else {
-      params.id = id;
+      if (id && id.startsWith('@')) {
+        params.forHandle = id;
+      } else {
+        params.id = id;
+      }
     }
     return youtube.channels.list(params);
   }

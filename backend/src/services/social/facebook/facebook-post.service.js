@@ -8,20 +8,26 @@ const postCache = new Map();
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 class FacebookPostService {
-  async getPublishedPosts(brandId, limit = 10) {
-    const cacheKey = `${brandId}_${limit}`;
+  async getPublishedPosts(brandId, pageToken = null, limit = 10) {
+    const cacheKey = `${brandId}_${pageToken || 'first'}_${limit}`;
     const cached = postCache.get(cacheKey);
     if (cached && cached.expiry > Date.now()) return cached.data;
 
     const { pageId, pageAccessToken } = await this._getAccountCredentials(brandId);
-    const feed = await facebookGateway.getPageFeed(pageId, pageAccessToken, limit);
+    const { data: feed, nextPageToken, prevPageToken } = await facebookGateway.getPageFeed(pageId, pageAccessToken, pageToken, limit);
 
     const postsWithInsights = await Promise.all(
       feed.map(post => this._enrichPostWithInsights(post, pageAccessToken))
     );
 
-    postCache.set(cacheKey, { data: postsWithInsights, expiry: Date.now() + CACHE_TTL_MS });
-    return postsWithInsights;
+    const result = {
+      data: postsWithInsights,
+      nextPageToken,
+      prevPageToken
+    };
+
+    postCache.set(cacheKey, { data: result, expiry: Date.now() + CACHE_TTL_MS });
+    return result;
   }
 
   async publishPost(brandId, postData) {

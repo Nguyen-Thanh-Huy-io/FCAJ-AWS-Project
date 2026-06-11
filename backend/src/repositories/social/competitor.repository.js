@@ -21,6 +21,12 @@ class CompetitorRepository {
       orderBy: { addedAt: 'desc' }
     });
   }
+
+  async deleteCompetitor(id) {
+    return prisma.competitorAnalysis.delete({
+      where: { id }
+    });
+  }
 }
 
 module.exports = new CompetitorRepository();

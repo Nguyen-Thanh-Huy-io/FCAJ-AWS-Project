@@ -46,6 +46,12 @@ class YouTubeController {
     res.json({ data: competitors });
   });
 
+  deleteYouTubeCompetitor = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    await youtubeService.deleteCompetitor(id);
+    res.json({ message: 'Competitor deleted successfully' });
+  });
+
   getYouTubePlaylists = asyncHandler(async (req, res) => {
     const { brandId, sync } = req.query;
     if (!brandId) return res.status(400).json({ message: 'brandId is required' });

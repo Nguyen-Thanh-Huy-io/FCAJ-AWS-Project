@@ -118,8 +118,11 @@ export function SettingsPage() {
                 <h2 className="text-lg font-bold text-[#0A0A0A]">Personal information</h2>
               </div>
               {isLoading ? (
-                <div className="flex justify-center py-10">
-                  <Loader2 className="animate-spin text-gray-400" size={32} />
+                <div className="grid grid-cols-1 gap-6 animate-pulse">
+                  <div className="space-y-2">
+                    <div className="w-20 h-3 bg-gray-100 rounded" />
+                    <div className="w-full h-11 bg-gray-100 rounded-xl" />
+                  </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-6">

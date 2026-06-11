@@ -6,7 +6,9 @@ export function FacebookPostsListTab({
   isPublishedLoading = false,
   pageSize = 5,
   setPageSize = () => {},
-  fetchPublishedVideos = () => {}
+  fetchPublishedVideos = () => {},
+  prevPageToken = null,
+  nextPageToken = null,
 }) {
   // Columns configuration for Facebook Posts list
   const columns = [
@@ -85,6 +87,8 @@ export function FacebookPostsListTab({
       pageSize={pageSize}
       setPageSize={setPageSize}
       fetchPublishedVideos={fetchPublishedVideos}
+      prevPageToken={prevPageToken}
+      nextPageToken={nextPageToken}
       columns={columns}
       searchPlaceholder="Search posts..."
       searchKeys={["message"]}

@@ -51,6 +51,11 @@ class SocialService {
     return response.data;
   }
 
+  async deleteCompetitor(id) {
+    const response = await apiService.delete(`/social/youtube/competitors/${id}`);
+    return response.data;
+  }
+
   async getGoogleDriveFiles(brandId) {
     const response = await apiService.get(`/social/google/drive/files?brandId=${brandId}`);
     return response.data;
@@ -71,8 +76,9 @@ class SocialService {
     return response.data;
   }
 
-  async getFacebookPublishedPosts(brandId, limit = 10) {
-    const response = await apiService.get(`/social/facebook/published-posts?brandId=${brandId}&limit=${limit}`);
+  async getFacebookPublishedPosts(brandId, pageToken = null, limit = 10) {
+    const url = `/social/facebook/published-posts?brandId=${brandId}${pageToken ? `&pageToken=${pageToken}` : ''}${limit ? `&limit=${limit}` : ''}`;
+    const response = await apiService.get(url);
     return response.data;
   }
 

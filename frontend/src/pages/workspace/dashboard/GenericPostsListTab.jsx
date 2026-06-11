@@ -89,85 +89,102 @@ export function GenericPostsListTab({
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="h-40 flex items-center justify-center">
-          <Loader2 className="animate-spin text-gray-200" />
-        </div>
-      ) : (
-        <>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[800px]">
-              <thead>
-                <tr className="bg-white border-b border-gray-100">
-                  {columns.map((col, idx) => (
-                    <th
-                      key={idx}
-                      className={`text-left px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest ${col.className || ""}`}
-                    >
-                      {col.header}
-                    </th>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[800px]">
+          <thead>
+            <tr className="bg-white border-b border-gray-100">
+              {columns.map((col, idx) => (
+                <th
+                  key={idx}
+                  className={`text-left px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest ${col.className || ""}`}
+                >
+                  {col.header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          {isLoading ? (
+            <tbody className="divide-y divide-gray-50">
+              {[1, 2, 3].map((n) => (
+                <tr key={n} className="animate-pulse">
+                  {columns.map((col, colIdx) => (
+                    <td key={colIdx} className="px-6 py-4">
+                      {colIdx === 0 ? (
+                        <div className="flex items-center gap-4">
+                          <div className="w-16 h-10 bg-gray-100 rounded-lg shrink-0" />
+                          <div className="w-36 h-3 bg-gray-100 rounded" />
+                        </div>
+                      ) : colIdx === 1 ? (
+                        <div className="w-16 h-4 bg-gray-100 rounded-full" />
+                      ) : colIdx === 2 ? (
+                        <div className="w-20 h-4 bg-gray-100 rounded" />
+                      ) : (
+                        <div className="w-12 h-3 bg-gray-50 rounded" />
+                      )}
+                    </td>
                   ))}
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filteredPosts.length === 0 ? (
-                  <tr>
-                    <td colSpan={columns.length} className="px-6 py-12 text-center">
-                      <div className="flex flex-col items-center justify-center max-w-sm mx-auto space-y-2">
-                        <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center border border-gray-100 text-gray-400 mb-2">
-                          <PlayCircle size={20} />
-                        </div>
-                        <h4 className="text-xs font-bold text-gray-900">{emptyStateTitle}</h4>
-                        <p className="text-[10px] text-gray-400">{emptyStateDescription}</p>
+              ))}
+            </tbody>
+          ) : (
+            <tbody className="divide-y divide-gray-50">
+              {filteredPosts.length === 0 ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center justify-center max-w-sm mx-auto space-y-2">
+                      <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center border border-gray-100 text-gray-400 mb-2">
+                        <PlayCircle size={20} />
                       </div>
-                    </td>
+                      <h4 className="text-xs font-bold text-gray-900">{emptyStateTitle}</h4>
+                      <p className="text-[10px] text-gray-400">{emptyStateDescription}</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredPosts.map((post, rowIdx) => (
+                  <tr
+                    key={rowIdx}
+                    className={`hover:bg-[#F8F8F7]/50 transition-colors ${onRowClick ? "cursor-pointer group" : ""}`}
+                    onClick={() => onRowClick && onRowClick(post)}
+                  >
+                    {columns.map((col, colIdx) => (
+                      <td key={colIdx} className="px-6 py-4">
+                        {col.renderCell(post)}
+                      </td>
+                    ))}
                   </tr>
-                ) : (
-                  filteredPosts.map((post, rowIdx) => (
-                    <tr
-                      key={rowIdx}
-                      className={`hover:bg-[#F8F8F7]/50 transition-colors ${onRowClick ? "cursor-pointer group" : ""}`}
-                      onClick={() => onRowClick && onRowClick(post)}
-                    >
-                      {columns.map((col, colIdx) => (
-                        <td key={colIdx} className="px-6 py-4">
-                          {col.renderCell(post)}
-                        </td>
-                      ))}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {footerMessage && (
-            <div className="px-6 py-4 bg-gray-50/30 flex items-center justify-between border-t border-gray-100">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                {footerMessage}
-              </span>
-              {/* Pagination controls inside footer as backup */}
-              {(prevPageToken || nextPageToken) && (
-                <div className="flex gap-2 sm:hidden">
-                  <button
-                    onClick={() => fetchPublishedVideos(prevPageToken)}
-                    disabled={!prevPageToken}
-                    className="px-3 py-1 border border-gray-200 rounded-lg text-[10px] font-bold text-gray-400 hover:bg-white transition-all disabled:opacity-30"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => fetchPublishedVideos(nextPageToken)}
-                    disabled={!nextPageToken}
-                    className="px-3 py-1 border border-gray-200 rounded-lg text-[10px] font-bold text-gray-400 hover:bg-white transition-all disabled:opacity-30"
-                  >
-                    Next
-                  </button>
-                </div>
+                ))
               )}
+            </tbody>
+          )}
+        </table>
+      </div>
+
+      {footerMessage && (
+        <div className="px-6 py-4 bg-gray-50/30 flex items-center justify-between border-t border-gray-100">
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            {footerMessage}
+          </span>
+          {/* Pagination controls inside footer as backup */}
+          {(prevPageToken || nextPageToken) && (
+            <div className="flex gap-2 sm:hidden">
+              <button
+                onClick={() => fetchPublishedVideos(prevPageToken)}
+                disabled={!prevPageToken}
+                className="px-3 py-1 border border-gray-200 rounded-lg text-[10px] font-bold text-gray-400 hover:bg-white transition-all disabled:opacity-30"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => fetchPublishedVideos(nextPageToken)}
+                disabled={!nextPageToken}
+                className="px-3 py-1 border border-gray-200 rounded-lg text-[10px] font-bold text-gray-400 hover:bg-white transition-all disabled:opacity-30"
+              >
+                Next
+              </button>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );

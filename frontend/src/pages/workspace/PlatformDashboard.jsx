@@ -111,6 +111,7 @@ export function PlatformDashboardPage() {
     handleTrackVideo,
     handleSearchCompetitors,
     handleAddCompetitor,
+    handleDeleteCompetitor,
     fetchPublishedVideos,
     isRefreshing,
     handleRefresh,
@@ -123,13 +124,6 @@ export function PlatformDashboardPage() {
 
   const tabs = platform === "facebook" ? FB_TABS : platform === "tiktok" ? TT_TABS : YT_TABS;
 
-  useEffect(() => {
-    if (platform === "facebook") {
-      setActiveTab("overview");
-    } else {
-      setActiveTab("community");
-    }
-  }, [platform]);
 
   useEffect(() => {
     setSelectedVideo(null);
@@ -179,8 +173,48 @@ export function PlatformDashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-white">
-        <Loader2 className="animate-spin text-gray-300" size={40} />
+      <div className="flex-1 overflow-y-auto bg-[#F8F8F7] animate-pulse">
+        {/* Sub-Navigation (Tabs) Skeleton */}
+        <div className="sticky top-0 z-10 bg-white flex items-center justify-between px-6 border-b border-gray-100" style={{ height: 48 }}>
+          <div className="flex gap-8 h-full">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <div key={n} className="h-full flex items-center">
+                <div className="w-16 h-3 bg-gray-200 rounded" />
+              </div>
+            ))}
+          </div>
+          <div className="w-32 h-6 bg-gray-100 rounded-lg" />
+        </div>
+
+        <div className="p-6 max-w-[1400px] mx-auto space-y-6 pb-12">
+          {/* Title and brand selector skeleton */}
+          <div className="flex items-center justify-between">
+            <div className="w-36 h-6 bg-gray-200 rounded-lg" />
+            <div className="w-40 h-8 bg-gray-200 rounded-xl" />
+          </div>
+
+          {/* Banner skeleton */}
+          <div className="bg-gray-200/50 rounded-3xl p-5 h-20" />
+
+          {/* Metrics card skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map((n) => (
+              <div key={n} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm h-28 space-y-3">
+                <div className="w-20 h-3 bg-gray-100/80 rounded" />
+                <div className="w-24 h-6 bg-gray-200/80 rounded" />
+              </div>
+            ))}
+          </div>
+
+          {/* Chart skeleton */}
+          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm h-[350px] space-y-4">
+            <div className="flex justify-between">
+              <div className="w-48 h-4 bg-gray-100 rounded" />
+              <div className="w-24 h-4 bg-gray-100 rounded" />
+            </div>
+            <div className="w-full h-[250px] bg-gray-50/50 rounded-2xl" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -304,6 +338,8 @@ export function PlatformDashboardPage() {
             pageSize={pageSize}
             setPageSize={setPageSize}
             fetchPublishedVideos={fetchPublishedVideos}
+            prevPageToken={prevPageToken}
+            nextPageToken={nextPageToken}
           />
         ) : platform === "tiktok" ? (
           <TikTokDashboard
@@ -548,6 +584,7 @@ export function PlatformDashboardPage() {
                 isSearching={isSearching}
                 searchResults={searchResults}
                 handleAddCompetitor={handleAddCompetitor}
+                handleDeleteCompetitor={handleDeleteCompetitor}
                 isCompetitorLoading={isCompetitorLoading}
                 competitors={competitors}
               />

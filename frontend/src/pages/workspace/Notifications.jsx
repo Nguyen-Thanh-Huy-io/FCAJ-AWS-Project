@@ -116,8 +116,19 @@ export function NotificationsPage() {
         </div>
 
         {loading ? (
-           <div className="flex items-center justify-center py-20">
-              <Loader2 className="animate-spin text-gray-300" size={32} />
+           <div className="flex flex-col gap-3 animate-pulse">
+             {[1, 2, 3].map((n) => (
+               <div
+                 key={n}
+                 className="flex items-start gap-3 bg-white border border-gray-100 rounded-xl p-4 h-20"
+               >
+                 <div className="w-8 h-8 rounded-full bg-gray-100 shrink-0" />
+                 <div className="flex-1 space-y-2">
+                   <div className="w-32 h-3.5 bg-gray-100 rounded" />
+                   <div className="w-48 h-3 bg-gray-50 rounded" />
+                 </div>
+               </div>
+             ))}
            </div>
         ) : notifications.length === 0 ? (
            <div className="flex flex-col items-center justify-center py-20 text-gray-300 gap-2">

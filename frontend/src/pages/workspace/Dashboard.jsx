@@ -92,8 +92,53 @@ export function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[#F8F8F7]">
-        <Loader2 className="animate-spin text-gray-300" size={40} />
+      <div
+        className="flex-1 overflow-y-auto bg-[#F8F8F7] animate-pulse"
+        style={{ padding: "24px 32px", display: "flex", flexDirection: "column", gap: 20 }}
+      >
+        {/* Stat Cards Row Skeleton */}
+        <div className="grid grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((n) => (
+            <div key={n} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm h-[110px] space-y-3">
+              <div className="w-20 h-3 bg-gray-100 rounded" />
+              <div className="w-28 h-6 bg-gray-200 rounded" />
+            </div>
+          ))}
+        </div>
+
+        {/* Weekly Viewers Chart Skeleton */}
+        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm h-[200px] space-y-4">
+          <div className="flex justify-between">
+            <div className="w-32 h-4 bg-gray-100 rounded" />
+            <div className="w-20 h-4 bg-gray-100 rounded" />
+          </div>
+          <div className="w-full h-[120px] bg-gray-50/50 rounded-xl" />
+        </div>
+
+        {/* Two Column Skeleton */}
+        <div className="grid grid-cols-12 gap-6">
+          {/* Live Streams Panel Skeleton */}
+          <div className="col-span-7 bg-white border border-gray-100 rounded-3xl p-6 shadow-sm h-[320px] space-y-4">
+            <div className="flex justify-between">
+              <div className="w-24 h-4 bg-gray-100/80 rounded" />
+              <div className="w-16 h-4 bg-gray-100/80 rounded" />
+            </div>
+            {[1, 2].map((n) => (
+              <div key={n} className="border border-gray-50 rounded-2xl h-24 bg-gray-50/30" />
+            ))}
+          </div>
+
+          {/* Right Column Skeleton */}
+          <div className="col-span-5 flex flex-col gap-6">
+            <div className="bg-gray-200/50 rounded-3xl p-6 h-[200px]" />
+            <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm h-[200px] space-y-3">
+              <div className="w-32 h-4 bg-gray-100 rounded" />
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="w-full h-4 bg-gray-50/50 rounded" />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

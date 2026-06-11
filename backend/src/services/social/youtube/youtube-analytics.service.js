@@ -5,6 +5,29 @@ const competitorRepository = require('../../../repositories/social/competitor.re
 const { PLATFORMS, SEPARATORS, ANALYTICS, SOCIAL_TECHNICAL } = require('../../../utils/constants');
 
 class YouTubeAnalyticsService {
+  _createAuthenticatedClient(account) {
+    const client = googleOAuthService.createClient();
+    client.setCredentials({
+      access_token: account.accessToken,
+      refresh_token: account.refreshToken,
+      expiry_date: account.tokenExpiresAt ? account.tokenExpiresAt.getTime() : undefined
+    });
+
+    // Check if token is expired and refresh if necessary
+    client.on('tokens', async (tokens) => {
+      if (tokens.refresh_token) {
+        await socialAccountRepository.updateTokens(account.id, tokens);
+      } else if (tokens.access_token) {
+        await socialAccountRepository.updateTokens(account.id, {
+          ...tokens,
+          refresh_token: account.refreshToken
+        });
+      }
+    });
+
+    return client;
+  }
+
   async getChannelInfo(auth, startDate, endDate) {
     const response = await youtubeGateway.getChannelList(auth, true);
 
@@ -230,24 +253,7 @@ class YouTubeAnalyticsService {
       throw new Error('Social account not found or is not a YouTube account');
     }
 
-    const client = googleOAuthService.createClient();
-    client.setCredentials({
-      access_token: account.accessToken,
-      refresh_token: account.refreshToken,
-      expiry_date: account.tokenExpiresAt ? account.tokenExpiresAt.getTime() : undefined
-    });
-
-    // Check if token is expired and refresh if necessary
-    client.on('tokens', async (tokens) => {
-      if (tokens.refresh_token) {
-        await socialAccountRepository.updateTokens(socialAccountId, tokens);
-      } else if (tokens.access_token) {
-        await socialAccountRepository.updateTokens(socialAccountId, {
-          ...tokens,
-          refresh_token: account.refreshToken
-        });
-      }
-    });
+    const client = this._createAuthenticatedClient(account);
 
     const channelData = await this.getChannelInfo(client, startDate, endDate);
     
@@ -262,8 +268,7 @@ class YouTubeAnalyticsService {
     const socialAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORMS.YOUTUBE);
     if (!socialAccount || socialAccount.length === 0) throw new Error('YouTube account not connected');
 
-    const auth = googleOAuthService.createClient();
-    auth.setCredentials({ access_token: socialAccount[0].accessToken });
+    const auth = this._createAuthenticatedClient(socialAccount[0]);
 
     const response = await youtubeGateway.getChannelList(auth, false, channelId);
 
@@ -285,16 +290,16 @@ class YouTubeAnalyticsService {
     const socialAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORMS.YOUTUBE);
     if (!socialAccount || socialAccount.length === 0) return competitors;
 
-    const auth = googleOAuthService.createClient();
-    auth.setCredentials({ access_token: socialAccount[0].accessToken });
+    const auth = this._createAuthenticatedClient(socialAccount[0]);
 
     // Enrich each competitor with YouTube API data
     const enrichedCompetitors = await Promise.all(competitors.map(async (comp) => {
+      const plainComp = JSON.parse(JSON.stringify(comp));
       try {
         const channelRes = await youtubeGateway.getChannelList(auth, false, comp.competitorHandle);
         if (!channelRes.data.items || channelRes.data.items.length === 0) {
           return {
-            ...comp,
+            ...plainComp,
             totalViews: 0,
             totalVideos: 0,
             latestVideos: []
@@ -309,7 +314,7 @@ class YouTubeAnalyticsService {
 
         let latestVideos = [];
         if (uploadsPlaylistId) {
-          const playlistRes = await youtubeGateway.getPlaylistItems(auth, uploadsPlaylistId, 5);
+          const playlistRes = await youtubeGateway.getPlaylistItems(auth, uploadsPlaylistId, 50);
           if (playlistRes.data.items && playlistRes.data.items.length > 0) {
             const videoIds = playlistRes.data.items.map(item => item.contentDetails.videoId).join(SEPARATORS.COMMA);
             const videoDetails = await youtubeGateway.getVideosList(auth, videoIds);
@@ -326,7 +331,7 @@ class YouTubeAnalyticsService {
         }
 
         return {
-          ...comp,
+          ...plainComp,
           followersCount,
           totalViews,
           totalVideos,
@@ -335,7 +340,7 @@ class YouTubeAnalyticsService {
       } catch (err) {
         console.error(`Failed to enrich competitor ${comp.competitorHandle}:`, err.message);
         return {
-          ...comp,
+          ...plainComp,
           totalViews: 0,
           totalVideos: 0,
           latestVideos: []
@@ -354,8 +359,7 @@ class YouTubeAnalyticsService {
         return this._getMockVideoAnalytics(start, end);
       }
 
-      const auth = googleOAuthService.createClient();
-      auth.setCredentials({ access_token: socialAccount[0].accessToken });
+      const auth = this._createAuthenticatedClient(socialAccount[0]);
 
       const response = await youtubeGateway.getAnalyticsReportQuery(auth, {
         ids: 'channel==MINE',
@@ -409,6 +413,10 @@ class YouTubeAnalyticsService {
       });
     }
     return rows;
+  }
+
+  async deleteCompetitor(id) {
+    return competitorRepository.deleteCompetitor(id);
   }
 }
 

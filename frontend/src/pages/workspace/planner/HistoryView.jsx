@@ -92,9 +92,33 @@ export function HistoryView() {
 
       <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden flex flex-col min-h-[400px]">
          {loading ? (
-            <div className="flex-1 flex items-center justify-center">
-               <Loader2 className="animate-spin text-gray-200" size={32} />
-            </div>
+            <table className="w-full text-left">
+               <thead>
+                  <tr className="bg-gray-50/30 border-b border-gray-100">
+                     <th className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.1em]">Post</th>
+                     <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.1em]">Platform</th>
+                     <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.1em]">Deleted At</th>
+                     <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.1em]">Author</th>
+                     <th className="px-6 py-4 text-right"></th>
+                  </tr>
+               </thead>
+               <tbody className="divide-y divide-gray-50">
+                  {[1, 2, 3].map((n) => (
+                     <tr key={n} className="animate-pulse">
+                        <td className="px-6 py-5">
+                           <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-gray-100 rounded-xl shrink-0" />
+                              <div className="w-36 h-3 bg-gray-100 rounded" />
+                           </div>
+                        </td>
+                        <td className="px-4 py-5"><div className="w-16 h-5 bg-gray-100 rounded-lg" /></td>
+                        <td className="px-4 py-5"><div className="w-24 h-3 bg-gray-100 rounded" /></td>
+                        <td className="px-4 py-5"><div className="w-16 h-3 bg-gray-50 rounded" /></td>
+                        <td className="px-6 py-5 text-right"><div className="w-16 h-6 bg-gray-100 rounded-lg inline-block" /></td>
+                     </tr>
+                  ))}
+               </tbody>
+            </table>
          ) : posts.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
                <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-300 mb-4">

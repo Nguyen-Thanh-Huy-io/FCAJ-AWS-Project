@@ -87,8 +87,25 @@ export function AutoListsView() {
 
       {/* Main List Container */}
       {loading ? (
-        <div className="h-64 flex items-center justify-center">
-          <Loader2 className="animate-spin text-gray-200" size={32} />
+        <div className="grid grid-cols-1 gap-4 animate-pulse">
+           {[1, 2].map((n) => (
+             <div key={n} className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm h-32 space-y-4">
+                <div className="flex justify-between items-center">
+                   <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-gray-100" />
+                      <div className="space-y-2">
+                         <div className="w-24 h-4 bg-gray-100 rounded" />
+                         <div className="w-32 h-2.5 bg-gray-50 rounded" />
+                      </div>
+                   </div>
+                   <div className="w-12 h-6 bg-gray-100 rounded-full" />
+                </div>
+                <div className="flex gap-4">
+                   <div className="w-20 h-4 bg-gray-50 rounded" />
+                   <div className="w-24 h-4 bg-gray-50 rounded" />
+                </div>
+             </div>
+           ))}
         </div>
       ) : lists.length === 0 ? (
         <AutoListEmptyState onCreateClick={() => navigate("/planner/autolist/new")} />

@@ -18,6 +18,8 @@ export function FacebookDashboard({
   pageSize,
   setPageSize,
   fetchPublishedVideos,
+  prevPageToken,
+  nextPageToken,
 }) {
   return (
     <>
@@ -48,6 +50,8 @@ export function FacebookDashboard({
           pageSize={pageSize}
           setPageSize={setPageSize}
           fetchPublishedVideos={fetchPublishedVideos}
+          prevPageToken={prevPageToken}
+          nextPageToken={nextPageToken}
         />
       )}
     </>

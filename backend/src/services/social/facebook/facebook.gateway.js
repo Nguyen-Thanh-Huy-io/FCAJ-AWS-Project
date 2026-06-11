@@ -97,9 +97,12 @@ class FacebookGateway {
     return result.data.data || [];
   }
 
-  async getPageFeed(pageId, pageAccessToken, limit = 10) {
+  async getPageFeed(pageId, pageAccessToken, pageToken = null, limit = 10) {
     const fields = 'id,message,story,created_time,full_picture,attachments{media,type},shares,comments.summary(true),reactions.summary(true)';
-    const url = `${this.graphBaseUrl}/${pageId}/feed?fields=${fields}&limit=${limit}&access_token=${pageAccessToken}`;
+    let url = `${this.graphBaseUrl}/${pageId}/feed?fields=${fields}&limit=${limit}&access_token=${pageAccessToken}`;
+    if (pageToken) {
+      url += `&after=${pageToken}`;
+    }
     
     const res = await fetch(url);
     if (!res.ok) {
@@ -108,7 +111,11 @@ class FacebookGateway {
     }
 
     const data = await res.json();
-    return data.data || [];
+    return {
+      data: data.data || [],
+      nextPageToken: data.paging?.cursors?.after || null,
+      prevPageToken: data.paging?.cursors?.before || null
+    };
   }
 
   async getPostInsights(postId, pageAccessToken) {

@@ -81,8 +81,19 @@ export function PostsLibraryView() {
 
       {/* Grid */}
       {loading ? (
-        <div className="h-96 flex items-center justify-center">
-          <Loader2 className="animate-spin text-gray-200" size={40} />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-pulse">
+           {[1, 2, 3, 4].map((n) => (
+             <div key={n} className="bg-white border border-gray-100 rounded-[24px] overflow-hidden shadow-sm h-[290px] space-y-4 flex flex-col">
+                <div className="aspect-square bg-gray-50 flex items-center justify-center relative" />
+                <div className="p-5 space-y-3 bg-white flex-1">
+                   <div className="w-24 h-4 bg-gray-100 rounded" />
+                   <div className="flex justify-between items-center">
+                      <div className="w-16 h-3 bg-gray-50 rounded" />
+                      <div className="w-12 h-3.5 bg-gray-100 rounded-lg" />
+                   </div>
+                </div>
+             </div>
+           ))}
         </div>
       ) : posts.length === 0 ? (
         <div className="mt-12 bg-[#2D1D35] rounded-[32px] p-12 text-center relative overflow-hidden">

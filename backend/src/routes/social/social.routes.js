@@ -40,6 +40,7 @@ router.get('/youtube/playlists', verifyAuth, youtubeController.getYouTubePlaylis
 router.get('/youtube/search-channels', verifyAuth, youtubeController.searchYouTubeChannels);
 router.post('/youtube/competitors', verifyAuth, youtubeController.addYouTubeCompetitor);
 router.get('/youtube/competitors', verifyAuth, youtubeController.getYouTubeCompetitors);
+router.delete('/youtube/competitors/:id', verifyAuth, youtubeController.deleteYouTubeCompetitor);
 
 // Google Drive
 router.get('/google/drive/files', verifyAuth, googleDriveController.getGoogleDriveFiles);

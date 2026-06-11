@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { subDays, eachDayOfInterval, format } from "date-fns";
 import { toast } from "sonner";
 import brandService from "../services/brand.service";
@@ -7,8 +7,22 @@ import socialService from "../services/social.service";
 
 export function usePlatformDashboard(platform) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   
-  const [activeTab, setActiveTab] = useState("community");
+  const [activeTab, setActiveTabState] = useState(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam) return tabParam;
+    return platform === "facebook" ? "overview" : "community";
+  });
+
+  const setActiveTab = useCallback((tab) => {
+    setActiveTabState(tab);
+    setSearchParams((prev) => {
+      prev.set("tab", tab);
+      return prev;
+    }, { replace: true });
+  }, [setSearchParams]);
+
   const [showInfo, setShowInfo] = useState(true);
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState(null);
@@ -135,8 +149,10 @@ export function usePlatformDashboard(platform) {
     setIsPublishedLoading(true);
     try {
       if (platform === "facebook") {
-        const res = await socialService.getFacebookPublishedPosts(activeBrand.id, limit);
+        const res = await socialService.getFacebookPublishedPosts(activeBrand.id, pageToken, limit);
         setPublishedVideos(res.data || []);
+        setNextPageToken(res.nextPageToken || null);
+        setPrevPageToken(res.prevPageToken || null);
       } else if (platform === "tiktok") {
         const res = await socialService.getTikTokPublishedVideos(activeBrand.id, pageToken, limit);
         setPublishedVideos(res.videos || []);
@@ -194,6 +210,42 @@ export function usePlatformDashboard(platform) {
     };
     loadData();
   }, [platform]);
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    const getTabDefault = (plat) => {
+      if (plat === "facebook") return "overview";
+      return "community";
+    };
+    
+    if (!tabParam) {
+      setActiveTabState(getTabDefault(platform));
+    } else {
+      const ytTabs = ["community", "demographics", "published", "viewed", "competitors"];
+      const fbTabs = ["overview", "followers", "clicks", "posts", "interactions", "posts_list"];
+      const ttTabs = ["community", "posts"];
+      
+      let isValid = false;
+      if (platform === "facebook") {
+        isValid = fbTabs.includes(tabParam);
+      } else if (platform === "tiktok") {
+        isValid = ttTabs.includes(tabParam);
+      } else {
+        isValid = ytTabs.includes(tabParam);
+      }
+      
+      if (isValid) {
+        setActiveTabState(tabParam);
+      } else {
+        const def = getTabDefault(platform);
+        setActiveTabState(def);
+        setSearchParams((prev) => {
+          prev.set("tab", def);
+          return prev;
+        }, { replace: true });
+      }
+    }
+  }, [platform, searchParams, setSearchParams]);
 
   // Reload metrics when dateRange changes
   useEffect(() => {
@@ -273,6 +325,16 @@ export function usePlatformDashboard(platform) {
       fetchCompetitors();
     } catch (e) {
       toast.error(e.response?.data?.message || "Failed to add competitor");
+    }
+  };
+
+  const handleDeleteCompetitor = async (id) => {
+    try {
+      await socialService.deleteCompetitor(id);
+      toast.success("Competitor deleted successfully");
+      fetchCompetitors();
+    } catch (e) {
+      toast.error(e.response?.data?.message || "Failed to delete competitor");
     }
   };
 
@@ -579,6 +641,7 @@ export function usePlatformDashboard(platform) {
     handleTrackVideo,
     handleSearchCompetitors,
     handleAddCompetitor,
+    handleDeleteCompetitor,
     fetchPublishedVideos,
     isRefreshing,
     handleRefresh,

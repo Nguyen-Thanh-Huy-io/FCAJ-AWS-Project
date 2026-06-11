@@ -53,18 +53,34 @@ export function TrackedVideosTab({
           </Dialog>
        </div>
 
-       <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-          {isTrackingLoading ? (
-             <div className="h-40 flex items-center justify-center"><Loader2 className="animate-spin text-gray-200" /></div>
-          ) : (
-             <table className="w-full">
-                <thead>
-                   <tr className="bg-white border-b border-gray-100">
-                      {["Video", "Channel", "Views", "Likes", "Comments", "Last Sync"].map(h => (
-                         <th key={h} className="text-left px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{h}</th>
-                      ))}
-                   </tr>
-                </thead>
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+          <table className="w-full">
+             <thead>
+                <tr className="bg-white border-b border-gray-100">
+                   {["Video", "Channel", "Views", "Likes", "Comments", "Last Sync"].map(h => (
+                      <th key={h} className="text-left px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{h}</th>
+                   ))}
+                </tr>
+             </thead>
+             {isTrackingLoading ? (
+                <tbody className="divide-y divide-gray-50">
+                   {[1, 2, 3].map((n) => (
+                      <tr key={n} className="animate-pulse">
+                         <td className="px-6 py-4">
+                            <div className="flex items-center gap-4">
+                               <div className="w-16 h-10 bg-gray-100 rounded-lg shrink-0" />
+                               <div className="w-36 h-3 bg-gray-100 rounded" />
+                            </div>
+                         </td>
+                         <td className="px-6 py-4"><div className="w-24 h-3 bg-gray-100 rounded" /></td>
+                         <td className="px-6 py-4"><div className="w-16 h-4 bg-gray-100 rounded" /></td>
+                         <td className="px-6 py-4"><div className="w-12 h-3 bg-gray-50 rounded" /></td>
+                         <td className="px-6 py-4"><div className="w-12 h-3 bg-gray-50 rounded" /></td>
+                         <td className="px-6 py-4"><div className="w-28 h-3 bg-gray-50 rounded" /></td>
+                      </tr>
+                   ))}
+                </tbody>
+             ) : (
                 <tbody className="divide-y divide-gray-50">
                    {trackedVideos.length === 0 ? (
                       <tr><td colSpan="6" className="px-6 py-10 text-center text-gray-400 text-xs">No videos tracked yet.</td></tr>
@@ -84,9 +100,9 @@ export function TrackedVideosTab({
                       </tr>
                    ))}
                 </tbody>
-             </table>
-          )}
-       </div>
+             )}
+          </table>
+        </div>
     </div>
   );
 }
