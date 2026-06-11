@@ -158,7 +158,7 @@ export default function App() {
               <Route path="/pricing" element={<ProtectedRoute><PricingPage /></ProtectedRoute>} />
               <Route path="/history" element={<ProtectedRoute><StreamHistoryPage /></ProtectedRoute>} />
               <Route path="/connect" element={<ProtectedRoute><ConnectPlatformsPage /></ProtectedRoute>} />
-              <Route path="/invite" element={<ProtectedRoute><InviteFlow /></ProtectedRoute>} />
+              <Route path="/invite" element={<InviteFlow />} />
               
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>

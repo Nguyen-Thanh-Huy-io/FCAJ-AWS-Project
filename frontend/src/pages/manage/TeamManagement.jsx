@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Search, UserPlus, MoreHorizontal, Check, X, Mail, Shield, User, ChevronUp, ChevronDown } from "lucide-react";
+import { Search, UserPlus, MoreHorizontal, Check, X, Mail, Shield, User, Loader2 } from "lucide-react";
 import { useFilters } from "../../hooks/useFilters";
 import { useDebounce } from "../../hooks/useDebounce";
+import { useBrand } from "../../context/BrandContext";
 import apiService from "../../services/api";
 import { toast } from "sonner";
 
 export function TeamManagementPage() {
+  const { activeBrand } = useBrand();
+
   const { filters, updateFilters, clearFilters, searchParamsString } = useFilters({
     search: "",
     role: "All",
@@ -34,21 +37,22 @@ export function TeamManagementPage() {
   }, [filters.search]);
 
   // Fetch real data from Backend
-  useEffect(() => {
-    const fetchTeam = async () => {
-      setLoading(true);
-      try {
-        const response = await apiService.get(`/team?${searchParamsString}`);
-        setTeamData(response.data);
-      } catch (error) {
-        toast.error(error.message || "Failed to load team members");
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchTeam = async () => {
+    if (!activeBrand?.id) return;
+    setLoading(true);
+    try {
+      const response = await apiService.get(`/team?brandId=${activeBrand.id}&${searchParamsString}`);
+      setTeamData(response.data);
+    } catch (error) {
+      toast.error(error.message || "Failed to load team members");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchTeam();
-  }, [searchParamsString]);
+  }, [searchParamsString, activeBrand?.id]);
 
   const members = teamData.data || [];
 
@@ -169,12 +173,14 @@ export function TeamManagementPage() {
                     <td className="px-6 py-4 text-[11px] text-gray-500 font-medium">{member.joinedDate}</td>
                     <td className="px-6 py-4 text-[11px] text-gray-500 font-medium">{member.invitedBy}</td>
                     <td className="px-6 py-4 text-right">
-                      <button 
-                        onClick={() => { setSelectedMember(member); setIsRoleOpen(true); }}
-                        className="p-2 text-gray-300 hover:text-black hover:bg-white rounded-xl transition-all opacity-0 group-hover:opacity-100"
-                      >
-                        <MoreHorizontal size={16} />
-                      </button>
+                      {member.role !== 'Owner' && (
+                        <button 
+                          onClick={() => { setSelectedMember(member); setIsRoleOpen(true); }}
+                          className="p-2 text-gray-300 hover:text-black hover:bg-white rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                        >
+                          <MoreHorizontal size={16} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -185,14 +191,53 @@ export function TeamManagementPage() {
       </div>
 
       {/* Modals */}
-      <InviteModal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} />
-      {selectedMember && <RoleModal isOpen={isRoleOpen} onClose={() => { setIsRoleOpen(false); setSelectedMember(null); }} member={selectedMember} />}
+      <InviteModal 
+        isOpen={isInviteOpen} 
+        onClose={() => setIsInviteOpen(false)} 
+        activeBrandId={activeBrand?.id}
+        onInviteSuccess={fetchTeam}
+      />
+      {selectedMember && (
+        <RoleModal 
+          isOpen={isRoleOpen} 
+          onClose={() => { setIsRoleOpen(false); setSelectedMember(null); }} 
+          member={selectedMember} 
+          onSuccess={fetchTeam}
+        />
+      )}
     </div>
   );
 }
 
-function InviteModal({ isOpen, onClose }) {
+function InviteModal({ isOpen, onClose, activeBrandId, onInviteSuccess }) {
   if (!isOpen) return null;
+
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("Member");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleInvite = async () => {
+    if (!email) {
+      toast.error("Please enter email address");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await apiService.post("/team/invite", {
+        email,
+        role,
+        brandId: activeBrandId
+      });
+      toast.success("Invitation sent successfully!");
+      onInviteSuccess();
+      onClose();
+    } catch (error) {
+      toast.error(error.message || "Failed to send invitation");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-[#0A0A0A]/40 backdrop-blur-sm" onClick={onClose} />
@@ -206,22 +251,45 @@ function InviteModal({ isOpen, onClose }) {
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Email Address</label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
-              <input type="email" placeholder="colleague@company.com" className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-transparent rounded-2xl text-xs outline-none focus:bg-white focus:border-black transition-all" />
+              <input 
+                type="email" 
+                placeholder="colleague@company.com" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-transparent rounded-2xl text-xs outline-none focus:bg-white focus:border-black transition-all" 
+              />
             </div>
           </div>
           <div className="space-y-2">
              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Workspace Role</label>
              <div className="grid grid-cols-2 gap-3">
                 {['Admin', 'Member'].map((r) => (
-                  <button key={r} className="p-4 border border-gray-100 rounded-2xl text-left hover:border-black transition-all">
+                  <button 
+                    key={r} 
+                    type="button"
+                    onClick={() => setRole(r)}
+                    className={`p-4 border rounded-2xl text-left transition-all ${
+                      role === r ? 'border-black bg-gray-50' : 'border-gray-100 hover:border-gray-300'
+                    }`}
+                  >
                     <div className="text-[11px] font-bold text-[#0A0A0A]">{r}</div>
                     <div className="text-[9px] text-gray-400 mt-1">{r === 'Admin' ? 'Can manage team & settings' : 'Full content creation access'}</div>
                   </button>
                 ))}
              </div>
           </div>
-          <button className="w-full py-4 bg-[#0A0A0A] text-white rounded-2xl text-xs font-bold hover:shadow-lg transition-all active:scale-[0.98]">
-            Send Invitation
+          <button 
+            onClick={handleInvite}
+            disabled={isSubmitting}
+            className="w-full py-4 bg-[#0A0A0A] text-white rounded-2xl text-xs font-bold hover:shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="animate-spin" size={14} /> Sending...
+              </>
+            ) : (
+              "Send Invitation"
+            )}
           </button>
         </div>
       </div>
@@ -229,8 +297,43 @@ function InviteModal({ isOpen, onClose }) {
   );
 }
 
-function RoleModal({ isOpen, onClose, member }) {
+function RoleModal({ isOpen, onClose, member, onSuccess }) {
   if (!isOpen) return null;
+
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+
+  const handleUpdateRole = async (newRole) => {
+    setIsUpdating(true);
+    try {
+      await apiService.put(`/team/${member.id}/role`, { role: newRole });
+      toast.success("Member role updated successfully!");
+      onSuccess();
+      onClose();
+    } catch (error) {
+      toast.error(error.message || "Failed to update role");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleRemoveMember = async () => {
+    if (!window.confirm(`Are you sure you want to remove ${member.name} from this workspace?`)) {
+      return;
+    }
+    setIsRemoving(true);
+    try {
+      await apiService.delete(`/team/${member.id}`);
+      toast.success("Member removed successfully!");
+      onSuccess();
+      onClose();
+    } catch (error) {
+      toast.error(error.message || "Failed to remove member");
+    } finally {
+      setIsRemoving(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-[#0A0A0A]/40 backdrop-blur-sm" onClick={onClose} />
@@ -248,21 +351,30 @@ function RoleModal({ isOpen, onClose, member }) {
              </div>
           </div>
           <div className="space-y-2">
-             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Update Role</label>
+             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest font-sans">Update Role</label>
              <div className="space-y-2">
                 {['Admin', 'Member', 'Analyst'].map((r) => (
-                   <button key={r} className={`w-full p-4 border rounded-2xl text-left flex items-center justify-between transition-all ${
-                     member.role === r ? 'border-black bg-gray-50' : 'border-gray-100 hover:border-gray-300'
-                   }`}>
+                   <button 
+                     key={r} 
+                     disabled={isUpdating}
+                     onClick={() => handleUpdateRole(r)}
+                     className={`w-full p-4 border rounded-2xl text-left flex items-center justify-between transition-all ${
+                       member.role === r ? 'border-black bg-gray-50' : 'border-gray-100 hover:border-gray-300'
+                     }`}
+                   >
                       <span className="text-[11px] font-bold text-[#0A0A0A]">{r}</span>
-                      {member.role === r && <Check size={14} />}
+                      {isUpdating && member.role !== r ? null : member.role === r && <Check size={14} />}
                    </button>
                 ))}
              </div>
           </div>
           <div className="pt-2">
-            <button className="w-full py-4 border border-red-100 text-red-600 rounded-2xl text-xs font-bold hover:bg-red-50 transition-all">
-              Remove from Workspace
+            <button 
+              onClick={handleRemoveMember}
+              disabled={isRemoving}
+              className="w-full py-4 border border-red-100 text-red-600 rounded-2xl text-xs font-bold hover:bg-red-50 transition-all flex items-center justify-center gap-2"
+            >
+              {isRemoving ? <Loader2 className="animate-spin" size={14} /> : "Remove from Workspace"}
             </button>
           </div>
         </div>

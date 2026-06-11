@@ -38,7 +38,52 @@ class TeamRepository {
   async findById(id) {
     return prisma.team.findUnique({
       where: { id },
-      include: { user: true }
+      include: {
+        user: true,
+        brand: true
+      }
+    });
+  }
+
+  async findByBrandAndUserId(brandId, userId) {
+    return prisma.team.findUnique({
+      where: {
+        brandId_userId: {
+          brandId,
+          userId
+        }
+      },
+      include: {
+        user: true,
+        brand: true
+      }
+    });
+  }
+
+  async create(data) {
+    return prisma.team.create({
+      data,
+      include: {
+        user: true,
+        brand: true
+      }
+    });
+  }
+
+  async update(id, data) {
+    return prisma.team.update({
+      where: { id },
+      data,
+      include: {
+        user: true,
+        brand: true
+      }
+    });
+  }
+
+  async delete(id) {
+    return prisma.team.delete({
+      where: { id }
     });
   }
 }

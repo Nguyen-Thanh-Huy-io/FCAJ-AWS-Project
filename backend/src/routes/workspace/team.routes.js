@@ -4,11 +4,15 @@ const { verifyAuth } = require('../../middlewares/auth.middleware');
 
 const router = express.Router();
 
-router.use(verifyAuth);
+// Public routes (used during invitation acceptance)
+router.get('/invitations/validate', teamController.validateInvitation);
+router.post('/invitations/accept', teamController.acceptInvitation);
 
-/**
- * GET /api/team
- */
+// Authenticated routes
+router.use(verifyAuth);
 router.get('/', teamController.getTeamMembers);
+router.post('/invite', teamController.inviteMember);
+router.put('/:id/role', teamController.updateMemberRole);
+router.delete('/:id', teamController.removeMember);
 
 module.exports = router;
