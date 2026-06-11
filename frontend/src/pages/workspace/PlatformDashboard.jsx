@@ -26,6 +26,7 @@ import { FacebookDashboard } from "./dashboard/FacebookDashboard";
 import { TikTokDashboard } from "./dashboard/TikTokDashboard";
 import { usePlatformDashboard } from "../../hooks/usePlatformDashboard";
 import { DateRangeFilter } from "../../components/app/DateRangeFilter";
+import { useConnections } from "../../context/ConnectionsContext";
 import socialService from "../../services/social.service";
 
 const PLATFORM_CONFIG = {
@@ -112,9 +113,11 @@ export function PlatformDashboardPage() {
     handleAddCompetitor,
     fetchPublishedVideos,
     isRefreshing,
-    handleRefresh
+    handleRefresh,
+    activeBrand
   } = usePlatformDashboard(platform);
 
+  const { openConnections } = useConnections();
   const navigate = useNavigate();
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
@@ -282,7 +285,7 @@ export function PlatformDashboardPage() {
              <h3 className="text-xl font-bold text-[#0A0A0A]">{config.name} account not connected</h3>
              <p className="text-sm text-gray-500 mt-2 mb-8 max-w-sm">Connect your {config.name} account to see real-time analytics, demographics, and video performance.</p>
              <button 
-               onClick={() => navigate("/connect")}
+               onClick={() => openConnections(activeBrand?.id)}
                className="px-8 py-3 bg-[#0A0A0A] text-white rounded-xl text-sm font-bold hover:bg-black/90 transition-all shadow-lg"
              >
                Connect {config.name}

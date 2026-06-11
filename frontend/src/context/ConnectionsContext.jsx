@@ -4,12 +4,19 @@ const ConnectionsContext = createContext();
 
 export function ConnectionsProvider({ children }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [defaultBrandId, setDefaultBrandId] = useState(null);
 
-  const openConnections = () => setIsOpen(true);
-  const closeConnections = () => setIsOpen(false);
+  const openConnections = (brandId = null) => {
+    setDefaultBrandId(brandId);
+    setIsOpen(true);
+  };
+  const closeConnections = () => {
+    setIsOpen(false);
+    setDefaultBrandId(null);
+  };
 
   return (
-    <ConnectionsContext.Provider value={{ isOpen, openConnections, closeConnections }}>
+    <ConnectionsContext.Provider value={{ isOpen, defaultBrandId, openConnections, closeConnections }}>
       {children}
     </ConnectionsContext.Provider>
   );

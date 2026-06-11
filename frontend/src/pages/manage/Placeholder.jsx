@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { BarChart2, Megaphone, Users, FileText, Link2, Search, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useConnections } from "../../context/ConnectionsContext";
 import brandService from "../../services/brand.service";
 import socialService from "../../services/social.service";
 import { toast } from "sonner";
@@ -159,113 +161,20 @@ export function SmartLinksPage() {
 }
 
 export function ConnectPlatformsPage() {
-  const [brands, setBrands] = useState([]);
-  const [selectedBrandId, setSelectedBrandId] = useState("");
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const { openConnections } = useConnections();
 
   useEffect(() => {
-    const fetchBrands = async () => {
-      try {
-        const response = await brandService.getBrands();
-        setBrands(response.data);
-        if (response.data.length > 0) {
-          setSelectedBrandId(response.data[0].id);
-        }
-      } catch (error) {
-        toast.error("Failed to load brands");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchBrands();
-  }, []);
-
-  const handleConnect = async (platform) => {
-    if (!selectedBrandId) {
-      toast.error("Please select or create a brand first");
-      return;
-    }
-
-    if (platform === "YouTube") {
-      try {
-        const response = await socialService.getGoogleAuthUrl(selectedBrandId);
-        if (response.url) {
-          window.location.href = response.url;
-        }
-      } catch (error) {
-        toast.error(error.message || "Failed to start connection");
-      }
-    } else {
-      toast.info(`${platform} integration is coming soon!`);
-    }
-  };
-
-  const platforms = [
-    { name: "YouTube", emoji: "▶️", desc: "Schedule posts, view analytics, go live" },
-    { name: "Facebook", emoji: "📘", desc: "Schedule posts, manage pages, run ads" },
-    { name: "Instagram", emoji: "📸", desc: "Schedule posts and stories, view insights" },
-    { name: "TikTok", emoji: "🎵", desc: "Schedule videos, view performance" },
-    { name: "Twitch", emoji: "🎮", desc: "Stream management and analytics" },
-    { name: "LinkedIn", emoji: "💼", desc: "Schedule professional posts" },
-    { name: "X (Twitter)", emoji: "𝕏", desc: "Schedule tweets, monitor mentions" },
-    { name: "Google Analytics", emoji: "📊", desc: "Track website traffic and conversions" },
-  ];
-
-  if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center bg-[#F8F8F7]">
-        <Loader2 className="animate-spin text-gray-300" size={40} />
-      </div>
-    );
-  }
+    // Chuyển hướng về dashboard và tự động mở popup quản lý kết nối
+    navigate("/dashboard", { replace: true });
+    openConnections();
+  }, [navigate, openConnections]);
 
   return (
-    <div className="flex-1 overflow-y-auto flex items-start justify-center" style={{ background: "#F8F8F7", padding: "40px 24px" }}>
-      <div style={{ maxWidth: 680, width: "100%" }}>
-        {/* Brand Selector */}
-        <div className="mb-8 p-6 bg-white rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
-           <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#0A0A0A] flex items-center justify-center text-white font-bold">B</div>
-              <div>
-                 <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Connected Brand</div>
-                 <select 
-                   value={selectedBrandId}
-                   onChange={(e) => setSelectedBrandId(e.target.value)}
-                   className="text-sm font-bold bg-transparent border-none outline-none cursor-pointer"
-                 >
-                    {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                 </select>
-              </div>
-           </div>
-           <button className="text-xs font-bold text-blue-600">+ New Brand</button>
-        </div>
-
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <h2 style={{ fontSize: 22, fontWeight: 500, color: "#0A0A0A", marginBottom: 8 }}>Which platforms do you manage?</h2>
-          <p style={{ fontSize: 14, color: "#6B7280" }}>Connect your accounts to enable analytics and publishing.</p>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          {platforms.map((p) => {
-            const isConnected = brands.find(b => b.id === selectedBrandId)?.socialAccounts?.some(sa => sa.platform === p.name.toUpperCase());
-            return (
-              <div key={p.name} style={{ background: "#FFF", border: isConnected ? "1.5px solid #16A34A" : "0.5px solid #E5E7EB", borderRadius: 12, padding: 16, display: "flex", alignItems: "center", gap: 12, position: 'relative' }}>
-                <span style={{ fontSize: 28, flexShrink: 0 }}>{p.emoji}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: "#0A0A0A", marginBottom: 2 }}>{p.name}</div>
-                  <div style={{ fontSize: 11, color: "#9CA3AF" }}>{p.desc}</div>
-                </div>
-                <button 
-                  onClick={() => handleConnect(p.name)}
-                  disabled={isConnected}
-                  className={`px-4 py-1.5 rounded-lg text-[11px] font-bold uppercase transition-all ${isConnected ? 'bg-green-50 text-green-600' : 'bg-[#0A0A0A] text-white hover:bg-gray-800'}`}
-                >
-                  {isConnected ? 'Connected' : 'Connect'}
-                </button>
-              </div>
-            );
-          })}
-        </div>
+    <div className="flex-1 flex items-center justify-center bg-[#F8F8F7]" style={{ height: "100vh" }}>
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="animate-spin text-gray-300" size={40} />
+        <span className="text-xs text-gray-500 font-medium">Redirecting to connections dashboard...</span>
       </div>
     </div>
   );

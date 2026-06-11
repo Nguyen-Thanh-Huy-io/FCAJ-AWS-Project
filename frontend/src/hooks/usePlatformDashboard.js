@@ -581,6 +581,7 @@ export function usePlatformDashboard(platform) {
     handleAddCompetitor,
     fetchPublishedVideos,
     isRefreshing,
-    handleRefresh
+    handleRefresh,
+    activeBrand
   };
 }
