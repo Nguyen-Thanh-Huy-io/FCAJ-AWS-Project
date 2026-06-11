@@ -11,6 +11,7 @@ const REQUIRED_VARS = [
   'CLOUDINARY_CLOUD_NAME',
   'CLOUDINARY_API_KEY',
   'CLOUDINARY_API_SECRET',
+  'ENCRYPTION_KEY',
 ];
 
 const WARNED_VARS = [
@@ -57,6 +58,12 @@ function validateEnv() {
   const refreshSecret = process.env.REFRESH_TOKEN_SECRET;
   if (refreshSecret && refreshSecret.length < 32) {
     throw new Error('[EnvValidator] ❌ REFRESH_TOKEN_SECRET must be at least 32 characters long.');
+  }
+
+  // Validate ENCRYPTION_KEY strength
+  const encryptionKey = process.env.ENCRYPTION_KEY;
+  if (encryptionKey && encryptionKey.length < 32) {
+    throw new Error('[EnvValidator] ❌ ENCRYPTION_KEY must be at least 32 characters long.');
   }
 }
 

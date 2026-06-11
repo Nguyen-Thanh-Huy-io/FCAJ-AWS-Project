@@ -1,12 +1,14 @@
 @startuml Metricool_Complete_Architecture
+skinparam monochrome true
+skinparam shading false
 !theme plain
 skinparam backgroundColor #FEFEFE
-skinparam classBackgroundColor #F0F0F0
-skinparam classBorderColor #333
-skinparam arrowColor #333
+
+
+
 
 ' ==================== ENUMERATIONS ====================
-package "Enumerations (Kiểu dữ liệu)" #F5F5F5 {
+package "Enumerations (Kiểu dữ liệu)"  {
     enum UserRole {
         OWNER
         ADMIN
@@ -108,7 +110,7 @@ package "Enumerations (Kiểu dữ liệu)" #F5F5F5 {
 }
 
 ' ==================== CORE ENTITIES ====================
-package "Core Entities (Nền tảng hệ thống)" #EEEDFE {
+package "Core Entities (Nền tảng hệ thống)"  {
     class User {
         ** PK & Identification **
         - id: UUID
@@ -231,7 +233,7 @@ package "Core Entities (Nền tảng hệ thống)" #EEEDFE {
 }
 
 ' ==================== PLATFORM & ADS ====================
-package "Platform & Ads Integration (Kết nối nền tảng)" #E1F5EE {
+package "Platform & Ads Integration (Kết nối nền tảng)"  {
     abstract class SocialAccount {
         ** PK & FK **
         - id: UUID
@@ -433,7 +435,7 @@ package "Platform & Ads Integration (Kết nối nền tảng)" #E1F5EE {
 }
 
 ' ==================== CONTENT & SCHEDULING ====================
-package "Content & Scheduling (Quản lý nội dung)" #FAEEDA {
+package "Content & Scheduling (Quản lý nội dung)"  {
     class Post {
         ** PK & FK **
         - id: UUID
@@ -646,7 +648,7 @@ package "Content & Scheduling (Quản lý nội dung)" #FAEEDA {
 }
 
 ' ==================== ANALYTICS & REPORTS ====================
-package "Analytics & Reports (Phân tích dữ liệu)" #FBEAF0 {
+package "Analytics & Reports (Phân tích dữ liệu)"  {
     abstract class Analytics {
         ** PK & FK **
         - id: UUID
@@ -857,7 +859,7 @@ package "Analytics & Reports (Phân tích dữ liệu)" #FBEAF0 {
 }
 
 ' ==================== COMMUNICATION ====================
-package "Communication (Giao tiếp)" #E6F1FB {
+package "Communication (Giao tiếp)"  {
     class UnifiedInbox {
         ** PK & FK **
         - id: UUID
@@ -931,7 +933,7 @@ package "Communication (Giao tiếp)" #E6F1FB {
 }
 
 ' ==================== TOOLS & UTILITIES ====================
-package "Tools & Utilities (Tiện ích)" #F1EFE8 {
+package "Tools & Utilities (Tiện ích)"  {
     class SmartLink {
         ** PK & FK **
         - id: UUID

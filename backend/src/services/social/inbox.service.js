@@ -1,6 +1,8 @@
 const inboxRepository = require('../../repositories/social/inbox.repository');
 const socialAccountRepository = require('../../repositories/social/social-account.repository');
 const { PLATFORMS, INBOX_STATUS, INBOX_TYPES, SOCIAL_TECHNICAL } = require('../../utils/constants');
+const inboxFormatter = require('./inbox/inbox-formatter');
+const socialPlatformFactory = require('./social-platform.factory');
 
 const QueryPipeline = require('../../core/query-pipeline/query.pipeline');
 const InboxSearchFilter = require('./inbox/filters/search.filter');
@@ -45,7 +47,7 @@ class InboxService {
     const { items, total } = await inboxRepository.findManyAndCount(where, { skip, take });
 
     return {
-      data: items.map(item => this._formatInboxListItem(item)),
+      data: items.map(item => inboxFormatter.formatInboxListItem(item)),
       meta: {
         total,
         page: Math.max(1, parseInt(page) || 1),
@@ -63,8 +65,8 @@ class InboxService {
     const videoContext = await this._getVideoContext(item);
 
     const thread = [
-      this._formatThreadMessage(item, myAccountId),
-      ...(item.replies || []).map(r => this._formatThreadMessage(r, myAccountId))
+      inboxFormatter.formatThreadMessage(item, myAccountId),
+      ...(item.replies || []).map(r => inboxFormatter.formatThreadMessage(r, myAccountId))
     ];
 
     return { item, thread, videoContext };
@@ -225,44 +227,6 @@ class InboxService {
     return { skip: (safePage - 1) * safeLimit, take: safeLimit };
   }
 
-  _formatInboxListItem(item) {
-    const participants = this._aggregateParticipants(item);
-    return {
-      id: item.id,
-      platform: this._formatPlatformName(item.platform),
-      user: this._formatDisplayName(participants),
-      participants: participants.slice(0, 3),
-      avatar: item.authorAvatarUrl || item.authorName.charAt(0),
-      preview: item.content,
-      time: this._formatTimeAgo(item.platformCreatedAt),
-      unread: item.status === INBOX_STATUS.UNREAD,
-      assigned: item.assignedUser?.name || null,
-      status: item.status.toLowerCase(),
-      type: item.type.toLowerCase()
-    };
-  }
-
-  _aggregateParticipants(item) {
-    const participants = [{ name: item.authorName, avatar: item.authorAvatarUrl }];
-    const seenNames = new Set([item.authorName]);
-
-    (item.replies || []).forEach(r => {
-      if (r.authorId !== item.authorId && !seenNames.has(r.name)) {
-        seenNames.add(r.name);
-        participants.push({ name: r.authorName, avatar: r.authorAvatarUrl });
-      }
-    });
-    return participants;
-  }
-
-  _formatDisplayName(participants) {
-    if (participants.length === 0) return 'Unknown';
-    if (participants.length === 1) return participants[0].name;
-    let name = `${participants[0].name} and ${participants[1].name}`;
-    if (participants.length > 2) name += ` and ${participants.length - 2} others`;
-    return name;
-  }
-
   async _getMyPlatformAccountId(item) {
     if (item.socialAccountId) {
       const sa = await socialAccountRepository.findById(item.socialAccountId);
@@ -280,32 +244,6 @@ class InboxService {
     } catch (e) {
       return null;
     }
-  }
-
-  _formatThreadMessage(msg, myAccountId) {
-    const isMe = msg.repliedByUserId || msg.authorId === myAccountId;
-    return {
-      id: msg.id,
-      from: isMe ? SOCIAL_TECHNICAL.INBOX_LABELS.ME : SOCIAL_TECHNICAL.INBOX_LABELS.THEM,
-      text: msg.content,
-      time: new Date(msg.platformCreatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      author: msg.authorName,
-      avatar: msg.authorAvatarUrl
-    };
-  }
-
-  _formatPlatformName(p) {
-    return p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : 'Unknown';
-  }
-
-  _formatTimeAgo(date) {
-    const diff = Date.now() - new Date(date).getTime();
-    const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return 'now';
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h`;
-    return `${Math.floor(hours / 24)}d`;
   }
 }
 

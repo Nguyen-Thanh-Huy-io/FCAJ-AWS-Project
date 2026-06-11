@@ -1,7 +1,7 @@
-const authService = require('../src/services/auth.service');
-const userRepository = require('../src/repositories/user.repository');
-const otpService = require('../src/services/otp.service');
-const emailService = require('../src/services/email.service');
+const authService = require('../src/services/auth/auth.service');
+const userRepository = require('../src/repositories/auth/user.repository');
+const otpService = require('../src/services/auth/otp.service');
+const emailService = require('../src/services/core/email.service');
 const redisClient = require('../src/config/redis');
 const bcrypt = require('bcryptjs');
 
@@ -17,9 +17,9 @@ jest.mock('../src/config/redis', () => ({
   isOpen: true
 }));
 
-jest.mock('../src/repositories/user.repository');
-jest.mock('../src/services/otp.service');
-jest.mock('../src/services/email.service');
+jest.mock('../src/repositories/auth/user.repository');
+jest.mock('../src/services/auth/otp.service');
+jest.mock('../src/services/core/email.service');
 jest.mock('bcryptjs');
 
 describe('AuthService', () => {

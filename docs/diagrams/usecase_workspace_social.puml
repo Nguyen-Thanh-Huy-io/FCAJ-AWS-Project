@@ -2,6 +2,9 @@
 title Use Case: Workspace & Social Platform Integration - PubliCast
 
 left to right direction
+skinparam monochrome true
+skinparam shading false
+
 
 actor "Thành viên Brand" as ActorMember
 actor "Chủ Brand (Owner)" as ActorOwner

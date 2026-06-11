@@ -1,7 +1,21 @@
 const prisma = require('../../config/prisma');
 const { PLATFORMS, ANALYTICS } = require('../../utils/constants');
+const { encrypt, decrypt } = require('../../utils/encryption');
 
 class SocialAccountRepository {
+  _decryptAccount(account) {
+    if (!account) return null;
+    return {
+      ...account,
+      accessToken: decrypt(account.accessToken),
+      refreshToken: decrypt(account.refreshToken)
+    };
+  }
+
+  _decryptAccounts(accounts) {
+    if (!accounts) return [];
+    return accounts.map(acc => this._decryptAccount(acc));
+  }
   async upsertFacebookAccount(brandId, pageData, tokens) {
     const { pageId, username, displayName, profilePictureUrl, category, likesCount, followersCount, about, website } = pageData;
     
@@ -19,8 +33,8 @@ class SocialAccountRepository {
         username: finalUsername,
         displayName,
         profilePictureUrl,
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token || undefined,
+        accessToken: encrypt(tokens.access_token),
+        refreshToken: tokens.refresh_token ? encrypt(tokens.refresh_token) : undefined,
         tokenExpiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
         scopes: tokens.scope,
         isConnected: true,
@@ -53,8 +67,8 @@ class SocialAccountRepository {
         username: finalUsername,
         displayName,
         profilePictureUrl,
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token || '',
+        accessToken: encrypt(tokens.access_token),
+        refreshToken: tokens.refresh_token ? encrypt(tokens.refresh_token) : '',
         tokenExpiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
         scopes: tokens.scope || '',
         lastSyncAt: new Date(),
@@ -99,8 +113,8 @@ class SocialAccountRepository {
         username: finalUsername,
         displayName,
         profilePictureUrl,
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token || undefined,
+        accessToken: encrypt(tokens.access_token),
+        refreshToken: tokens.refresh_token ? encrypt(tokens.refresh_token) : undefined,
         tokenExpiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
         scopes: tokens.scope,
         isConnected: true,
@@ -130,8 +144,8 @@ class SocialAccountRepository {
         username: finalUsername,
         displayName,
         profilePictureUrl,
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token || '',
+        accessToken: encrypt(tokens.access_token),
+        refreshToken: tokens.refresh_token ? encrypt(tokens.refresh_token) : '',
         tokenExpiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
         scopes: tokens.scope || '',
         lastSyncAt: new Date(),
@@ -271,8 +285,8 @@ class SocialAccountRepository {
         username: finalUsername,
         displayName,
         profilePictureUrl,
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refreshToken || tokens.refresh_token || undefined,
+        accessToken: encrypt(tokens.access_token),
+        refreshToken: (tokens.refreshToken || tokens.refresh_token) ? encrypt(tokens.refreshToken || tokens.refresh_token) : undefined,
         tokenExpiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
         scopes: tokens.scope,
         isConnected: true,
@@ -297,8 +311,8 @@ class SocialAccountRepository {
         username: finalUsername,
         displayName,
         profilePictureUrl,
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refreshToken || tokens.refresh_token,
+        accessToken: encrypt(tokens.access_token),
+        refreshToken: (tokens.refreshToken || tokens.refresh_token) ? encrypt(tokens.refreshToken || tokens.refresh_token) : '',
         tokenExpiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
         scopes: tokens.scope || '',
         lastSyncAt: new Date(),
@@ -368,7 +382,7 @@ class SocialAccountRepository {
   }
 
   async findById(id) {
-    return prisma.socialAccount.findUnique({
+    const account = await prisma.socialAccount.findUnique({
       where: { id },
       include: {
         youtubeChannel: true,
@@ -383,25 +397,27 @@ class SocialAccountRepository {
         }
       }
     });
+    return this._decryptAccount(account);
   }
 
   async updateTokens(id, tokens) {
-    return prisma.socialAccount.update({
+    const account = await prisma.socialAccount.update({
       where: { id },
       data: {
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token || undefined,
+        accessToken: encrypt(tokens.access_token),
+        refreshToken: tokens.refresh_token ? encrypt(tokens.refresh_token) : undefined,
         tokenExpiresAt: tokens.expiry_date ? new Date(tokens.expiry_date) : undefined,
         updatedAt: new Date()
       }
     });
+    return this._decryptAccount(account);
   }
 
   async findByBrandAndPlatform(brandId, platform) {
     const where = { brandId };
     if (platform) where.platform = platform;
 
-    return prisma.socialAccount.findMany({
+    const accounts = await prisma.socialAccount.findMany({
       where,
       include: {
         youtubeChannel: true,
@@ -418,15 +434,17 @@ class SocialAccountRepository {
         }
       }
     });
+    return this._decryptAccounts(accounts);
   }
 
   async findByBrandAndPlatformFirst(brandId, platform) {
     const where = { brandId };
     if (platform) where.platform = platform;
     
-    return prisma.socialAccount.findFirst({
+    const account = await prisma.socialAccount.findFirst({
       where
     });
+    return this._decryptAccount(account);
   }
 
   async deleteManyByBrandAndPlatform(brandId, platform) {

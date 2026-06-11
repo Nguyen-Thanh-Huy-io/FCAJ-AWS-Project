@@ -1,6 +1,6 @@
 const request = require('supertest');
 const app = require('../src/app');
-const authService = require('../src/services/auth.service');
+const authService = require('../src/services/auth/auth.service');
 
 // Mock Redis config to prevent connection attempts during tests
 jest.mock('../src/config/redis', () => ({
@@ -10,7 +10,7 @@ jest.mock('../src/config/redis', () => ({
 }));
 
 // Mock authService to isolate integration test from logic layer
-jest.mock('../src/services/auth.service');
+jest.mock('../src/services/auth/auth.service');
 
 describe('Auth Integration Tests', () => {
   beforeEach(() => {

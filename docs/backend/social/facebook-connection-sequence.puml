@@ -1,5 +1,7 @@
 @plantuml
 @startuml Facebook Connection Flow
+skinparam monochrome true
+skinparam shading false
 actor User
 participant Frontend
 participant BackendController

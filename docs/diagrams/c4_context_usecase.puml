@@ -4,6 +4,9 @@
 ' Thiết lập cấu hình hiển thị và định dạng tiếng Việt
 title C4 System Context & Use Case Diagram - PubliCast System
 
+skinparam monochrome true
+skinparam shading false
+
 ' Định nghĩa các Actor (Personas)
 Person(anonymous, "Anonymous User", "Người dùng chưa đăng nhập. Có thể xem trang chủ, đăng ký tài khoản.")
 Person(authenticated_user, "Authenticated User (Member)", "Người dùng đã xác thực. Có quyền tạo bài viết, kết nối kênh MXH.")
@@ -36,6 +39,8 @@ newpage
 title Use Case Details - PubliCast Core Features
 
 left to right direction
+skinparam monochrome true
+skinparam shading false
 
 actor "Người dùng vãng lai" as ActorAnonymous
 actor "Thành viên Brand" as ActorMember

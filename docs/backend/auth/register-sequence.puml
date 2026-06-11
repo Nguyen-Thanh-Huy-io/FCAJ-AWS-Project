@@ -1,6 +1,8 @@
 @startuml Register Sequence Diagram
 autonumber
 skinparam Style strictuml
+skinparam monochrome true
+skinparam shading false
 
 actor "Client/Browser" as Client
 participant "API Server" as Server

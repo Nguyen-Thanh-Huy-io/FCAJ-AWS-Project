@@ -1,12 +1,14 @@
 @startuml PubliCast_Architecture
+skinparam monochrome true
+skinparam shading false
 !theme plain
 skinparam backgroundColor #FEFEFE
-skinparam classBackgroundColor #F0F0F0
-skinparam classBorderColor #333
-skinparam arrowColor #333
+
+
+
 
 ' ==================== CORE ENTITIES ====================
-package "Core Entities" #DDD0FF {
+package "Core Entities"  {
     class User {
         - userId: UUID
         - email: string
@@ -90,7 +92,7 @@ package "Core Entities" #DDD0FF {
 }
 
 ' ==================== PLATFORM & ADS ====================
-package "Platform & Ads" #CCFFCC {
+package "Platform & Ads"  {
     abstract class SocialAccount {
         - accountId: UUID
         - brand: Brand
@@ -199,7 +201,7 @@ package "Platform & Ads" #CCFFCC {
 }
 
 ' ==================== CONTENT & SCHEDULING ====================
-package "Content & Scheduling" #FFFF99 {
+package "Content & Scheduling"  {
     class Post {
         - postId: UUID
         - brand: Brand
@@ -335,7 +337,7 @@ package "Content & Scheduling" #FFFF99 {
 }
 
 ' ==================== ANALYTICS & REPORTS ====================
-package "Analytics & Reports" #FFB3BA {
+package "Analytics & Reports"  {
     abstract class Analytics {
         - analyticsId: UUID
         - post: Post
@@ -447,7 +449,7 @@ package "Analytics & Reports" #FFB3BA {
 }
 
 ' ==================== UTILITIES ====================
-package "Utilities" #DCDCDC {
+package "Utilities"  {
     class UnifiedInbox {
         - inboxId: UUID
         - brand: Brand
