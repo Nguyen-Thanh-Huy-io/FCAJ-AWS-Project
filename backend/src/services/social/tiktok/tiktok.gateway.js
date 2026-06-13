@@ -14,18 +14,22 @@ class TikTokGateway {
   /**
    * Get Auth URL for TikTok OAuth 2.0
    */
-  getAuthUrl(scopes, state, redirectUri) {
+  getAuthUrl(scopes, state, redirectUri, codeChallenge) {
     const scopeString = encodeURIComponent(scopes.join(','));
     const encodedRedirect = encodeURIComponent(redirectUri);
     
     // Authorization MUST go to www.tiktok.com, not open.tiktokapis.com
-    return `${this.authBaseUrl}?client_key=${this.clientKey}&scope=${scopeString}&response_type=code&redirect_uri=${encodedRedirect}&state=${state}`;
+    let url = `${this.authBaseUrl}?client_key=${this.clientKey}&scope=${scopeString}&response_type=code&redirect_uri=${encodedRedirect}&state=${state}`;
+    if (codeChallenge) {
+      url += `&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+    }
+    return url;
   }
 
   /**
    * Exchange Code for Access Token
    */
-  async exchangeCodeForToken(code, redirectUri) {
+  async exchangeCodeForToken(code, redirectUri, codeVerifier) {
     const url = `${this.apiBaseUrl}/v2/oauth/token/`;
     const params = new URLSearchParams();
     params.append('client_key', this.clientKey);
@@ -33,6 +37,9 @@ class TikTokGateway {
     params.append('code', code);
     params.append('grant_type', 'authorization_code');
     params.append('redirect_uri', redirectUri);
+    if (codeVerifier) {
+      params.append('code_verifier', codeVerifier);
+    }
 
     console.log(`[TikTok OAuth] Exchanging code for token...`);
     const res = await fetch(url, {

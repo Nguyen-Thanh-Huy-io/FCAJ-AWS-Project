@@ -7,11 +7,13 @@ import { useBrand } from "../../context/BrandContext";
 import apiService from "../../services/api";
 import { toast } from "sonner";
 import { SYSTEM_ROLES, ASSIGNABLE_ROLES, TEAM_FILTER_ROLES, MEMBER_STATUS } from "../../constants/roles";
+import { useConfirm } from "@/hooks/useConfirm";
 
 const PRESET_COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#0A0A0A", "#6B7280"];
 
 export function TeamManagementPage() {
   const { activeBrand } = useBrand();
+  const confirm = useConfirm();
 
   const { filters, updateFilters, clearFilters, searchParamsString } = useFilters({
     search: "",
@@ -110,7 +112,14 @@ export function TeamManagementPage() {
   const members = teamData.data || [];
 
   const handleDeleteRole = async (roleId) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa vai trò tùy chỉnh này?")) return;
+    const isConfirmed = await confirm({
+      title: "Xóa vai trò?",
+      description: "Bạn có chắc chắn muốn xóa vai trò tùy chỉnh này?",
+      confirmText: "Xóa",
+      cancelText: "Hủy",
+      variant: "destructive"
+    });
+    if (!isConfirmed) return;
     try {
       await apiService.delete(`/brands/${activeBrand.id}/roles/${roleId}`);
       toast.success("Xóa vai trò tùy chỉnh thành công!");
@@ -526,6 +535,7 @@ function InviteModal({ isOpen, onClose, activeBrandId, customRoles = [], onInvit
 }
 
 function RoleModal({ isOpen, onClose, member, customRoles = [], onSuccess }) {
+  const confirm = useConfirm();
   if (!isOpen) return null;
 
   const [isUpdating, setIsUpdating] = useState(false);
@@ -546,9 +556,14 @@ function RoleModal({ isOpen, onClose, member, customRoles = [], onSuccess }) {
   };
 
   const handleRemoveMember = async () => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa ${member.name} khỏi thương hiệu này?`)) {
-      return;
-    }
+    const isConfirmed = await confirm({
+      title: "Xóa thành viên?",
+      description: `Bạn có chắc chắn muốn xóa ${member.name} khỏi thương hiệu này?`,
+      confirmText: "Xóa",
+      cancelText: "Hủy",
+      variant: "destructive"
+    });
+    if (!isConfirmed) return;
     setIsRemoving(true);
     try {
       await apiService.delete(`/team/${member.id}`);

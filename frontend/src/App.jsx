@@ -6,6 +6,7 @@ import { Topbar } from "./layout/Topbar";
 import { SupportChat } from "./components/app/SupportChat";
 import { PostCreatorPage } from "./pages/workspace/PostCreator";
 import { ConnectionsOverlay } from "./components/shared/ConnectionsOverlay";
+import { GlobalConfirmDialog } from "./components/shared/GlobalConfirmDialog";
 import { useAuthStore } from "./store/useAuthStore";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -169,6 +170,7 @@ export default function App() {
       {/* Global Overlays */}
       <PostCreatorPage />
       <ConnectionsOverlay />
+      <GlobalConfirmDialog />
       {!isNoLayout && !isSuperadmin && !isStaff && <SupportChat />}
     </div>
   );

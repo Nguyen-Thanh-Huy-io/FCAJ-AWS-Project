@@ -11,10 +11,12 @@ import { CreateBrandModal } from "../../components/shared/CreateBrandModal";
 import { useBrand } from "../../context/BrandContext";
 import { toast } from "sonner";
 import socialService from "../../services/social.service";
+import { useConfirm } from "@/hooks/useConfirm";
 
 export function BrandSettingsPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState("brand-settings");
   
   const { brands, createBrand, updateBrand, deleteBrand, activeBrand, selectBrand, loading, refreshBrands } = useBrand();
@@ -112,7 +114,14 @@ export function BrandSettingsPage() {
       toast.error("Không thể xóa thương hiệu duy nhất của bạn!");
       return;
     }
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa thương hiệu "${selectedBrand.name}" không? Thao tác này không thể hoàn tác!`)) return;
+    const isConfirmed = await confirm({
+      title: "Xóa thương hiệu?",
+      description: `Bạn có chắc chắn muốn xóa thương hiệu "${selectedBrand.name}" không? Thao tác này không thể hoàn tác!`,
+      confirmText: "Xóa",
+      cancelText: "Hủy",
+      variant: "destructive"
+    });
+    if (!isConfirmed) return;
     setIsDeleting(true);
     try {
       await deleteBrand(selectedBrand.id);

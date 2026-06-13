@@ -9,6 +9,7 @@ import { DatePickerPopover } from './DatePickerPopover';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import postService from '../../../../services/post.service';
+import { buildMediaUrl } from '@/utils/url';
 
 export function PlannerToolbar({
   searchTerm,
@@ -498,10 +499,7 @@ export function PlannerToolbar({
                 ) : (
                   postData.map(post => {
                     const hasMedia = post.mediaUrls && post.mediaUrls.length > 0;
-                    const backendUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-                    const thumbUrl = post.thumbnail 
-                      ? (post.thumbnail.startsWith('/') ? `${backendUrl}${post.thumbnail}` : post.thumbnail) 
-                      : null;
+                    const thumbUrl = buildMediaUrl(post.thumbnail);
                     return (
                       <div 
                         key={post.id} 

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useMemo } from 'react';
+import { buildMediaUrl } from '@/utils/url';
 
 const getBestTimePercentage = (dayIdx, hourVal) => {
   // Deterministic but natural looking percentage distribution
@@ -244,11 +245,8 @@ export function WeeklyGrid({
                         ? new Date(post.scheduledAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) 
                         : '';
                       
-                      const backendUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
                       const hasMedia = post.mediaUrls && post.mediaUrls.length > 0;
-                      const thumbUrl = post.thumbnail 
-                        ? (post.thumbnail.startsWith('/') ? `${backendUrl}${post.thumbnail}` : post.thumbnail) 
-                        : null;
+                      const thumbUrl = buildMediaUrl(post.thumbnail);
 
                       const platform = post.platforms?.[0]?.toUpperCase() || 'YOUTUBE';
 

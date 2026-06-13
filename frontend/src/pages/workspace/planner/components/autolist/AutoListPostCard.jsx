@@ -14,6 +14,7 @@ import { MediaDropdown } from "@/components/workspace/post-creator/MediaDropdown
 import { GoogleDrivePickerModal } from "@/components/workspace/post-creator/GoogleDrivePickerModal";
 import { toast } from "sonner";
 import apiService from "@/services/api";
+import { buildMediaUrl } from "@/utils/url";
 
 export function AutoListPostCard({ 
   post, 
@@ -81,14 +82,7 @@ export function AutoListPostCard({
   };
 
   const getMediaPreviewUrl = (url) => {
-    if (!url) return "";
-    if (url.startsWith("blob:") || url.startsWith("data:") || url.startsWith("http:") || url.startsWith("https:")) {
-      return url;
-    }
-    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-    const serverBase = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
-    const cleanUrl = url.replace(/\\/g, '/');
-    return cleanUrl.startsWith('/') ? `${serverBase}${cleanUrl}` : `${serverBase}/${cleanUrl}`;
+    return buildMediaUrl(url);
   };
 
   const handleFileChange = async (e) => {

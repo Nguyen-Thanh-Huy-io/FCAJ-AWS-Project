@@ -18,8 +18,8 @@ class TikTokAnalyticsService {
     };
   }
 
-  async connectChannel(brandId, code, redirectUri) {
-    const tokenData = await tiktokGateway.exchangeCodeForToken(code, redirectUri);
+  async connectChannel(brandId, code, redirectUri, codeVerifier) {
+    const tokenData = await tiktokGateway.exchangeCodeForToken(code, redirectUri, codeVerifier);
     const userInfo = await tiktokGateway.getUserInfo(tokenData.access_token);
 
     const pageData = {

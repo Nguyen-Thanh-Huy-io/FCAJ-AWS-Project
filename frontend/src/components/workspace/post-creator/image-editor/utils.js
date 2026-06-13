@@ -1,12 +1,7 @@
+import { buildMediaUrl } from "@/utils/url";
+
 export const getFullImageUrl = (url) => {
-  if (!url) return "";
-  if (url.startsWith("blob:") || url.startsWith("data:") || url.startsWith("http://") || url.startsWith("https://")) {
-    return url;
-  }
-  const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api";
-  const baseUrl = apiBase.replace(/\/api\/?$/, "");
-  const normalizedPath = url.replace(/\\/g, "/");
-  return normalizedPath.startsWith("/") ? `${baseUrl}${normalizedPath}` : `${baseUrl}/${normalizedPath}`;
+  return buildMediaUrl(url);
 };
 
 export const processCanvas = ({

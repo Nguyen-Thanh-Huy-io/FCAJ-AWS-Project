@@ -4,6 +4,7 @@ import { subDays, eachDayOfInterval, format } from "date-fns";
 import { toast } from "sonner";
 import { useBrand } from "../context/BrandContext";
 import socialService from "../services/social.service";
+import { FALLBACK_DEMOGRAPHICS, EMPTY_ANALYTICS_DATA } from "@/mocks/dashboardFallback";
 
 export function usePlatformDashboard(platform) {
   const navigate = useNavigate();
@@ -330,39 +331,7 @@ export function usePlatformDashboard(platform) {
 
   const getAnalyticsData = () => {
     if (!metrics?.analytics?.[0]?.socialAnalytics?.audienceDemographicsJson) {
-      return {
-        demographics: {
-          gender: [
-            { name: 'Male', value: 62, color: '#818CF8' },
-            { name: 'Female', value: 38, color: '#F472B6' }
-          ],
-          age: [
-            { name: '13-17', value: 8 },
-            { name: '18-24', value: 35 },
-            { name: '25-34', value: 38 },
-            { name: '35-44', value: 14 },
-            { name: '45+', value: 5 }
-          ],
-          countries: [
-            { name: 'Vietnam', value: 65, flag: '🇻🇳', progress: 65 },
-            { name: 'United States', value: 15, flag: '🇺🇸', progress: 15 },
-            { name: 'India', value: 10, flag: '🇮🇳', progress: 10 },
-            { name: 'Japan', value: 5, flag: '🇯🇵', progress: 5 }
-          ],
-          trafficSource: [
-            { name: 'YouTube Search', value: 12450, percentage: '45%', color: '#818CF8' },
-            { name: 'Direct or Unknown', value: 8300, percentage: '30%', color: '#34D399' },
-            { name: 'Suggested Videos', value: 4150, percentage: '15%', color: '#F472B6' },
-            { name: 'Other', value: 2760, percentage: '10%', color: '#FBBF24' }
-          ]
-        },
-        balance: [],
-        growth: [],
-        clicks: [],
-        postsPeriod: [],
-        interactions: {},
-        summary: {}
-      };
+      return EMPTY_ANALYTICS_DATA;
     }
     try {
       const raw = JSON.parse(metrics.analytics[0].socialAnalytics.audienceDemographicsJson);
@@ -405,17 +374,8 @@ export function usePlatformDashboard(platform) {
       ];
 
       if (age.length === 0 || (genderMap.Male === 0 && genderMap.Female === 0)) {
-        age = [
-          { name: '13-17', value: 8 },
-          { name: '18-24', value: 35 },
-          { name: '25-34', value: 38 },
-          { name: '35-44', value: 14 },
-          { name: '45+', value: 5 }
-        ];
-        gender = [
-          { name: 'Male', value: 62, color: '#818CF8' },
-          { name: 'Female', value: 38, color: '#F472B6' }
-        ];
+        age = FALLBACK_DEMOGRAPHICS.age;
+        gender = FALLBACK_DEMOGRAPHICS.gender;
       }
  
       const totalTrafficViews = (raw.trafficSource || []).reduce((a, b) => a + (Array.isArray(b) ? (b[1] || 0) : 0), 0) || 1;
@@ -429,12 +389,7 @@ export function usePlatformDashboard(platform) {
         }));
 
       if (trafficSource.length === 0) {
-        trafficSource = [
-          { name: 'YouTube Search', value: 12450, percentage: '45%', color: '#818CF8' },
-          { name: 'Direct or Unknown', value: 8300, percentage: '30%', color: '#34D399' },
-          { name: 'Suggested Videos', value: 4150, percentage: '15%', color: '#F472B6' },
-          { name: 'Other', value: 2760, percentage: '10%', color: '#FBBF24' }
-        ];
+        trafficSource = FALLBACK_DEMOGRAPHICS.trafficSource;
       }
  
       const totalGeoViews = (raw.geographic || []).reduce((a, b) => a + (Array.isArray(b) ? (b[1] || 0) : 0), 0) || 1;

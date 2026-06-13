@@ -24,7 +24,14 @@ export function buildServerBaseUrl() {
  */
 export function buildMediaUrl(path) {
   if (!path) return '';
-  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  if (
+    path.startsWith('http://') ||
+    path.startsWith('https://') ||
+    path.startsWith('blob:') ||
+    path.startsWith('data:')
+  ) {
+    return path;
+  }
 
   const serverBase = buildServerBaseUrl();
   const cleanPath = path.replace(/\\/g, '/');

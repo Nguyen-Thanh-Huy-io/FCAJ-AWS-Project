@@ -7,8 +7,8 @@ class TikTokService extends BaseSocialService {
   /**
    * Connect TikTok Channel (OAuth callback logic)
    */
-  async connectChannel(brandId, code, redirectUri) {
-    return tiktokAnalytics.connectChannel(brandId, code, redirectUri);
+  async connectChannel(brandId, code, redirectUri, codeVerifier) {
+    return tiktokAnalytics.connectChannel(brandId, code, redirectUri, codeVerifier);
   }
 
   /**

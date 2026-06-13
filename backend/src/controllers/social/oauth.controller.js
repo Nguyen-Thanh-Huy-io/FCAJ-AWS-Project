@@ -6,6 +6,8 @@ const tiktokGateway = require('../../services/social/tiktok/tiktok.gateway');
 const { SOCIAL_TECHNICAL } = require('../../utils/constants');
 const asyncHandler = require('../../utils/async-handler');
 const logger = require('../../utils/logger');
+const redisClient = require('../../config/redis');
+const crypto = require('crypto');
 
 class OAuthController {
   /**
@@ -98,7 +100,15 @@ class OAuthController {
     const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/tiktok/callback`;
     logger.debug('[TikTok OAuth] Constructing auth URL', { redirectUri });
 
-    const url = tiktokGateway.getAuthUrl(SOCIAL_TECHNICAL.TIKTOK_SCOPES, brandId, redirectUri);
+    // Sinh PKCE
+    const codeVerifier = crypto.randomBytes(32).toString('base64url');
+    const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
+
+    // Lưu codeVerifier vào Redis
+    const cacheKey = `tiktok_oauth_verifier:${brandId}`;
+    await redisClient.setEx(cacheKey, 600, codeVerifier); // Hết hạn sau 10 phút
+
+    const url = tiktokGateway.getAuthUrl(SOCIAL_TECHNICAL.TIKTOK_SCOPES, brandId, redirectUri, codeChallenge);
     res.json({ url });
   });
 
@@ -110,8 +120,18 @@ class OAuthController {
 
     if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
 
+    // Lấy codeVerifier từ Redis
+    const cacheKey = `tiktok_oauth_verifier:${brandId}`;
+    const codeVerifier = await redisClient.get(cacheKey);
+    if (!codeVerifier) {
+      logger.warn('[TikTok OAuth] PKCE code verifier expired or not found', { brandId });
+      return res.redirect(`${frontendUrl}/manage/connections?error=oauth_session_expired`);
+    }
+    // Xóa ngay lập tức (Single Use)
+    await redisClient.del(cacheKey);
+
     try {
-      await tiktokService.connectChannel(brandId, code, redirectUri);
+      await tiktokService.connectChannel(brandId, code, redirectUri, codeVerifier);
       return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=tiktok_connected`);
     } catch (error) {
       return this._handleCallbackError(error, frontendUrl, res);
