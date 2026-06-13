@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { buildMediaUrl } from '@/utils/url';
 
-const getBestTimePercentage = (dayIdx, hourVal) => {
-  // Deterministic but natural looking percentage distribution
-  const seed = (dayIdx * 13 + hourVal * 19) % 100;
+const getBestTimePercentage = (dayIdx, hourVal, platform = 'INSTAGRAM') => {
+  // Deterministic but platform-dependent percentage distribution
+  const platformShift = platform.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const seed = (dayIdx * 13 + hourVal * 19 + platformShift) % 100;
   return 30 + Math.round((seed / 100) * 60); // 30% to 90%
 };
 
@@ -85,12 +86,38 @@ export function WeeklyGrid({
   onCellClick,
   onPostClick,
   onCellDrop,
-  rowHeight = 100
+  rowHeight = 100,
+  bestTimePlatform = 'INSTAGRAM',
+  viewMode = 'WEEK'
 }) {
   const gridContainerRef = useRef(null);
 
-  // Generate the 7 days of the selected week (Sunday to Saturday)
+  // Generate the days of the selected view (1 day for DAY mode, 7 days for WEEK mode)
   const days = useMemo(() => {
+    if (viewMode === 'DAY') {
+      const d = new Date(selectedDate);
+      const isSelected = true;
+      const isToday = d.getDate() === new Date().getDate() &&
+                      d.getMonth() === new Date().getMonth() &&
+                      d.getFullYear() === new Date().getFullYear();
+      
+      return [{
+        name: d.toLocaleDateString('en-US', { weekday: 'long' }),
+        shortName: d.toLocaleDateString('en-US', { weekday: 'short' }),
+        date: d.getDate(),
+        month: d.getMonth() + 1,
+        full: (() => {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        })(),
+        isSelected,
+        isToday,
+        raw: d
+      }];
+    }
+
     const startOfWeek = new Date(selectedDate);
     const day = startOfWeek.getDay();
     // Set to Sunday of that week
@@ -123,7 +150,7 @@ export function WeeklyGrid({
         raw: d
       };
     });
-  }, [selectedDate]);
+  }, [selectedDate, viewMode]);
 
   // Generate 24 hours
   const hours = useMemo(() => {
@@ -214,7 +241,7 @@ export function WeeklyGrid({
             {/* Day columns for this hour */}
             {days.map((day, dIdx) => {
               const cellPosts = groupedPosts[`${day.full}-${hour.value}`] || [];
-              const percentage = getBestTimePercentage(dIdx, hour.value);
+              const percentage = getBestTimePercentage(dIdx, hour.value, bestTimePlatform);
               const heatmapBg = getHeatmapBg(percentage);
 
               return (

@@ -14,6 +14,7 @@ import { PlannerToolbar } from "./components/PlannerToolbar";
 import { WeeklyGrid } from "./components/WeeklyGrid";
 import { SidebarIntegrations } from "./components/SidebarIntegrations";
 import { ImportOverlay } from "./components/ImportOverlay";
+import { MonthlyGrid } from "./components/MonthlyGrid";
 
 export function WeeklyCalendarView() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -33,6 +34,12 @@ export function WeeklyCalendarView() {
     TWITTER: true
   });
   
+  // Filtering and Best Times States
+  const [filterStatus, setFilterStatus] = useState("ALL");
+  const [filterType, setFilterType] = useState("ALL");
+  const [bestTimePlatform, setBestTimePlatform] = useState("INSTAGRAM");
+  const [calendarViewMode, setCalendarViewMode] = useState("WEEK"); // DAY, WEEK, MONTH
+  
   // Center date of current selected week (Defaults to current date)
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -46,16 +53,10 @@ export function WeeklyCalendarView() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch Posts based on selectedDate
+  // Fetch Posts based on selectedDate and viewMode
   const fetchPosts = async () => {
     if (!activeBrand) return;
     setLoading(true);
-
-    // Calculate start & end of selected date week (Sunday to Saturday)
-    const current = new Date(selectedDate);
-    const day = current.getDay();
-    const sunday = new Date(current.setDate(current.getDate() - day));
-    const saturday = new Date(current.setDate(current.getDate() - day + 6));
 
     const toLocalDateStr = (d) => {
       const year = d.getFullYear();
@@ -64,8 +65,29 @@ export function WeeklyCalendarView() {
       return `${year}-${month}-${day}`;
     };
 
-    const startDateStr = toLocalDateStr(sunday);
-    const endDateStr = toLocalDateStr(saturday);
+    let startDateStr, endDateStr;
+    if (calendarViewMode === 'MONTH') {
+      const year = selectedDate.getFullYear();
+      const month = selectedDate.getMonth();
+      const firstDay = new Date(year, month, 1);
+      const start = new Date(firstDay);
+      start.setDate(start.getDate() - start.getDay());
+      
+      const lastDay = new Date(year, month + 1, 0);
+      const end = new Date(lastDay);
+      end.setDate(end.getDate() + (6 - end.getDay()));
+      
+      startDateStr = toLocalDateStr(start);
+      endDateStr = toLocalDateStr(end);
+    } else {
+      // WEEK or DAY mode
+      const current = new Date(selectedDate);
+      const day = current.getDay();
+      const sunday = new Date(current.setDate(current.getDate() - day));
+      const saturday = new Date(current.setDate(current.getDate() - day + 6));
+      startDateStr = toLocalDateStr(sunday);
+      endDateStr = toLocalDateStr(saturday);
+    }
 
     try {
       const res = await apiService.get(`/posts?brandId=${activeBrand.id}&startDate=${startDateStr}&endDate=${endDateStr}&limit=100`);
@@ -79,7 +101,7 @@ export function WeeklyCalendarView() {
 
   useEffect(() => {
     fetchPosts();
-  }, [activeBrand, selectedDate, isOpen]);
+  }, [activeBrand, selectedDate, isOpen, calendarViewMode]);
 
   // Group and search-filter posts dynamically
   const groupedPosts = useMemo(() => {
@@ -87,8 +109,12 @@ export function WeeklyCalendarView() {
     const filtered = postData.filter(post => {
       const matchesSearch = !searchTerm || post.title?.toLowerCase().includes(searchTerm.toLowerCase());
       // Check if at least one platform on the post is visible
-      const matchesPlatform = post.platforms?.some(p => visiblePlatforms[p.toUpperCase()] !== false) ?? true;
-      return matchesSearch && matchesPlatform;
+      const matchesPlatform = !post.platforms || post.platforms.length === 0 || post.platforms.some(p => visiblePlatforms[p.toUpperCase()] !== false);
+      // Filter by Status and Type
+      const matchesStatus = filterStatus === "ALL" || post.status?.toUpperCase() === filterStatus;
+      const matchesType = filterType === "ALL" || post.type?.toUpperCase() === filterType;
+
+      return matchesSearch && matchesPlatform && matchesStatus && matchesType;
     });
     filtered.forEach(post => {
       const date = new Date(post.scheduledAt || post.createdAt);
@@ -102,13 +128,19 @@ export function WeeklyCalendarView() {
       grid[key].push(post);
     });
     return grid;
-  }, [postData, searchTerm, visiblePlatforms]);
+  }, [postData, searchTerm, visiblePlatforms, filterStatus, filterType]);
 
   // Date handlers
   const handlePrevWeek = () => {
     setSelectedDate(prev => {
       const d = new Date(prev);
-      d.setDate(prev.getDate() - 7);
+      if (calendarViewMode === 'DAY') {
+        d.setDate(prev.getDate() - 1);
+      } else if (calendarViewMode === 'WEEK') {
+        d.setDate(prev.getDate() - 7);
+      } else if (calendarViewMode === 'MONTH') {
+        d.setMonth(prev.getMonth() - 1);
+      }
       return d;
     });
   };
@@ -116,7 +148,13 @@ export function WeeklyCalendarView() {
   const handleNextWeek = () => {
     setSelectedDate(prev => {
       const d = new Date(prev);
-      d.setDate(prev.getDate() + 7);
+      if (calendarViewMode === 'DAY') {
+        d.setDate(prev.getDate() + 1);
+      } else if (calendarViewMode === 'WEEK') {
+        d.setDate(prev.getDate() + 7);
+      } else if (calendarViewMode === 'MONTH') {
+        d.setMonth(prev.getMonth() + 1);
+      }
       return d;
     });
   };
@@ -160,6 +198,14 @@ export function WeeklyCalendarView() {
         postData={postData}
         activeBrand={activeBrand}
         fetchPosts={fetchPosts}
+        filterStatus={filterStatus}
+        onFilterStatusChange={setFilterStatus}
+        filterType={filterType}
+        onFilterTypeChange={setFilterType}
+        bestTimePlatform={bestTimePlatform}
+        onBestTimePlatformChange={setBestTimePlatform}
+        calendarViewMode={calendarViewMode}
+        onCalendarViewModeChange={setCalendarViewMode}
       />
 
       {loading && (
@@ -171,17 +217,29 @@ export function WeeklyCalendarView() {
 
       {/* 3. Main Grid layout: Lịch bên trái, Tích hợp bên phải */}
       <div className="h-[750px] flex flex-col lg:flex-row gap-6 items-stretch mb-6">
-        {/* Lưới lịch tuần */}
+        {/* Lưới lịch tuần/ngày/tháng */}
         <div className="flex-1 w-full h-full">
-          <WeeklyGrid
-            selectedDate={selectedDate}
-            groupedPosts={groupedPosts}
-            currentTime={currentTime}
-            onCellClick={handleCellClick}
-            onPostClick={(post) => openPostCreator({ post })}
-            onCellDrop={importFromDrive}
-            rowHeight={rowHeight}
-          />
+          {calendarViewMode === 'MONTH' ? (
+            <MonthlyGrid
+              selectedDate={selectedDate}
+              postData={postData}
+              onCellClick={handleCellClick}
+              onPostClick={(post) => openPostCreator({ post })}
+              visiblePlatforms={visiblePlatforms}
+            />
+          ) : (
+            <WeeklyGrid
+              selectedDate={selectedDate}
+              groupedPosts={groupedPosts}
+              currentTime={currentTime}
+              onCellClick={handleCellClick}
+              onPostClick={(post) => openPostCreator({ post })}
+              onCellDrop={importFromDrive}
+              rowHeight={rowHeight}
+              bestTimePlatform={bestTimePlatform}
+              viewMode={calendarViewMode}
+            />
+          )}
         </div>
 
         {/* Cột tích hợp bên phải */}

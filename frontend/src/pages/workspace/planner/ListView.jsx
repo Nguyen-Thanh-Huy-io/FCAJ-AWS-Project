@@ -200,9 +200,12 @@ export function ListView() {
                   <tr className="bg-gray-50/30 border-b border-gray-100">
                      <th className="px-6 py-4 w-10">
                         <input 
+                          key="loading-checkbox"
                           type="checkbox" 
                           className="rounded border-gray-300 text-black cursor-pointer" 
                           disabled
+                          checked={false}
+                          readOnly
                         />
                      </th>
                      <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.1em]">Post Details</th>
@@ -266,6 +269,7 @@ export function ListView() {
                   <tr className="bg-gray-50/30 border-b border-gray-100">
                      <th className="px-6 py-4 w-10">
                         <input 
+                          key="active-checkbox"
                           type="checkbox" 
                           className="rounded border-gray-300 text-black focus:ring-black cursor-pointer" 
                           checked={selected.length === posts.length && posts.length > 0}
