@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL;
 
@@ -15,7 +16,7 @@ class ApiService {
 
     this.api.interceptors.request.use(
       (config) => {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }

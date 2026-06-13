@@ -6,7 +6,7 @@ import { Topbar } from "./layout/Topbar";
 import { SupportChat } from "./components/app/SupportChat";
 import { PostCreatorPage } from "./pages/workspace/PostCreator";
 import { ConnectionsOverlay } from "./components/shared/ConnectionsOverlay";
-import { useAuth } from "./context/AuthContext";
+import { useAuthStore } from "./store/useAuthStore";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Auth Pages
@@ -64,7 +64,7 @@ import { LandingPage } from "./pages/landing/LandingPage";
 const NO_LAYOUT_PATHS = ["/", "/login", "/signup", "/verify-otp", "/start", "/forgot-password", "/connect", "/invite", "/manage/workplace/new"];
 
 export default function App() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading } = useAuthStore();
   const location = useLocation();
   const currentPath = location.pathname;
 

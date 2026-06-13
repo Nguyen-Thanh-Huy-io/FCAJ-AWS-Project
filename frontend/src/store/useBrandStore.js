@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import brandService from '../services/brand.service';
 import { toast } from 'sonner';
 import { useAuthStore } from './useAuthStore';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 export const useBrandStore = create((set, get) => ({
   brands: [],
@@ -19,15 +20,15 @@ export const useBrandStore = create((set, get) => ({
       set({ brands: brandList });
 
       if (brandList.length > 0) {
-        const savedBrandId = selectId || localStorage.getItem("activeBrandId");
+        const savedBrandId = selectId || localStorage.getItem(STORAGE_KEYS.ACTIVE_BRAND_ID);
         const matchedBrand = brandList.find(b => b.id === savedBrandId);
         
         const currentActive = matchedBrand || brandList[0];
         set({ activeBrand: currentActive });
-        localStorage.setItem("activeBrandId", currentActive.id);
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_BRAND_ID, currentActive.id);
       } else {
         set({ activeBrand: null });
-        localStorage.removeItem("activeBrandId");
+        localStorage.removeItem(STORAGE_KEYS.ACTIVE_BRAND_ID);
       }
     } catch (error) {
       console.error("Failed to fetch brands:", error);
@@ -41,7 +42,7 @@ export const useBrandStore = create((set, get) => ({
     const matched = get().brands.find(b => b.id === brandId);
     if (matched) {
       set({ activeBrand: matched });
-      localStorage.setItem("activeBrandId", brandId);
+      localStorage.setItem(STORAGE_KEYS.ACTIVE_BRAND_ID, brandId);
       toast.success(`Đã chuyển sang thương hiệu: ${matched.name}`);
     }
   },
@@ -82,7 +83,7 @@ export const useBrandStore = create((set, get) => ({
       toast.success("Xóa thương hiệu thành công!");
       
       const nextActiveId = get().activeBrand?.id === id ? null : get().activeBrand?.id;
-      localStorage.removeItem("activeBrandId");
+      localStorage.removeItem(STORAGE_KEYS.ACTIVE_BRAND_ID);
       await get().fetchBrands(nextActiveId);
     } catch (error) {
       const msg = error.response?.data?.message || "Xóa thương hiệu thất bại";
@@ -97,6 +98,6 @@ export const useBrandStore = create((set, get) => ({
 
   reset: () => {
     set({ brands: [], activeBrand: null });
-    localStorage.removeItem("activeBrandId");
+    localStorage.removeItem(STORAGE_KEYS.ACTIVE_BRAND_ID);
   }
 }));

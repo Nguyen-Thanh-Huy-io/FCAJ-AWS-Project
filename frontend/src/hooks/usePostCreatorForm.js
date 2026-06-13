@@ -4,6 +4,10 @@ import apiService from "../services/api";
 import { useBrand } from "../context/BrandContext";
 import socialService from "../services/social.service";
 import { usePostCreator } from "../context/PostCreatorContext";
+import { DEFAULT_PLATFORM, PLATFORMS } from "../constants/platforms";
+import { POST_STATUS, PUBLISH_MODE, PUBLISH_MODE_TO_STATUS, STATUS_TO_PUBLISH_MODE } from "../constants/postStatus";
+import { POST_TYPE, YOUTUBE_TYPE, FACEBOOK_TYPE, TIKTOK_PRIVACY, APPROVAL_POLICY, YOUTUBE_DEFAULT_CATEGORY_ID } from "../constants/postTypes";
+import { buildMediaUrl, isVideoPath } from "../utils/url";
 
 const toLocalDatetimeString = (dateInput) => {
   if (!dateInput) return "";
@@ -38,7 +42,7 @@ export function usePostCreatorForm() {
   const [caption, setCaption] = useState("");
   const [title, setTitle] = useState("");
   const [altText, setAltText] = useState("");
-  const [activePlatform, setActivePlatform] = useState("youtube");
+  const [activePlatform, setActivePlatform] = useState(DEFAULT_PLATFORM);
   const [previewDevice, setPreviewDevice] = useState("mobile");
   const [showPublishMenu, setShowPublishMenu] = useState(false);
   const [selectedPublishId, setSelectedPublishId] = useState("now");
@@ -52,7 +56,7 @@ export function usePostCreatorForm() {
   const [youtubeOpen, setYoutubeOpen] = useState(false);
   const [facebookOpen, setFacebookOpen] = useState(false);
   const [tiktokOpen, setTiktokOpen] = useState(false);
-  const [tiktokPrivacy, setTiktokPrivacy] = useState("public");
+  const [tiktokPrivacy, setTiktokPrivacy] = useState(TIKTOK_PRIVACY.PUBLIC);
   const [tiktokAllowComments, setTiktokAllowComments] = useState(true);
   const [tiktokAllowDuet, setTiktokAllowDuet] = useState(true);
   const [tiktokAllowStitch, setTiktokAllowStitch] = useState(true);
@@ -60,11 +64,11 @@ export function usePostCreatorForm() {
   const [tiktokCommercialContent, setTiktokCommercialContent] = useState(false);
 
   // Selector Video/Short State
-  const [youtubeType, setYoutubeType] = useState("video");
+  const [youtubeType, setYoutubeType] = useState(YOUTUBE_TYPE.VIDEO);
   const [showTypeMenu, setShowTypeMenu] = useState(false);
 
   // Facebook Dropdown / Mode State
-  const [facebookType, setFacebookType] = useState("post"); // post, reel, story
+  const [facebookType, setFacebookType] = useState(FACEBOOK_TYPE.POST);
   const [showFacebookTypeMenu, setShowFacebookTypeMenu] = useState(false);
   const [facebookTitle, setFacebookTitle] = useState("");
 
@@ -72,7 +76,7 @@ export function usePostCreatorForm() {
   const [youtubeTitle, setYoutubeTitle] = useState("");
   const [youtubeMadeForKids, setYoutubeMadeForKids] = useState(false);
   const [youtubePrivacy, setYoutubePrivacy] = useState("public");
-  const [youtubeCategory, setYoutubeCategory] = useState("22");
+  const [youtubeCategory, setYoutubeCategory] = useState(YOUTUBE_DEFAULT_CATEGORY_ID);
   const [youtubePlaylistId, setYoutubePlaylistId] = useState("");
   const [youtubeTags, setYoutubeTags] = useState("");
   const [youtubeFirstComment, setYoutubeFirstComment] = useState("");
@@ -87,7 +91,7 @@ export function usePostCreatorForm() {
   const [potentialReviewers, setPotentialReviewers] = useState([]);
   const [selectedReviewerId, setSelectedReviewerId] = useState("");
   const [selectedReviewerIds, setSelectedReviewerIds] = useState([]);
-  const [approvalPolicy, setApprovalPolicy] = useState("AT_LEAST_ONE");
+  const [approvalPolicy, setApprovalPolicy] = useState(APPROVAL_POLICY.AT_LEAST_ONE);
   const [requesterNote, setRequesterNote] = useState("Vui lòng phê duyệt bài viết này.");
   const [isLoadingReviewers, setIsLoadingReviewers] = useState(false);
 
@@ -127,12 +131,7 @@ export function usePostCreatorForm() {
       return;
     }
 
-    const isVid = videoFileUrl.endsWith(".mp4") || 
-                  videoFileUrl.endsWith(".mov") || 
-                  videoFileUrl.endsWith(".avi") ||
-                  videoFileUrl.endsWith(".webm") ||
-                  videoFileUrl.includes('/video/upload/') || // Cloudinary video URL
-                  (videoFile && videoFile.type.startsWith("video/"));
+    const isVid = isVideoPath(videoFileUrl, videoFile);
     if (!isVid) {
       setVideoDuration(0);
       setVideoWidth(0);
@@ -168,12 +167,7 @@ export function usePostCreatorForm() {
       }
     }
 
-    const isVid = videoFileUrl && (
-      videoFileUrl.endsWith(".mp4") || 
-      videoFileUrl.endsWith(".mov") || 
-      videoFileUrl.endsWith(".avi") || 
-      (videoFile && videoFile.type.startsWith("video/"))
-    );
+    const isVid = isVideoPath(videoFileUrl, videoFile);
 
     if (activePlatform === "facebook") {
       if (facebookType === "reel") {
@@ -304,8 +298,7 @@ export function usePostCreatorForm() {
       if (res.videoUrl) {
         toast.success(`Successfully imported "${file.name}"!`, { id: 'import-drive-toast' });
 
-        const backendUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-        const fullUrl = res.videoUrl.startsWith('http') ? res.videoUrl : `${backendUrl}${res.videoUrl}`;
+      const fullUrl = buildMediaUrl(res.videoUrl);
 
         setUploadedVideoPath(res.videoUrl);
         setVideoFileUrl(fullUrl);
@@ -357,18 +350,8 @@ export function usePostCreatorForm() {
         setScheduledDate(editingPost.scheduledAt ? toLocalDatetimeString(editingPost.scheduledAt) : toLocalDatetimeString(new Date()));
         setIsLibrary(editingPost.isLibrary || false);
         
-        // Also set selectedPublishId based on post status
-        if (editingPost.status === 'PUBLISHED') {
-          setSelectedPublishId('now');
-        } else if (editingPost.status === 'SCHEDULED') {
-          setSelectedPublishId('schedule');
-        } else if (editingPost.status === 'PENDING_APPROVAL') {
-          setSelectedPublishId('review');
-        } else if (editingPost.status === 'DRAFT') {
-          setSelectedPublishId('draft');
-        } else {
-          setSelectedPublishId('now');
-        }
+        // Load publish mode từ post status dùng lookup map
+        setSelectedPublishId(STATUS_TO_PUBLISH_MODE[editingPost.status] || PUBLISH_MODE.NOW);
         
         // Setup options
         const opts = editingPost.options || {};
@@ -398,12 +381,7 @@ export function usePostCreatorForm() {
         if (editingPost.mediaUrls?.[0]) {
           const path = editingPost.mediaUrls[0];
           setUploadedVideoPath(path);
-          
-          const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-          const serverBase = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
-          const cleanPath = path.replace(/\\/g, '/');
-          const fullUrl = (path.startsWith('/') || path.startsWith('\\')) ? `${serverBase}${cleanPath}` : `${serverBase}/${cleanPath}`;
-          setVideoFileUrl(fullUrl);
+          setVideoFileUrl(buildMediaUrl(path));
         } else {
           setUploadedVideoPath("");
           setVideoFileUrl("");
@@ -446,12 +424,7 @@ export function usePostCreatorForm() {
         if (templatePost.mediaUrls?.[0]) {
           const path = templatePost.mediaUrls[0];
           setUploadedVideoPath(path);
-          
-          const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-          const serverBase = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
-          const cleanPath = path.replace(/\\/g, '/');
-          const fullUrl = (path.startsWith('/') || path.startsWith('\\')) ? `${serverBase}${cleanPath}` : `${serverBase}/${cleanPath}`;
-          setVideoFileUrl(fullUrl);
+          setVideoFileUrl(buildMediaUrl(path));
         } else {
           setUploadedVideoPath("");
           setVideoFileUrl("");
@@ -460,27 +433,27 @@ export function usePostCreatorForm() {
         // Reset for new creation
         setCaption("");
         setTitle("");
-        setActivePlatform("youtube");
+        setActivePlatform(DEFAULT_PLATFORM);
         setScheduledDate(defaultScheduledAt ? toLocalDatetimeString(defaultScheduledAt) : toLocalDatetimeString(new Date()));
         setIsLibrary(initialIsLibrary || false);
-        setSelectedPublishId(defaultScheduledAt ? "schedule" : "now");
-        setYoutubeType("video");
+        setSelectedPublishId(defaultScheduledAt ? PUBLISH_MODE.SCHEDULE : PUBLISH_MODE.NOW);
+        setYoutubeType(YOUTUBE_TYPE.VIDEO);
         setYoutubeTitle("");
         setYoutubeMadeForKids(false);
         setYoutubePrivacy("public");
-        setYoutubeCategory("22");
+        setYoutubeCategory(YOUTUBE_DEFAULT_CATEGORY_ID);
         setYoutubePlaylistId("");
         setYoutubeTags("");
         setYoutubeFirstComment("");
         setGlobalFirstComment("");
 
         // Reset Facebook
-        setFacebookType("post");
+        setFacebookType(FACEBOOK_TYPE.POST);
         setFacebookTitle("");
         setAltText("");
 
         // Reset TikTok
-        setTiktokPrivacy("public");
+        setTiktokPrivacy(TIKTOK_PRIVACY.PUBLIC);
         setTiktokAllowComments(true);
         setTiktokAllowDuet(true);
         setTiktokAllowStitch(true);
@@ -525,12 +498,7 @@ export function usePostCreatorForm() {
     if (template.mediaUrls?.[0]) {
       const path = template.mediaUrls[0];
       setUploadedVideoPath(path);
-      
-      const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
-      const serverBase = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase;
-      const cleanPath = path.replace(/\\/g, '/');
-      const fullUrl = (path.startsWith('/') || path.startsWith('\\')) ? `${serverBase}${cleanPath}` : `${serverBase}/${cleanPath}`;
-      setVideoFileUrl(fullUrl);
+      setVideoFileUrl(buildMediaUrl(path));
     } else {
       setUploadedVideoPath("");
       setVideoFileUrl("");
@@ -552,22 +520,20 @@ export function usePostCreatorForm() {
 
     setIsCreating(true);
     try {
-      let status = 'DRAFT';
-      if (selectedPublishId === 'now') status = 'PUBLISHED';
-      else if (selectedPublishId === 'schedule') status = 'SCHEDULED';
-      else if (selectedPublishId === 'review') status = 'PENDING_APPROVAL';
+      // Map publish mode → post status dùng lookup, không dùng if-else chain
+      let status = PUBLISH_MODE_TO_STATUS[selectedPublishId] || POST_STATUS.DRAFT;
 
-      let postType = "VIDEO";
-      if (activePlatform === 'facebook') {
-        if (facebookType === 'story') postType = 'STORY';
-        else if (facebookType === 'reel') postType = 'REEL';
+      let postType = POST_TYPE.VIDEO;
+      if (activePlatform === PLATFORMS.FACEBOOK) {
+        if (facebookType === FACEBOOK_TYPE.STORY) postType = POST_TYPE.STORY;
+        else if (facebookType === FACEBOOK_TYPE.REEL) postType = POST_TYPE.REEL;
         else {
-          postType = (uploadedVideoPath || videoFile) ? 'VIDEO' : 'IMAGE';
+          postType = (uploadedVideoPath || videoFile) ? POST_TYPE.VIDEO : POST_TYPE.IMAGE;
         }
-      } else if (activePlatform === 'youtube') {
-        postType = youtubeType === 'short' ? 'SHORT' : 'VIDEO';
-      } else if (activePlatform === 'tiktok') {
-        postType = 'VIDEO';
+      } else if (activePlatform === PLATFORMS.YOUTUBE) {
+        postType = youtubeType === YOUTUBE_TYPE.SHORT ? POST_TYPE.SHORT : POST_TYPE.VIDEO;
+      } else if (activePlatform === PLATFORMS.TIKTOK) {
+        postType = POST_TYPE.VIDEO;
       }
 
       const payload = {
@@ -611,17 +577,19 @@ export function usePostCreatorForm() {
         await apiService.post('/posts', payload);
         toast.success("Post created successfully");
       }
-      closePostCreator();
-      setCaption("");
-      setTitle("");
+      setActivePlatform(DEFAULT_PLATFORM);
+      setScheduledDate(toLocalDatetimeString(new Date()));
+      setIsLibrary(false);
+      setSelectedPublishId(PUBLISH_MODE.NOW);
+      setYoutubeType(YOUTUBE_TYPE.VIDEO);
       setYoutubeTitle("");
       setYoutubeTags("");
       setYoutubeFirstComment("");
       setGlobalFirstComment("");
       setFacebookTitle("");
-      setFacebookType("post");
+      setFacebookType(FACEBOOK_TYPE.POST);
       setAltText("");
-      setTiktokPrivacy("public");
+      setTiktokPrivacy(TIKTOK_PRIVACY.PUBLIC);
       setTiktokAllowComments(true);
       setTiktokAllowDuet(true);
       setTiktokAllowStitch(true);

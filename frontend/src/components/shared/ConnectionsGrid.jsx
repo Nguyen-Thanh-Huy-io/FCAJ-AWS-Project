@@ -11,7 +11,7 @@ export const NETWORKS = [
   // ... (keep the same array but I'll need it inside the component or export it)
 ];
 
-export function ConnectionsGrid({ className = "", brand }) {
+export function ConnectionsGrid({ className = "", brand, onDisconnect }) {
   const handleConnectYouTube = async () => {
     if (!brand) {
       toast.error("Please select a brand first");
@@ -22,7 +22,8 @@ export function ConnectionsGrid({ className = "", brand }) {
       try {
         await socialService.disconnectGoogleAccount(brand.id);
         toast.success("YouTube channel disconnected");
-        window.location.reload();
+        if (onDisconnect) onDisconnect();
+        else window.location.reload();
       } catch (error) {
         toast.error(error.message || "Failed to disconnect YouTube");
       }
@@ -48,7 +49,8 @@ export function ConnectionsGrid({ className = "", brand }) {
       try {
         await socialService.disconnectFacebookAccount(brand.id);
         toast.success("Facebook page disconnected");
-        window.location.reload();
+        if (onDisconnect) onDisconnect();
+        else window.location.reload();
       } catch (error) {
         toast.error(error.message || "Failed to disconnect Facebook");
       }
@@ -74,7 +76,8 @@ export function ConnectionsGrid({ className = "", brand }) {
       try {
         await socialService.disconnectTikTokAccount(brand.id);
         toast.success("TikTok account disconnected");
-        window.location.reload();
+        if (onDisconnect) onDisconnect();
+        else window.location.reload();
       } catch (error) {
         toast.error(error.message || "Failed to disconnect TikTok");
       }

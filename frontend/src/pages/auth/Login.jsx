@@ -4,6 +4,7 @@ import { Eye, EyeOff, Wifi, Check, Loader2 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import authService from "../../services/auth.service";
 import { toast } from "sonner";
+import { STORAGE_KEYS } from "../../constants/storageKeys";
 
 function LeftPanel({ tagline, features }) {
   return (
@@ -65,20 +66,20 @@ export function LoginPage({ initialScreen = "login" }) {
 
   // Restore timer from localStorage on mount
   useEffect(() => {
-    const timerExpiry = localStorage.getItem("resendTimerExpiry");
+    const timerExpiry = localStorage.getItem(STORAGE_KEYS.RESEND_TIMER_EXPIRY);
     if (timerExpiry) {
       const remaining = Math.round((parseInt(timerExpiry) - Date.now()) / 1000);
       if (remaining > 0) {
         setResendTimer(remaining);
       } else {
-        localStorage.removeItem("resendTimerExpiry");
+        localStorage.removeItem(STORAGE_KEYS.RESEND_TIMER_EXPIRY);
       }
     }
   }, []);
 
   // Restore state on F5
   useEffect(() => {
-    const pendingEmail = localStorage.getItem("pendingVerifyEmail");
+    const pendingEmail = localStorage.getItem(STORAGE_KEYS.PENDING_VERIFY_EMAIL);
     
     // Nếu đang ở URL /verify-otp mà có email chờ xác thực
     if (initialScreen === "verify-otp" && pendingEmail) {
@@ -91,8 +92,8 @@ export function LoginPage({ initialScreen = "login" }) {
   // Persist state to localStorage for verify flow
   useEffect(() => {
     if (screen === "verify-otp" && email) {
-      localStorage.setItem("isVerifyingOTP", "true");
-      localStorage.setItem("pendingVerifyEmail", email);
+      localStorage.setItem(STORAGE_KEYS.IS_VERIFYING_OTP, "true");
+      localStorage.setItem(STORAGE_KEYS.PENDING_VERIFY_EMAIL, email);
     }
   }, [screen, email]);
 
@@ -118,8 +119,8 @@ export function LoginPage({ initialScreen = "login" }) {
       navigate("/dashboard");
     } catch (err) {
       if (err.message.includes("Account not activated")) {
-        localStorage.setItem("isVerifyingOTP", "true");
-        localStorage.setItem("pendingVerifyEmail", email);
+        localStorage.setItem(STORAGE_KEYS.IS_VERIFYING_OTP, "true");
+        localStorage.setItem(STORAGE_KEYS.PENDING_VERIFY_EMAIL, email);
         toast.info("Vui lòng xác thực email của bạn");
         navigate("/verify-otp");
       }
@@ -141,12 +142,11 @@ export function LoginPage({ initialScreen = "login" }) {
     setIsLoading(true);
     try {
       await register({ name: fullName, email, password, confirmPassword });
-      localStorage.setItem("isVerifyingOTP", "true");
-      localStorage.setItem("pendingVerifyEmail", email);
+      localStorage.setItem(STORAGE_KEYS.IS_VERIFYING_OTP, "true");
+      localStorage.setItem(STORAGE_KEYS.PENDING_VERIFY_EMAIL, email);
       
-      // Lưu mốc thời gian hết hạn để duy trì khi F5
       const expiry = Date.now() + 60 * 1000;
-      localStorage.setItem("resendTimerExpiry", expiry.toString());
+      localStorage.setItem(STORAGE_KEYS.RESEND_TIMER_EXPIRY, expiry.toString());
       setResendTimer(60);
       
       navigate("/verify-otp");
@@ -166,8 +166,8 @@ export function LoginPage({ initialScreen = "login" }) {
     setIsLoading(true);
     try {
       await verifyOTP(email, otp);
-      localStorage.removeItem("isVerifyingOTP");
-      localStorage.removeItem("pendingVerifyEmail");
+      localStorage.removeItem(STORAGE_KEYS.IS_VERIFYING_OTP);
+      localStorage.removeItem(STORAGE_KEYS.PENDING_VERIFY_EMAIL);
       // Sau khi verify thành công, chuyển sang trang /start để làm Onboarding
       navigate("/start");
     } catch (err) {
@@ -183,7 +183,7 @@ export function LoginPage({ initialScreen = "login" }) {
       await authService.resendOTP(email);
       toast.success("Mã mới đã được gửi!");
       const expiry = Date.now() + 60 * 1000;
-      localStorage.setItem("resendTimerExpiry", expiry.toString());
+      localStorage.setItem(STORAGE_KEYS.RESEND_TIMER_EXPIRY, expiry.toString());
       setResendTimer(60);
     } catch (err) {
       toast.error(err.message || "Gửi lại mã thất bại");

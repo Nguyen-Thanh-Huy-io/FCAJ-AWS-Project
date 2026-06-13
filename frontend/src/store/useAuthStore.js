@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import authService from '../services/auth.service';
 import profileService from '../services/profile.service';
 import { toast } from 'sonner';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 export const useAuthStore = create((set, get) => ({
   user: null,
@@ -63,7 +64,7 @@ export const useAuthStore = create((set, get) => ({
       await authService.logout();
     } finally {
       set({ user: null, isAuthenticated: false });
-      localStorage.removeItem('token');
+      localStorage.removeItem(STORAGE_KEYS.TOKEN);
       toast.info('Đã đăng xuất');
     }
   }

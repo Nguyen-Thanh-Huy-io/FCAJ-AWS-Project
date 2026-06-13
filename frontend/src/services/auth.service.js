@@ -1,4 +1,5 @@
 import apiService from './api';
+import { STORAGE_KEYS } from '../constants/storageKeys';
 
 class AuthService {
   async getGoogleLoginUrl() {
@@ -10,7 +11,7 @@ class AuthService {
     const response = await apiService.post('/auth/login', payload);
     const token = response.data.accessToken || response.data.token;
     if (token) {
-      localStorage.setItem('token', token);
+      localStorage.setItem(STORAGE_KEYS.TOKEN, token);
     }
     return response.data;
   }
@@ -24,7 +25,7 @@ class AuthService {
     const response = await apiService.post('/auth/verify-otp', payload);
     const token = response.data.accessToken || response.data.token;
     if (token) {
-      localStorage.setItem('token', token);
+      localStorage.setItem(STORAGE_KEYS.TOKEN, token);
     }
     return response.data;
   }
@@ -48,14 +49,14 @@ class AuthService {
     try {
       await apiService.post('/auth/logout');
     } finally {
-      localStorage.removeItem('token');
+      localStorage.removeItem(STORAGE_KEYS.TOKEN);
     }
   }
 
   async refreshToken() {
     const response = await apiService.post('/auth/refresh');
     if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
+      localStorage.setItem(STORAGE_KEYS.TOKEN, response.data.token);
     }
     return response.data;
   }
@@ -63,3 +64,4 @@ class AuthService {
 
 const authService = new AuthService();
 export default authService;
+

@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Wifi, Check, Mail, ChevronLeft, ArrowRight, Loader2, Lock } from "lucide-react";
 import authService from "../../services/auth.service";
 import { toast } from "sonner";
+import { STORAGE_KEYS } from "../../constants/storageKeys";
 
 function LeftPanel({ tagline, features }) {
   return (
@@ -57,13 +58,13 @@ export function ForgotPasswordPage() {
 
   // Restore timer from localStorage on mount
   useEffect(() => {
-    const timerExpiry = localStorage.getItem("forgotResendTimerExpiry");
+    const timerExpiry = localStorage.getItem(STORAGE_KEYS.FORGOT_RESEND_TIMER_EXPIRY);
     if (timerExpiry) {
       const remaining = Math.round((parseInt(timerExpiry) - Date.now()) / 1000);
       if (remaining > 0) {
         setResendTimer(remaining);
       } else {
-        localStorage.removeItem("forgotResendTimerExpiry");
+        localStorage.removeItem(STORAGE_KEYS.FORGOT_RESEND_TIMER_EXPIRY);
       }
     }
   }, []);
@@ -75,7 +76,7 @@ export function ForgotPasswordPage() {
         setResendTimer((prev) => prev - 1);
       }, 1000);
     } else {
-      localStorage.removeItem("forgotResendTimerExpiry");
+      localStorage.removeItem(STORAGE_KEYS.FORGOT_RESEND_TIMER_EXPIRY);
     }
     return () => clearInterval(interval);
   }, [resendTimer]);
@@ -89,7 +90,7 @@ export function ForgotPasswordPage() {
       setSubmitted(true);
       
       const expiry = Date.now() + 60 * 1000;
-      localStorage.setItem("forgotResendTimerExpiry", expiry.toString());
+      localStorage.setItem(STORAGE_KEYS.FORGOT_RESEND_TIMER_EXPIRY, expiry.toString());
       setResendTimer(60);
       
       toast.success("Mã khôi phục đã được gửi vào email của bạn!");

@@ -6,6 +6,7 @@ import { useDebounce } from "../../hooks/useDebounce";
 import { useBrand } from "../../context/BrandContext";
 import apiService from "../../services/api";
 import { toast } from "sonner";
+import { SYSTEM_ROLES, ASSIGNABLE_ROLES, TEAM_FILTER_ROLES, MEMBER_STATUS } from "../../constants/roles";
 
 const PRESET_COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#0A0A0A", "#6B7280"];
 
@@ -183,7 +184,7 @@ export function TeamManagementPage() {
             </div>
             
             <div className="flex items-center gap-2">
-              {["All", "Owner", "Admin", "Member"].map((r) => (
+              {TEAM_FILTER_ROLES.map((r) => (
                 <button
                   key={r}
                   onClick={() => updateFilters({ role: r })}
@@ -261,8 +262,8 @@ export function TeamManagementPage() {
                               </>
                             ) : (
                               <>
-                                <div className={`p-1.5 rounded-lg ${member.role === 'Owner' ? 'bg-purple-50 text-purple-600' : 'bg-gray-50 text-gray-600'}`}>
-                                  {member.role === 'Owner' || member.role === 'Admin' ? <Shield size={12} /> : <User size={12} />}
+                                <div className={`p-1.5 rounded-lg ${member.role === SYSTEM_ROLES.OWNER ? 'bg-purple-50 text-purple-600' : 'bg-gray-50 text-gray-600'}`}>
+                                  {member.role === SYSTEM_ROLES.OWNER || member.role === SYSTEM_ROLES.ADMIN ? <Shield size={12} /> : <User size={12} />}
                                 </div>
                                 <span className="text-[11px] font-bold text-[#0A0A0A]">{member.role}</span>
                               </>
@@ -271,7 +272,7 @@ export function TeamManagementPage() {
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                            member.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'
+                            member.status === MEMBER_STATUS.ACTIVE ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'
                           }`}>
                             {member.status}
                           </span>
@@ -279,7 +280,7 @@ export function TeamManagementPage() {
                         <td className="px-6 py-4 text-[11px] text-gray-500 font-medium">{member.joinedDate}</td>
                         <td className="px-6 py-4 text-[11px] text-gray-500 font-medium">{member.invitedBy}</td>
                         <td className="px-6 py-4 text-right">
-                          {member.role !== 'Owner' && (
+                          {member.role !== SYSTEM_ROLES.OWNER && (
                             <button 
                               onClick={() => { setSelectedMember(member); setIsRoleOpen(true); }}
                               className="p-2 text-gray-300 hover:text-black hover:bg-white rounded-xl transition-all opacity-0 group-hover:opacity-100"
@@ -418,7 +419,7 @@ function InviteModal({ isOpen, onClose, activeBrandId, customRoles = [], onInvit
   if (!isOpen) return null;
 
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("Member");
+  const [role, setRole] = useState(SYSTEM_ROLES.MEMBER);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInvite = async () => {
@@ -470,7 +471,7 @@ function InviteModal({ isOpen, onClose, activeBrandId, customRoles = [], onInvit
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Vai trò cộng tác</label>
             <div className="grid grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-1">
               {/* Static default options */}
-              {['Admin', 'Member', 'Analyst'].map((r) => (
+              {ASSIGNABLE_ROLES.map((r) => (
                 <button 
                   key={r} 
                   type="button"
@@ -583,7 +584,7 @@ function RoleModal({ isOpen, onClose, member, customRoles = [], onSuccess }) {
              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest font-sans">Chọn Vai trò</label>
              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                 {/* Default roles */}
-                {['Admin', 'Member', 'Analyst'].map((r) => (
+                {ASSIGNABLE_ROLES.map((r) => (
                    <button 
                      key={r} 
                      disabled={isUpdating}
