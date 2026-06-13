@@ -33,8 +33,8 @@ export function WeeklyCalendarView() {
     TWITTER: true
   });
   
-  // Center date of current selected week (Defaults to May 24, 2026 as per original system context)
-  const [selectedDate, setSelectedDate] = useState(new Date("2026-05-24"));
+  // Center date of current selected week (Defaults to current date)
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentTime, setCurrentTime] = useState(new Date());
   
   // Custom Hook for Drive Imports (SOLID/SRP)
