@@ -129,7 +129,9 @@ export function usePostCreatorForm() {
 
     const isVid = videoFileUrl.endsWith(".mp4") || 
                   videoFileUrl.endsWith(".mov") || 
-                  videoFileUrl.endsWith(".avi") || 
+                  videoFileUrl.endsWith(".avi") ||
+                  videoFileUrl.endsWith(".webm") ||
+                  videoFileUrl.includes('/video/upload/') || // Cloudinary video URL
                   (videoFile && videoFile.type.startsWith("video/"));
     if (!isVid) {
       setVideoDuration(0);
@@ -158,9 +160,12 @@ export function usePostCreatorForm() {
       return errors; // Templates do not require scheduled dates or media uploads
     }
 
-    const isPastDate = new Date(scheduledDate).getTime() < Date.now() - 60000;
-    if (isPastDate) {
-      errors.push("Publish date can't be a past date.");
+    // Chỉ validate ngày khi người dùng chọn schedule, không check khi publish now
+    if (selectedPublishId !== 'now') {
+      const isPastDate = new Date(scheduledDate).getTime() < Date.now() - 60000;
+      if (isPastDate) {
+        errors.push("Publish date can't be a past date.");
+      }
     }
 
     const isVid = videoFileUrl && (
@@ -177,8 +182,9 @@ export function usePostCreatorForm() {
         } else if (!isVid) {
           errors.push("Facebook Reel must be a video file.");
         } else {
-          if (videoDuration > 0 && (videoDuration < 3 || videoDuration > 90)) {
-            errors.push(`Facebook Reels must be between 3 and 90 seconds. (Current: ${videoDuration.toFixed(1)}s)`);
+          // Facebook Reels: tối thiểu 3s, tối đa 900s (15 phút) theo Facebook API hiện tại
+          if (videoDuration > 0 && (videoDuration < 3 || videoDuration > 900)) {
+            errors.push(`Facebook Reels must be between 3 seconds and 15 minutes. (Current: ${videoDuration.toFixed(1)}s)`);
           }
           if (videoWidth > 0 && videoHeight > 0 && videoWidth >= videoHeight) {
             errors.push(`Facebook Reels must be vertical (9:16 aspect ratio). Current ratio is horizontal or square.`);

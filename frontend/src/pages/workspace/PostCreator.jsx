@@ -19,6 +19,7 @@ import { GoogleDrivePickerModal } from "../../components/workspace/post-creator/
 import { MediaUploadModal } from "../../components/workspace/post-creator/MediaUploadModal";
 import { ImageEditorModal } from "../../components/workspace/post-creator/ImageEditorModal";
 import { AltTextModal } from "../../components/workspace/post-creator/AltTextModal";
+import { HashtagPickerPopover } from "../../components/workspace/post-creator/HashtagPickerPopover";
 import { toast } from "sonner";
 
 const PUBLISH_OPTIONS = [
@@ -573,6 +574,23 @@ export function PostCreatorPage() {
                                 insertAtCursor(utmUrl);
                                 setActivePopover(null);
                               }}
+                              onClose={() => setActivePopover(null)}
+                            />
+                          )}
+                        </div>
+
+                        {/* Hashtag Button */}
+                        <div className="relative">
+                          <button 
+                            onClick={() => setActivePopover(activePopover === 'hashtag' ? null : 'hashtag')}
+                            className={`text-gray-400 hover:text-black transition-colors p-1.5 rounded-lg cursor-pointer ${activePopover === 'hashtag' ? 'bg-gray-100 text-black' : ''}`}
+                            title="Insert Hashtags"
+                          >
+                            <Search size={18} />
+                          </button>
+                          {activePopover === 'hashtag' && (
+                            <HashtagPickerPopover
+                              onInsert={(text) => insertAtCursor(text)}
                               onClose={() => setActivePopover(null)}
                             />
                           )}

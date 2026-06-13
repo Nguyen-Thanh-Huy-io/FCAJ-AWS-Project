@@ -222,12 +222,11 @@ class FacebookGateway {
   }
 
   async publishPhoto(pageId, pageAccessToken, mediaUrl, caption) {
-    const localPath = this._resolveLocalPath(mediaUrl);
+    const { buffer, filename } = await this._getMediaBuffer(mediaUrl);
     
     const formData = new FormData();
-    const fileBuffer = fs.readFileSync(localPath);
-    const blob = new Blob([fileBuffer]);
-    formData.append('source', blob, path.basename(localPath));
+    const blob = new Blob([buffer]);
+    formData.append('source', blob, filename);
     if (caption) formData.append('message', caption);
     formData.append('access_token', pageAccessToken);
 
@@ -242,12 +241,11 @@ class FacebookGateway {
   }
 
   async publishVideo(pageId, pageAccessToken, mediaUrl, title, description) {
-    const localPath = this._resolveLocalPath(mediaUrl);
+    const { buffer, filename } = await this._getMediaBuffer(mediaUrl);
 
     const formData = new FormData();
-    const fileBuffer = fs.readFileSync(localPath);
-    const blob = new Blob([fileBuffer]);
-    formData.append('source', blob, path.basename(localPath));
+    const blob = new Blob([buffer]);
+    formData.append('source', blob, filename);
     if (title) formData.append('title', title);
     if (description) formData.append('description', description);
     formData.append('access_token', pageAccessToken);
@@ -263,15 +261,13 @@ class FacebookGateway {
   }
 
   async publishReel(pageId, pageAccessToken, mediaUrl, caption) {
-    const localPath = this._resolveLocalPath(mediaUrl);
-
     try {
       const startUrl = `${this.graphBaseUrl}/${pageId}/video_reels?upload_phase=start&access_token=${pageAccessToken}`;
       const startRes = await fetch(startUrl, { method: 'POST' });
       if (!startRes.ok) throw new Error('Failed to start Reel upload session');
       
       const { video_id, upload_url } = await startRes.json();
-      const fileBuffer = fs.readFileSync(localPath);
+      const { buffer: fileBuffer } = await this._getMediaBuffer(mediaUrl);
       
       const uploadRes = await fetch(upload_url, {
         method: 'POST',
@@ -296,14 +292,13 @@ class FacebookGateway {
   }
 
   async publishStory(pageId, pageAccessToken, mediaUrl, caption) {
-    const localPath = this._resolveLocalPath(mediaUrl);
-    const isVideo = MEDIA_EXTENSIONS.VIDEO.some(ext => mediaUrl.toLowerCase().endsWith(ext));
+    const isVideo = MEDIA_EXTENSIONS.VIDEO.some(ext => mediaUrl.toLowerCase().includes(ext));
 
     try {
+      const { buffer, filename } = await this._getMediaBuffer(mediaUrl);
       const formData = new FormData();
-      const fileBuffer = fs.readFileSync(localPath);
-      const blob = new Blob([fileBuffer]);
-      formData.append('source', blob, path.basename(localPath));
+      const blob = new Blob([buffer]);
+      formData.append('source', blob, filename);
       formData.append('published', 'false');
       formData.append('access_token', pageAccessToken);
 
@@ -332,12 +327,49 @@ class FacebookGateway {
 
   // ============= Private Helper Methods =============
 
+  /**
+   * Resolve mediaUrl thành local file path.
+   * Nếu là Cloudinary URL (http/https), throw lỗi gợi ý dùng _getMediaBuffer.
+   * Nếu là relative path, join với cwd().
+   */
   _resolveLocalPath(mediaUrl) {
+    // Nếu là URL (Cloudinary, S3, ...) thì không xử lý như local path
+    if (mediaUrl.startsWith('http://') || mediaUrl.startsWith('https://')) {
+      throw new Error(`_resolveLocalPath: mediaUrl là remote URL, hãy dùng _getMediaBuffer(). URL: ${mediaUrl}`);
+    }
+
     const localPath = path.join(process.cwd(), mediaUrl.startsWith('/') ? mediaUrl.substring(1) : mediaUrl);
     if (!fs.existsSync(localPath)) {
       throw new Error(`Media file not found at ${localPath}`);
     }
     return localPath;
+  }
+
+  /**
+   * Lấy Buffer từ mediaUrl — hỗ trợ cả local path lẫn remote URL (Cloudinary, v.v.)
+   * @param {string} mediaUrl
+   * @returns {Promise<{ buffer: Buffer, filename: string }>}
+   */
+  async _getMediaBuffer(mediaUrl) {
+    const isRemote = mediaUrl.startsWith('http://') || mediaUrl.startsWith('https://');
+    if (isRemote) {
+      const res = await fetch(mediaUrl);
+      if (!res.ok) {
+        throw new Error(`Failed to download media from URL: ${mediaUrl} (status ${res.status})`);
+      }
+      const arrayBuffer = await res.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      // Lấy filename từ URL (phần cuối path, bỏ query string)
+      const urlPath = new URL(mediaUrl).pathname;
+      const filename = path.basename(urlPath) || 'media';
+      return { buffer, filename };
+    } else {
+      const localPath = path.join(process.cwd(), mediaUrl.startsWith('/') ? mediaUrl.substring(1) : mediaUrl);
+      if (!fs.existsSync(localPath)) {
+        throw new Error(`Media file not found at ${localPath}`);
+      }
+      return { buffer: fs.readFileSync(localPath), filename: path.basename(localPath) };
+    }
   }
 }
 

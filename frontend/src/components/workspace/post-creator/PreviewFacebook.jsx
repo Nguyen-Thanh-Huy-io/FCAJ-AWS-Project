@@ -14,7 +14,14 @@ export function PreviewFacebook({
   imageTransform = null
 }) {
   const displayCaption = caption || "What's on your mind?";
-  const isVideo = videoFileUrl && (videoFileUrl.endsWith('.mp4') || videoFileUrl.endsWith('.mov') || videoFileUrl.endsWith('.avi'));
+  // Detect video: kiểm tra extension hoặc Cloudinary video path (/video/upload/)
+  const isVideo = videoFileUrl && (
+    videoFileUrl.endsWith('.mp4') || 
+    videoFileUrl.endsWith('.mov') || 
+    videoFileUrl.endsWith('.avi') ||
+    videoFileUrl.endsWith('.webm') ||
+    videoFileUrl.includes('/video/upload/')  // Cloudinary video URL
+  );
 
   const getImageStyle = (transform) => {
     if (!transform) return {};
@@ -294,12 +301,7 @@ export function PreviewFacebook({
           </div>
         </div>
 
-        {/* Text Story Caption - Floats visually over the story container */}
-        <div className="relative z-20 p-4 mt-auto mb-14 text-center">
-          <p className="text-sm font-black drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] leading-snug whitespace-pre-wrap">
-            {displayCaption}
-          </p>
-        </div>
+
 
         {/* Bottom Send message bar */}
         <div className="relative z-20 p-3 flex items-center gap-3 border-t border-white/10 bg-black/20 backdrop-blur-md">
