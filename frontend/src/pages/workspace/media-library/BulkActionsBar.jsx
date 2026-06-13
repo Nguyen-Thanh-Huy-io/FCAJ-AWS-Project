@@ -1,7 +1,9 @@
 import React from "react";
 import { X } from "lucide-react";
+import { useConfirm } from "@/hooks/useConfirm";
 
 export function BulkActionsBar({ selected, clearSelection, onDelete }) {
+  const confirm = useConfirm();
   if (selected.size === 0) return null;
 
   return (
@@ -20,8 +22,15 @@ export function BulkActionsBar({ selected, clearSelection, onDelete }) {
       <span style={{ fontSize: 12, color: "#FFF" }}>{selected.size} items selected</span>
       <div style={{ flex: 1 }} />
       <button
-        onClick={() => {
-          if (window.confirm(`Delete ${selected.size} items?`)) {
+        onClick={async () => {
+          const isConfirmed = await confirm({
+            title: "Delete Items?",
+            description: `Delete ${selected.size} items?`,
+            confirmText: "Delete",
+            cancelText: "Cancel",
+            variant: "destructive"
+          });
+          if (isConfirmed) {
             onDelete();
           }
         }}

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Plus, X, Check, Settings2, Edit3, Trash2, Box, Layers, Globe, Zap, Megaphone, Loader2 } from "lucide-react";
 import apiService from "../../services/api";
 import { toast } from "sonner";
+import { useConfirm } from "@/hooks/useConfirm";
 
 // For this MVP, we'll keep products static since there's no model for them yet
 const AVAILABLE_PRODUCTS = [
@@ -188,6 +189,7 @@ function PlanModal({ isOpen, onClose, onSave, plan = null, availableLimits = [] 
 }
 
 export function AdminPricing() {
+  const confirm = useConfirm();
   const [plans, setPlans] = useState([]);
   const [limits, setLimits] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -237,7 +239,14 @@ export function AdminPricing() {
   };
 
   const deletePlan = async (id) => {
-    if(window.confirm("Are you sure you want to deactivate this plan? This will affect subscribers.")) {
+    const isConfirmed = await confirm({
+      title: "Deactivate Plan?",
+      description: "Are you sure you want to deactivate this plan? This will affect subscribers.",
+      confirmText: "Deactivate",
+      cancelText: "Cancel",
+      variant: "destructive"
+    });
+    if (isConfirmed) {
       try {
         await apiService.delete(`/admin/pricing/${id}`);
         toast.success("Plan deactivated successfully");

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import socialService from '../../../../services/social.service';
 import { toast } from 'sonner';
+import { useConfirm } from "@/hooks/useConfirm";
 
 // Custom icons mapping for category folders matching the screenshot design
 const FOLDERS = [
@@ -122,6 +123,7 @@ const INTEGRATIONS = [
 ];
 
 export function SidebarIntegrations({ activeBrand }) {
+  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState('drive');
   const [files, setFiles] = useState([]);
   const [connected, setConnected] = useState(false);
@@ -281,7 +283,14 @@ export function SidebarIntegrations({ activeBrand }) {
 
   const handleDisconnect = async () => {
     if (!activeBrand) return;
-    if (!window.confirm("Are you sure you want to disconnect Google Drive & YouTube?")) return;
+    const isConfirmed = await confirm({
+      title: "Disconnect Google Account?",
+      description: "Are you sure you want to disconnect Google Drive & YouTube?",
+      confirmText: "Disconnect",
+      cancelText: "Cancel",
+      variant: "destructive"
+    });
+    if (!isConfirmed) return;
     setLoading(true);
     try {
       await socialService.disconnectGoogleAccount(activeBrand.id);

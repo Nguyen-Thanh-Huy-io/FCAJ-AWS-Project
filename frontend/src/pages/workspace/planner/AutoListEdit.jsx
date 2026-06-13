@@ -10,6 +10,7 @@ import socialService from "../../../services/social.service";
 import autoListService from "../../../services/auto-list.service";
 import postService from "../../../services/post.service";
 import { toast } from "sonner";
+import { useConfirm } from "@/hooks/useConfirm";
 
 // Import Refactored Subcomponents
 import { AutoListHeader } from "./components/autolist/AutoListHeader";
@@ -31,6 +32,7 @@ const PLATFORM_ICONS = {
 export function AutoListEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const isNew = id === "new";
 
   // Form states
@@ -218,7 +220,14 @@ export function AutoListEdit() {
   };
 
   const handleDeleteList = async () => {
-    if (!window.confirm("Are you sure you want to delete this autolist? All queued posts will be orphaned.")) return;
+    const isConfirmed = await confirm({
+      title: "Delete Autolist?",
+      description: "Are you sure you want to delete this autolist? All queued posts will be orphaned.",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      variant: "destructive"
+    });
+    if (!isConfirmed) return;
     try {
       await autoListService.deleteAutoList(id);
       toast.success("Autolist deleted");
@@ -319,7 +328,14 @@ export function AutoListEdit() {
   };
 
   const handleDeletePost = async (postId) => {
-    if (!window.confirm("Remove this post from the queue?")) return;
+    const isConfirmed = await confirm({
+      title: "Remove post?",
+      description: "Remove this post from the queue?",
+      confirmText: "Remove",
+      cancelText: "Cancel",
+      variant: "destructive"
+    });
+    if (!isConfirmed) return;
     try {
       await postService.deletePosts(activeBrand.id, [postId]);
       toast.success("Post removed from queue");

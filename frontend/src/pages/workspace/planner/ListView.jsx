@@ -12,6 +12,7 @@ import postService from "../../../services/post.service";
 import { useBrand } from "../../../context/BrandContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useConfirm } from "@/hooks/useConfirm";
 
 const STATUS_STYLE = {
   published: "bg-green-50 text-green-700 border-green-100",
@@ -24,6 +25,7 @@ const STATUS_STYLE = {
 };
 
 export function ListView() {
+  const confirm = useConfirm();
   const [selected, setSelected] = useState([]);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +77,14 @@ export function ListView() {
 
   const handleBulkDelete = async () => {
     if (!activeBrand || selected.length === 0) return;
-    if (!confirm(`Are you sure you want to delete ${selected.length} posts?`)) return;
+    const isConfirmed = await confirm({
+      title: "Delete Posts?",
+      description: `Are you sure you want to delete ${selected.length} posts?`,
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      variant: "destructive"
+    });
+    if (!isConfirmed) return;
     
     try {
       await postService.deletePosts(activeBrand.id, selected);
@@ -101,7 +110,14 @@ export function ListView() {
 
   const handleDeletePost = async (id) => {
     if (!activeBrand) return;
-    if (!confirm(`Are you sure you want to delete this post?`)) return;
+    const isConfirmed = await confirm({
+      title: "Delete Post?",
+      description: "Are you sure you want to delete this post?",
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      variant: "destructive"
+    });
+    if (!isConfirmed) return;
     
     try {
       await postService.deletePosts(activeBrand.id, [id]);

@@ -22,6 +22,7 @@ import { Input } from "../../../components/ui/input";
 import { Button } from "../../../components/ui/button";
 import { toast } from "sonner";
 import CompetitorStatsModal from './CompetitorStatsModal';
+import { useConfirm } from "@/hooks/useConfirm";
 
 export function CompetitorsTab({
   isCompetitorModalOpen,
@@ -36,6 +37,7 @@ export function CompetitorsTab({
   isCompetitorLoading,
   competitors
 }) {
+  const confirm = useConfirm();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [favorites, setFavorites] = useState({});
@@ -225,8 +227,15 @@ export function CompetitorsTab({
                               </DropdownMenuItem>
                               <DropdownMenuSeparator className="bg-gray-100 my-1" />
                               <DropdownMenuItem 
-                                onClick={() => {
-                                  if (confirm("Are you sure you want to delete this competitor?")) {
+                                onClick={async () => {
+                                  const isConfirmed = await confirm({
+                                    title: "Delete Competitor?",
+                                    description: "Are you sure you want to delete this competitor?",
+                                    confirmText: "Delete",
+                                    cancelText: "Cancel",
+                                    variant: "destructive"
+                                  });
+                                  if (isConfirmed) {
                                     handleDeleteCompetitor(comp.id);
                                   }
                                 }}

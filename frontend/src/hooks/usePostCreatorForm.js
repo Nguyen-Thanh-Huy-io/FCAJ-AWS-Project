@@ -8,6 +8,8 @@ import { DEFAULT_PLATFORM, PLATFORMS } from "../constants/platforms";
 import { POST_STATUS, PUBLISH_MODE, PUBLISH_MODE_TO_STATUS, STATUS_TO_PUBLISH_MODE } from "../constants/postStatus";
 import { POST_TYPE, YOUTUBE_TYPE, FACEBOOK_TYPE, TIKTOK_PRIVACY, APPROVAL_POLICY, YOUTUBE_DEFAULT_CATEGORY_ID } from "../constants/postTypes";
 import { buildMediaUrl, isVideoPath } from "../utils/url";
+import { validatePostForm } from "@/utils/postValidation";
+import { logger } from "@/utils/logger";
 
 const toLocalDatetimeString = (dateInput) => {
   if (!dateInput) return "";
@@ -108,7 +110,7 @@ export function usePostCreatorForm() {
           setSelectedReviewerIds([list[0].id]);
         }
       } catch (err) {
-        console.error("Failed to fetch potential reviewers:", err);
+        logger.error("Failed to fetch potential reviewers:", err);
       } finally {
         setIsLoadingReviewers(false);
       }
@@ -154,68 +156,20 @@ export function usePostCreatorForm() {
 
   // Validation function
   const getValidationErrors = () => {
-    const errors = [];
-    if (isLibrary) {
-      return errors; // Templates do not require scheduled dates or media uploads
-    }
-
-    // Chỉ validate ngày khi người dùng chọn schedule, không check khi publish now
-    if (selectedPublishId !== 'now') {
-      const isPastDate = new Date(scheduledDate).getTime() < Date.now() - 60000;
-      if (isPastDate) {
-        errors.push("Publish date can't be a past date.");
-      }
-    }
-
-    const isVid = isVideoPath(videoFileUrl, videoFile);
-
-    if (activePlatform === "facebook") {
-      if (facebookType === "reel") {
-        if (!uploadedVideoPath && !videoFile) {
-          errors.push("Reel -> Add at least 1 video.");
-        } else if (!isVid) {
-          errors.push("Facebook Reel must be a video file.");
-        } else {
-          // Facebook Reels: tối thiểu 3s, tối đa 900s (15 phút) theo Facebook API hiện tại
-          if (videoDuration > 0 && (videoDuration < 3 || videoDuration > 900)) {
-            errors.push(`Facebook Reels must be between 3 seconds and 15 minutes. (Current: ${videoDuration.toFixed(1)}s)`);
-          }
-          if (videoWidth > 0 && videoHeight > 0 && videoWidth >= videoHeight) {
-            errors.push(`Facebook Reels must be vertical (9:16 aspect ratio). Current ratio is horizontal or square.`);
-          }
-        }
-      }
-      if (facebookType === "story") {
-        if (!uploadedVideoPath && !videoFile) {
-          errors.push("Auto publish (story) -> Add at least 1 image or video.");
-        } else if (isVid) {
-          if (videoDuration > 15) {
-            errors.push(`Facebook Story videos should be 15 seconds or less. (Current: ${videoDuration.toFixed(1)}s)`);
-          }
-          if (videoWidth > 0 && videoHeight > 0 && videoWidth >= videoHeight) {
-            errors.push(`Facebook Story videos should be vertical (9:16 aspect ratio).`);
-          }
-        }
-      }
-    } else if (activePlatform === "youtube") {
-      if (!uploadedVideoPath && !videoFile) {
-        errors.push("YouTube -> Add at least 1 video.");
-      } else if (!isVid) {
-        errors.push("YouTube publication must be a video file.");
-      } else if (youtubeType === "short") {
-        if (videoDuration > 60) {
-          errors.push(`YouTube Shorts must be 60 seconds or less. (Current: ${videoDuration.toFixed(1)}s)`);
-        }
-        if (videoWidth > 0 && videoHeight > 0 && videoWidth > videoHeight) {
-          errors.push(`YouTube Shorts must be vertical or square. Current ratio is horizontal.`);
-        }
-      }
-    } else if (activePlatform === "tiktok") {
-      if (!uploadedVideoPath && !videoFile) {
-        errors.push("TikTok -> Add at least 1 image or video.");
-      }
-    }
-    return errors;
+    return validatePostForm({
+      isLibrary,
+      selectedPublishId,
+      scheduledDate,
+      activePlatform,
+      facebookType,
+      youtubeType,
+      videoFileUrl,
+      videoFile,
+      videoDuration,
+      videoWidth,
+      videoHeight,
+      uploadedVideoPath
+    });
   };
 
   // Playlists fetched data
@@ -266,7 +220,7 @@ export function usePostCreatorForm() {
       toast.success("Video uploaded successfully");
     } catch (err) {
       toast.error("Failed to upload video to server");
-      console.error(err);
+      logger.error("Failed to upload video to server", err);
     } finally {
       setIsUploadingVideo(false);
     }
@@ -306,7 +260,7 @@ export function usePostCreatorForm() {
         throw new Error("Invalid response received from import service");
       }
     } catch (err) {
-      console.error(err);
+      logger.error("Google Drive Import failed", err);
       toast.error(`Import failed: ${err.message}`, { id: 'import-drive-toast' });
     } finally {
       setIsUploadingVideo(false);
@@ -324,7 +278,7 @@ export function usePostCreatorForm() {
         toast.success("YouTube Playlists synchronized successfully");
       }
     } catch (err) {
-      console.error("Failed to load playlists:", err);
+      logger.error("Failed to load playlists:", err);
       if (forceRefresh) {
         toast.error("Failed to synchronize playlists");
       }

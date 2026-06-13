@@ -1,9 +1,11 @@
 import React from "react";
 import { X, Calendar, FileText, Maximize2, Trash2, ExternalLink } from "lucide-react";
 import { usePostCreator } from "../../../context/PostCreatorContext";
+import { useConfirm } from "@/hooks/useConfirm";
 
 export function MediaDetailPanel({ detail, setDetail, onDelete }) {
   const { openPostCreator } = usePostCreator();
+  const confirm = useConfirm();
   if (!detail) return null;
 
   return (
@@ -92,8 +94,15 @@ export function MediaDetailPanel({ detail, setDetail, onDelete }) {
             </button>
             <button
               className="w-full py-3 bg-white hover:bg-red-50 text-red-500 text-[11px] font-black uppercase tracking-widest rounded-xl border border-red-100 transition-all flex items-center justify-center gap-2"
-              onClick={() => {
-                if(window.confirm("Are you sure you want to delete this file?")) {
+              onClick={async () => {
+                const isConfirmed = await confirm({
+                  title: "Delete File?",
+                  description: "Are you sure you want to delete this file?",
+                  confirmText: "Delete",
+                  cancelText: "Cancel",
+                  variant: "destructive"
+                });
+                if (isConfirmed) {
                   onDelete(detail.id);
                 }
               }}

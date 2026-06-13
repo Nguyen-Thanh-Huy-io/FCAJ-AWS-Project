@@ -9,10 +9,12 @@ import {
 import profileService from "../../services/profile.service";
 import apiService from "../../services/api";
 import { toast } from "sonner";
+import { useConfirm } from "@/hooks/useConfirm";
 
 export function SettingsPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState("account");
 
   // State for form fields
@@ -103,7 +105,14 @@ export function SettingsPage() {
   };
 
   const handleUnlink = async (provider) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn hủy liên kết tài khoản ${provider}?`)) return;
+    const isConfirmed = await confirm({
+      title: "Hủy liên kết tài khoản?",
+      description: `Bạn có chắc chắn muốn hủy liên kết tài khoản ${provider}?`,
+      confirmText: "Hủy liên kết",
+      cancelText: "Hủy",
+      variant: "destructive"
+    });
+    if (!isConfirmed) return;
     try {
       await apiService.delete(`/profile/accounts/${provider.toLowerCase()}`);
       toast.success(`Hủy liên kết tài khoản ${provider} thành công!`);

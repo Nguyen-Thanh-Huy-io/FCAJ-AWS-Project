@@ -8,8 +8,10 @@ import postService from "../../../services/post.service";
 import { useBrand } from "../../../context/BrandContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useConfirm } from "@/hooks/useConfirm";
 
 export function HistoryView() {
+  const confirm = useConfirm();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const { activeBrand } = useBrand();
@@ -46,7 +48,14 @@ export function HistoryView() {
   };
 
   const handleEmptyTrash = async () => {
-    if (!confirm("Are you sure you want to permanently delete all posts in trash? This cannot be undone.")) return;
+    const isConfirmed = await confirm({
+      title: "Empty Trash?",
+      description: "Are you sure you want to permanently delete all posts in trash? This cannot be undone.",
+      confirmText: "Empty Trash",
+      cancelText: "Cancel",
+      variant: "destructive"
+    });
+    if (!isConfirmed) return;
     try {
       await postService.emptyTrash(activeBrand.id);
       toast.success("Trash emptied");
