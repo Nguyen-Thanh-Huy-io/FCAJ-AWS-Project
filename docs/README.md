@@ -43,6 +43,7 @@ Chào mừng bạn đến với hệ thống tài liệu kỹ thuật của dự
 
 #### ⏳ Hàng đợi & Lập lịch xuất bản (Scheduling & Workspace)
 *   [Hệ thống lập lịch bài đăng tự động (AutoLists Backend)](./backend/workspace/AUTOLISTS.md)
+*   [Kiến trúc Quản lý thành viên & Phân quyền Backend](./backend/workspace/TEAM_MANAGEMENT.md)
 
 #### 📂 Quản lý Đa phương tiện (Media)
 *   [Quản lý thư viện Media (Media Library)](./backend/media/MEDIA_LIBRARY_IMPLEMENTATION.md)
@@ -73,6 +74,7 @@ Chào mừng bạn đến với hệ thống tài liệu kỹ thuật của dự
     *   `MediaLibrary.jsx`, `LiveSetup.jsx` & `LiveMonitor.jsx` — [Livestream & Thư viện Media](./frontend/workspace/LIVE_AND_MEDIA.md) (Quản lý media, cấu hình livestream RTMP và monitor).
     *   `AIAssistant.jsx` — Tích hợp trợ lý AI để tạo caption và gợi ý hashtag.
     *   `Pricing.jsx` & `Settings.jsx` — [Cài đặt & Gói cước](./frontend/admin/SETTINGS_AND_PRICING.md) (Cấu hình Brand, thành viên, và nâng cấp gói cước).
+    *   `TeamManagement.jsx` & `InviteFlow.jsx` — [Quản lý Đội ngũ & Phân quyền](./frontend/workspace/TEAM_MANAGEMENT.md) (Bảng thành viên, lời mời JWT, kích hoạt tài khoản Shell User).
 
 ---
 *Tài liệu này được cập nhật tự động và phân loại khoa học theo các mô-đun (modules) thực tế của ứng dụng PubliCast.*

@@ -110,7 +110,12 @@ export function WeeklyGrid({
         name: d.toLocaleDateString('en-US', { weekday: 'long' }),
         shortName: d.toLocaleDateString('en-US', { weekday: 'short' }),
         date: d.getDate(),
-        full: d.toISOString().split('T')[0],
+        full: (() => {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        })(),
         isSelected,
         isToday,
         raw: d

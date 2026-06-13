@@ -1,0 +1,33 @@
+const authorizationFacade = require('../services/auth/authorization.facade');
+
+/**
+ * Middleware to check if the user has a specific permission
+ * @param {string} permissionKey - e.g., 'CREATE_POSTS', 'MANAGE_ROLES'
+ */
+const checkPermission = (permissionKey) => {
+  return async (req, res, next) => {
+    // Extract brandId from params, query, or request body
+    const brandId = req.params.brandId || req.query.brandId || req.body.brandId;
+    const userId = req.user?.id;
+
+    if (!brandId) {
+      return res.status(400).json({ message: 'Không tìm thấy thông tin thương hiệu (brandId).' });
+    }
+
+    if (!userId) {
+      return res.status(401).json({ message: 'Không thể xác thực danh tính người dùng.' });
+    }
+
+    try {
+      const hasAccess = await authorizationFacade.checkPermission(userId, brandId, permissionKey);
+      if (!hasAccess) {
+        return res.status(403).json({ message: 'Bạn không có quyền thực hiện thao tác này.' });
+      }
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+};
+
+module.exports = checkPermission;

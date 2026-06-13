@@ -83,6 +83,42 @@ export function usePostCreatorForm() {
   const [videoWidth, setVideoWidth] = useState(0);
   const [videoHeight, setVideoHeight] = useState(0);
 
+  // Approval Workflow states
+  const [potentialReviewers, setPotentialReviewers] = useState([]);
+  const [selectedReviewerId, setSelectedReviewerId] = useState("");
+  const [selectedReviewerIds, setSelectedReviewerIds] = useState([]);
+  const [approvalPolicy, setApprovalPolicy] = useState("AT_LEAST_ONE");
+  const [requesterNote, setRequesterNote] = useState("Vui lòng phê duyệt bài viết này.");
+  const [isLoadingReviewers, setIsLoadingReviewers] = useState(false);
+
+  useEffect(() => {
+    const fetchReviewers = async () => {
+      if (!activeBrand?.id) return;
+      setIsLoadingReviewers(true);
+      try {
+        const res = await apiService.get(`/brands/${activeBrand.id}/workflows/reviewers`);
+        const list = res.data?.data || [];
+        setPotentialReviewers(list);
+        if (list.length > 0) {
+          setSelectedReviewerId(list[0].id);
+          setSelectedReviewerIds([list[0].id]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch potential reviewers:", err);
+      } finally {
+        setIsLoadingReviewers(false);
+      }
+    };
+
+    if (isOpen && activeBrand?.id) {
+      fetchReviewers();
+    } else {
+      setPotentialReviewers([]);
+      setSelectedReviewerId("");
+      setSelectedReviewerIds([]);
+    }
+  }, [isOpen, activeBrand?.id]);
+
   useEffect(() => {
     if (!videoFileUrl) {
       setVideoDuration(0);
@@ -315,6 +351,19 @@ export function usePostCreatorForm() {
         setScheduledDate(editingPost.scheduledAt ? toLocalDatetimeString(editingPost.scheduledAt) : toLocalDatetimeString(new Date()));
         setIsLibrary(editingPost.isLibrary || false);
         
+        // Also set selectedPublishId based on post status
+        if (editingPost.status === 'PUBLISHED') {
+          setSelectedPublishId('now');
+        } else if (editingPost.status === 'SCHEDULED') {
+          setSelectedPublishId('schedule');
+        } else if (editingPost.status === 'PENDING_APPROVAL') {
+          setSelectedPublishId('review');
+        } else if (editingPost.status === 'DRAFT') {
+          setSelectedPublishId('draft');
+        } else {
+          setSelectedPublishId('now');
+        }
+        
         // Setup options
         const opts = editingPost.options || {};
         setYoutubeType(opts.youtubeType || "video");
@@ -361,6 +410,7 @@ export function usePostCreatorForm() {
         setActivePlatform(templatePost.platforms?.[0]?.toLowerCase() || "youtube");
         setScheduledDate(defaultScheduledAt ? toLocalDatetimeString(defaultScheduledAt) : toLocalDatetimeString(new Date()));
         setIsLibrary(initialIsLibrary || false);
+        setSelectedPublishId(defaultScheduledAt ? "schedule" : "now");
         
         // Setup options
         const opts = templatePost.options || {};
@@ -407,6 +457,7 @@ export function usePostCreatorForm() {
         setActivePlatform("youtube");
         setScheduledDate(defaultScheduledAt ? toLocalDatetimeString(defaultScheduledAt) : toLocalDatetimeString(new Date()));
         setIsLibrary(initialIsLibrary || false);
+        setSelectedPublishId(defaultScheduledAt ? "schedule" : "now");
         setYoutubeType("video");
         setYoutubeTitle("");
         setYoutubeMadeForKids(false);
@@ -522,8 +573,11 @@ export function usePostCreatorForm() {
         isLibrary,
         altText,
         targetPlatforms: [activePlatform.toUpperCase()],
-        scheduledAt: new Date(scheduledDate).toISOString(),
+        scheduledAt: selectedPublishId === 'now' ? null : (scheduledDate ? new Date(scheduledDate).toISOString() : null),
         mediaUrls: uploadedVideoPath ? [uploadedVideoPath] : [],
+        reviewerIds: selectedReviewerIds,
+        approvalPolicy: approvalPolicy,
+        requesterNote: requesterNote || "Vui lòng phê duyệt bài viết này.",
         options: {
           youtubeType,
           youtubeTitle,
@@ -674,6 +728,17 @@ export function usePostCreatorForm() {
     setTiktokAiGenerated,
     tiktokCommercialContent,
     setTiktokCommercialContent,
-    loadTemplate
+    loadTemplate,
+    // Approval Workflow States
+    potentialReviewers,
+    selectedReviewerId,
+    setSelectedReviewerId,
+    selectedReviewerIds,
+    setSelectedReviewerIds,
+    approvalPolicy,
+    setApprovalPolicy,
+    requesterNote,
+    setRequesterNote,
+    isLoadingReviewers
   };
 }

@@ -31,6 +31,9 @@ const mediaFolderRoutes = require('./routes/workspace/media-folder.routes');
 const teamRoutes = require('./routes/workspace/team.routes');
 const brandRoutes = require('./routes/workspace/brand.routes');
 const autoListRoutes = require('./routes/workspace/auto-list.routes');
+const roleRoutes = require('./routes/workspace/role.routes');
+const permissionRoutes = require('./routes/workspace/permission.routes');
+const approvalWorkflowRoutes = require('./routes/workspace/approval-workflow.routes');
 
 // Routes - Core Domain
 const searchRoutes = require('./routes/core/search.routes');
@@ -123,6 +126,9 @@ app.use('/api/admin/revenue', revenueRoutes);
 app.use('/api/admin/products', productRoutes);
 app.use('/api/social', socialRoutes);
 app.use('/api/brands', brandRoutes);
+app.use('/api/brands/:brandId/roles', roleRoutes);
+app.use('/api/brands/:brandId/workflows', approvalWorkflowRoutes);
+app.use('/api/permissions', permissionRoutes);
 app.use('/api/auto-lists', autoListRoutes);
 
 // ── BullMQ Dashboard — protected in production ─────────────────────────────

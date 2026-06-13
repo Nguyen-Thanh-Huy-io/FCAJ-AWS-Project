@@ -3,6 +3,8 @@ const socialPlatformFactory = require('../social/social-platform.factory');
 const { POST_STATUS, POST_TYPES, SEPARATORS, WORKSPACE_DEFAULTS } = require('../../utils/constants');
 const { eventEmitter, EVENTS } = require('../../events/event-emitter');
 const { upsertPublishJob, removePublishJob } = require('../../queues/publish.queue');
+const authorizationFacade = require('../auth/authorization.facade');
+const approvalWorkflowService = require('./approval-workflow.service');
 
 const QueryPipeline = require('../../core/query-pipeline/query.pipeline');
 const PostStatusFilter = require('./post/filters/status.filter');
@@ -54,11 +56,35 @@ class PostService {
    */
   async createPost(postData, userId, brandId) {
     const data = this._preparePostData(postData, userId, brandId);
+    
+    // Check if the user is trying to publish/schedule directly
+    const isDirectPublishing = [POST_STATUS.SCHEDULED, POST_STATUS.APPROVED, POST_STATUS.PUBLISHED].includes(data.status);
+    
+    if (isDirectPublishing) {
+      const hasApprovePermission = await authorizationFacade.hasPermission(userId, brandId, 'APPROVE_POSTS');
+      if (!hasApprovePermission) {
+        // Force status to PENDING_APPROVAL
+        data.status = POST_STATUS.PENDING_APPROVAL;
+      }
+    }
+
     const post = await postRepository.create(data);
 
-    // If one-off post is scheduled, add to BullMQ
-    if (!post.autoListId && post.status === POST_STATUS.SCHEDULED && post.scheduledAt) {
-      await upsertPublishJob(post.id, post.scheduledAt);
+    // If the post status is PENDING_APPROVAL, initiate the approval workflow request
+    if (post.status === POST_STATUS.PENDING_APPROVAL) {
+      await approvalWorkflowService.createWorkflowRequest(
+        post.id,
+        userId,
+        brandId,
+        postData.reviewerIds || [],
+        postData.approvalPolicy || 'AT_LEAST_ONE',
+        postData.requesterNote || 'Vui lòng phê duyệt bài viết này.'
+      );
+    } else {
+      // If one-off post is scheduled, add to BullMQ
+      if (!post.autoListId && post.status === POST_STATUS.SCHEDULED && post.scheduledAt) {
+        await upsertPublishJob(post.id, post.scheduledAt);
+      }
     }
 
     eventEmitter.emit(EVENTS.POST.CREATED, { post, options: postData.options });
@@ -68,20 +94,48 @@ class PostService {
   /**
    * Update an existing post
    */
-  async updatePost(id, postData, brandId) {
+  async updatePost(id, postData, brandId, userId) {
     const post = await postRepository.findById(id);
     if (!post || post.brandId !== brandId) throw new Error('Post not found or unauthorized');
     if (post.status === POST_STATUS.PUBLISHED) throw new Error('Cannot update an already published post');
 
     const data = this._prepareUpdateData(postData);
+
+    // Check if status is changed to scheduled/approved/published
+    const isDirectPublishing = data.status && [POST_STATUS.SCHEDULED, POST_STATUS.APPROVED, POST_STATUS.PUBLISHED].includes(data.status);
+
+    if (isDirectPublishing) {
+      const hasApprovePermission = await authorizationFacade.hasPermission(userId, brandId, 'APPROVE_POSTS');
+      if (!hasApprovePermission) {
+        // Force status to PENDING_APPROVAL
+        data.status = POST_STATUS.PENDING_APPROVAL;
+      }
+    }
+
     const updatedPost = await postRepository.update(id, data);
 
-    // Sync BullMQ for one-off posts
-    if (!updatedPost.autoListId) {
-      if (updatedPost.status === POST_STATUS.SCHEDULED && updatedPost.scheduledAt) {
-        await upsertPublishJob(updatedPost.id, updatedPost.scheduledAt);
-      } else {
-        await removePublishJob(updatedPost.id);
+    // Sync BullMQ/Approval Workflow
+    if (updatedPost.status === POST_STATUS.PENDING_APPROVAL) {
+      // Clean up any existing scheduled jobs
+      await removePublishJob(updatedPost.id);
+
+      // Create new workflow request
+      await approvalWorkflowService.createWorkflowRequest(
+        updatedPost.id,
+        userId,
+        brandId,
+        postData.reviewerIds || [],
+        postData.approvalPolicy || 'AT_LEAST_ONE',
+        postData.requesterNote || 'Vui lòng phê duyệt bài viết sau khi cập nhật.'
+      );
+    } else {
+      // Sync BullMQ for one-off posts
+      if (!updatedPost.autoListId) {
+        if (updatedPost.status === POST_STATUS.SCHEDULED && updatedPost.scheduledAt) {
+          await upsertPublishJob(updatedPost.id, updatedPost.scheduledAt);
+        } else {
+          await removePublishJob(updatedPost.id);
+        }
       }
     }
 

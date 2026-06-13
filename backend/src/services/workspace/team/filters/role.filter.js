@@ -4,7 +4,9 @@ class TeamRoleFilter extends BaseFilter {
   apply(where, queryParams) {
     const { role } = queryParams;
     if (role && role !== 'All') {
-      where.role = role.toUpperCase();
+      let dbRole = role.toUpperCase();
+      if (dbRole === 'MEMBER') dbRole = 'USER';
+      where.role = dbRole;
     }
   }
 }

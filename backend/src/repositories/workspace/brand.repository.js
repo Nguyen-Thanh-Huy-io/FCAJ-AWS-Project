@@ -3,7 +3,7 @@ const { BILLING_CYCLES, SUBSCRIPTION_STATUS, SYSTEM_PLANS, DEFAULT_CONFIG } = re
 
 class BrandRepository {
   async findManyByUserId(userId) {
-    return await prisma.brand.findMany({
+    const brands = await prisma.brand.findMany({
       where: {
         deletedAt: null,
         OR: [
@@ -20,8 +20,47 @@ class BrandRepository {
             tikTokAccount: true,
             linkedInAccount: true
           }
+        },
+        teamMembers: {
+          where: { userId: userId },
+          include: {
+            customRole: {
+              include: {
+                permissions: true
+              }
+            }
+          }
         }
       }
+    });
+
+    return brands.map(brand => {
+      let role = 'USER';
+      let permissions = [];
+      const isOwner = brand.ownerId === userId;
+
+      if (isOwner) {
+        role = 'OWNER';
+      } else if (brand.teamMembers && brand.teamMembers.length > 0) {
+        const member = brand.teamMembers[0];
+        role = member.role;
+        if (member.customRole && member.customRole.permissions) {
+          permissions = member.customRole.permissions.map(p => ({
+            key: p.permissionKey,
+            isAllowed: p.isAllowed
+          }));
+        }
+      }
+
+      const brandCopy = { ...brand };
+      delete brandCopy.teamMembers;
+
+      return {
+        ...brandCopy,
+        userRole: role,
+        userPermissions: permissions,
+        isOwner
+      };
     });
   }
 

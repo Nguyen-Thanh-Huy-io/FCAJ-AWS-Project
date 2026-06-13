@@ -5,7 +5,7 @@ import {
   FileText, Loader2, RotateCw, Copy, ChevronDown, 
   Calendar, Youtube, PlayCircle, Smartphone, Monitor, Info, MessageSquare,
   Languages, Settings, LayoutGrid, Film, PlusCircle, AlertCircle, Check,
-  MoreHorizontal, Edit, Type, Trash2, Diamond
+  MoreHorizontal, Edit, Type, Trash2, Diamond, Search
 } from "lucide-react";
 import postService from "../../services/post.service";
 import { usePostCreatorForm } from "../../hooks/usePostCreatorForm";
@@ -125,9 +125,28 @@ export function PostCreatorPage() {
     setTiktokAiGenerated,
     tiktokCommercialContent,
     setTiktokCommercialContent,
-    loadTemplate
+    loadTemplate,
+    // Approval Workflow
+    potentialReviewers,
+    selectedReviewerId,
+    setSelectedReviewerId,
+    selectedReviewerIds,
+    setSelectedReviewerIds,
+    approvalPolicy,
+    setApprovalPolicy,
+    requesterNote,
+    setRequesterNote,
+    isLoadingReviewers
   } = usePostCreatorForm();
 
+  const hasApprovePermission = 
+    activeBrand?.isOwner || 
+    activeBrand?.userRole === 'OWNER' ||
+    activeBrand?.userRole === 'ADMIN' || 
+    activeBrand?.userPermissions?.find(p => p.key === 'APPROVE_POSTS')?.isAllowed;
+
+  const [showReviewersModal, setShowReviewersModal] = useState(false);
+  const [reviewerSearchQuery, setReviewerSearchQuery] = useState("");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadModalTab, setUploadModalTab] = useState("computer");
   const [showImageMenu, setShowImageMenu] = useState(false);
@@ -154,6 +173,13 @@ export function PostCreatorPage() {
   };
 
   if (!isOpen) return null;
+
+  const getPublishButtonLabelText = () => {
+    if (selectedPublishId === 'draft') return 'SAVE';
+    if (selectedPublishId === 'review') return 'SEND';
+    if (!hasApprovePermission) return 'SUBMIT';
+    return selectedPublishId === 'now' ? 'PUBLISH' : 'SCHEDULE';
+  };
 
   const currentOption = PUBLISH_OPTIONS.find(o => o.id === selectedPublishId);
   const PreviewComponent = PreviewStrategies[activePlatform];
@@ -950,6 +976,60 @@ export function PostCreatorPage() {
                   )}
               </div>
 
+              {/* Approval Workflow Settings */}
+              {!isLibrary && selectedPublishId !== 'now' && (!hasApprovePermission || selectedPublishId === 'review') && selectedPublishId !== 'draft' && (
+                <div className="border border-amber-200 rounded-3xl overflow-hidden bg-amber-50/20 shadow-sm transition-all duration-300 p-6 space-y-4 text-left">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
+                      <div>
+                        <h4 className="text-[12px] font-black text-amber-800 uppercase tracking-wider">Yêu cầu phê duyệt bài viết</h4>
+                        <p className="text-[10px] text-amber-600 font-bold mt-1 leading-relaxed uppercase tracking-wider">
+                          {!hasApprovePermission 
+                            ? "Bạn không có quyền đăng bài trực tiếp. Vui lòng cấu hình người duyệt bài."
+                            : "Bạn đã chọn gửi bài viết này để phê duyệt."}
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2 items-center">
+                          {selectedReviewerIds.length === 0 ? (
+                            <span className="text-[10px] text-rose-600 font-bold uppercase tracking-wider bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-100">Chưa chọn người duyệt</span>
+                          ) : (
+                            <span className="text-[10px] text-amber-800 font-bold uppercase tracking-wider bg-amber-100/50 px-2.5 py-1 rounded-lg border border-amber-200 max-w-xs truncate">
+                              Đã chọn: {selectedReviewerIds.map(id => potentialReviewers.find(r => r.id === id)?.name).filter(Boolean).join(", ")}
+                            </span>
+                          )}
+                          <span className="text-[10px] bg-amber-900 text-amber-50 px-2.5 py-1 rounded-lg font-bold uppercase tracking-wider">
+                            {approvalPolicy === 'AT_LEAST_ONE' 
+                              ? 'Ít nhất 1 người duyệt' 
+                              : approvalPolicy === 'ALL' 
+                                ? 'Tất cả phải duyệt' 
+                                : 'Không yêu cầu phê duyệt'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <button
+                      type="button"
+                      onClick={() => setShowReviewersModal(true)}
+                      className="px-4 py-2.5 bg-[#0A0A0A] hover:bg-black text-white hover:shadow-md text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer shrink-0"
+                    >
+                      Chọn người duyệt
+                    </button>
+                  </div>
+
+                  <div className="space-y-1.5 pt-2 border-t border-amber-200/40">
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Ghi chú cho người duyệt</label>
+                    <input
+                      type="text"
+                      placeholder="Nhập lời nhắn gửi đến người duyệt..."
+                      value={requesterNote}
+                      onChange={(e) => setRequesterNote(e.target.value)}
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-[11px] font-bold text-gray-700 outline-none focus:border-black transition-all"
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Validation Errors Banner */}
               {getValidationErrors().length > 0 && (
                 <div className="border border-red-100 rounded-3xl overflow-hidden bg-red-50/50 shadow-sm transition-all duration-300">
@@ -989,7 +1069,7 @@ export function PostCreatorPage() {
                  <button onClick={closePostCreator} className="px-6 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-500 hover:bg-gray-50 hover:text-black transition-all cursor-pointer">Cancel</button>
                  
                  <div className="flex items-center gap-4">
-                     {!isLibrary && (
+                     {!isLibrary && selectedPublishId !== 'now' && (
                        <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-2xl px-5 py-2.5 hover:bg-gray-50 transition-all relative">
                            <Calendar size={18} className="text-gray-400" />
                            <input 
@@ -1016,7 +1096,7 @@ export function PostCreatorPage() {
                             disabled={isCreating}
                             className="px-8 py-3 bg-[#0A0A0A] text-white rounded-l-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-black transition-all disabled:opacity-50 cursor-pointer"
                           >
-                             {isCreating ? <Loader2 size={16} className="animate-spin" /> : currentOption.label.split(' ')[0]}
+                             {isCreating ? <Loader2 size={16} className="animate-spin" /> : getPublishButtonLabelText()}
                           </button>
                           <div className="relative">
                              <button onClick={() => setShowPublishMenu(!showPublishMenu)} className="px-3 py-3 bg-[#2D1D35] text-white rounded-r-2xl border-l border-white/10 hover:bg-[#1E1B4B] transition-all cursor-pointer">
@@ -1230,6 +1310,154 @@ export function PostCreatorPage() {
                   ))
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Select Reviewers Modal */}
+        {showReviewersModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-gray-100 w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 p-6 space-y-6 text-left">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-[#0A0A0A] tracking-tight">Select reviewers</h3>
+                <button 
+                  onClick={() => setShowReviewersModal(false)}
+                  className="text-gray-400 hover:text-black transition-colors cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Search */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search user"
+                  value={reviewerSearchQuery}
+                  onChange={(e) => setReviewerSearchQuery(e.target.value)}
+                  className="w-full pl-4 pr-10 py-3 bg-gray-50 border border-transparent rounded-2xl text-[12px] font-bold text-[#0A0A0A] outline-none focus:bg-white focus:border-gray-200 transition-all placeholder-gray-400"
+                />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
+                  <Search size={14} />
+                </div>
+              </div>
+
+              {/* Users Header */}
+              <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-wider text-gray-400">
+                <span>Users</span>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    const allIds = potentialReviewers.map(r => r.id);
+                    if (selectedReviewerIds.length === potentialReviewers.length) {
+                      setSelectedReviewerIds([]);
+                    } else {
+                      setSelectedReviewerIds(allIds);
+                    }
+                  }}
+                  className="text-[#10B981] hover:text-[#059669] transition-colors cursor-pointer font-bold lowercase first-letter:uppercase"
+                >
+                  {selectedReviewerIds.length === potentialReviewers.length ? "Uncheck all" : "Check all"}
+                </button>
+              </div>
+
+              {/* Users List */}
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-1.5 scrollbar-thin">
+                {potentialReviewers.length === 0 ? (
+                  <div className="py-8 text-center text-gray-400 text-[11px] font-bold uppercase tracking-wider">
+                    Không có người duyệt khả dụng
+                  </div>
+                ) : (
+                  potentialReviewers
+                    .filter(r => r.name.toLowerCase().includes(reviewerSearchQuery.toLowerCase()))
+                    .map((rev) => {
+                      const isChecked = selectedReviewerIds.includes(rev.id);
+                      const initials = rev.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                      const hash = rev.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                      const bgColors = ["bg-[#E6F4EA] text-[#137333]", "bg-[#FEF7E0] text-[#B06000]", "bg-[#FCE8E6] text-[#C5221F]", "bg-[#F3F4F6] text-[#1F2937]", "bg-[#E4F7F6] text-[#00796B]"];
+                      const badgeStyle = bgColors[hash % bgColors.length];
+                      
+                      const handleToggle = () => {
+                        if (isChecked) {
+                          setSelectedReviewerIds(selectedReviewerIds.filter(id => id !== rev.id));
+                        } else {
+                          setSelectedReviewerIds([...selectedReviewerIds, rev.id]);
+                        }
+                      };
+
+                      return (
+                        <div 
+                          key={rev.id}
+                          onClick={handleToggle}
+                          className="flex items-center justify-between p-3.5 bg-white border border-gray-100 hover:border-gray-200 rounded-2xl transition-all cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-3.5">
+                            {rev.avatarUrl ? (
+                              <img src={rev.avatarUrl} alt={rev.name} className="w-8 h-8 rounded-xl object-cover border border-gray-100" />
+                            ) : (
+                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black uppercase tracking-widest ${badgeStyle}`}>
+                                {initials}
+                              </div>
+                            )}
+                            <div>
+                              <div className="text-[11px] font-bold text-[#0A0A0A] group-hover:text-black transition-colors">{rev.name}</div>
+                              <div className="text-[9px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">{rev.role}</div>
+                            </div>
+                          </div>
+                          <div
+                            className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
+                              isChecked 
+                                ? 'border-[#10B981] bg-[#10B981] text-white' 
+                                : 'border-gray-300 bg-white'
+                            }`}
+                          >
+                            {isChecked && <Check size={10} strokeWidth={4} />}
+                          </div>
+                        </div>
+                      );
+                    })
+                )}
+              </div>
+
+              {/* Policy Settings */}
+              <div className="space-y-3 pt-4 border-t border-gray-100">
+                <div className="text-[10px] font-black uppercase tracking-wider text-gray-400">To publish this post...</div>
+                <div className="space-y-2.5">
+                  {[
+                    { id: 'NO_APPROVAL', label: 'No reviewer approval required.' },
+                    { id: 'AT_LEAST_ONE', label: 'At least one reviewer must approve it.' },
+                    { id: 'ALL', label: 'All reviewers must approve it.' }
+                  ].map((opt) => {
+                    const isSelected = approvalPolicy === opt.id;
+                    return (
+                      <div 
+                        key={opt.id}
+                        onClick={() => setApprovalPolicy(opt.id)}
+                        className="flex items-center gap-3 cursor-pointer group"
+                      >
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
+                          isSelected 
+                            ? 'border-[#0A0A0A] bg-[#0A0A0A]' 
+                            : 'border-gray-300 bg-white'
+                        }`}>
+                          {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                        <span className="text-[11px] font-bold text-gray-600 group-hover:text-black transition-colors">{opt.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Action Button */}
+              <button
+                type="button"
+                onClick={() => setShowReviewersModal(false)}
+                className="w-full py-3.5 bg-[#0A0A0A] hover:bg-black text-white text-[11px] font-black uppercase tracking-widest rounded-2xl transition-all cursor-pointer shadow-md hover:shadow-lg active:scale-[0.98]"
+              >
+                Confirm Selection
+              </button>
             </div>
           </div>
         )}

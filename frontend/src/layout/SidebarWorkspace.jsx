@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   Youtube, Instagram, Facebook, Linkedin,
   TrendingUp, List, Hash, Settings, Search,
-  PlayCircle, FileText, Megaphone, Plus
+  PlayCircle, FileText, Megaphone, Plus, ClipboardCheck
 } from "lucide-react";
 import { useConnections } from "../context/ConnectionsContext";
 
@@ -18,6 +18,7 @@ const PLATFORMS = [
 
 const MANAGE_ITEMS = [
   { name: "Brand settings", icon: <Settings size={18} />, path: "/manage/connections?tab=brand-settings" },
+  { name: "Approval Tasks", icon: <ClipboardCheck size={18} />, path: "/manage/tasks" },
   { name: "Hashtag Tracker", icon: <Hash size={18} />, path: "/hashtags" },
   { name: "Reporting", icon: <FileText size={18} />, path: "/manage/reports" },
   { name: "Competitors", icon: <TrendingUp size={18} />, path: "/manage/competitors" },
@@ -101,7 +102,7 @@ export function SidebarWorkspace() {
         </nav>
 
         {!isManageMode && (
-          <div className="mt-8">
+          <div className="mt-8 space-y-1">
             <div className="px-3 mb-4">
               <span style={{ fontSize: 10, fontWeight: 800, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "1px" }}>
                 Tools
@@ -116,6 +117,18 @@ export function SidebarWorkspace() {
               <FileText size={18} style={{ color: currentPath.startsWith("/planner") ? "#0A0A0A" : undefined }} />
               <span style={{ fontSize: 13, fontWeight: currentPath.startsWith("/planner") ? 600 : 400 }}>Content Planner</span>
               {currentPath.startsWith("/planner") && (
+                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#0A0A0A]" />
+              )}
+            </Link>
+            <Link
+              to="/manage/tasks"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all no-underline ${
+                currentPath.startsWith("/manage/tasks") ? "bg-[#F8F8F7] text-[#0A0A0A]" : "text-gray-500 hover:bg-gray-50"
+              }`}
+            >
+              <ClipboardCheck size={18} style={{ color: currentPath.startsWith("/manage/tasks") ? "#0A0A0A" : undefined }} />
+              <span style={{ fontSize: 13, fontWeight: currentPath.startsWith("/manage/tasks") ? 600 : 400 }}>Approval Requests</span>
+              {currentPath.startsWith("/manage/tasks") && (
                 <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#0A0A0A]" />
               )}
             </Link>

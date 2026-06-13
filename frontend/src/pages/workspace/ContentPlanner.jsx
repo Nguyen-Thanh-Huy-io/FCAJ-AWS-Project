@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Plus, MoreHorizontal, Search } from "lucide-react";
 import { usePostCreator } from "../../context/PostCreatorContext";
 import { useFilters } from "../../hooks/useFilters";
+import { useBrand } from "../../context/BrandContext";
 import apiService from "../../services/api";
 import { toast } from "sonner";
 
@@ -38,6 +39,7 @@ const STATUS_DOT = {
   rejected: "#DC2626" };
 
 export function ContentPlannerPage() {
+  const { activeBrand } = useBrand();
   const { filters, updateFilters, clearFilters, searchParamsString } = useFilters({
     view: "calendar",
     platform: "All Platforms",
@@ -59,9 +61,10 @@ export function ContentPlannerPage() {
   // Fetch real data from Backend
   useEffect(() => {
     const fetchPosts = async () => {
+      if (!activeBrand?.id) return;
       setLoading(true);
       try {
-        const response = await apiService.get(`/posts?${searchParamsString}`);
+        const response = await apiService.get(`/posts?brandId=${activeBrand.id}&${searchParamsString}`);
         setPostData(response.data);
       } catch (error) {
         toast.error(error.message || "Failed to load posts");
@@ -71,7 +74,7 @@ export function ContentPlannerPage() {
     };
 
     fetchPosts();
-  }, [searchParamsString]);
+  }, [searchParamsString, activeBrand?.id]);
 
   // Process data for calendar view (group by day of month)
   // Assumes we are viewing May 2025 for now to match UI

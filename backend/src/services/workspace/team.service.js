@@ -78,9 +78,21 @@ class TeamService {
 
     // Map role
     let dbRole = 'USER';
-    if (role === 'Admin') dbRole = 'ADMIN';
-    else if (role === 'Analyst') dbRole = 'ANALYST';
-    else dbRole = 'USER';
+    let customRoleId = null;
+
+    // Check if role is custom role ID
+    const customRole = await prisma.customRole.findFirst({
+      where: { id: role, brandId }
+    });
+
+    if (customRole) {
+      customRoleId = customRole.id;
+      dbRole = 'USER'; // Default fallback role
+    } else {
+      if (role === 'Admin') dbRole = 'ADMIN';
+      else if (role === 'Analyst') dbRole = 'ANALYST';
+      else dbRole = 'USER';
+    }
 
     // Find or create shell user
     let user = await prisma.user.findUnique({
@@ -127,6 +139,7 @@ class TeamService {
         where: { id: existingTeam.id },
         data: {
           role: dbRole,
+          customRoleId,
           invitedByUserId,
           invitedAt: new Date(),
           status: 'PENDING'
@@ -138,6 +151,7 @@ class TeamService {
           brandId,
           userId: user.id,
           role: dbRole,
+          customRoleId,
           invitedByUserId,
           status: 'PENDING'
         }
@@ -309,11 +323,23 @@ class TeamService {
 
     // Map role
     let dbRole = 'USER';
-    if (role === 'Admin') dbRole = 'ADMIN';
-    else if (role === 'Analyst') dbRole = 'ANALYST';
-    else dbRole = 'USER';
+    let customRoleId = null;
 
-    const updated = await teamRepository.update(id, { role: dbRole });
+    // Check if role is custom role ID
+    const customRole = await prisma.customRole.findFirst({
+      where: { id: role, brandId: team.brandId }
+    });
+
+    if (customRole) {
+      customRoleId = customRole.id;
+      dbRole = 'USER'; // Default fallback role
+    } else {
+      if (role === 'Admin') dbRole = 'ADMIN';
+      else if (role === 'Analyst') dbRole = 'ANALYST';
+      else dbRole = 'USER';
+    }
+
+    const updated = await teamRepository.update(id, { role: dbRole, customRoleId });
     return this._formatTeamMember(updated);
   }
 
@@ -367,7 +393,12 @@ class TeamService {
       name: m.user.name,
       email: m.user.email,
       avatar: m.user.avatarUrl,
-      role: this._formatRoleName(m.role),
+      role: m.customRole ? m.customRole.name : this._formatRoleName(m.role),
+      customRole: m.customRole ? {
+        id: m.customRole.id,
+        name: m.customRole.name,
+        colorHex: m.customRole.colorHex
+      } : null,
       status: m.status.toLowerCase(),
       joinedDate: m.acceptedAt 
         ? new Date(m.acceptedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) 

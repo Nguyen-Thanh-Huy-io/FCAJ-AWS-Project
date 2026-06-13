@@ -57,11 +57,18 @@ export function WeeklyCalendarView() {
     const sunday = new Date(current.setDate(current.getDate() - day));
     const saturday = new Date(current.setDate(current.getDate() - day + 6));
 
-    const startDateStr = sunday.toISOString().split('T')[0];
-    const endDateStr = saturday.toISOString().split('T')[0];
+    const toLocalDateStr = (d) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    const startDateStr = toLocalDateStr(sunday);
+    const endDateStr = toLocalDateStr(saturday);
 
     try {
-      const res = await apiService.get(`/posts?brandId=${activeBrand.id}&startDate=${startDateStr}&endDate=${endDateStr}`);
+      const res = await apiService.get(`/posts?brandId=${activeBrand.id}&startDate=${startDateStr}&endDate=${endDateStr}&limit=100`);
       setPostData(res.data.data || []);
     } catch (e) {
       toast.error("Failed to load posts");
@@ -85,7 +92,10 @@ export function WeeklyCalendarView() {
     });
     filtered.forEach(post => {
       const date = new Date(post.scheduledAt || post.createdAt);
-      const dateStr = date.toISOString().split('T')[0];
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
       const hour = date.getHours();
       const key = `${dateStr}-${hour}`;
       if (!grid[key]) grid[key] = [];

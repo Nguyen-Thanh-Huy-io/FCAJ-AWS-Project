@@ -5,8 +5,12 @@ const prisma = require('./config/prisma');
 
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
   logger.info('Server started', { port: PORT, env: process.env.NODE_ENV || 'development' });
+
+  // Seed default system permissions
+  const { seedSystemPermissions } = require('./config/seeder');
+  await seedSystemPermissions();
 
   // Initialize BullMQ publish worker
   require('./queues/publish.worker');

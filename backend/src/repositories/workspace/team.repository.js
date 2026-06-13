@@ -26,7 +26,8 @@ class TeamRepository {
             select: {
               name: true
             }
-          }
+          },
+          customRole: true
         }
       }),
       prisma.team.count({ where })
@@ -40,7 +41,8 @@ class TeamRepository {
       where: { id },
       include: {
         user: true,
-        brand: true
+        brand: true,
+        customRole: true
       }
     });
   }
@@ -55,7 +57,8 @@ class TeamRepository {
       },
       include: {
         user: true,
-        brand: true
+        brand: true,
+        customRole: true
       }
     });
   }
@@ -65,7 +68,8 @@ class TeamRepository {
       data,
       include: {
         user: true,
-        brand: true
+        brand: true,
+        customRole: true
       }
     });
   }
@@ -76,7 +80,8 @@ class TeamRepository {
       data,
       include: {
         user: true,
-        brand: true
+        brand: true,
+        customRole: true
       }
     });
   }

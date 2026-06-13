@@ -203,6 +203,16 @@ model CustomRolePermission {
   @@map("custom_role_permissions")
 }
 
+model SystemPermission {
+  key         String   @id
+  label       String
+  description String?
+  category    String   @default("management")
+  createdAt   DateTime @default(now())
+
+  @@map("system_permissions")
+}
+
 // ============================================
 // BILLING & SUBSCRIPTION
 // ============================================

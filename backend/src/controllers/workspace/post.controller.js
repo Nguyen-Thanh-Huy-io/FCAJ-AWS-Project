@@ -45,7 +45,7 @@ class PostController {
     const { brandId } = req.body;
     if (!brandId) return res.status(400).json({ message: 'brandId is required' });
 
-    const post = await postService.updatePost(id, req.body, brandId);
+    const post = await postService.updatePost(id, req.body, brandId, req.user.id);
 
     res.status(200).json({
       message: 'Post updated successfully',

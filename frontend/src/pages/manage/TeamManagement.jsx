@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Search, UserPlus, MoreHorizontal, Check, X, Mail, Shield, User, Loader2 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { Search, UserPlus, MoreHorizontal, Check, X, Mail, Shield, User, Loader2, Plus, Edit2, Trash2, Settings, Lock, Calendar, FileText } from "lucide-react";
 import { useFilters } from "../../hooks/useFilters";
 import { useDebounce } from "../../hooks/useDebounce";
 import { useBrand } from "../../context/BrandContext";
 import apiService from "../../services/api";
 import { toast } from "sonner";
+
+const PRESET_COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#0A0A0A", "#6B7280"];
 
 export function TeamManagementPage() {
   const { activeBrand } = useBrand();
@@ -15,14 +18,30 @@ export function TeamManagementPage() {
     status: "All"
   });
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") || "members";
+  const setActiveTab = (tabName) => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set("tab", tabName);
+      return next;
+    });
+  };
   const [teamData, setTeamData] = useState({ data: [], meta: {} });
+  const [roles, setRoles] = useState([]);
+  const [systemPermissions, setSystemPermissions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [rolesLoading, setRolesLoading] = useState(false);
+  
   const [searchTerm, setSearchTerm] = useState(filters.search || "");
   const debouncedSearch = useDebounce(searchTerm, 300);
 
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isRoleOpen, setIsRoleOpen] = useState(false);
+  const [isRoleCreateEditOpen, setIsRoleCreateEditOpen] = useState(false);
+  
   const [selectedMember, setSelectedMember] = useState(null);
+  const [selectedRole, setSelectedRole] = useState(null);
 
   // Sync debounced search to URL params
   useEffect(() => {
@@ -36,7 +55,7 @@ export function TeamManagementPage() {
     setSearchTerm(filters.search || "");
   }, [filters.search]);
 
-  // Fetch real data from Backend
+  // Fetch Team Members
   const fetchTeam = async () => {
     if (!activeBrand?.id) return;
     setLoading(true);
@@ -44,17 +63,62 @@ export function TeamManagementPage() {
       const response = await apiService.get(`/team?brandId=${activeBrand.id}&${searchParamsString}`);
       setTeamData(response.data);
     } catch (error) {
-      toast.error(error.message || "Failed to load team members");
+      toast.error(error.message || "Không thể tải danh sách thành viên");
     } finally {
       setLoading(false);
     }
   };
 
+  // Fetch Custom Roles
+  const fetchRoles = async () => {
+    if (!activeBrand?.id) return;
+    setRolesLoading(true);
+    try {
+      const response = await apiService.get(`/brands/${activeBrand.id}/roles`);
+      setRoles(response.data.data || []);
+    } catch (error) {
+      toast.error(error.message || "Không thể tải danh sách vai trò tùy chỉnh");
+    } finally {
+      setRolesLoading(false);
+    }
+  };
+
+  const fetchSystemPermissions = async () => {
+    try {
+      const response = await apiService.get("/permissions");
+      if (response.data?.data) {
+        setSystemPermissions(response.data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch system permissions", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchSystemPermissions();
+  }, []);
+
   useEffect(() => {
     fetchTeam();
   }, [searchParamsString, activeBrand?.id]);
 
+  useEffect(() => {
+    fetchRoles();
+  }, [activeBrand?.id]);
+
   const members = teamData.data || [];
+
+  const handleDeleteRole = async (roleId) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa vai trò tùy chỉnh này?")) return;
+    try {
+      await apiService.delete(`/brands/${activeBrand.id}/roles/${roleId}`);
+      toast.success("Xóa vai trò tùy chỉnh thành công!");
+      fetchRoles();
+      fetchTeam();
+    } catch (error) {
+      toast.error(error.message || "Không thể xóa vai trò");
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden" style={{ background: "#F8F8F7" }}>
@@ -64,137 +128,267 @@ export function TeamManagementPage() {
           <h1 className="text-xl font-bold text-[#0A0A0A] tracking-tight">Team Management</h1>
           <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Manage your workspace collaborators and permissions</p>
         </div>
+        <div className="flex items-center gap-2">
+          {activeTab === "roles" ? (
+            <button 
+              onClick={() => { setSelectedRole(null); setIsRoleCreateEditOpen(true); }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#0A0A0A] text-white rounded-xl text-xs font-bold hover:bg-gray-900 transition-all shadow-sm active:scale-95"
+            >
+              <Plus size={14} /> Add Custom Role
+            </button>
+          ) : (
+            <button 
+              onClick={() => setIsInviteOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#0A0A0A] text-white rounded-xl text-xs font-bold hover:bg-gray-900 transition-all shadow-sm active:scale-95"
+            >
+              <UserPlus size={14} /> Invite Member
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex px-8 bg-white border-b border-gray-100">
         <button 
-          onClick={() => setIsInviteOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-[#0A0A0A] text-white rounded-xl text-xs font-bold hover:bg-gray-900 transition-all shadow-sm active:scale-95"
+          onClick={() => setActiveTab("members")}
+          className={`py-4 px-6 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${
+            activeTab === "members" ? "border-black text-black" : "border-transparent text-gray-400 hover:text-gray-600"
+          }`}
         >
-          <UserPlus size={14} /> Invite Member
+          Thành viên ({members.length})
+        </button>
+        <button 
+          onClick={() => setActiveTab("roles")}
+          className={`py-4 px-6 text-xs font-bold uppercase tracking-wider border-b-2 transition-all ${
+            activeTab === "roles" ? "border-black text-black" : "border-transparent text-gray-400 hover:text-gray-600"
+          }`}
+        >
+          Vai trò tùy chỉnh ({roles.length})
         </button>
       </div>
 
-      {/* Filter Bar */}
-      <div className="flex items-center gap-3 px-8 py-4 bg-white/50 backdrop-blur-sm border-b border-gray-100 flex-wrap">
-        <div className="relative flex-1 min-w-[240px] max-w-md">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by name or email..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-black transition-all"
-          />
-        </div>
-        
-        <div className="flex items-center gap-2">
-          {["All", "Owner", "Admin", "Member"].map((r) => (
-            <button
-              key={r}
-              onClick={() => updateFilters({ role: r })}
-              className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
-                (filters.role || "All") === r ? "bg-[#0A0A0A] text-white shadow-md" : "bg-white text-gray-400 border border-gray-200 hover:bg-gray-50"
-              }`}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
+      {activeTab === "members" && (
+        <>
+          {/* Filter Bar */}
+          <div className="flex items-center gap-3 px-8 py-4 bg-white/50 backdrop-blur-sm border-b border-gray-100 flex-wrap">
+            <div className="relative flex-1 min-w-[240px] max-w-md">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by name or email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-black transition-all"
+              />
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {["All", "Owner", "Admin", "Member"].map((r) => (
+                <button
+                  key={r}
+                  onClick={() => updateFilters({ role: r })}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
+                    (filters.role || "All") === r ? "bg-[#0A0A0A] text-white shadow-md" : "bg-white text-gray-400 border border-gray-200 hover:bg-gray-50"
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
 
-        {(filters.search || filters.role !== "All") && (
-          <button 
-            onClick={clearFilters}
-            className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-black transition-colors"
-          >
-            Clear Filters
-          </button>
-        )}
-      </div>
+            {(filters.search || filters.role !== "All") && (
+              <button 
+                onClick={clearFilters}
+                className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-black transition-colors"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
 
-      {/* Main Table */}
-      <div className="flex-1 overflow-y-auto px-8 py-6">
-        {loading ? (
-           <div className="flex items-center justify-center py-24 bg-white border border-gray-100 rounded-3xl shadow-sm">
+          {/* Members Table */}
+          <div className="flex-1 overflow-y-auto px-8 py-6">
+            {loading ? (
+              <div className="flex items-center justify-center py-24 bg-white border border-gray-100 rounded-3xl shadow-sm">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#0A0A0A]" />
+              </div>
+            ) : members.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 bg-white border border-gray-100 rounded-3xl shadow-sm gap-4">
+                <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-300">
+                  <User size={24} />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-sm font-bold text-[#0A0A0A]">No members found</h3>
+                  <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mt-1">Try adjusting your search or filters</p>
+                </div>
+                <button 
+                  onClick={clearFilters}
+                  className="mt-2 px-4 py-2 border border-gray-200 rounded-xl text-[10px] font-bold text-gray-500 hover:bg-gray-50 transition-all uppercase tracking-widest"
+                >
+                  Reset All Filters
+                </button>
+              </div>
+            ) : (
+              <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50/50 border-b border-gray-100">
+                      {["Member", "Role", "Status", "Joined Date", "Invited By", ""].map((h) => (
+                        <th key={h} className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-left">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {members.map((member) => (
+                      <tr key={member.id} className="border-b border-gray-50 hover:bg-gray-50/30 transition-all group">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-[#0A0A0A] flex items-center justify-center text-white font-bold text-xs shadow-sm overflow-hidden">
+                              {member.avatar ? <img src={member.avatar} alt="" className="w-full h-full object-cover" /> : member.name.charAt(0)}
+                            </div>
+                            <div>
+                              <div className="text-[12px] font-bold text-[#0A0A0A]">{member.name}</div>
+                              <div className="text-[10px] text-gray-400 font-medium">{member.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            {member.customRole ? (
+                              <>
+                                <span className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: member.customRole.colorHex }} />
+                                <span className="text-[11px] font-bold text-[#0A0A0A]">{member.customRole.name}</span>
+                              </>
+                            ) : (
+                              <>
+                                <div className={`p-1.5 rounded-lg ${member.role === 'Owner' ? 'bg-purple-50 text-purple-600' : 'bg-gray-50 text-gray-600'}`}>
+                                  {member.role === 'Owner' || member.role === 'Admin' ? <Shield size={12} /> : <User size={12} />}
+                                </div>
+                                <span className="text-[11px] font-bold text-[#0A0A0A]">{member.role}</span>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                            member.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'
+                          }`}>
+                            {member.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-[11px] text-gray-500 font-medium">{member.joinedDate}</td>
+                        <td className="px-6 py-4 text-[11px] text-gray-500 font-medium">{member.invitedBy}</td>
+                        <td className="px-6 py-4 text-right">
+                          {member.role !== 'Owner' && (
+                            <button 
+                              onClick={() => { setSelectedMember(member); setIsRoleOpen(true); }}
+                              className="p-2 text-gray-300 hover:text-black hover:bg-white rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                            >
+                              <MoreHorizontal size={16} />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {activeTab === "roles" && (
+        <div className="flex-1 overflow-y-auto px-8 py-6">
+          {rolesLoading ? (
+            <div className="flex items-center justify-center py-24 bg-white border border-gray-100 rounded-3xl shadow-sm">
               <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#0A0A0A]" />
-           </div>
-        ) : members.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 bg-white border border-gray-100 rounded-3xl shadow-sm gap-4">
-            <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-300">
-               <User size={24} />
             </div>
-            <div className="text-center">
-              <h3 className="text-sm font-bold text-[#0A0A0A]">No members found</h3>
-              <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mt-1">Try adjusting your search or filters</p>
+          ) : roles.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 bg-white border border-gray-100 rounded-3xl shadow-sm gap-4">
+              <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-300">
+                <Settings size={24} />
+              </div>
+              <div className="text-center">
+                <h3 className="text-sm font-bold text-[#0A0A0A]">Chưa có vai trò tùy chỉnh nào</h3>
+                <p className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mt-1">Hãy tạo vai trò tùy chỉnh đầu tiên để phân quyền chi tiết</p>
+              </div>
+              <button 
+                onClick={() => { setSelectedRole(null); setIsRoleCreateEditOpen(true); }}
+                className="mt-2 px-4 py-2 bg-[#0A0A0A] text-white rounded-xl text-[10px] font-bold transition-all uppercase tracking-widest"
+              >
+                Tạo Custom Role
+              </button>
             </div>
-            <button 
-              onClick={clearFilters}
-              className="mt-2 px-4 py-2 border border-gray-200 rounded-xl text-[10px] font-bold text-gray-500 hover:bg-gray-50 transition-all uppercase tracking-widest"
-            >
-              Reset All Filters
-            </button>
-          </div>
-        ) : (
-          <div className="bg-white border border-gray-100 rounded-3xl shadow-sm overflow-hidden">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-50/50 border-b border-gray-100">
-                  {["Member", "Role", "Status", "Joined Date", "Invited By", ""].map((h) => (
-                    <th key={h} className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-left">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {members.map((member) => (
-                  <tr key={member.id} className="border-b border-gray-50 hover:bg-gray-50/30 transition-all group">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-[#0A0A0A] flex items-center justify-center text-white font-bold text-xs shadow-sm overflow-hidden">
-                          {member.avatar ? <img src={member.avatar} alt="" className="w-full h-full object-cover" /> : member.name.charAt(0)}
-                        </div>
-                        <div>
-                          <div className="text-[12px] font-bold text-[#0A0A0A]">{member.name}</div>
-                          <div className="text-[10px] text-gray-400 font-medium">{member.email}</div>
-                        </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {roles.map((role) => (
+                <div key={role.id} className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-all duration-300 relative group">
+                  <div>
+                    {/* Role Header */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-3.5 h-3.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: role.colorHex }} />
+                        <h3 className="text-sm font-bold text-[#0A0A0A]">{role.name}</h3>
                       </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <div className={`p-1.5 rounded-lg ${member.role === 'Owner' ? 'bg-purple-50 text-purple-600' : 'bg-gray-50 text-gray-600'}`}>
-                          {member.role === 'Owner' || member.role === 'Admin' ? <Shield size={12} /> : <User size={12} />}
-                        </div>
-                        <span className="text-[11px] font-bold text-[#0A0A0A]">{member.role}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                        member.status === 'active' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'
-                      }`}>
-                        {member.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-[11px] text-gray-500 font-medium">{member.joinedDate}</td>
-                    <td className="px-6 py-4 text-[11px] text-gray-500 font-medium">{member.invitedBy}</td>
-                    <td className="px-6 py-4 text-right">
-                      {member.role !== 'Owner' && (
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
-                          onClick={() => { setSelectedMember(member); setIsRoleOpen(true); }}
-                          className="p-2 text-gray-300 hover:text-black hover:bg-white rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                          onClick={() => { setSelectedRole(role); setIsRoleCreateEditOpen(true); }}
+                          className="p-1.5 hover:bg-gray-50 rounded-lg text-gray-400 hover:text-black transition-colors"
+                          title="Sửa vai trò"
                         >
-                          <MoreHorizontal size={16} />
+                          <Edit2 size={12} />
                         </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                        <button 
+                          onClick={() => handleDeleteRole(role.id)}
+                          className="p-1.5 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-600 transition-colors"
+                          title="Xóa vai trò"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-gray-400 font-medium mt-2 line-clamp-2">{role.description || "Không có mô tả."}</p>
+                    
+                    {/* Role Counts */}
+                    <div className="mt-4 flex items-center gap-1.5 text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                      <User size={10} /> {role._count?.teamMembers || 0} thành viên đang gán
+                    </div>
+
+                    {/* Permissions Preview */}
+                    <div className="mt-5 border-t border-gray-50 pt-4 space-y-2">
+                      <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Quyền hạn kích hoạt</div>
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {role.permissions?.filter(p => p.isAllowed).map(p => {
+                          const sys = systemPermissions.find(s => s.key === p.permissionKey);
+                          return (
+                            <span key={p.id} className="px-2 py-1 bg-gray-50 text-gray-600 rounded-lg text-[9px] font-semibold border border-gray-100">
+                              {sys ? sys.label.split(" (")[0] : p.permissionKey}
+                            </span>
+                          );
+                        })}
+                        {role.permissions?.filter(p => p.isAllowed).length === 0 && (
+                          <span className="text-[10px] text-gray-400 italic">Không có quyền nào được bật</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+
 
       {/* Modals */}
       <InviteModal 
         isOpen={isInviteOpen} 
         onClose={() => setIsInviteOpen(false)} 
         activeBrandId={activeBrand?.id}
+        customRoles={roles}
         onInviteSuccess={fetchTeam}
       />
       {selectedMember && (
@@ -202,14 +396,25 @@ export function TeamManagementPage() {
           isOpen={isRoleOpen} 
           onClose={() => { setIsRoleOpen(false); setSelectedMember(null); }} 
           member={selectedMember} 
+          customRoles={roles}
           onSuccess={fetchTeam}
+        />
+      )}
+      {isRoleCreateEditOpen && (
+        <RoleCreateEditModal 
+          isOpen={isRoleCreateEditOpen} 
+          onClose={() => { setIsRoleCreateEditOpen(false); setSelectedRole(null); }} 
+          activeBrandId={activeBrand?.id}
+          role={selectedRole}
+          onSuccess={fetchRoles}
+          systemPermissions={systemPermissions}
         />
       )}
     </div>
   );
 }
 
-function InviteModal({ isOpen, onClose, activeBrandId, onInviteSuccess }) {
+function InviteModal({ isOpen, onClose, activeBrandId, customRoles = [], onInviteSuccess }) {
   if (!isOpen) return null;
 
   const [email, setEmail] = useState("");
@@ -218,7 +423,7 @@ function InviteModal({ isOpen, onClose, activeBrandId, onInviteSuccess }) {
 
   const handleInvite = async () => {
     if (!email) {
-      toast.error("Please enter email address");
+      toast.error("Vui lòng nhập địa chỉ email");
       return;
     }
     setIsSubmitting(true);
@@ -228,11 +433,11 @@ function InviteModal({ isOpen, onClose, activeBrandId, onInviteSuccess }) {
         role,
         brandId: activeBrandId
       });
-      toast.success("Invitation sent successfully!");
+      toast.success("Đã gửi lời mời thành công!");
       onInviteSuccess();
       onClose();
     } catch (error) {
-      toast.error(error.message || "Failed to send invitation");
+      toast.error(error.message || "Gửi lời mời thất bại");
     } finally {
       setIsSubmitting(false);
     }
@@ -241,14 +446,14 @@ function InviteModal({ isOpen, onClose, activeBrandId, onInviteSuccess }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-[#0A0A0A]/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl relative overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl relative overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-[#0A0A0A]">Invite Team Member</h2>
+          <h2 className="text-lg font-bold text-[#0A0A0A]">Mời thành viên mới</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-black"><X size={20} /></button>
         </div>
         <div className="p-8 space-y-6">
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Email Address</label>
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Địa chỉ Email</label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
               <input 
@@ -260,24 +465,46 @@ function InviteModal({ isOpen, onClose, activeBrandId, onInviteSuccess }) {
               />
             </div>
           </div>
+
           <div className="space-y-2">
-             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Workspace Role</label>
-             <div className="grid grid-cols-2 gap-3">
-                {['Admin', 'Member'].map((r) => (
-                  <button 
-                    key={r} 
-                    type="button"
-                    onClick={() => setRole(r)}
-                    className={`p-4 border rounded-2xl text-left transition-all ${
-                      role === r ? 'border-black bg-gray-50' : 'border-gray-100 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="text-[11px] font-bold text-[#0A0A0A]">{r}</div>
-                    <div className="text-[9px] text-gray-400 mt-1">{r === 'Admin' ? 'Can manage team & settings' : 'Full content creation access'}</div>
-                  </button>
-                ))}
-             </div>
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Vai trò cộng tác</label>
+            <div className="grid grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-1">
+              {/* Static default options */}
+              {['Admin', 'Member', 'Analyst'].map((r) => (
+                <button 
+                  key={r} 
+                  type="button"
+                  onClick={() => setRole(r)}
+                  className={`p-4 border rounded-2xl text-left transition-all flex flex-col justify-between ${
+                    role === r ? 'border-black bg-gray-50/50' : 'border-gray-100 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-[11px] font-bold text-[#0A0A0A]">{r}</div>
+                  <div className="text-[9px] text-gray-400 mt-1">
+                    {r === 'Admin' ? 'Toàn quyền quản trị viên' : r === 'Analyst' ? 'Chỉ xem số liệu thống kê' : 'Tạo nội dung & bài đăng'}
+                  </div>
+                </button>
+              ))}
+              {/* Custom Roles options */}
+              {customRoles.map((cr) => (
+                <button 
+                  key={cr.id} 
+                  type="button"
+                  onClick={() => setRole(cr.id)}
+                  className={`p-4 border rounded-2xl text-left transition-all flex flex-col justify-between ${
+                    role === cr.id ? 'border-black bg-gray-50/50' : 'border-gray-100 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: cr.colorHex }} />
+                    <div className="text-[11px] font-bold text-[#0A0A0A]">{cr.name}</div>
+                  </div>
+                  <div className="text-[9px] text-gray-400 mt-1 line-clamp-1">{cr.description || "Vai trò tùy chỉnh"}</div>
+                </button>
+              ))}
+            </div>
           </div>
+
           <button 
             onClick={handleInvite}
             disabled={isSubmitting}
@@ -285,10 +512,10 @@ function InviteModal({ isOpen, onClose, activeBrandId, onInviteSuccess }) {
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="animate-spin" size={14} /> Sending...
+                <Loader2 className="animate-spin" size={14} /> Đang gửi...
               </>
             ) : (
-              "Send Invitation"
+              "Gửi lời mời tham gia"
             )}
           </button>
         </div>
@@ -297,7 +524,7 @@ function InviteModal({ isOpen, onClose, activeBrandId, onInviteSuccess }) {
   );
 }
 
-function RoleModal({ isOpen, onClose, member, onSuccess }) {
+function RoleModal({ isOpen, onClose, member, customRoles = [], onSuccess }) {
   if (!isOpen) return null;
 
   const [isUpdating, setIsUpdating] = useState(false);
@@ -307,39 +534,41 @@ function RoleModal({ isOpen, onClose, member, onSuccess }) {
     setIsUpdating(true);
     try {
       await apiService.put(`/team/${member.id}/role`, { role: newRole });
-      toast.success("Member role updated successfully!");
+      toast.success("Cập nhật vai trò thành công!");
       onSuccess();
       onClose();
     } catch (error) {
-      toast.error(error.message || "Failed to update role");
+      toast.error(error.message || "Cập nhật vai trò thất bại");
     } finally {
       setIsUpdating(false);
     }
   };
 
   const handleRemoveMember = async () => {
-    if (!window.confirm(`Are you sure you want to remove ${member.name} from this workspace?`)) {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa ${member.name} khỏi thương hiệu này?`)) {
       return;
     }
     setIsRemoving(true);
     try {
       await apiService.delete(`/team/${member.id}`);
-      toast.success("Member removed successfully!");
+      toast.success("Đã xóa thành viên thành công!");
       onSuccess();
       onClose();
     } catch (error) {
-      toast.error(error.message || "Failed to remove member");
+      toast.error(error.message || "Xóa thành viên thất bại");
     } finally {
       setIsRemoving(false);
     }
   };
 
+  const currentRoleValue = member.customRole ? member.customRole.id : member.role;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-[#0A0A0A]/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl relative overflow-hidden animate-in fade-in zoom-in duration-200">
+      <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl relative overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-[#0A0A0A]">Manage Permissions</h2>
+          <h2 className="text-lg font-bold text-[#0A0A0A]">Quản lý vai trò</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-black"><X size={20} /></button>
         </div>
         <div className="p-8 space-y-6">
@@ -351,19 +580,37 @@ function RoleModal({ isOpen, onClose, member, onSuccess }) {
              </div>
           </div>
           <div className="space-y-2">
-             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest font-sans">Update Role</label>
-             <div className="space-y-2">
+             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest font-sans">Chọn Vai trò</label>
+             <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                {/* Default roles */}
                 {['Admin', 'Member', 'Analyst'].map((r) => (
                    <button 
                      key={r} 
                      disabled={isUpdating}
                      onClick={() => handleUpdateRole(r)}
                      className={`w-full p-4 border rounded-2xl text-left flex items-center justify-between transition-all ${
-                       member.role === r ? 'border-black bg-gray-50' : 'border-gray-100 hover:border-gray-300'
+                       currentRoleValue === r ? 'border-black bg-gray-50' : 'border-gray-100 hover:border-gray-300'
                      }`}
                    >
                       <span className="text-[11px] font-bold text-[#0A0A0A]">{r}</span>
-                      {isUpdating && member.role !== r ? null : member.role === r && <Check size={14} />}
+                      {currentRoleValue === r && <Check size={14} />}
+                   </button>
+                ))}
+                {/* Custom roles */}
+                {customRoles.map((cr) => (
+                   <button 
+                     key={cr.id} 
+                     disabled={isUpdating}
+                     onClick={() => handleUpdateRole(cr.id)}
+                     className={`w-full p-4 border rounded-2xl text-left flex items-center justify-between transition-all ${
+                       currentRoleValue === cr.id ? 'border-black bg-gray-50' : 'border-gray-100 hover:border-gray-300'
+                     }`}
+                   >
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: cr.colorHex }} />
+                        <span className="text-[11px] font-bold text-[#0A0A0A]">{cr.name}</span>
+                      </div>
+                      {currentRoleValue === cr.id && <Check size={14} />}
                    </button>
                 ))}
              </div>
@@ -374,7 +621,7 @@ function RoleModal({ isOpen, onClose, member, onSuccess }) {
               disabled={isRemoving}
               className="w-full py-4 border border-red-100 text-red-600 rounded-2xl text-xs font-bold hover:bg-red-50 transition-all flex items-center justify-center gap-2"
             >
-              {isRemoving ? <Loader2 className="animate-spin" size={14} /> : "Remove from Workspace"}
+              {isRemoving ? <Loader2 className="animate-spin" size={14} /> : "Xóa khỏi Workspace"}
             </button>
           </div>
         </div>
@@ -382,3 +629,207 @@ function RoleModal({ isOpen, onClose, member, onSuccess }) {
     </div>
   );
 }
+
+function RoleCreateEditModal({ isOpen, onClose, activeBrandId, role, onSuccess, systemPermissions = [] }) {
+  if (!isOpen) return null;
+
+  const isEdit = !!role;
+  const [name, setName] = useState(role?.name || "");
+  const [description, setDescription] = useState(role?.description || "");
+  const [colorHex, setColorHex] = useState(role?.colorHex || PRESET_COLORS[0]);
+  const [permissions, setPermissions] = useState(() => {
+    // Build initial permissions mapped to current role permissions
+    const map = {};
+    systemPermissions.forEach(sp => {
+      const found = role?.permissions?.find(p => p.permissionKey === sp.key);
+      map[sp.key] = found ? found.isAllowed : false;
+    });
+    return map;
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const togglePermission = (key) => {
+    setPermissions(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleSave = async () => {
+    if (!name.trim()) {
+      toast.error("Vui lòng điền tên vai trò");
+      return;
+    }
+    setIsSubmitting(true);
+    
+    // Format permissions list
+    const permissionsPayload = Object.keys(permissions).map(key => ({
+      permissionKey: key,
+      isAllowed: permissions[key]
+    }));
+
+    try {
+      if (isEdit) {
+        await apiService.put(`/brands/${activeBrandId}/roles/${role.id}`, {
+          name,
+          description,
+          colorHex,
+          permissions: permissionsPayload
+        });
+        toast.success("Cập nhật vai trò tùy chỉnh thành công!");
+      } else {
+        await apiService.post(`/brands/${activeBrandId}/roles`, {
+          name,
+          description,
+          colorHex,
+          permissions: permissionsPayload
+        });
+        toast.success("Tạo vai trò tùy chỉnh thành công!");
+      }
+      onSuccess();
+      onClose();
+    } catch (error) {
+      toast.error(error.message || "Lưu vai trò tùy chỉnh thất bại");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-[#0A0A0A]/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl relative overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-[#0A0A0A]">{isEdit ? "Chỉnh sửa vai trò" : "Tạo vai trò tùy chỉnh"}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-black"><X size={20} /></button>
+        </div>
+        
+        <div className="p-8 space-y-6 max-h-[75vh] overflow-y-auto">
+          {/* Form details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tên vai trò</label>
+              <input 
+                type="text" 
+                placeholder="Ví dụ: Content Editor, Analytics Planner..." 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-2xl text-xs outline-none focus:bg-white focus:border-black transition-all font-medium"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Màu sắc đại diện</label>
+              <div className="flex items-center gap-2 py-1.5">
+                {PRESET_COLORS.map(c => (
+                  <button 
+                    key={c}
+                    type="button"
+                    onClick={() => setColorHex(c)}
+                    className="w-7 h-7 rounded-full border-2 transition-transform duration-150 active:scale-90 relative flex items-center justify-center shadow-sm"
+                    style={{ backgroundColor: c, borderColor: colorHex === c ? "#0A0A0A" : "transparent" }}
+                  >
+                    {colorHex === c && <Check size={12} className={c === "#0A0A0A" ? "text-white" : "text-[#0A0A0A]"} />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Mô tả nhiệm vụ</label>
+            <input 
+              type="text" 
+              placeholder="Mô tả tóm tắt quyền hạn hoặc nhiệm vụ của vai trò này..." 
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-2xl text-xs outline-none focus:bg-white focus:border-black transition-all font-medium"
+            />
+          </div>
+
+          {/* Permissions checkbox grid */}
+          <div className="space-y-6 pt-2">
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block border-b border-gray-100 pb-2">Danh sách phân quyền chi tiết</label>
+            
+            {/* Nhóm Content & Media */}
+            <div className="space-y-3">
+              <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Nhóm Quyền Nội dung & Media (Content & Media)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {systemPermissions.filter(p => p.category === "content").map(p => {
+                  const isActive = permissions[p.key];
+                  return (
+                    <button
+                      key={p.key}
+                      type="button"
+                      onClick={() => togglePermission(p.key)}
+                      className={`p-4 border rounded-2xl text-left transition-all duration-200 flex items-start justify-between gap-4 ${
+                        isActive ? "border-black bg-gray-50/50 shadow-sm" : "border-gray-100 hover:border-gray-200"
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        <div className="text-[11px] font-bold text-[#0A0A0A]">{p.label}</div>
+                        <div className="text-[9px] text-gray-400 leading-normal">{p.desc}</div>
+                      </div>
+                      <div className={`w-9 h-5 rounded-full p-0.5 transition-all duration-300 ${
+                        isActive ? "bg-black" : "bg-gray-200"
+                      }`}>
+                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-all duration-300 ${
+                          isActive ? "translate-x-4" : "translate-x-0"
+                        }`} />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Nhóm Management & Settings */}
+            <div className="space-y-3">
+              <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Nhóm Quyền Quản trị & Cấu hình (Management & Settings)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {systemPermissions.filter(p => p.category === "management").map(p => {
+                  const isActive = permissions[p.key];
+                  return (
+                    <button
+                      key={p.key}
+                      type="button"
+                      onClick={() => togglePermission(p.key)}
+                      className={`p-4 border rounded-2xl text-left transition-all duration-200 flex items-start justify-between gap-4 ${
+                        isActive ? "border-black bg-gray-50/50 shadow-sm" : "border-gray-100 hover:border-gray-200"
+                      }`}
+                    >
+                      <div className="space-y-1">
+                        <div className="text-[11px] font-bold text-[#0A0A0A]">{p.label}</div>
+                        <div className="text-[9px] text-gray-400 leading-normal">{p.desc}</div>
+                      </div>
+                      <div className={`w-9 h-5 rounded-full p-0.5 transition-all duration-300 ${
+                        isActive ? "bg-black" : "bg-gray-200"
+                      }`}>
+                        <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-all duration-300 ${
+                          isActive ? "translate-x-4" : "translate-x-0"
+                        }`} />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <button 
+            onClick={handleSave}
+            disabled={isSubmitting}
+            className="w-full py-4 bg-[#0A0A0A] text-white rounded-2xl text-xs font-bold hover:shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 mt-4"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="animate-spin" size={14} /> Đang lưu...
+              </>
+            ) : (
+              "Lưu cấu hình vai trò"
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
