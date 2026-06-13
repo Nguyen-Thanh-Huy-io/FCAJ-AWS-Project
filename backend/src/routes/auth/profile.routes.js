@@ -62,4 +62,18 @@ router.post(
   profileController.uploadAvatar
 );
 
+// Unlink social account - requires authentication
+router.delete(
+  '/profile/accounts/:provider',
+  verifyAuth,
+  profileController.unlinkAccount
+);
+
+// Change password - requires authentication
+router.put(
+  '/profile/change-password',
+  verifyAuth,
+  profileController.changePassword
+);
+
 module.exports = router;

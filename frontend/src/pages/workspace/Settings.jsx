@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import { 
   User, Shield, CreditCard, Globe, 
   Mail, Lock, Smartphone, ExternalLink,
   MessageCircle, Send, Paperclip, CheckCircle2, Search,
-  AlertTriangle, Loader2
+  AlertTriangle, Loader2, Plus
 } from "lucide-react";
 import profileService from "../../services/profile.service";
+import apiService from "../../services/api";
 import { toast } from "sonner";
 
 export function SettingsPage() {
@@ -22,6 +23,10 @@ export function SettingsPage() {
   const [twoFactor, setTwoFactor] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [accounts, setAccounts] = useState([]);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   // Chat in settings
   const [chatInput, setChatInput] = useState("");
@@ -52,6 +57,7 @@ export function SettingsPage() {
           const userData = res.data;
           setFullName(userData.fullName || "");
           setEmail(userData.email || "");
+          setAccounts(userData.accounts || []);
         }
       } catch (err) {
         toast.error("Không thể lấy thông tin profile");
@@ -62,6 +68,15 @@ export function SettingsPage() {
     fetchProfile();
   }, []);
 
+  // Handle URL query parameters (e.g. google link callback redirection)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("success") === "google_linked") {
+      toast.success("Liên kết tài khoản Google thành công!");
+      navigate("/settings?tab=access", { replace: true });
+    }
+  }, [location.search, navigate]);
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -71,6 +86,60 @@ export function SettingsPage() {
       toast.error(err.message || "Cập nhật thất bại");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleLinkGoogle = async () => {
+    try {
+      const res = await apiService.get("/auth/google?state=settings");
+      if (res.data && res.data.url) {
+        window.location.href = res.data.url;
+      } else {
+        toast.error("Không thể lấy URL liên kết tài khoản Google");
+      }
+    } catch (err) {
+      toast.error(err.message || "Đã xảy ra lỗi khi liên kết Google");
+    }
+  };
+
+  const handleUnlink = async (provider) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn hủy liên kết tài khoản ${provider}?`)) return;
+    try {
+      await apiService.delete(`/profile/accounts/${provider.toLowerCase()}`);
+      toast.success(`Hủy liên kết tài khoản ${provider} thành công!`);
+      // Refresh profile info
+      const res = await profileService.getUserProfile();
+      if (res && res.data) {
+        setAccounts(res.data.accounts || []);
+      }
+    } catch (err) {
+      toast.error(err.message || "Hủy liên kết thất bại");
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!newPassword) {
+      toast.error("Vui lòng nhập mật khẩu mới!");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("Mật khẩu mới phải có ít nhất 6 ký tự!");
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      await apiService.put("/profile/change-password", {
+        currentPassword,
+        newPassword
+      });
+      toast.success("Cập nhật mật khẩu thành công!");
+      setCurrentPassword("");
+      setNewPassword("");
+    } catch (err) {
+      toast.error(err.message || "Không thể cập nhật mật khẩu");
+    } finally {
+      setIsUpdatingPassword(false);
     }
   };
 
@@ -227,13 +296,50 @@ export function SettingsPage() {
                 <input value={email} disabled className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-400 text-sm font-medium" />
               </div>
 
+              {accounts.some(acc => acc.provider === 'LOCAL') && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Mật khẩu hiện tại</label>
+                    <Link 
+                      to={`/forgot-password?email=${encodeURIComponent(email)}`}
+                      className="text-[10px] font-bold text-blue-600 hover:underline hover:text-blue-700 transition-colors"
+                    >
+                      Quên mật khẩu?
+                    </Link>
+                  </div>
+                  <div className="relative">
+                    <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input 
+                      type="password" 
+                      placeholder="Nhập mật khẩu hiện tại" 
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none text-sm font-medium" 
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">New password</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                  {accounts.some(acc => acc.provider === 'LOCAL') ? "Mật khẩu mới" : "Thiết lập mật khẩu mới"}
+                </label>
                 <div className="relative">
                   <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input type="password" placeholder="Enter new password" className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none text-sm font-medium" />
+                  <input 
+                    type="password" 
+                    placeholder={accounts.some(acc => acc.provider === 'LOCAL') ? "Nhập mật khẩu mới" : "Tạo mật khẩu đăng nhập trực tiếp"} 
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none text-sm font-medium" 
+                  />
                 </div>
-                <p className="text-[10px] text-gray-400 italic">Enter a new password to change the current one</p>
+                <p className="text-[10px] text-gray-400 italic">
+                  {accounts.some(acc => acc.provider === 'LOCAL') 
+                    ? "Nhập mật khẩu mới có độ dài tối thiểu 6 ký tự để thay đổi mật khẩu hiện tại."
+                    : "Tài khoản của bạn đang đăng nhập bằng Google. Hãy thiết lập mật khẩu tại đây nếu bạn muốn đăng nhập song song bằng Email & Mật khẩu."
+                  }
+                </p>
               </div>
 
               <div className="p-6 rounded-2xl bg-blue-50 border border-blue-100 space-y-4">
@@ -254,7 +360,79 @@ export function SettingsPage() {
                  </p>
               </div>
               
-              <button className="px-8 py-3 bg-[#0A0A0A] text-white rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg">Update Access</button>
+              <button 
+                onClick={handleUpdatePassword}
+                disabled={isUpdatingPassword}
+                className="px-8 py-3 bg-[#0A0A0A] text-white rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg flex items-center gap-2"
+              >
+                {isUpdatingPassword && <Loader2 size={16} className="animate-spin" />}
+                Update Access
+              </button>
+            </div>
+
+            {/* Linked Accounts Section */}
+            <div className="pt-8 border-t border-gray-100 space-y-6">
+              <div>
+                <h3 className="text-sm font-bold text-[#0A0A0A]">Liên kết tài khoản mạng xã hội</h3>
+                <p className="text-xs text-gray-500 mt-1">Liên kết với tài khoản Google để đăng nhập nhanh chóng bằng 1-click.</p>
+              </div>
+
+              <div className="space-y-3 max-w-xl">
+                {/* Local Email/Password Method */}
+                <div className="flex items-center justify-between p-4 rounded-2xl border border-gray-100 bg-white shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-gray-50 rounded-xl">
+                      <Mail size={18} className="text-gray-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-[#0A0A0A]">Email & Mật khẩu</div>
+                      <div className="text-xs text-gray-400 font-medium mt-0.5">{email}</div>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 bg-green-50 text-green-700 text-[10px] font-black uppercase tracking-wider rounded-lg border border-green-100">
+                    Đang hoạt động
+                  </span>
+                </div>
+
+                {/* Google OAuth Method */}
+                <div className="flex items-center justify-between p-4 rounded-2xl border border-gray-100 bg-white shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-red-50 rounded-xl">
+                      <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24">
+                        <path
+                          fill="#EA4335"
+                          d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114A5.94 5.94 0 0 1 8 12.57c0-3.3 2.685-5.97 5.99-5.97 1.5 0 2.87.55 3.94 1.45l3.12-3.12C19.18 3.12 16.27 2 13.99 2A10.57 10.57 0 0 0 3.42 12.57a10.57 10.57 0 0 0 10.57 10.57c5.83 0 10.13-4.1 10.13-10.27 0-.7-.08-1.2-.2-1.585H12.24z"
+                        />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-[#0A0A0A]">Tài khoản Google</div>
+                      <div className="text-xs text-gray-400 font-medium mt-0.5">
+                        {accounts.some(acc => acc.provider === "GOOGLE") 
+                          ? `Đã liên kết (ID: ${accounts.find(acc => acc.provider === "GOOGLE")?.providerId || "N/A"})`
+                          : "Chưa liên kết tài khoản Google"
+                        }
+                      </div>
+                    </div>
+                  </div>
+
+                  {accounts.some(acc => acc.provider === "GOOGLE") ? (
+                    <button
+                      onClick={() => handleUnlink("GOOGLE")}
+                      className="px-4 py-2 bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 text-xs font-bold rounded-xl transition-all active:scale-95"
+                    >
+                      Hủy liên kết
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleLinkGoogle}
+                      className="px-4 py-2 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 text-xs font-bold rounded-xl transition-all active:scale-95 flex items-center gap-1.5"
+                    >
+                      <Plus size={14} /> Liên kết ngay
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}

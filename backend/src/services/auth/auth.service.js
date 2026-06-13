@@ -196,12 +196,12 @@ class AuthService {
     return { message: 'Logout successful' };
   }
 
-  async getGoogleAuthUrl(redirectUri) {
+  async getGoogleAuthUrl(redirectUri, state = 'login') {
     const scopes = [
       'https://www.googleapis.com/auth/userinfo.email',
       'https://www.googleapis.com/auth/userinfo.profile'
     ];
-    return googleOAuthService.getAuthUrl(scopes, 'login', redirectUri);
+    return googleOAuthService.getAuthUrl(scopes, state, redirectUri);
   }
 
   async handleGoogleCallback(code, redirectUri) {

@@ -753,7 +753,7 @@ function RoleCreateEditModal({ isOpen, onClose, activeBrandId, role, onSuccess, 
             <div className="space-y-3">
               <h3 className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Nhóm Quyền Nội dung & Media (Content & Media)</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {systemPermissions.filter(p => p.category === "content").map(p => {
+                {systemPermissions.filter(p => p.category === "content" || p.category === "posts").map(p => {
                   const isActive = permissions[p.key];
                   return (
                     <button

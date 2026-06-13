@@ -38,7 +38,14 @@ class ProfileService {
       role: user.role,
       isActive: user.isActive,
       isEmailVerified: user.isEmailVerified,
-      createdAt: user.createdAt
+      createdAt: user.createdAt,
+      accounts: user.accounts.map(acc => ({
+        id: acc.id,
+        provider: acc.provider,
+        providerId: acc.providerId,
+        createdAt: acc.createdAt,
+        lastLoginAt: acc.lastLoginAt
+      }))
     };
   }
 
@@ -114,6 +121,97 @@ class ProfileService {
       createdAt: updatedUser.createdAt,
       updatedAt: updatedUser.updatedAt
     };
+  }
+
+  /**
+   * Unlink social provider account
+   * @param {string} userId
+   * @param {string} provider
+   */
+  async unlinkAccount(userId, provider) {
+    const prisma = require('../../config/prisma');
+
+    // 1. Fetch user to verify accounts count
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      const error = new Error('User not found');
+      error.status = 404;
+      throw error;
+    }
+
+    if (user.accounts.length <= 1) {
+      const error = new Error('Bạn không thể hủy liên kết phương thức đăng nhập duy nhất.');
+      error.status = 400;
+      throw error;
+    }
+
+    // 2. Delete the account of this provider
+    await prisma.userAccount.deleteMany({
+      where: {
+        userId,
+        provider: provider.toUpperCase()
+      }
+    });
+
+    return { message: `Hủy liên kết tài khoản ${provider} thành công` };
+  }
+
+  /**
+   * Change user password
+   * @param {string} userId
+   * @param {string} currentPassword
+   * @param {string} newPassword
+   */
+  async changePassword(userId, currentPassword, newPassword) {
+    const bcrypt = require('bcryptjs');
+    const prisma = require('../../config/prisma');
+
+    // 1. Fetch user accounts
+    const localAccount = await prisma.userAccount.findFirst({
+      where: {
+        userId,
+        provider: 'LOCAL'
+      }
+    });
+
+    // 2. If LOCAL account exists, verify current password
+    if (localAccount && localAccount.passwordHash) {
+      if (!currentPassword) {
+        const error = new Error('Mật khẩu hiện tại là bắt buộc.');
+        error.status = 400;
+        throw error;
+      }
+
+      const isMatch = await bcrypt.compare(currentPassword, localAccount.passwordHash);
+      if (!isMatch) {
+        const error = new Error('Mật khẩu hiện tại không chính xác.');
+        error.status = 400;
+        throw error;
+      }
+    }
+
+    // 3. Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const newPasswordHash = await bcrypt.hash(newPassword, salt);
+
+    // 4. Update or create LOCAL account
+    if (localAccount) {
+      await prisma.userAccount.update({
+        where: { id: localAccount.id },
+        data: { passwordHash: newPasswordHash }
+      });
+    } else {
+      // First-time password setup for social logins
+      await prisma.userAccount.create({
+        data: {
+          userId,
+          provider: 'LOCAL',
+          passwordHash: newPasswordHash
+        }
+      });
+    }
+
+    return { message: 'Thay đổi mật khẩu thành công' };
   }
 }
 

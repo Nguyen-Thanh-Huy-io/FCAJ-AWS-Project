@@ -91,6 +91,34 @@ class ProfileController {
       data: { avatarUrl }
     });
   });
+
+  /**
+   * Unlink social provider account
+   * DELETE /api/profile/accounts/:provider
+   */
+  unlinkAccount = asyncHandler(async (req, res) => {
+    const userId = req.user.id;
+    const { provider } = req.params;
+
+    const result = await profileService.unlinkAccount(userId, provider);
+    res.status(200).json(result);
+  });
+
+  /**
+   * Change password
+   * PUT /api/profile/change-password
+   */
+  changePassword = asyncHandler(async (req, res) => {
+    const userId = req.user.id;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ message: 'Mật khẩu mới phải có ít nhất 6 ký tự.' });
+    }
+
+    const result = await profileService.changePassword(userId, currentPassword, newPassword);
+    res.status(200).json(result);
+  });
 }
 
 module.exports = new ProfileController();

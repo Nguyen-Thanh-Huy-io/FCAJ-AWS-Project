@@ -5,6 +5,9 @@ async function main() {
   console.log('Clearing existing data...');
   // Delete in reverse order of dependencies to avoid foreign key violations
   await prisma.auditLog.deleteMany({});
+  await prisma.customRolePermission.deleteMany({});
+  await prisma.customRole.deleteMany({});
+  await prisma.team.deleteMany({});
   await prisma.brand.deleteMany({});
   await prisma.subscription.deleteMany({});
   await prisma.userSettings.deleteMany({});
@@ -12,6 +15,7 @@ async function main() {
   await prisma.user.deleteMany({});
   await prisma.plan.deleteMany({});
   await prisma.planLimit.deleteMany({});
+  await prisma.systemPermission.deleteMany({});
 
   console.log('Seeding PlanLimits...');
   const proLimit = await prisma.planLimit.create({
@@ -65,6 +69,22 @@ async function main() {
     }
   });
 
+  console.log('Seeding SystemPermissions...');
+  const permissionsData = [
+    { key: 'CREATE_POSTS', label: 'Tạo bài viết', description: 'Cho phép tạo bài viết mới', category: 'posts' },
+    { key: 'PUBLISH_POSTS', label: 'Đăng bài viết', description: 'Cho phép đăng trực tiếp bài viết lên mạng xã hội', category: 'posts' },
+    { key: 'APPROVE_POSTS', label: 'Phê duyệt bài viết', description: 'Cho phép duyệt hoặc từ chối bài viết', category: 'posts' },
+    { key: 'DELETE_POSTS', label: 'Xóa bài viết', description: 'Cho phép xóa bài viết', category: 'posts' },
+    { key: 'MANAGE_ROLES', label: 'Quản lý vai trò', description: 'Cho phép tạo, sửa, xóa vai trò tùy chỉnh', category: 'management' },
+    { key: 'INVITE_MEMBERS', label: 'Mời thành viên', description: 'Cho phép mời thành viên mới vào thương hiệu', category: 'management' }
+  ];
+
+  for (const perm of permissionsData) {
+    await prisma.systemPermission.create({
+      data: perm
+    });
+  }
+
   console.log('Seeding User...');
   // Password is 'admin123'
   const passwordHash = '$2a$10$tMhPqW9gZ72bM7d/vXlU7eS0mD1zZl/z/n6J3c9i7o9B01G5C5.P.';
@@ -82,10 +102,93 @@ async function main() {
         }
       },
       accounts: {
+        create: [
+          {
+            provider: 'LOCAL',
+            passwordHash: passwordHash
+          },
+          {
+            provider: 'GOOGLE',
+            providerId: 'google-oauth2-vothanhnha26'
+          }
+        ]
+      }
+    }
+  });
+
+  // Additional members to populate Team Management page
+  const memberSpecialist = await prisma.user.create({
+    data: {
+      email: 'specialist@publicast.com',
+      passwordHash: passwordHash,
+      name: 'Nguyễn Văn Chuyên',
+      role: 'USER',
+      isActive: true,
+      settings: {
         create: {
-          provider: 'LOCAL',
-          passwordHash: passwordHash
+          language: 'vi',
+          timezone: 'Asia/Ho_Chi_Minh'
         }
+      },
+      accounts: {
+        create: [
+          {
+            provider: 'LOCAL',
+            passwordHash: passwordHash
+          },
+          {
+            provider: 'GOOGLE',
+            providerId: 'google-oauth2-chuyennguyen'
+          }
+        ]
+      }
+    }
+  });
+
+  const memberManager = await prisma.user.create({
+    data: {
+      email: 'manager@publicast.com',
+      passwordHash: passwordHash,
+      name: 'Lê Thị Quản Lý',
+      role: 'MANAGER',
+      isActive: true,
+      settings: {
+        create: {
+          language: 'vi',
+          timezone: 'Asia/Ho_Chi_Minh'
+        }
+      },
+      accounts: {
+        create: [
+          {
+            provider: 'LOCAL',
+            passwordHash: passwordHash
+          }
+        ]
+      }
+    }
+  });
+
+  const memberGuest = await prisma.user.create({
+    data: {
+      email: 'guest@publicast.com',
+      passwordHash: passwordHash,
+      name: 'Trần Khách Mời',
+      role: 'USER',
+      isActive: true,
+      settings: {
+        create: {
+          language: 'vi',
+          timezone: 'Asia/Ho_Chi_Minh'
+        }
+      },
+      accounts: {
+        create: [
+          {
+            provider: 'LOCAL',
+            passwordHash: passwordHash
+          }
+        ]
       }
     }
   });
@@ -109,6 +212,121 @@ async function main() {
       ownerId: user.id,
       subscriptionId: subscription.id,
       isActive: true
+    }
+  });
+
+  console.log('Seeding Custom Roles...');
+  
+  // 1. Social Specialist Role
+  const specialistRole = await prisma.customRole.create({
+    data: {
+      brandId: brand.id,
+      name: 'Social Media Specialist',
+      description: 'Chuyên viên biên soạn và tối ưu bài viết mạng xã hội',
+      colorHex: '#3B82F6',
+      permissions: {
+        create: [
+          { permissionKey: 'CREATE_POSTS', isAllowed: true },
+          { permissionKey: 'PUBLISH_POSTS', isAllowed: false },
+          { permissionKey: 'APPROVE_POSTS', isAllowed: false },
+          { permissionKey: 'DELETE_POSTS', isAllowed: true },
+          { permissionKey: 'MANAGE_ROLES', isAllowed: false },
+          { permissionKey: 'INVITE_MEMBERS', isAllowed: false }
+        ]
+      }
+    }
+  });
+
+  // 2. Content Manager Role
+  const managerRole = await prisma.customRole.create({
+    data: {
+      brandId: brand.id,
+      name: 'Content Manager',
+      description: 'Quản lý duyệt bài viết và cấu hình quyền hạn cơ bản',
+      colorHex: '#8B5CF6',
+      permissions: {
+        create: [
+          { permissionKey: 'CREATE_POSTS', isAllowed: true },
+          { permissionKey: 'PUBLISH_POSTS', isAllowed: true },
+          { permissionKey: 'APPROVE_POSTS', isAllowed: true },
+          { permissionKey: 'DELETE_POSTS', isAllowed: true },
+          { permissionKey: 'MANAGE_ROLES', isAllowed: true },
+          { permissionKey: 'INVITE_MEMBERS', isAllowed: true }
+        ]
+      }
+    }
+  });
+
+  // 3. Guest Editor Role
+  const guestRole = await prisma.customRole.create({
+    data: {
+      brandId: brand.id,
+      name: 'Guest Editor',
+      description: 'Thành viên viết bài khách mời, chỉ soạn thảo bản nháp',
+      colorHex: '#F59E0B',
+      permissions: {
+        create: [
+          { permissionKey: 'CREATE_POSTS', isAllowed: true },
+          { permissionKey: 'PUBLISH_POSTS', isAllowed: false },
+          { permissionKey: 'APPROVE_POSTS', isAllowed: false },
+          { permissionKey: 'DELETE_POSTS', isAllowed: false },
+          { permissionKey: 'MANAGE_ROLES', isAllowed: false },
+          { permissionKey: 'INVITE_MEMBERS', isAllowed: false }
+        ]
+      }
+    }
+  });
+
+  console.log('Seeding Team Members...');
+  
+  // Owner is Nhã Võ
+  await prisma.team.create({
+    data: {
+      brandId: brand.id,
+      userId: user.id,
+      role: 'OWNER',
+      invitedByUserId: user.id,
+      status: 'ACTIVE',
+      acceptedAt: new Date()
+    }
+  });
+
+  // Specialist Nguyễn Văn Chuyên
+  await prisma.team.create({
+    data: {
+      brandId: brand.id,
+      userId: memberSpecialist.id,
+      role: 'USER',
+      customRoleId: specialistRole.id,
+      invitedByUserId: user.id,
+      status: 'ACTIVE',
+      acceptedAt: new Date()
+    }
+  });
+
+  // Manager Lê Thị Quản Lý
+  await prisma.team.create({
+    data: {
+      brandId: brand.id,
+      userId: memberManager.id,
+      role: 'MANAGER',
+      customRoleId: managerRole.id,
+      invitedByUserId: user.id,
+      status: 'ACTIVE',
+      acceptedAt: new Date()
+    }
+  });
+
+  // Guest Trần Khách Mời
+  await prisma.team.create({
+    data: {
+      brandId: brand.id,
+      userId: memberGuest.id,
+      role: 'USER',
+      customRoleId: guestRole.id,
+      invitedByUserId: user.id,
+      status: 'ACTIVE',
+      acceptedAt: new Date()
     }
   });
 

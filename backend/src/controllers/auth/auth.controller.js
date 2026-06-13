@@ -11,8 +11,9 @@ class AuthController {
    * GET /api/auth/google
    */
   googleLogin = asyncHandler(async (req, res) => {
+    const { state } = req.query;
     const redirectUri = `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
-    const url = await authService.getGoogleAuthUrl(redirectUri);
+    const url = await authService.getGoogleAuthUrl(redirectUri, state);
     res.json({ url });
   });
 
@@ -21,14 +22,18 @@ class AuthController {
    * GET /api/auth/google/callback
    */
   googleCallback = asyncHandler(async (req, res) => {
-    const { code } = req.query;
+    const { code, state } = req.query;
     const redirectUri = `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
     const result = await authService.handleGoogleCallback(code, redirectUri);
     setAuthCookies(res, result.accessToken, result.refreshToken);
 
-    res.redirect(`${frontendUrl}/dashboard?success=google_login`);
+    if (state === 'settings') {
+      res.redirect(`${frontendUrl}/settings?tab=access&success=google_linked`);
+    } else {
+      res.redirect(`${frontendUrl}/dashboard?success=google_login`);
+    }
   });
 
   register = asyncHandler(async (req, res) => {
