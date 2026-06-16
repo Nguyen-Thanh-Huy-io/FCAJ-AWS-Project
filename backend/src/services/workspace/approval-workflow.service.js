@@ -1,11 +1,22 @@
 const approvalWorkflowRepository = require('../../repositories/workspace/approval-workflow.repository');
 const postRepository = require('../../repositories/workspace/post.repository');
 const authorizationFacade = require('../auth/authorization.facade');
-const { POST_STATUS } = require('../../utils/constants');
-const { upsertPublishJob } = require('../../queues/publish.queue');
+const {
+  POST_STATUS,
+  WORKFLOW_STATUS,
+  WORKFLOW_POLICY,
+  TEAM_STATUS,
+  PERMISSION_KEYS,
+  USER_ROLES
+} = require('../../utils/constants');
+const { REVIEW_ACTION_STRATEGY_MAP } = require('./review-action-strategies');
 const prisma = require('../../config/prisma');
 
 class ApprovalWorkflowService {
+  /**
+   * Lấy danh sách những người có thể review bài trong một brand.
+   * Bao gồm: OWNER, ADMIN, thành viên có quyền APPROVE_POSTS.
+   */
   async getPotentialReviewers(brandId, userId) {
     const isMember = await authorizationFacade.checkBrandAccess(userId, brandId);
     if (!isMember) {
@@ -25,76 +36,59 @@ class ApprovalWorkflowService {
     if (!brand) return [];
 
     const members = await prisma.team.findMany({
-      where: { brandId, status: 'ACTIVE' },
+      where: { brandId, status: TEAM_STATUS.ACTIVE },
       include: {
         user: {
           select: { id: true, name: true, email: true, avatarUrl: true }
         },
         customRole: {
-          include: {
-            permissions: true
-          }
+          include: { permissions: true }
         }
       }
     });
 
     const reviewers = [];
+
     if (brand.owner) {
       reviewers.push({
-        id: brand.owner.id,
-        name: brand.owner.name,
-        email: brand.owner.email,
+        id:        brand.owner.id,
+        name:      brand.owner.name,
+        email:     brand.owner.email,
         avatarUrl: brand.owner.avatarUrl,
-        role: 'OWNER'
+        role:      USER_ROLES.OWNER
       });
     }
 
     for (const m of members) {
       if (m.userId === brand.ownerId) continue;
 
-      let hasPermission = false;
-      if (m.role === 'ADMIN') {
-        hasPermission = true;
-      } else if (m.customRole && m.customRole.permissions) {
-        hasPermission = m.customRole.permissions.some(p => p.permissionKey === 'APPROVE_POSTS' && p.isAllowed);
-      }
+      const hasPermission = this._memberHasApprovePermission(m);
 
       if (hasPermission && m.user) {
         reviewers.push({
-          id: m.user.id,
-          name: m.user.name,
-          email: m.user.email,
+          id:        m.user.id,
+          name:      m.user.name,
+          email:     m.user.email,
           avatarUrl: m.user.avatarUrl,
-          role: m.customRole ? m.customRole.name : 'ADMIN'
+          role:      m.customRole ? m.customRole.name : USER_ROLES.ADMIN
         });
       }
     }
 
     return reviewers;
   }
+
+  /**
+   * Lấy danh sách workflow theo brand.
+   * brandId === 'all' → lấy tất cả brand mà user có quyền truy cập.
+   */
   async getWorkflowsByBrand(brandId, userId) {
     if (brandId === 'all') {
-      // Find all brands the user has access to (as owner or active member)
-      const ownedBrands = await prisma.brand.findMany({
-        where: { ownerId: userId, deletedAt: null },
-        select: { id: true }
-      });
-      const memberBrands = await prisma.team.findMany({
-        where: { userId, status: 'ACTIVE' },
-        select: { brandId: true }
-      });
-      
-      const brandIds = [...new Set([
-        ...ownedBrands.map(b => b.id),
-        ...memberBrands.map(t => t.brandId)
-      ])];
-      
+      const brandIds = await this._getAllAccessibleBrandIds(userId);
       if (brandIds.length === 0) return [];
-      
       return approvalWorkflowRepository.findManyByBrand(brandIds);
     }
 
-    // Check if the user belongs to the brand
     const isMember = await authorizationFacade.checkBrandAccess(userId, brandId);
     if (!isMember) {
       const error = new Error('Bạn không có quyền truy cập vào thương hiệu này.');
@@ -105,7 +99,17 @@ class ApprovalWorkflowService {
     return approvalWorkflowRepository.findManyByBrand(brandId);
   }
 
-  async createWorkflowRequest(postId, requesterId, brandId, reviewerIds = [], policy = 'AT_LEAST_ONE', requesterNote = '') {
+  /**
+   * Tạo yêu cầu phê duyệt cho một bài viết.
+   */
+  async createWorkflowRequest(
+    postId,
+    requesterId,
+    brandId,
+    reviewerIds = [],
+    policy = WORKFLOW_POLICY.AT_LEAST_ONE,
+    requesterNote = ''
+  ) {
     const post = await postRepository.findById(postId);
     if (!post || post.brandId !== brandId) {
       const error = new Error('Không tìm thấy bài viết hoặc bài viết không thuộc thương hiệu này.');
@@ -113,32 +117,35 @@ class ApprovalWorkflowService {
       throw error;
     }
 
-    if (post.status !== POST_STATUS.DRAFT && post.status !== POST_STATUS.REJECTED && post.status !== 'PENDING_APPROVAL') {
+    const allowedStatuses = [POST_STATUS.DRAFT, POST_STATUS.REJECTED, POST_STATUS.PENDING_APPROVAL];
+    if (!allowedStatuses.includes(post.status)) {
       const error = new Error('Chỉ có thể gửi duyệt bài viết đang ở trạng thái Nháp, Chờ duyệt hoặc Bị từ chối.');
       error.status = 400;
       throw error;
     }
 
-    // Verify reviewers are valid (or just save the list)
     const reviewerList = Array.isArray(reviewerIds) ? reviewerIds : [reviewerIds].filter(Boolean);
 
-    // Create the workflow request
     const workflow = await approvalWorkflowRepository.create({
       postId,
       brandId,
       requesterId,
-      approvalPolicy: policy,
+      approvalPolicy:    policy,
       selectedReviewers: JSON.stringify(reviewerList),
       requesterNote,
-      status: 'PENDING'
+      status:            WORKFLOW_STATUS.PENDING
     });
 
-    // Update Post status to PENDING_APPROVAL
-    await postRepository.updateStatus(postId, 'PENDING_APPROVAL');
+    await postRepository.updateStatus(postId, POST_STATUS.PENDING_APPROVAL);
 
     return workflow;
   }
 
+  /**
+   * Reviewer xử lý một yêu cầu phê duyệt.
+   * Dùng Strategy Pattern — mỗi action là một strategy độc lập.
+   * Thêm action mới: tạo class mới trong review-action-strategies.js, không sửa file này.
+   */
   async reviewWorkflowRequest(workflowId, reviewerId, action, comment = '') {
     const workflow = await approvalWorkflowRepository.findById(workflowId);
     if (!workflow) {
@@ -147,60 +154,83 @@ class ApprovalWorkflowService {
       throw error;
     }
 
-    if (workflow.status !== 'PENDING') {
+    if (workflow.status !== WORKFLOW_STATUS.PENDING) {
       const error = new Error('Yêu cầu phê duyệt này đã được xử lý trước đó.');
       error.status = 400;
       throw error;
     }
 
-    // Authorization: User must be listed in selectedReviewers, OR have APPROVE_POSTS permission in the brand
+    await this._assertReviewerIsAuthorized(reviewerId, workflow);
+
+    // Lookup strategy — không có if/else if chain nữa
+    const strategy = REVIEW_ACTION_STRATEGY_MAP[action];
+    if (!strategy) {
+      const error = new Error('Hành động phê duyệt không hợp lệ.');
+      error.status = 400;
+      throw error;
+    }
+
+    const { workflowStatus, postStatus } = await strategy.execute(workflow);
+
+    const updatedWorkflow = await approvalWorkflowRepository.update(workflowId, {
+      status:            workflowStatus,
+      reviewedByUserId:  reviewerId,
+      reviewedAt:        new Date(),
+      reviewerComment:   comment
+    });
+
+    await postRepository.updateStatus(workflow.postId, postStatus);
+
+    return updatedWorkflow;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private helpers
+  // ---------------------------------------------------------------------------
+
+  /** Kiểm tra member có quyền APPROVE_POSTS không (ADMIN hoặc custom role). */
+  _memberHasApprovePermission(member) {
+    if (member.role === USER_ROLES.ADMIN) return true;
+    if (!member.customRole?.permissions) return false;
+    return member.customRole.permissions.some(
+      p => p.permissionKey === PERMISSION_KEYS.APPROVE_POSTS && p.isAllowed
+    );
+  }
+
+  /** Ném lỗi 403 nếu reviewer không có quyền xử lý workflow này. */
+  async _assertReviewerIsAuthorized(reviewerId, workflow) {
     const reviewers = JSON.parse(workflow.selectedReviewers || '[]');
     const isListedReviewer = reviewers.includes(reviewerId);
-    const hasApprovePermission = await authorizationFacade.hasPermission(reviewerId, workflow.brandId, 'APPROVE_POSTS');
+    const hasApprovePermission = await authorizationFacade.hasPermission(
+      reviewerId,
+      workflow.brandId,
+      PERMISSION_KEYS.APPROVE_POSTS
+    );
 
     if (!isListedReviewer && !hasApprovePermission) {
       const error = new Error('Bạn không có quyền phê duyệt yêu cầu này.');
       error.status = 403;
       throw error;
     }
+  }
 
-    let nextWorkflowStatus = 'PENDING';
-    let nextPostStatus = POST_STATUS.PENDING_APPROVAL;
+  /** Lấy tất cả brandId mà user có quyền truy cập (owned + active member). */
+  async _getAllAccessibleBrandIds(userId) {
+    const [ownedBrands, memberBrands] = await Promise.all([
+      prisma.brand.findMany({
+        where:  { ownerId: userId, deletedAt: null },
+        select: { id: true }
+      }),
+      prisma.team.findMany({
+        where:  { userId, status: TEAM_STATUS.ACTIVE },
+        select: { brandId: true }
+      })
+    ]);
 
-    if (action === 'APPROVED') {
-      nextWorkflowStatus = 'APPROVED';
-      // If the post has a scheduled time, set it to SCHEDULED, otherwise APPROVED
-      if (workflow.post && workflow.post.scheduledAt) {
-        nextPostStatus = POST_STATUS.SCHEDULED;
-        // Register in BullMQ
-        await upsertPublishJob(workflow.post.id, workflow.post.scheduledAt);
-      } else {
-        nextPostStatus = POST_STATUS.APPROVED;
-      }
-    } else if (action === 'REJECTED') {
-      nextWorkflowStatus = 'REJECTED';
-      nextPostStatus = POST_STATUS.REJECTED;
-    } else if (action === 'REVISION_NEEDED') {
-      nextWorkflowStatus = 'REVISION_NEEDED';
-      nextPostStatus = POST_STATUS.DRAFT;
-    } else {
-      const error = new Error('Hành động phê duyệt không hợp lệ.');
-      error.status = 400;
-      throw error;
-    }
-
-    // Update workflow request
-    const updatedWorkflow = await approvalWorkflowRepository.update(workflowId, {
-      status: nextWorkflowStatus,
-      reviewedByUserId: reviewerId,
-      reviewedAt: new Date(),
-      reviewerComment: comment
-    });
-
-    // Update Post status
-    await postRepository.updateStatus(workflow.postId, nextPostStatus);
-
-    return updatedWorkflow;
+    return [...new Set([
+      ...ownedBrands.map(b => b.id),
+      ...memberBrands.map(t => t.brandId)
+    ])];
   }
 }
 

@@ -135,6 +135,23 @@ class BrandRepository {
       }
     });
   }
+
+  async findBrandWithSubscription(id) {
+    return await prisma.brand.findFirst({
+      where: { id, deletedAt: null },
+      include: {
+        subscription: {
+          include: {
+            plan: {
+              include: {
+                planLimit: true
+              }
+            }
+          }
+        }
+      }
+    });
+  }
 }
 
 module.exports = new BrandRepository();

@@ -69,6 +69,50 @@ const POST_STATUS = {
   PAUSED: 'PAUSED'
 };
 
+/**
+ * Trạng thái của workflow record trong DB.
+ * Phân biệt với REVIEW_ACTION (input từ reviewer).
+ */
+const WORKFLOW_STATUS = {
+  PENDING:         'PENDING',
+  APPROVED:        'APPROVED',
+  REJECTED:        'REJECTED',
+  REVISION_NEEDED: 'REVISION_NEEDED'
+};
+
+/**
+ * Hành động reviewer gửi lên — input từ client.
+ * Giá trị hiện tại trùng WORKFLOW_STATUS nhưng tách biệt về ngữ nghĩa.
+ */
+const REVIEW_ACTION = {
+  APPROVED:        'APPROVED',
+  REJECTED:        'REJECTED',
+  REVISION_NEEDED: 'REVISION_NEEDED'
+};
+
+/** Chính sách phê duyệt workflow. */
+const WORKFLOW_POLICY = {
+  AT_LEAST_ONE: 'AT_LEAST_ONE',
+  ALL:          'ALL'
+};
+
+/** Trạng thái thành viên trong team/brand. */
+const TEAM_STATUS = {
+  ACTIVE:  'ACTIVE',
+  INACTIVE: 'INACTIVE',
+  PENDING:  'PENDING'
+};
+
+/** Permission keys — đồng bộ với cột permissionKey trong DB. */
+const PERMISSION_KEYS = {
+  APPROVE_POSTS:   'APPROVE_POSTS',
+  MANAGE_TEAM:     'MANAGE_TEAM',
+  MANAGE_BRAND:    'MANAGE_BRAND',
+  CREATE_POSTS:    'CREATE_POSTS',
+  PUBLISH_POSTS:   'PUBLISH_POSTS',
+  VIEW_ANALYTICS:  'VIEW_ANALYTICS'
+};
+
 const ERROR_MESSAGES = {
   REGISTRATION_SUCCESS: 'Registration successful. Please check your email for activation OTP.',
   LOGIN_SUCCESS: 'Login successful',
@@ -323,6 +367,11 @@ module.exports = {
   INBOX_STATUS,
   INBOX_TYPES,
   POST_STATUS,
+  WORKFLOW_STATUS,
+  REVIEW_ACTION,
+  WORKFLOW_POLICY,
+  TEAM_STATUS,
+  PERMISSION_KEYS,
   ERROR_MESSAGES,
   AUTOLIST_TYPES,
   SEPARATORS,

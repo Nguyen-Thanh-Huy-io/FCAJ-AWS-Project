@@ -33,12 +33,17 @@ jest.mock('../src/config/prisma', () => {
   const mockUserAccount = {
     upsert: jest.fn()
   };
+  const mockCustomRole = {
+    findFirst: jest.fn(),
+    findUnique: jest.fn()
+  };
 
   return {
     brand: mockBrand,
     team: mockTeam,
     user: mockUser,
-    userAccount: mockUserAccount
+    userAccount: mockUserAccount,
+    customRole: mockCustomRole
   };
 });
 

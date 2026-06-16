@@ -91,6 +91,12 @@ class TeamRepository {
       where: { id }
     });
   }
+
+  async countMembersByBrand(brandId) {
+    return prisma.team.count({
+      where: { brandId }
+    });
+  }
 }
 
 module.exports = new TeamRepository();
