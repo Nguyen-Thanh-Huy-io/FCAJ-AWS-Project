@@ -90,7 +90,8 @@ class SocialAccountRepository {
     });
 
     if (pageData.analytics) {
-      await this.saveFacebookAnalytics(brandId, account.id, pageData.analytics);
+      const { startDate, endDate } = pageData.analytics;
+      await this.saveFacebookAnalytics(brandId, account.id, pageData.analytics, startDate, endDate);
     }
 
     return this.findById(account.id);
@@ -165,13 +166,14 @@ class SocialAccountRepository {
     });
 
     if (accountData.analytics) {
-      await this.saveTikTokAnalytics(brandId, account.id, accountData.analytics);
+      const { startDate, endDate } = accountData.analytics;
+      await this.saveTikTokAnalytics(brandId, account.id, accountData.analytics, startDate, endDate);
     }
 
     return this.findById(account.id);
   }
 
-  async saveTikTokAnalytics(brandId, socialAccountId, analyticsData) {
+  async saveTikTokAnalytics(brandId, socialAccountId, analyticsData, startDate, endDate) {
     const now = new Date();
     
     const followersTotal = analyticsData.summary?.followers || 0;
@@ -191,8 +193,8 @@ class SocialAccountRepository {
       data: {
         brandId,
         socialAccountId,
-        dateFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-        dateTo: now,
+        dateFrom: startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        dateTo: endDate ? new Date(endDate) : now,
         granularity: ANALYTICS.GRANULARITY.DAILY,
         fetchedAt: now,
         analyticsType: ANALYTICS.TYPES.TIKTOK_DETAILED
@@ -219,7 +221,7 @@ class SocialAccountRepository {
     });
   }
 
-  async saveFacebookAnalytics(brandId, socialAccountId, analyticsData) {
+  async saveFacebookAnalytics(brandId, socialAccountId, analyticsData, startDate, endDate) {
     const now = new Date();
     
     // Extract totals from analyticsData structure
@@ -240,8 +242,8 @@ class SocialAccountRepository {
       data: {
         brandId,
         socialAccountId,
-        dateFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-        dateTo: now,
+        dateFrom: startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        dateTo: endDate ? new Date(endDate) : now,
         granularity: ANALYTICS.GRANULARITY.DAILY,
         fetchedAt: now,
         analyticsType: ANALYTICS.TYPES.FACEBOOK_DETAILED
@@ -336,20 +338,21 @@ class SocialAccountRepository {
     });
 
     if (analytics) {
-      await this.saveYouTubeAnalytics(brandId, account.id, analytics);
+      const { startDate, endDate } = analytics;
+      await this.saveYouTubeAnalytics(brandId, account.id, analytics, startDate, endDate);
     }
 
     return this.findById(account.id);
   }
 
-  async saveYouTubeAnalytics(brandId, socialAccountId, analyticsData) {
+  async saveYouTubeAnalytics(brandId, socialAccountId, analyticsData, startDate, endDate) {
     const now = new Date();
     const analyticsEntry = await prisma.analytics.create({
       data: {
         brandId,
         socialAccountId,
-        dateFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-        dateTo: now,
+        dateFrom: startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+        dateTo: endDate ? new Date(endDate) : now,
         granularity: ANALYTICS.GRANULARITY.DAILY,
         fetchedAt: now,
         analyticsType: ANALYTICS.TYPES.YOUTUBE_DETAILED
@@ -377,6 +380,26 @@ class SocialAccountRepository {
           geographic: analyticsData.geographic,
           growth: analyticsData.growth
         })
+      }
+    });
+  }
+
+  async findAnalyticsInRange(socialAccountId, startDate, endDate) {
+    return prisma.analytics.findMany({
+      where: {
+        socialAccountId,
+        OR: [
+          {
+            dateFrom: { lte: new Date(endDate) },
+            dateTo: { gte: new Date(startDate) }
+          }
+        ]
+      },
+      include: {
+        socialAnalytics: true
+      },
+      orderBy: {
+        fetchedAt: 'desc'
       }
     });
   }

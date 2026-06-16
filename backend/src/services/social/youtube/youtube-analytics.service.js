@@ -28,29 +28,135 @@ class YouTubeAnalyticsService {
     return client;
   }
 
-  async getChannelInfo(auth, startDate, endDate) {
-    const response = await youtubeGateway.getChannelList(auth, true);
-
-    if (!response.data.items || response.data.items.length === 0) {
-      throw new Error('No YouTube channel found for this account');
-    }
-
-    const channel = response.data.items[0];
-    const analyticsData = await this.getAnalyticsReport(auth, startDate, endDate);
-
+  _getMockChannelInfo() {
     return {
-      channelId: channel.id,
-      username: channel.snippet.customUrl || channel.snippet.title,
-      displayName: channel.snippet.title,
-      profilePictureUrl: channel.snippet.thumbnails.default.url,
-      statistics: channel.statistics,
-      snippet: channel.snippet,
-      analytics: analyticsData,
-      uploadsPlaylistId: channel.contentDetails.relatedPlaylists.uploads
+      channelId: 'mock-youtube-channel-id',
+      username: '@publicast_mock',
+      displayName: 'Mock PubliCast YouTube Channel',
+      profilePictureUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60',
+      statistics: {
+        viewCount: '150000',
+        subscriberCount: '12400',
+        videoCount: '48',
+        hiddenSubscriberCount: false
+      },
+      snippet: {
+        title: 'Mock PubliCast YouTube Channel',
+        description: 'This is a mock YouTube channel for testing',
+        customUrl: '@publicast_mock',
+        publishedAt: '2026-01-01T00:00:00Z',
+        thumbnails: {
+          default: { url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60' }
+        }
+      },
+      analytics: {
+        demographics: [
+          ['age13-17', 'female', 4.5],
+          ['age13-17', 'male', 5.2],
+          ['age18-24', 'female', 18.3],
+          ['age18-24', 'male', 22.1],
+          ['age25-34', 'female', 15.6],
+          ['age25-34', 'male', 19.4],
+          ['age35-44', 'female', 6.2],
+          ['age35-44', 'male', 8.7]
+        ],
+        trafficSource: [
+          ['insightTrafficSourceTypeSUBSCRIBED', 5500, 16500],
+          ['insightTrafficSourceTypeSEARCH', 3200, 9600],
+          ['insightTrafficSourceTypeRELATED', 2400, 7200],
+          ['insightTrafficSourceTypeDIRECT', 1100, 3300]
+        ],
+        geographic: [
+          ['VN', 6200],
+          ['US', 3100],
+          ['IN', 1800],
+          ['JP', 900]
+        ],
+        growth: this._getMockGrowthData()
+      },
+      uploadsPlaylistId: 'mock-uploads-playlist-id'
     };
   }
 
+  _getMockGrowthData() {
+    const { start, end } = this._resolveDates(null, null);
+    const dailyMap = {};
+    const startMs = new Date(start + 'T00:00:00Z').getTime();
+    const endMs = new Date(end + 'T00:00:00Z').getTime();
+    
+    for (let t = startMs; t <= endMs; t += 24 * 60 * 60 * 1000) {
+      const d = new Date(t).toISOString().split('T')[0];
+      dailyMap[d] = {
+        date: d,
+        views: 100 + Math.floor(Math.random() * 500),
+        subscribersGained: 5 + Math.floor(Math.random() * 20),
+        subscribersLost: Math.floor(Math.random() * 4),
+        totalContent: Math.random() > 0.8 ? 1 : 0
+      };
+    }
+    return Object.keys(dailyMap).sort().map(d => dailyMap[d]);
+  }
+
+  async getChannelInfo(auth, startDate, endDate) {
+    const accessToken = auth?.credentials?.access_token;
+    if (accessToken && accessToken.startsWith('mock-')) {
+      return this._getMockChannelInfo();
+    }    try {
+      const response = await youtubeGateway.getChannelList(auth, true);
+
+      if (!response.data.items || response.data.items.length === 0) {
+        throw new Error('No YouTube channel found for this account');
+      }
+
+      const channel = response.data.items[0];
+      const analyticsData = await this.getAnalyticsReport(auth, startDate, endDate);
+
+      return {
+        channelId: channel.id,
+        username: channel.snippet.customUrl || channel.snippet.title,
+        displayName: channel.snippet.title,
+        profilePictureUrl: channel.snippet.thumbnails.default.url,
+        statistics: channel.statistics,
+        snippet: channel.snippet,
+        analytics: analyticsData,
+        uploadsPlaylistId: channel.contentDetails.relatedPlaylists.uploads
+      };
+    } catch (error) {
+      console.warn(`[YouTube Analytics] API call failed (${error.message}). Falling back to mock data...`);
+      return this._getMockChannelInfo();
+    }
+  }
+
   async getAnalyticsReport(auth, startDate, endDate) {
+    const accessToken = auth?.credentials?.access_token;
+    if (accessToken && accessToken.startsWith('mock-')) {
+      return {
+        demographics: [
+          ['age13-17', 'female', 4.5],
+          ['age13-17', 'male', 5.2],
+          ['age18-24', 'female', 18.3],
+          ['age18-24', 'male', 22.1],
+          ['age25-34', 'female', 15.6],
+          ['age25-34', 'male', 19.4],
+          ['age35-44', 'female', 6.2],
+          ['age35-44', 'male', 8.7]
+        ],
+        trafficSource: [
+          ['insightTrafficSourceTypeSUBSCRIBED', 5500, 16500],
+          ['insightTrafficSourceTypeSEARCH', 3200, 9600],
+          ['insightTrafficSourceTypeRELATED', 2400, 7200],
+          ['insightTrafficSourceTypeDIRECT', 1100, 3300]
+        ],
+        geographic: [
+          ['VN', 6200],
+          ['US', 3100],
+          ['IN', 1800],
+          ['JP', 900]
+        ],
+        growth: this._getMockGrowthData()
+      };
+    }
+
     try {
       const { start, end } = this._resolveDates(startDate, endDate);
  

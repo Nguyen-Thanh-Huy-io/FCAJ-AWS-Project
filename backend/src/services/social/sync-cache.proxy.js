@@ -29,13 +29,33 @@ function createSyncCacheProxy(realService) {
           const lastSync = account.lastSyncAt ? new Date(account.lastSyncAt).getTime() : 0;
           const hasCooldownPassed = Date.now() - lastSync >= cooldownMs;
 
-          if (!hasCooldownPassed) {
-            console.log(`[SyncCacheProxy] Serving cached data for account ${socialAccountId} (${account.platform}). Cooldown active until ${new Date(lastSync + cooldownMs).toLocaleString()}`);
-            return account; // findById đã chứa thông tin tài khoản kèm analytics mới nhất trong DB
+          // Kiểm tra xem khoảng thời gian yêu cầu có khác với bản ghi gần nhất không
+          const latestAnalytics = account.analytics?.[0];
+          let isDifferentRange = true;
+          let cacheRangeStr = 'none';
+
+          if (latestAnalytics && startDate && endDate) {
+            const cachedStart = new Date(latestAnalytics.dateFrom).toISOString().split('T')[0];
+            const cachedEnd = new Date(latestAnalytics.dateTo).toISOString().split('T')[0];
+            cacheRangeStr = `${cachedStart} to ${cachedEnd}`;
+            
+            if (cachedStart === startDate && cachedEnd === endDate) {
+              isDifferentRange = false;
+            }
           }
 
-          console.log(`[SyncCacheProxy] Cooldown passed. Triggering real sync for account ${socialAccountId} (${account.platform})...`);
-          return target.syncChannelMetrics(socialAccountId, startDate, endDate);
+          if (!hasCooldownPassed && !isDifferentRange) {
+            console.log(`[SyncCacheProxy] Serving cached data for account ${socialAccountId} (${account.platform}). Range matches: ${cacheRangeStr}. Cooldown active.`);
+            return account;
+          }
+
+          if (isDifferentRange) {
+            console.log(`[SyncCacheProxy] Sync triggered for ${account.platform} (${socialAccountId}). Range mismatch: Requesting ${startDate} to ${endDate}, but Cache has ${cacheRangeStr}`);
+          } else {
+            console.log(`[SyncCacheProxy] Sync triggered for ${account.platform} (${socialAccountId}). Cooldown passed or Force=true.`);
+          }
+          
+          return target.syncChannelMetrics(socialAccountId, startDate, endDate, force);
         };
       }
       return Reflect.get(target, prop, receiver);

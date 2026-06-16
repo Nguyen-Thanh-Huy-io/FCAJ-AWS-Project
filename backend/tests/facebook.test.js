@@ -5,6 +5,12 @@ const facebookAnalyticsService = require('../src/services/social/facebook/facebo
 
 jest.mock('../src/services/social/facebook/facebook.gateway');
 jest.mock('../src/repositories/social/social-account.repository');
+jest.mock('../src/services/social/connection-conflict.guard', () => ({
+  ConnectionConflictGuard: {
+    validateConflict: jest.fn().mockResolvedValue({ conflict: false })
+  },
+  ConnectionConflictError: class ConnectionConflictError extends Error {}
+}));
 
 describe('Facebook Integration Service Tests', () => {
   afterEach(() => {
@@ -84,7 +90,7 @@ describe('Facebook Integration Service Tests', () => {
 
       facebookGateway.getPageDetails.mockResolvedValue(mockPageDetails);
       facebookGateway.getPageInsights.mockResolvedValue(mockInsights);
-      facebookGateway.getPageFeed.mockResolvedValue(mockFeed);
+      facebookGateway.getPageFeed.mockResolvedValue({ data: mockFeed });
 
       const result = await facebookAnalyticsService.getAnalyticsReport('page_id_123', 'page_token_123', '2026-05-20', '2026-05-25', 500);
 
@@ -128,7 +134,7 @@ describe('Facebook Integration Service Tests', () => {
       facebookGateway.getUserPages.mockResolvedValue(mockPages);
       facebookGateway.getPageDetails.mockResolvedValue(mockPageDetails);
       facebookGateway.getPageInsights.mockResolvedValue([]);
-      facebookGateway.getPageFeed.mockResolvedValue([]);
+      facebookGateway.getPageFeed.mockResolvedValue({ data: [] });
       
       socialAccountRepository.upsertFacebookAccount.mockResolvedValue({ id: 'sa_fb_1' });
 
