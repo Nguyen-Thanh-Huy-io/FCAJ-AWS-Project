@@ -7,7 +7,7 @@
 | Submit Date      | 16/06/2026                                                                                                    |
 | Summary          | Khi mời một email đã là thành viên trong thương hiệu nhưng kèm theo khoảng trắng ở đầu/cuối, hệ thống tự động đổi vai trò của thành viên đó thay vì báo lỗi trùng lặp. |
 | URL              | http://localhost:5173/manage/team                                                                             |
-| Screenshot       | ![Screenshot](./screenshots/team_management_interface.png)                                                                                                             |
+| Screenshot       | ![Screenshot](./screenshots/bug_team_003_reproduced.png)                                                                                                             |
 | Platform         | Windows                                                                                                       |
 | Operating System | Windows 11                                                                                                    |
 | Browser          | Chrome / Firefox                                                                                              |

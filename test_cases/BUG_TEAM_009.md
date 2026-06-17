@@ -7,7 +7,7 @@
 | Submit Date      | 16/06/2026                                                                                                    |
 | Summary          | Khi gõ từ khóa tìm kiếm vào ô tìm kiếm thành viên, danh sách thành viên hiển thị không có phản ứng lọc nào xảy ra. |
 | URL              | http://localhost:5173/manage/team                                                                             |
-| Screenshot       | ![Screenshot](./screenshots/search_guest_result.png)                                                                                                             |
+| Screenshot       | ![Screenshot](./screenshots/bug_team_009_reproduced.png)                                                                                                             |
 | Platform         | Windows                                                                                                       |
 | Operating System | Windows 11                                                                                                    |
 | Browser          | Chrome / Firefox                                                                                              |

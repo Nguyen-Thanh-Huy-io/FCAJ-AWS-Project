@@ -7,7 +7,7 @@
 | Submit Date      | 16/06/2026                                                                                                    |
 | Summary          | Khi xóa một vai trò tùy chỉnh đang có thành viên được gán, hệ thống hiển thị thông báo lỗi "Access token required" (401) thay vì lỗi validation chặn xóa của nghiệp vụ. |
 | URL              | http://localhost:5173/manage/team?tab=roles                                                                   |
-| Screenshot       | ![Screenshot](./screenshots/delete_role_error_toast.png)                                                                                                             |
+| Screenshot       | ![Screenshot](./screenshots/bug_team_017_reproduced.png)                                                                                                             |
 | Platform         | Windows                                                                                                       |
 | Operating System | Windows 11                                                                                                    |
 | Browser          | Chrome / Firefox                                                                                              |
