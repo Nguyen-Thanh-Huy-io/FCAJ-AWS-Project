@@ -42,6 +42,19 @@ class TeamService {
    * Invite a new team member
    */
   async inviteMember({ email, role, brandId, invitedByUserId }) {
+    if (!email || typeof email !== 'string') {
+      const error = new Error('Email không được để trống.');
+      error.status = 400;
+      throw error;
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      const error = new Error('Định dạng email không hợp lệ.');
+      error.status = 400;
+      throw error;
+    }
+
     const brand = await brandRepository.findBrandWithSubscription(brandId);
 
     if (!brand) {
@@ -70,10 +83,10 @@ class TeamService {
     const { dbRole, customRoleId } = await roleResolver.resolve(role, brandId);
 
     // Find or create shell user
-    let user = await userRepository.findByEmail(email);
+    let user = await userRepository.findByEmail(cleanEmail);
 
     if (!user) {
-      user = await userRepository.createShellUser(email);
+      user = await userRepository.createShellUser(cleanEmail);
     }
 
     // Check if already in Team

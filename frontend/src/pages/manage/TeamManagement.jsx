@@ -728,6 +728,7 @@ function RoleCreateEditModal({ isOpen, onClose, activeBrandId, role, onSuccess, 
                 placeholder="Ví dụ: Content Editor, Analytics Planner..." 
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                maxLength={50}
                 className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-2xl text-xs outline-none focus:bg-white focus:border-black transition-all font-medium"
               />
             </div>

@@ -14,11 +14,3 @@ yarn-error.log*
 !docs/**/*.puml
 
 metricool_attributes_reference_v5.html
-web_app_testing.md
-testing_type.md
-graph_node_guide.md
-BugReportTemplate.md
-ans_question5.md
-test_cases/
-white_box_testing_inviteMember.md
-white_box_testing_reviewWorkflow.md

@@ -1,0 +1,15 @@
+{
+  "name": "publicast-selenium-tests",
+  "version": "1.0.0",
+  "description": "Automated UI tests for PubliCast using Selenium WebDriver",
+  "main": "test_google.js",
+  "scripts": {
+    "test:google": "node test_google.js",
+    "test:login": "node test_local_login.js",
+    "test:register": "node test_local_register.js"
+  },
+  "dependencies": {
+    "redis": "^6.0.0",
+    "selenium-webdriver": "^4.18.0"
+  }
+}
