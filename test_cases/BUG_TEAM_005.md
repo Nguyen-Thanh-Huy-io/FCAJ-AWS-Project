@@ -7,7 +7,7 @@
 | Submit Date      | 16/06/2026                                                                                                    |
 | Summary          | Hệ thống cho phép tạo vai trò tùy chỉnh có tên cực kỳ dài (lên tới 100 ký tự hoặc hơn), gây lỗi hiển thị tràn UI và không đảm bảo tính toàn vẹn dữ liệu. |
 | URL              | http://localhost:5173/manage/team?tab=roles                                                                   |
-| Screenshot       | /                                                                                                             |
+| Screenshot       | ![Screenshot](./screenshots/custom_roles_interface.png)                                                                                                             |
 | Platform         | Windows                                                                                                       |
 | Operating System | Windows 11                                                                                                    |
 | Browser          | Chrome / Firefox                                                                                              |

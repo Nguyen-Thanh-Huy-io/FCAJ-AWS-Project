@@ -167,6 +167,7 @@ export function PostCreatorPage() {
       const res = await postService.getPosts(activeBrand.id, { isLibrary: true });
       setTemplates(res.data || []);
     } catch (e) {
+      console.error("Failed to load templates:", e);
       toast.error("Failed to load templates");
     } finally {
       setLoadingTemplates(false);

@@ -7,7 +7,7 @@
 | Submit Date      | 16/06/2026                                                                                                    |
 | Summary          | Khi click chọn bộ lọc vai trò (ví dụ: OWNER, Member, Custom Role), danh sách thành viên không có phản ứng lọc. |
 | URL              | http://localhost:5173/manage/team                                                                             |
-| Screenshot       | /                                                                                                             |
+| Screenshot       | ![Screenshot](./screenshots/team_management_interface.png)                                                                                                             |
 | Platform         | Windows                                                                                                       |
 | Operating System | Windows 11                                                                                                    |
 | Browser          | Chrome / Firefox                                                                                              |

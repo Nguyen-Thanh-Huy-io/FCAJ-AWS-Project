@@ -7,7 +7,7 @@
 | Submit Date      | 16/06/2026                                                                                                    |
 | Summary          | Khi gửi lời mời tham gia thương hiệu với email không đúng định dạng (ví dụ: "guest"), hệ thống vẫn tạo shell user và gửi đi thành công thay vì báo lỗi validation. |
 | URL              | http://localhost:5173/manage/team                                                                             |
-| Screenshot       | /                                                                                                             |
+| Screenshot       | ![Screenshot](./screenshots/team_management_interface.png)                                                                                                             |
 | Platform         | Windows                                                                                                       |
 | Operating System | Windows 11                                                                                                    |
 | Browser          | Chrome / Firefox                                                                                              |

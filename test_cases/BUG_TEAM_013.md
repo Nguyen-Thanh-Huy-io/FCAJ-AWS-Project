@@ -7,7 +7,7 @@
 | Submit Date      | 16/06/2026                                                                                                    |
 | Summary          | Khi gõ từ khóa tìm kiếm không khớp với bất kỳ thành viên nào (ví dụ: "xyz123"), danh sách thành viên vẫn hiển thị đầy đủ 4 người. |
 | URL              | http://localhost:5173/manage/team                                                                             |
-| Screenshot       | /                                                                                                             |
+| Screenshot       | ![Screenshot](./screenshots/search_no_results.png)                                                                                                             |
 | Platform         | Windows                                                                                                       |
 | Operating System | Windows 11                                                                                                    |
 | Browser          | Chrome / Firefox                                                                                              |

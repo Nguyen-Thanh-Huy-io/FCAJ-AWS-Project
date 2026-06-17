@@ -468,6 +468,7 @@ export function usePostCreatorForm() {
 
     const errors = getValidationErrors();
     if (errors.length > 0) {
+      console.warn("Validation errors detected in PostCreator Form:", errors);
       toast.error("Please resolve the validation errors first");
       return;
     }
@@ -553,6 +554,7 @@ export function usePostCreatorForm() {
       setVideoFileUrl("");
       setUploadedVideoPath("");
     } catch (error) {
+      console.error("Failed to create/update post:", error);
       toast.error(error.response?.data?.message || "Failed to create post");
     } finally {
       setIsCreating(false);
