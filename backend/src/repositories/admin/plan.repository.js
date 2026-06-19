@@ -5,6 +5,12 @@ const { SUBSCRIPTION_STATUS } = require('../../utils/constants');
  * Plan Repository - Data Access Layer
  * Handles all database operations for Plan model
  * Single Responsibility: Database queries only
+const { SUBSCRIPTION_STATUS } = require('../../utils/constants');
+
+/**
+ * Plan Repository - Data Access Layer
+ * Handles all database operations for Plan model
+ * Single Responsibility: Database queries only
  */
 class PlanRepository {
   /**
@@ -18,10 +24,9 @@ class PlanRepository {
         subscriptions: {
           select: {
             id: true,
-            userId: true,
-            startDate: true,
-            endDate: true,
-            status: true
+            status: true,
+            currentPeriodStart: true,
+            currentPeriodEnd: true
           }
         }
       },
@@ -42,7 +47,6 @@ class PlanRepository {
         subscriptions: {
           select: {
             id: true,
-            userId: true,
             status: true
           }
         }
@@ -138,7 +142,20 @@ class PlanRepository {
   async getSubscriptionStats(planId) {
     const subscriptions = await prisma.subscription.findMany({
       where: { planId },
-      include: { user: { select: { id: true, email: true } } }
+      include: {
+        brand: {
+          select: {
+            id: true,
+            name: true,
+            owner: {
+              select: {
+                id: true,
+                email: true
+              }
+            }
+          }
+        }
+      }
     });
 
     return {

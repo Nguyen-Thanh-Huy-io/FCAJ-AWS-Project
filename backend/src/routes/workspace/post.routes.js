@@ -51,6 +51,14 @@ router.put('/:id', postController.updatePost);
 
 const upload = require('../../middlewares/upload.middleware');
 
-router.post('/upload', upload.single('video'), postController.uploadVideo);
+router.post('/upload', (req, res, next) => {
+  upload.single('video')(req, res, (err) => {
+    if (err) {
+      console.error("[Multer Upload Error]", err);
+      return res.status(400).json({ message: err.message || 'File upload failed' });
+    }
+    next();
+  });
+}, postController.uploadVideo);
 
 module.exports = router;

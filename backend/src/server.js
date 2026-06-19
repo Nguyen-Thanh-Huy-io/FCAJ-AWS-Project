@@ -50,7 +50,7 @@ process.on('uncaughtException', (err) => {
 });
 
 process.on('unhandledRejection', (reason) => {
-  logger.error('Unhandled Promise Rejection — shutting down', { reason: String(reason) });
+  logger.error('Unhandled Promise Rejection — shutting down', reason instanceof Error ? { message: reason.message, stack: reason.stack } : reason);
   process.exit(1);
 });
 

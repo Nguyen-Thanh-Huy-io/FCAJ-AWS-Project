@@ -9,19 +9,22 @@ class AutoListScheduleStrategy {
 }
 
 class IntervalScheduleStrategy extends AutoListScheduleStrategy {
-  calculateNextSlots(autoList, count, fromDate) {
+  calculateNextSlots(autoList, count, fromDate, minDate) {
     const slots = [];
     const interval = autoList.intervalMinutes || 60;
     const activeDaysList = (autoList.activeDays || DEFAULT_ACTIVE_DAYS).split(SEPARATORS.COMMA).map(d => d.trim());
     const activeDaysNums = activeDaysList.map(d => DAYS_MAP[d]).filter(n => n !== undefined);
     
     let current = new Date(fromDate.getTime());
+    const minTime = minDate ? minDate.getTime() : fromDate.getTime();
     
     while (slots.length < count) {
       current.setMinutes(current.getMinutes() + interval);
       const dayOfWeek = current.getDay();
       if (activeDaysNums.includes(dayOfWeek)) {
-        slots.push(new Date(current.getTime()));
+        if (current.getTime() > minTime) {
+          slots.push(new Date(current.getTime()));
+        }
       }
       
       // Safety break to prevent infinite loops if active days are invalid
@@ -35,7 +38,7 @@ class IntervalScheduleStrategy extends AutoListScheduleStrategy {
 }
 
 class SpecificTimesScheduleStrategy extends AutoListScheduleStrategy {
-  calculateNextSlots(autoList, count, fromDate) {
+  calculateNextSlots(autoList, count, fromDate, minDate) {
     const slots = [];
     let scheduleConfig = [];
 
@@ -59,6 +62,7 @@ class SpecificTimesScheduleStrategy extends AutoListScheduleStrategy {
     if (!scheduleConfig || scheduleConfig.length === 0) return slots;
     
     let dayOffset = 0;
+    const minTime = minDate ? minDate.getTime() : fromDate.getTime();
     // Search up to 60 days ahead
     while (slots.length < count && dayOffset < 60) {
       const targetDate = new Date(fromDate.getTime());
@@ -75,7 +79,7 @@ class SpecificTimesScheduleStrategy extends AutoListScheduleStrategy {
           const slotDate = new Date(targetDate.getTime());
           slotDate.setHours(hr, min, 0, 0);
           
-          if (slotDate.getTime() > fromDate.getTime()) {
+          if (slotDate.getTime() > fromDate.getTime() && slotDate.getTime() > minTime) {
             slots.push(slotDate);
           }
         }

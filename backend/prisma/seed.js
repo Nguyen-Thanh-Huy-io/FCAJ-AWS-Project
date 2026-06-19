@@ -87,7 +87,7 @@ async function main() {
 
   console.log('Seeding User...');
   // Password is 'admin123'
-  const passwordHash = '$2a$10$tMhPqW9gZ72bM7d/vXlU7eS0mD1zZl/z/n6J3c9i7o9B01G5C5.P.';
+  const passwordHash = require('bcryptjs').hashSync('admin123', 10);
   const user = await prisma.user.create({
     data: {
       email: 'vothanhnha26@gmail.com',
@@ -95,6 +95,7 @@ async function main() {
       name: 'Nhã Võ',
       role: 'ADMIN',
       isActive: true,
+      isEmailVerified: true,
       settings: {
         create: {
           language: 'vi',
@@ -124,6 +125,7 @@ async function main() {
       name: 'Nguyễn Văn Chuyên',
       role: 'USER',
       isActive: true,
+      isEmailVerified: true,
       settings: {
         create: {
           language: 'vi',
@@ -152,6 +154,7 @@ async function main() {
       name: 'Lê Thị Quản Lý',
       role: 'MANAGER',
       isActive: true,
+      isEmailVerified: true,
       settings: {
         create: {
           language: 'vi',
@@ -176,6 +179,7 @@ async function main() {
       name: 'Trần Khách Mời',
       role: 'USER',
       isActive: true,
+      isEmailVerified: true,
       settings: {
         create: {
           language: 'vi',

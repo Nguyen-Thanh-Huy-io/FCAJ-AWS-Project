@@ -63,13 +63,38 @@ class AutoListService {
     
     let unpublishedPosts = (autoList.posts || []).filter(p => p.status !== POST_STATUS.PUBLISHED && p.status !== POST_STATUS.FAILED && p.status !== POST_STATUS.REJECTED);
     
-    // Logic: If Loop is enabled but everything is published, "Revive" all posts
+    // Logic: If Loop is enabled but everything is published, duplicate posts as new DRAFTs to preserve history
     if (unpublishedPosts.length === 0 && autoList.loopEnabled && (autoList.posts || []).length > 0) {
-      console.log(`[AutoList] 🔄 Queue ${autoListId} dry but Loop enabled. Reviving all posts...`);
-      await postRepository.updateMany(
-        { autoListId: autoList.id, isDeleted: false },
-        { status: POST_STATUS.DRAFT, platformPostId: null, publishedAt: null }
-      );
+      console.log(`[AutoList] 🔄 Queue ${autoListId} dry but Loop enabled. Reviving all posts by duplicating...`);
+      
+      const publishedPosts = (autoList.posts || []).filter(p => p.status === POST_STATUS.PUBLISHED && !p.isDeleted);
+      
+      for (const p of publishedPosts) {
+        const duplicateData = {
+          brandId: p.brandId,
+          createdByUserId: p.createdByUserId,
+          title: p.title,
+          caption: p.caption,
+          type: p.type,
+          status: POST_STATUS.DRAFT,
+          targetPlatforms: p.targetPlatforms,
+          mediaUrls: p.mediaUrls,
+          mediaThumbnailUrls: p.mediaThumbnailUrls,
+          hashtags: p.hashtags,
+          mentions: p.mentions,
+          firstComment: p.firstComment,
+          locationId: p.locationId,
+          locationName: p.locationName,
+          linkUrl: p.linkUrl,
+          altText: p.altText,
+          metadata: p.metadata,
+          isCollaboration: p.isCollaboration,
+          collaboratorHandle: p.collaboratorHandle,
+          autoListId: p.autoListId
+        };
+        await postRepository.create(duplicateData);
+      }
+      
       // Re-fetch to get the revived posts
       const refreshedList = await autoListRepository.findById(autoListId);
       unpublishedPosts = (refreshedList.posts || []).filter(p => p.status === POST_STATUS.DRAFT);
@@ -141,7 +166,15 @@ class AutoListService {
 
   async _updatePostSchedules(autoList, unpublishedPosts) {
     const strategy = ScheduleStrategyFactory.getStrategy(autoList.scheduleType);
-    const slots = strategy.calculateNextSlots(autoList, unpublishedPosts.length, new Date());
+    
+    // Find last published post to set as fromDate
+    const allPosts = autoList.posts || [];
+    const publishedPosts = allPosts
+      .filter(p => p.status === POST_STATUS.PUBLISHED && p.publishedAt)
+      .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
+
+    const fromDate = publishedPosts.length > 0 ? new Date(publishedPosts[0].publishedAt) : new Date();
+    const slots = strategy.calculateNextSlots(autoList, unpublishedPosts.length, fromDate, new Date());
 
     for (let i = 0; i < unpublishedPosts.length; i++) {
       const postId = unpublishedPosts[i].id;
