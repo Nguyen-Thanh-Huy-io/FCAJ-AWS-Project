@@ -1,0 +1,217 @@
+const brandService = require('../../src/services/workspace/brand.service');
+const brandRepository = require('../../src/repositories/workspace/brand.repository');
+const { WORKSPACE_DEFAULTS } = require('../../src/utils/constants');
+
+jest.mock('../../src/repositories/workspace/brand.repository', () => ({
+  findManyByUserId: jest.fn(),
+  countActiveBrandsByOwnerId: jest.fn(),
+  create: jest.fn(),
+  findById: jest.fn(),
+  update: jest.fn(),
+  delete: jest.fn()
+}));
+
+describe('BrandService Unit Tests', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const mockUserId = 'user-owner-123';
+  const mockBrandId = 'brand-abc-456';
+  const mockBrandData = {
+    id: mockBrandId,
+    name: 'TechCorp Global',
+    timezone: 'Asia/Ho_Chi_Minh',
+    defaultLanguage: 'vi',
+    ownerId: mockUserId,
+    createdAt: new Date(),
+    deletedAt: null
+  };
+
+  describe('getUserBrands', () => {
+    it('should query the repository to find all brands for a user', async () => {
+      brandRepository.findManyByUserId.mockResolvedValue([mockBrandData]);
+
+      const result = await brandService.getUserBrands(mockUserId);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual(mockBrandData);
+      expect(brandRepository.findManyByUserId).toHaveBeenCalledWith(mockUserId);
+    });
+  });
+
+  describe('createDefaultBrand', () => {
+    it('should create a brand with default workspace names and settings', async () => {
+      brandRepository.create.mockResolvedValue({
+        id: 'brand-default',
+        name: WORKSPACE_DEFAULTS.BRAND_NAME,
+        ownerId: mockUserId
+      });
+
+      const result = await brandService.createDefaultBrand(mockUserId);
+
+      expect(result.id).toBe('brand-default');
+      expect(result.name).toBe(WORKSPACE_DEFAULTS.BRAND_NAME);
+      expect(brandRepository.create).toHaveBeenCalledWith({
+        name: WORKSPACE_DEFAULTS.BRAND_NAME,
+        ownerId: mockUserId
+      });
+    });
+  });
+
+  describe('createBrand (BRAND_001 & BRAND_002)', () => {
+    it('should create brand successfully if user brand count is below quota limit (< 5)', async () => {
+      brandRepository.countActiveBrandsByOwnerId.mockResolvedValue(3); // 3 active brands
+      brandRepository.create.mockResolvedValue(mockBrandData);
+
+      const brandInput = {
+        name: 'TechCorp Global',
+        timezone: 'Asia/Ho_Chi_Minh',
+        defaultLanguage: 'vi'
+      };
+
+      const result = await brandService.createBrand(mockUserId, brandInput);
+
+      expect(result.id).toBe(mockBrandId);
+      expect(result.name).toBe('TechCorp Global');
+      expect(brandRepository.countActiveBrandsByOwnerId).toHaveBeenCalledWith(mockUserId);
+      expect(brandRepository.create).toHaveBeenCalledWith({
+        name: 'TechCorp Global',
+        timezone: 'Asia/Ho_Chi_Minh',
+        defaultLanguage: 'vi',
+        ownerId: mockUserId
+      });
+    });
+
+    it('should throw a 403 error and block creation if user already has 5 active brands', async () => {
+      brandRepository.countActiveBrandsByOwnerId.mockResolvedValue(5); // already 5 brands
+
+      const brandInput = {
+        name: 'Brand Sixth',
+        timezone: 'UTC',
+        defaultLanguage: 'en'
+      };
+
+      await expect(brandService.createBrand(mockUserId, brandInput))
+        .rejects
+        .toThrow('Brand limit reached. You can only create up to 5 brands.');
+
+      try {
+        await brandService.createBrand(mockUserId, brandInput);
+      } catch (error) {
+        expect(error.statusCode).toBe(403);
+      }
+
+      expect(brandRepository.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateBrand', () => {
+    it('should update brand settings successfully if the user is the owner', async () => {
+      brandRepository.findById.mockResolvedValue(mockBrandData);
+      brandRepository.update.mockResolvedValue({
+        ...mockBrandData,
+        name: 'TechCorp Updated'
+      });
+
+      const updateData = { name: 'TechCorp Updated' };
+      const result = await brandService.updateBrand(mockBrandId, mockUserId, updateData);
+
+      expect(result.name).toBe('TechCorp Updated');
+      expect(brandRepository.findById).toHaveBeenCalledWith(mockBrandId);
+      expect(brandRepository.update).toHaveBeenCalledWith(mockBrandId, updateData);
+    });
+
+    it('should throw a 404 error if the brand is not found', async () => {
+      brandRepository.findById.mockResolvedValue(null);
+
+      await expect(brandService.updateBrand('non-existent', mockUserId, { name: 'New' }))
+        .rejects
+        .toThrow('Brand not found');
+
+      try {
+        await brandService.updateBrand('non-existent', mockUserId, { name: 'New' });
+      } catch (error) {
+        expect(error.statusCode).toBe(404);
+      }
+    });
+
+    it('should throw a 403 error if user is not the owner of the brand', async () => {
+      brandRepository.findById.mockResolvedValue(mockBrandData); // ownerId is mockUserId
+
+      await expect(brandService.updateBrand(mockBrandId, 'imposter-user-789', { name: 'Hacked' }))
+        .rejects
+        .toThrow('Only the brand owner can update settings');
+
+      try {
+        await brandService.updateBrand(mockBrandId, 'imposter-user-789', { name: 'Hacked' });
+      } catch (error) {
+        expect(error.statusCode).toBe(403);
+      }
+
+      expect(brandRepository.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteBrand', () => {
+    it('should delete brand successfully if the user is the owner and has more than 1 active brand', async () => {
+      brandRepository.findById.mockResolvedValue(mockBrandData);
+      brandRepository.countActiveBrandsByOwnerId.mockResolvedValue(2); // Has 2 active brands
+      brandRepository.delete.mockResolvedValue(mockBrandData);
+
+      const result = await brandService.deleteBrand(mockBrandId, mockUserId);
+
+      expect(result.id).toBe(mockBrandId);
+      expect(brandRepository.findById).toHaveBeenCalledWith(mockBrandId);
+      expect(brandRepository.countActiveBrandsByOwnerId).toHaveBeenCalledWith(mockUserId);
+      expect(brandRepository.delete).toHaveBeenCalledWith(mockBrandId);
+    });
+
+    it('should throw a 404 error if the brand to delete is not found', async () => {
+      brandRepository.findById.mockResolvedValue(null);
+
+      await expect(brandService.deleteBrand('non-existent', mockUserId))
+        .rejects
+        .toThrow('Brand not found');
+
+      try {
+        await brandService.deleteBrand('non-existent', mockUserId);
+      } catch (error) {
+        expect(error.statusCode).toBe(404);
+      }
+    });
+
+    it('should throw a 403 error if a non-owner tries to delete the brand', async () => {
+      brandRepository.findById.mockResolvedValue(mockBrandData);
+
+      await expect(brandService.deleteBrand(mockBrandId, 'imposter-user-789'))
+        .rejects
+        .toThrow('Only the brand owner can delete this brand');
+
+      try {
+        await brandService.deleteBrand(mockBrandId, 'imposter-user-789');
+      } catch (error) {
+        expect(error.statusCode).toBe(403);
+      }
+
+      expect(brandRepository.delete).not.toHaveBeenCalled();
+    });
+
+    it('should throw a 400 error if the user tries to delete their only remaining brand', async () => {
+      brandRepository.findById.mockResolvedValue(mockBrandData);
+      brandRepository.countActiveBrandsByOwnerId.mockResolvedValue(1); // Only 1 active brand left
+
+      await expect(brandService.deleteBrand(mockBrandId, mockUserId))
+        .rejects
+        .toThrow('Cannot delete your only brand. You must keep at least one brand.');
+
+      try {
+        await brandService.deleteBrand(mockBrandId, mockUserId);
+      } catch (error) {
+        expect(error.statusCode).toBe(400);
+      }
+
+      expect(brandRepository.delete).not.toHaveBeenCalled();
+    });
+  });
+});

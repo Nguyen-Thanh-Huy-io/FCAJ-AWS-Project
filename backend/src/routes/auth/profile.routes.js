@@ -34,7 +34,7 @@ const upload = multer({ storage });
 router.get(
   '/user/profile',
   verifyAuth,
-  authorizeAny,
+  authorizeUser,
   profileController.getUserProfile
 );
 

@@ -92,22 +92,29 @@ class AuthController {
   login = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
-    const result = await authService.login(email.toLowerCase(), password);
+    try {
+      const result = await authService.login(email.toLowerCase(), password);
 
-    // Reset rate limit on successful login
-    if (req.rateLimit) {
-      await loginRateLimiter.resetAttempts(req.rateLimit.email, req.rateLimit.ip);
+      // Reset rate limit on successful login
+      if (req.rateLimit) {
+        await loginRateLimiter.resetAttempts(req.rateLimit.email, req.rateLimit.ip);
+      }
+
+      // Set tokens via HttpOnly cookies only — do NOT return raw tokens in body (XSS risk)
+      setAuthCookies(res, result.accessToken, result.refreshToken);
+
+      res.status(200).json({
+        message: ERROR_MESSAGES.LOGIN_SUCCESS,
+        role: result.role,
+        redirectUrl: result.role === USER_ROLES.ADMIN ? '/admin/profile' : '/user/profile',
+        user: result.user
+      });
+    } catch (error) {
+      if (req.rateLimit) {
+        await loginRateLimiter.recordFailedAttempt(req.rateLimit.email, req.rateLimit.ip);
+      }
+      throw error;
     }
-
-    // Set tokens via HttpOnly cookies only — do NOT return raw tokens in body (XSS risk)
-    setAuthCookies(res, result.accessToken, result.refreshToken);
-
-    res.status(200).json({
-      message: ERROR_MESSAGES.LOGIN_SUCCESS,
-      role: result.role,
-      redirectUrl: result.role === USER_ROLES.ADMIN ? '/admin/profile' : '/user/profile',
-      user: result.user
-    });
   });
 
   /**

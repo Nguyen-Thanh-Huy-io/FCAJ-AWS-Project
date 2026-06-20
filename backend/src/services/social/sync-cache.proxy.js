@@ -21,7 +21,7 @@ function createSyncCacheProxy(realService) {
           // Kiểm tra xem có yêu cầu bắt buộc (force refresh) hay không
           if (force) {
             console.log(`[SyncCacheProxy] Force refresh requested. Skipping cooldown for account ${socialAccountId} (${account.platform})...`);
-            return target.syncChannelMetrics(socialAccountId, startDate, endDate);
+            return target.syncChannelMetrics(socialAccountId, startDate, endDate, force);
           }
 
           // Tính toán Cooldown

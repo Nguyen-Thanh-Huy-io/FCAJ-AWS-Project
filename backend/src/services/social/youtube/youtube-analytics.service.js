@@ -122,6 +122,9 @@ class YouTubeAnalyticsService {
         uploadsPlaylistId: channel.contentDetails.relatedPlaylists.uploads
       };
     } catch (error) {
+      if (error.message === 'No YouTube channel found for this account') {
+        throw error;
+      }
       console.warn(`[YouTube Analytics] API call failed (${error.message}). Falling back to mock data...`);
       return this._getMockChannelInfo();
     }
