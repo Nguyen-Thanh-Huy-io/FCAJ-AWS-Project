@@ -30,9 +30,53 @@ class BrandRepository {
               }
             }
           }
+        },
+        subscription: {
+          include: {
+            plan: {
+              include: {
+                products: true,
+                planLimit: true
+              }
+            }
+          }
         }
       }
     });
+
+    // Gather all owners of the brands the user is associated with
+    const ownerIds = [...new Set(brands.map(b => b.ownerId))];
+    const proSubscriptionsByOwner = {};
+
+    for (const ownerId of ownerIds) {
+      const proBrand = await prisma.brand.findFirst({
+        where: {
+          ownerId,
+          deletedAt: null,
+          subscription: {
+            status: 'ACTIVE',
+            plan: {
+              name: 'PRO'
+            }
+          }
+        },
+        include: {
+          subscription: {
+            include: {
+              plan: {
+                include: {
+                  products: true,
+                  planLimit: true
+                }
+              }
+            }
+          }
+        }
+      });
+      if (proBrand && proBrand.subscription) {
+        proSubscriptionsByOwner[ownerId] = proBrand.subscription;
+      }
+    }
 
     return brands.map(brand => {
       let role = 'USER';
@@ -55,11 +99,26 @@ class BrandRepository {
       const brandCopy = { ...brand };
       delete brandCopy.teamMembers;
 
+      const effectiveSubscription = proSubscriptionsByOwner[brand.ownerId] || brand.subscription;
+
       return {
         ...brandCopy,
         userRole: role,
         userPermissions: permissions,
-        isOwner
+        isOwner,
+        currentPlan: effectiveSubscription ? {
+          name: effectiveSubscription.plan.name,
+          billingCycle: effectiveSubscription.plan.billingCycle,
+          status: effectiveSubscription.status,
+          limits: effectiveSubscription.plan.planLimit,
+          allowedProducts: effectiveSubscription.plan.products.map(p => p.id)
+        } : {
+          name: 'FREE',
+          billingCycle: 'MONTHLY',
+          status: 'ACTIVE',
+          limits: null,
+          allowedProducts: ['youtube_analytics', 'facebook_management']
+        }
       };
     });
   }
@@ -137,8 +196,60 @@ class BrandRepository {
   }
 
   async findBrandWithSubscription(id) {
-    return await prisma.brand.findFirst({
+    const brand = await prisma.brand.findFirst({
       where: { id, deletedAt: null },
+      include: {
+        subscription: {
+          include: {
+            plan: {
+              include: {
+                planLimit: true,
+                products: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!brand) return null;
+
+    // Find if the owner of this brand has any other brand with an active PRO plan
+    const proSubscriptionBrand = await prisma.brand.findFirst({
+      where: {
+        ownerId: brand.ownerId,
+        deletedAt: null,
+        subscription: {
+          status: 'ACTIVE',
+          plan: {
+            name: 'PRO'
+          }
+        }
+      },
+      include: {
+        subscription: {
+          include: {
+            plan: {
+              include: {
+                planLimit: true,
+                products: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (proSubscriptionBrand && proSubscriptionBrand.subscription) {
+      brand.subscription = proSubscriptionBrand.subscription;
+    }
+
+    return brand;
+  }
+
+  async findOwnedBrandsWithSubscription(ownerId) {
+    return await prisma.brand.findMany({
+      where: { ownerId, deletedAt: null },
       include: {
         subscription: {
           include: {

@@ -103,6 +103,22 @@ class SocialService {
     return response.data;
   }
 
+  async getInstagramAuthUrl(brandId) {
+    const response = await apiService.get(`/social/instagram/url?brandId=${brandId}`);
+    return response.data;
+  }
+
+  async getInstagramPublishedPosts(brandId, pageToken = null, limit = 10) {
+    const url = `/social/instagram/published-posts?brandId=${brandId}${pageToken ? `&pageToken=${pageToken}` : ''}${limit ? `&limit=${limit}` : ''}`;
+    const response = await apiService.get(url);
+    return response.data;
+  }
+
+  async disconnectInstagramAccount(brandId) {
+    const response = await apiService.post('/social/instagram/disconnect', { brandId });
+    return response.data;
+  }
+
   async reassignSocialAccount(platform, platformAccountId, targetBrandId) {
     const response = await apiService.post('/social/reassign', { platform, platformAccountId, targetBrandId });
     return response.data;

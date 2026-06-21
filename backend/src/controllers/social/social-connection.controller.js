@@ -29,6 +29,14 @@ class SocialConnectionController {
     res.json({ success: true, message: 'TikTok account disconnected successfully' });
   });
 
+  disconnectInstagramAccount = asyncHandler(async (req, res) => {
+    const { brandId } = req.body;
+    if (!brandId) return res.status(400).json({ message: 'brandId is required' });
+
+    await socialService.disconnectAccount(brandId, PLATFORMS.INSTAGRAM);
+    res.json({ success: true, message: 'Instagram account disconnected successfully' });
+  });
+
   reassignSocialAccount = asyncHandler(async (req, res) => {
     const { platform, platformAccountId, targetBrandId } = req.body;
     if (!platform || !platformAccountId || !targetBrandId) {

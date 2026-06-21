@@ -8,73 +8,18 @@ const postCache = new Map();
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 class FacebookPostService {
-  _getMockPublishedPosts(limit) {
-    const mockCaptions = [
-      '🚀 Giới thiệu PubliCast - Nền tảng quản lý mạng xã hội thế hệ mới! Lên lịch, tự động hóa và phân tích chiến dịch của bạn dễ dàng hơn bao giờ hết.',
-      '🎨 5 nguyên tắc phối màu trong thiết kế UI/UX mà mọi Designer cần biết để tạo trải nghiệm người dùng tối ưu.',
-      '📈 Cách chúng tôi tăng trưởng 300% tương tác tự nhiên trên Facebook Page chỉ trong 30 ngày mà không cần chạy quảng cáo.',
-      '🎥 Reels hay Shorts? Nền tảng nào mang lại ROI tốt hơn cho doanh nghiệp của bạn trong năm 2026? Xem phân tích chi tiết.',
-      '💻 Hướng dẫn xây dựng kiến trúc Clean Architecture cho dự án Node.js để tối ưu khả năng mở rộng.'
-    ];
-    
-    const mockImages = [
-      'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&auto=format&fit=crop&q=60',
-      'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=600&auto=format&fit=crop&q=60',
-      'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=600&auto=format&fit=crop&q=60',
-      'https://images.unsplash.com/photo-1432888498266-38ffec3eaf0a?w=600&auto=format&fit=crop&q=60',
-      'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600&auto=format&fit=crop&q=60'
-    ];
-
-    const posts = [];
-    const count = Math.min(limit || 10, mockCaptions.length);
-    for (let i = 0; i < count; i++) {
-      const reactions = 50 + Math.floor(Math.random() * 450);
-      const comments = 10 + Math.floor(Math.random() * 80);
-      const shares = 5 + Math.floor(Math.random() * 30);
-      const clicks = 30 + Math.floor(Math.random() * 200);
-      const reach = Math.round((reactions + comments + shares) * 12 + 10);
-      const views = Math.round(reach * 1.4);
-
-      posts.push({
-        id: `mock-fb-post-${i}`,
-        message: mockCaptions[i],
-        type: i % 2 === 0 ? POST_TYPES.IMAGE : POST_TYPES.VIDEO,
-        mediaUrl: mockImages[i],
-        date: new Date(Date.now() - i * 2 * 24 * 60 * 60 * 1000).toISOString(),
-        status: POST_STATUS.PUBLISHED,
-        reach,
-        views,
-        reactions,
-        comments,
-        shares,
-        clicks,
-        linkClicks: Math.round(clicks * 0.5),
-        videoViews: i % 2 !== 0 ? Math.round(views * 0.4) : 0,
-        videoTimeWatched: i % 2 !== 0 ? '0:45' : '0:00',
-        engagement: reach ? parseFloat((((reactions + comments + shares + clicks) / reach) * 100).toFixed(2)) : 0,
-        spent: 0
-      });
-    }
-
-    return {
-      data: posts,
-      nextPageToken: null,
-      prevPageToken: null
-    };
-  }
-
   async getPublishedPosts(brandId, pageToken = null, limit = 10) {
     const cacheKey = `${brandId}_${pageToken || 'first'}_${limit}`;
     const cached = postCache.get(cacheKey);
     if (cached && cached.expiry > Date.now()) return cached.data;
 
-    const { pageId, pageAccessToken } = await this._getAccountCredentials(brandId);
-    
-    if (pageAccessToken && pageAccessToken.startsWith('mock-')) {
-      const result = this._getMockPublishedPosts(limit);
-      postCache.set(cacheKey, { data: result, expiry: Date.now() + CACHE_TTL_MS });
-      return result;
-    }    try {
+    try {
+      const { pageId, pageAccessToken } = await this._getAccountCredentials(brandId);
+      
+      if (pageAccessToken && pageAccessToken.startsWith('mock-')) {
+        return { data: [], nextPageToken: null, prevPageToken: null };
+      }
+
       const { data: feed, nextPageToken, prevPageToken } = await facebookGateway.getPageFeed(pageId, pageAccessToken, pageToken, limit);
 
       const postsWithInsights = await Promise.all(
@@ -90,10 +35,10 @@ class FacebookPostService {
       postCache.set(cacheKey, { data: result, expiry: Date.now() + CACHE_TTL_MS });
       return result;
     } catch (error) {
-      console.warn(`[Facebook Posts] API call failed (${error.message}). Falling back to mock posts...`);
-      const result = this._getMockPublishedPosts(limit);
-      postCache.set(cacheKey, { data: result, expiry: Date.now() + CACHE_TTL_MS });
-      return result;
+      if (error.message.includes('Facebook account not connected')) {
+        return { data: [], nextPageToken: null, prevPageToken: null };
+      }
+      throw error;
     }
   }
   async publishPost(brandId, postData) {

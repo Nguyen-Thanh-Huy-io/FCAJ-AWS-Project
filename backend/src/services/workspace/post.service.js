@@ -1,4 +1,5 @@
 const postRepository = require('../../repositories/workspace/post.repository');
+const brandRepository = require('../../repositories/workspace/brand.repository');
 const socialPlatformFactory = require('../social/social-platform.factory');
 const { POST_STATUS, POST_TYPES, SEPARATORS, WORKSPACE_DEFAULTS } = require('../../utils/constants');
 const { eventEmitter, EVENTS } = require('../../events/event-emitter');
@@ -55,6 +56,18 @@ class PostService {
    * Create a new post
    */
   async createPost(postData, userId, brandId) {
+    // Check monthly post limit
+    const brand = await brandRepository.findBrandWithSubscription(brandId);
+    if (brand && brand.subscription && brand.subscription.status === 'ACTIVE' && brand.subscription.plan?.planLimit) {
+      const maxPosts = brand.subscription.plan.planLimit.maxPostsPerMonth;
+      const currentCount = await postRepository.countActivePostsThisMonth(brandId);
+      if (currentCount >= maxPosts) {
+        const error = new Error(`Monthly post limit of ${maxPosts} reached. Please upgrade your plan.`);
+        error.statusCode = 403;
+        throw error;
+      }
+    }
+
     const data = this._preparePostData(postData, userId, brandId);
     
     // Check if the user is trying to publish/schedule directly

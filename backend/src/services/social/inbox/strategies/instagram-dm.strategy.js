@@ -97,15 +97,34 @@ class InstagramDMSyncStrategy extends BaseSyncStrategy {
   }
 
   async _getAccountAndToken(brandId) {
-    // Instagram utilizes the Page access token linked to the Facebook social account
-    const socialAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORMS.FACEBOOK);
-    if (!socialAccount || socialAccount.length === 0) throw new Error('Facebook/Instagram social account not connected');
-    
-    const account = socialAccount[0];
+    // Try to find Instagram account first
+    let socialAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORMS.INSTAGRAM);
+    let pageId = null;
+    let pageAccessToken = null;
+    let account = null;
+
+    if (socialAccount && socialAccount.length > 0) {
+      account = socialAccount[0];
+      pageAccessToken = account.accessToken;
+      const fbAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORMS.FACEBOOK);
+      if (fbAccount && fbAccount.length > 0) {
+        pageId = fbAccount[0].platformAccountId;
+      } else {
+        throw new Error('Facebook Page account must be connected to sync Instagram messages');
+      }
+    } else {
+      // Fallback to Facebook account
+      socialAccount = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORMS.FACEBOOK);
+      if (!socialAccount || socialAccount.length === 0) throw new Error('Facebook/Instagram social account not connected');
+      account = socialAccount[0];
+      pageId = account.platformAccountId;
+      pageAccessToken = account.accessToken;
+    }
+
     return {
       account,
-      pageId: account.platformAccountId,
-      pageAccessToken: account.accessToken
+      pageId,
+      pageAccessToken
     };
   }
 

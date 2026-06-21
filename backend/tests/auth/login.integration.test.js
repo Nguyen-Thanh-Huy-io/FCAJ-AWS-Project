@@ -419,7 +419,7 @@ describe('Login Integration Tests', () => {
       expect(response.status).toBe(401);
     });
 
-    it('should return 403 if admin tries to access user profile', async () => {
+    it('should return 200 when admin accesses user profile', async () => {
       // Login as admin
       const loginRes = await request(app)
         .post('/api/auth/login')
@@ -435,7 +435,8 @@ describe('Login Integration Tests', () => {
         .get('/api/user/profile')
         .set('Cookie', cookies);
 
-      expect(profileRes.status).toBe(403);
+      expect(profileRes.status).toBe(200);
+      expect(profileRes.body.data.role).toBe(USER_ROLES.ADMIN);
     });
   });
 

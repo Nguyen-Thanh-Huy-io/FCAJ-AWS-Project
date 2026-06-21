@@ -5,6 +5,7 @@ import {
   PlayCircle, FileText, Megaphone, Plus, ClipboardCheck
 } from "lucide-react";
 import { useConnections } from "../context/ConnectionsContext";
+import { useBrand } from "../context/BrandContext";
 
 const PLATFORMS = [
   { name: "Summary", icon: <List size={18} />, path: "/dashboard", color: "#6B7280" },
@@ -29,8 +30,16 @@ export function SidebarWorkspace() {
   const location = useLocation();
   const currentPath = location.pathname;
   const { openConnections } = useConnections();
+  const { activeBrand } = useBrand();
 
   const isManageMode = currentPath.startsWith("/manage") || currentPath.startsWith("/hashtags") || currentPath.startsWith("/settings");
+
+  const planName = activeBrand?.currentPlan?.name || "FREE";
+  const isPro = planName.toUpperCase() === "PRO";
+  const currentPeriodEnd = activeBrand?.subscription?.currentPeriodEnd;
+  const nextBillDate = currentPeriodEnd 
+    ? new Date(currentPeriodEnd).toLocaleDateString("vi-VN", { year: 'numeric', month: 'numeric', day: 'numeric' })
+    : "Không giới hạn";
 
   return (
     <aside
@@ -140,10 +149,12 @@ export function SidebarWorkspace() {
       <div className="p-4 border-t border-gray-50">
          <div className="bg-gray-50 rounded-xl p-3">
             <div className="flex items-center gap-2 mb-1">
-               <div className="w-2 h-2 rounded-full bg-green-500" />
-               <span className="text-[10px] font-bold text-gray-600 uppercase">Pro Plan</span>
+               <div className={`w-2 h-2 rounded-full ${isPro ? "bg-green-500" : "bg-gray-400"}`} />
+               <span className="text-[10px] font-bold text-gray-600 uppercase">Gói {planName}</span>
             </div>
-            <div className="text-[10px] text-gray-400 font-medium">Next bill: June 12, 2026</div>
+            <div className="text-[10px] text-gray-400 font-medium">
+              {isPro ? `Kỳ tiếp theo: ${nextBillDate}` : "Hạn dùng: Không giới hạn"}
+            </div>
          </div>
       </div>
     </aside>

@@ -25,9 +25,16 @@ export function BrandSettingsPage() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isTableOverlayOpen, setIsTableOverlayOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isLimitModalOpen, setIsLimitModalOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [conflictData, setConflictData] = useState(null);
+
+  const allowedBrandsLimit = brands.reduce((max, b) => {
+    const brandMax = b.currentPlan?.limits?.maxBrands || 1;
+    return Math.max(max, brandMax);
+  }, 1);
+  const isLimitReached = brands.length >= allowedBrandsLimit;
   
   const dropdownRef = useRef(null);
 
@@ -181,7 +188,13 @@ export function BrandSettingsPage() {
             <HelpCircle size={14} className="text-gray-300 ml-1" />
           </div>
           <button 
-            onClick={() => setIsCreateModalOpen(true)}
+            onClick={() => {
+              if (isLimitReached) {
+                setIsLimitModalOpen(true);
+              } else {
+                setIsCreateModalOpen(true);
+              }
+            }}
             className="flex items-center gap-2 px-4 py-1.5 bg-[#FEFCE8] border border-[#FEF08A] rounded-lg text-xs font-bold text-[#854D0E] hover:bg-[#FEF9C3] transition-all shadow-sm cursor-pointer"
           >
             <Plus size={14} /> Add brand <Diamond size={12} className="fill-current" />
@@ -353,6 +366,48 @@ export function BrandSettingsPage() {
         onClose={() => setIsCreateModalOpen(false)}
         onCreate={handleCreateBrand}
       />
+
+      {/* Limit Reached Modal */}
+      {isLimitModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full border border-gray-100 shadow-2xl mx-4 transform animate-in zoom-in-95 duration-200 text-center relative overflow-hidden">
+            <div className="absolute -top-10 -left-10 w-40 h-40 bg-purple-200/40 rounded-full filter blur-2xl pointer-events-none"></div>
+            <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-orange-200/30 rounded-full filter blur-2xl pointer-events-none"></div>
+
+            <div className="w-14 h-14 bg-gradient-to-tr from-purple-600 to-orange-500 rounded-2xl flex items-center justify-center text-white mb-5 shadow-lg shadow-purple-200 mx-auto">
+              <AlertTriangle size={26} className="animate-bounce" />
+            </div>
+
+            <h3 className="text-lg font-bold text-[#0A0A0A] mb-2 font-sans">Đạt giới hạn số lượng thương hiệu</h3>
+            <p className="text-sm text-gray-500 leading-relaxed mb-6 font-sans">
+              Gói hiện tại của bạn chỉ cho phép quản lý tối đa <span className="font-bold text-[#0A0A0A]">{allowedBrandsLimit} thương hiệu</span>. 
+              <br />
+              Vui lòng nâng cấp lên gói **PRO** để tạo và quản lý tới **5 thương hiệu**.
+            </p>
+
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => setIsLimitModalOpen(false)}
+                className="flex-1 py-3 border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl text-xs font-bold transition-all cursor-pointer text-center font-sans"
+              >
+                Hủy bỏ
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLimitModalOpen(false);
+                  navigate('/pricing');
+                }}
+                className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-orange-500 hover:from-purple-700 hover:to-orange-600 text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5 font-sans"
+              >
+                Nâng cấp ngay
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Social Connection Conflict Modal */}
       {conflictData && (

@@ -1,5 +1,6 @@
 const postService = require('../../src/services/workspace/post.service');
 const postRepository = require('../../src/repositories/workspace/post.repository');
+const brandRepository = require('../../src/repositories/workspace/brand.repository');
 const authorizationFacade = require('../../src/services/auth/authorization.facade');
 const approvalWorkflowService = require('../../src/services/workspace/approval-workflow.service');
 const { upsertPublishJob, removePublishJob } = require('../../src/queues/publish.queue');
@@ -13,7 +14,12 @@ jest.mock('../../src/repositories/workspace/post.repository', () => ({
   updateStatus: jest.fn(),
   findManyByIdsAndBrand: jest.fn(),
   updateMany: jest.fn(),
-  deleteMany: jest.fn()
+  deleteMany: jest.fn(),
+  countActivePostsThisMonth: jest.fn()
+}));
+
+jest.mock('../../src/repositories/workspace/brand.repository', () => ({
+  findBrandWithSubscription: jest.fn()
 }));
 
 jest.mock('../../src/services/auth/authorization.facade', () => ({
@@ -30,6 +36,11 @@ jest.mock('../../src/queues/publish.queue', () => ({
 }));
 
 describe('PostService Unit Tests', () => {
+  beforeEach(() => {
+    brandRepository.findBrandWithSubscription.mockResolvedValue(null);
+    postRepository.countActivePostsThisMonth.mockResolvedValue(0);
+  });
+
   afterEach(() => {
     jest.clearAllMocks();
   });
@@ -231,6 +242,58 @@ describe('PostService Unit Tests', () => {
         { id: { in: ['post-1', 'post-2', 'post-3'] }, brandId: 'brand-abc' },
         expect.objectContaining({ isDeleted: true })
       );
+    });
+  });
+
+  describe('POST_008 - createPost (Monthly Limit Check)', () => {
+    it('should throw a 403 error if the monthly post limit is reached', async () => {
+      brandRepository.findBrandWithSubscription.mockResolvedValue({
+        id: 'brand-abc',
+        subscription: {
+          status: 'ACTIVE',
+          plan: {
+            planLimit: {
+              maxPostsPerMonth: 10
+            }
+          }
+        }
+      });
+      postRepository.countActivePostsThisMonth.mockResolvedValue(10); // Limit reached
+
+      const newPostInput = {
+        title: 'New Post',
+        status: 'DRAFT'
+      };
+
+      await expect(
+        postService.createPost(newPostInput, 'user-111', 'brand-abc')
+      ).rejects.toThrow('Monthly post limit of 10 reached. Please upgrade your plan.');
+
+      expect(postRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('should allow post creation if the limit is not reached', async () => {
+      brandRepository.findBrandWithSubscription.mockResolvedValue({
+        id: 'brand-abc',
+        subscription: {
+          status: 'ACTIVE',
+          plan: {
+            planLimit: {
+              maxPostsPerMonth: 10
+            }
+          }
+        }
+      });
+      postRepository.countActivePostsThisMonth.mockResolvedValue(5); // 5/10 posts
+
+      postRepository.create.mockResolvedValue({
+        ...mockPostData,
+        title: 'New Post'
+      });
+
+      const result = await postService.createPost({ title: 'New Post', status: 'DRAFT' }, 'user-111', 'brand-abc');
+      expect(result.title).toBe('New Post');
+      expect(postRepository.create).toHaveBeenCalled();
     });
   });
 });

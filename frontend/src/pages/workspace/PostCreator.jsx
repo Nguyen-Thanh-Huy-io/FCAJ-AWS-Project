@@ -5,8 +5,11 @@ import {
   FileText, Loader2, RotateCw, Copy, ChevronDown, 
   Calendar, Youtube, PlayCircle, Smartphone, Monitor, Info, MessageSquare,
   Languages, Settings, LayoutGrid, Film, PlusCircle, AlertCircle, Check,
-  MoreHorizontal, Edit, Type, Trash2, Diamond, Search
+  MoreHorizontal, Edit, Type, Trash2, Diamond, Search, Lock, Sparkles, ArrowRight
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useFeatureGate } from "../../hooks/useFeatureGate";
+import { PRODUCT_IDS, FEATURE_GATE_REGISTRY } from "../../constants/products";
 import postService from "../../services/post.service";
 import { usePostCreatorForm } from "../../hooks/usePostCreatorForm";
 import { ShortsIcon } from "../../components/workspace/post-creator/ShortsIcon";
@@ -20,6 +23,8 @@ import { MediaUploadModal } from "../../components/workspace/post-creator/MediaU
 import { ImageEditorModal } from "../../components/workspace/post-creator/ImageEditorModal";
 import { AltTextModal } from "../../components/workspace/post-creator/AltTextModal";
 import { HashtagPickerPopover } from "../../components/workspace/post-creator/HashtagPickerPopover";
+import { PLATFORM_CONFIGS } from "../../constants/platformRegistry";
+import { Instagram } from "lucide-react";
 import { toast } from "sonner";
 
 const PUBLISH_OPTIONS = [
@@ -108,6 +113,13 @@ export function PostCreatorPage() {
     setShowFacebookTypeMenu,
     facebookTitle,
     setFacebookTitle,
+    // Instagram
+    instagramOpen,
+    setInstagramOpen,
+    instagramType,
+    setInstagramType,
+    showInstagramTypeMenu,
+    setShowInstagramTypeMenu,
     getValidationErrors,
     altText,
     setAltText,
@@ -139,6 +151,90 @@ export function PostCreatorPage() {
     setRequesterNote,
     isLoadingReviewers
   } = usePostCreatorForm();
+
+  const activeConfig = PLATFORM_CONFIGS[activePlatform];
+  const activeType = activePlatform === 'facebook' ? facebookType : activePlatform === 'instagram' ? instagramType : activePlatform === 'youtube' ? youtubeType : 'video';
+  const setType = activePlatform === 'facebook' ? setFacebookType : activePlatform === 'instagram' ? setInstagramType : activePlatform === 'youtube' ? setYoutubeType : () => {};
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+
+  const renderTypeDropdown = () => {
+    if (!activeConfig?.supportedTypes || activeConfig.supportedTypes.length <= 1) return null;
+    return (
+      <div className="relative">
+        <button 
+          type="button"
+          onClick={() => setShowTypeDropdown(!showTypeDropdown)}
+          className="flex items-center gap-1 px-2.5 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all text-[10px] font-bold text-gray-700 uppercase cursor-pointer"
+        >
+          {activeType}
+          <ChevronDown size={12} className="text-gray-500" />
+        </button>
+
+        {showTypeDropdown && (
+          <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-1">
+            {activeConfig.supportedTypes.map((typeOption) => {
+              let icon = <LayoutGrid size={16} className="text-gray-600" />;
+              let subtitle = "Standard publication";
+              
+              if (typeOption.id === 'reel') {
+                icon = <Film size={16} className="text-gray-600" />;
+                subtitle = "Automatic posting";
+              } else if (typeOption.id === 'story') {
+                icon = <PlusCircle size={16} className="text-gray-600" />;
+                subtitle = "Automatic posting";
+              } else if (typeOption.id === 'short') {
+                icon = <ShortsIcon size={14} className="text-[#FF0000]" />;
+                subtitle = "Short-form vertical video";
+              } else if (typeOption.id === 'video') {
+                icon = <Youtube size={14} className="text-[#FF0000] fill-[#FF0000]" />;
+                subtitle = "Standard video";
+              } else if (typeOption.id === 'post') {
+                if (activePlatform === 'instagram') {
+                  subtitle = "Standard post on your feed";
+                } else {
+                  subtitle = "Standard publication";
+                }
+              }
+
+              return (
+                <button
+                  key={typeOption.id}
+                  type="button"
+                  onClick={() => {
+                    setType(typeOption.id);
+                    setShowTypeDropdown(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-all text-left cursor-pointer ${
+                    activeType === typeOption.id ? 'bg-gray-100/80' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-1 bg-gray-100 rounded text-gray-600">
+                      {icon}
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-gray-800 capitalize">{typeOption.label}</div>
+                      <div className="text-[10px] text-gray-400 font-medium">{subtitle}</div>
+                    </div>
+                  </div>
+                  {activeType === typeOption.id && <Check size={14} className="text-gray-800" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const navigate = useNavigate();
+  const { hasAccess } = useFeatureGate();
+  const [blockedProductId, setBlockedProductId] = useState(null);
+
+  const hasFacebookAccess = hasAccess(PRODUCT_IDS.FACEBOOK_MANAGEMENT);
+  const hasTiktokAccess = hasAccess(PRODUCT_IDS.TIKTOK_CREATIVE);
+  const hasYoutubeAccess = hasAccess(PRODUCT_IDS.YOUTUBE_ANALYTICS);
+  const hasInstagramAccess = hasAccess(PRODUCT_IDS.INSTAGRAM_MANAGEMENT || 'instagram_management');
 
   const hasApprovePermission = 
     activeBrand?.isOwner || 
@@ -250,11 +346,17 @@ export function PostCreatorPage() {
                       {/* Platform Icons Toolbar */}
                       <div className="flex items-center gap-3">
                         {/* Facebook Item */}
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 relative">
                           <button 
                             type="button"
-                            onClick={() => setActivePlatform("facebook")}
-                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                            onClick={() => {
+                              if (!hasFacebookAccess) {
+                                setBlockedProductId(PRODUCT_IDS.FACEBOOK_MANAGEMENT);
+                              } else {
+                                setActivePlatform("facebook");
+                              }
+                            }}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
                               activePlatform === 'facebook' 
                                 ? 'bg-[#1877F2] text-white' 
                                 : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
@@ -263,158 +365,98 @@ export function PostCreatorPage() {
                             <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                               <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                             </svg>
+                            {!hasFacebookAccess && (
+                              <span className="absolute -top-1.5 -right-1.5 bg-white border border-purple-100 text-purple-600 rounded-full p-0.5 shadow-sm">
+                                <Lock size={7} strokeWidth={3} />
+                              </span>
+                            )}
                           </button>
                           
-                          {activePlatform === 'facebook' && (
-                            <div className="relative">
-                              <button 
-                                type="button"
-                                onClick={() => setShowFacebookTypeMenu(!showFacebookTypeMenu)}
-                                className="flex items-center gap-1 px-2.5 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all text-[10px] font-bold text-gray-700 uppercase cursor-pointer"
-                              >
-                                {facebookType}
-                                <ChevronDown size={12} className="text-gray-500" />
-                              </button>
+                          {activePlatform === 'facebook' && renderTypeDropdown()}
+                        </div>
 
-                              {showFacebookTypeMenu && (
-                                <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setFacebookType("post");
-                                      setShowFacebookTypeMenu(false);
-                                    }}
-                                    className={`w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-all text-left cursor-pointer ${
-                                      facebookType === 'post' ? 'bg-gray-100/80' : ''
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <LayoutGrid size={16} className="text-gray-600" />
-                                      <div>
-                                        <div className="text-xs font-bold text-gray-800">Post</div>
-                                        <div className="text-[10px] text-gray-400 font-medium">Standard Facebook publication</div>
-                                      </div>
-                                    </div>
-                                    {facebookType === 'post' && <Check size={14} className="text-gray-800" />}
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setFacebookType("reel");
-                                      setShowFacebookTypeMenu(false);
-                                    }}
-                                    className={`w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-all text-left cursor-pointer ${
-                                      facebookType === 'reel' ? 'bg-gray-100/80' : ''
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <Film size={16} className="text-gray-600" />
-                                      <div>
-                                        <div className="text-xs font-bold text-gray-800">Reel</div>
-                                        <div className="text-[10px] text-gray-400 font-medium">Automatic posting</div>
-                                      </div>
-                                    </div>
-                                    {facebookType === 'reel' && <Check size={14} className="text-gray-800" />}
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setFacebookType("story");
-                                      setShowFacebookTypeMenu(false);
-                                    }}
-                                    className={`w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-all text-left cursor-pointer ${
-                                      facebookType === 'story' ? 'bg-gray-100/80' : ''
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <PlusCircle size={16} className="text-gray-600" />
-                                      <div>
-                                        <div className="text-xs font-bold text-gray-800">Story</div>
-                                        <div className="text-[10px] text-gray-400 font-medium">Automatic posting</div>
-                                      </div>
-                                    </div>
-                                    {facebookType === 'story' && <Check size={14} className="text-gray-800" />}
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                        {/* Instagram Item */}
+                        <div className="flex items-center gap-1.5 relative">
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              if (!hasInstagramAccess) {
+                                setBlockedProductId(PRODUCT_IDS.INSTAGRAM_MANAGEMENT || 'instagram_management');
+                              } else {
+                                setActivePlatform("instagram");
+                              }
+                            }}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
+                              activePlatform === 'instagram' 
+                                ? 'bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF] text-white' 
+                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                            }`}
+                          >
+                            <Instagram size={14} />
+                            {!hasInstagramAccess && (
+                              <span className="absolute -top-1.5 -right-1.5 bg-white border border-purple-100 text-purple-600 rounded-full p-0.5 shadow-sm">
+                                <Lock size={7} strokeWidth={3} />
+                              </span>
+                            )}
+                          </button>
+                          
+                          {activePlatform === 'instagram' && renderTypeDropdown()}
                         </div>
 
                         {/* Tiktok Item */}
-                        <button 
-                          type="button" 
-                          onClick={() => setActivePlatform("tiktok")}
-                          className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                            activePlatform === 'tiktok' 
-                              ? 'bg-black text-white' 
-                              : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                          }`}
-                        >
-                          <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                            <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.5-1.1-1.02-1.7-2.48-1.9-3.96-.03 2.49 0 4.99 0 7.48-.02 1.9-.38 3.82-1.39 5.43-1.46 2.42-4.13 3.84-6.93 3.55-3.05-.2-5.78-2.44-6.39-5.46-.73-3.27.97-6.9 4.13-7.91 1.09-.34 2.24-.39 3.37-.2v4.02c-1.22-.32-2.58-.09-3.55.74-.95.83-1.29 2.19-1.03 3.4.31 1.65 1.84 2.91 3.53 2.78 1.94-.04 3.42-1.8 3.25-3.73-.02-2.91 0-5.83 0-8.74.02-3.11-.02-6.22.02-9.33z"/>
-                          </svg>
-                        </button>
+                        <div className="relative">
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                              if (!hasTiktokAccess) {
+                                setBlockedProductId(PRODUCT_IDS.TIKTOK_CREATIVE);
+                              } else {
+                                setActivePlatform("tiktok");
+                              }
+                            }}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
+                              activePlatform === 'tiktok' 
+                                ? 'bg-black text-white' 
+                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                            }`}
+                          >
+                            <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                              <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.5-1.1-1.02-1.7-2.48-1.9-3.96-.03 2.49 0 4.99 0 7.48-.02 1.9-.38 3.82-1.39 5.43-1.46 2.42-4.13 3.84-6.93 3.55-3.05-.2-5.78-2.44-6.39-5.46-.73-3.27.97-6.9 4.13-7.91 1.09-.34 2.24-.39 3.37-.2v4.02c-1.22-.32-2.58-.09-3.55.74-.95.83-1.29 2.19-1.03 3.4.31 1.65 1.84 2.91 3.53 2.78 1.94-.04 3.42-1.8 3.25-3.73-.02-2.91 0-5.83 0-8.74.02-3.11-.02-6.22.02-9.33z"/>
+                            </svg>
+                            {!hasTiktokAccess && (
+                              <span className="absolute -top-1.5 -right-1.5 bg-white border border-purple-100 text-purple-600 rounded-full p-0.5 shadow-sm">
+                                <Lock size={7} strokeWidth={3} />
+                              </span>
+                            )}
+                          </button>
+                        </div>
 
                         {/* Youtube Item */}
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 relative">
                           <button 
                             type="button"
-                            onClick={() => setActivePlatform("youtube")}
-                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                            onClick={() => {
+                              if (!hasYoutubeAccess) {
+                                setBlockedProductId(PRODUCT_IDS.YOUTUBE_ANALYTICS);
+                              } else {
+                                setActivePlatform("youtube");
+                              }
+                            }}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
                               activePlatform === 'youtube' 
                                 ? 'bg-[#FF0000] text-white' 
                                 : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
                             }`}
                           >
                             <Youtube size={14} className={activePlatform === 'youtube' ? 'fill-white' : ''} />
+                            {!hasYoutubeAccess && (
+                              <span className="absolute -top-1.5 -right-1.5 bg-white border border-purple-100 text-purple-600 rounded-full p-0.5 shadow-sm">
+                                <Lock size={7} strokeWidth={3} />
+                              </span>
+                            )}
                           </button>
                           
-                          {activePlatform === 'youtube' && (
-                            <div className="relative">
-                              <button 
-                                type="button"
-                                onClick={() => setShowTypeMenu(!showTypeMenu)}
-                                className="flex items-center gap-1 px-2.5 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all text-[10px] font-bold text-gray-700 uppercase cursor-pointer"
-                              >
-                                {youtubeType}
-                                <ChevronDown size={12} className="text-gray-500" />
-                              </button>
-
-                              {showTypeMenu && (
-                                <div className="absolute top-full left-0 mt-1 w-60 bg-white rounded-2xl shadow-2xl border border-gray-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-1">
-                                  <button 
-                                    type="button"
-                                    onClick={() => { setYoutubeType('video'); setShowTypeMenu(false); }}
-                                    className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-all text-left cursor-pointer ${youtubeType === 'video' ? 'bg-gray-50' : ''}`}
-                                  >
-                                    <div className="p-1 bg-gray-100 rounded text-gray-600">
-                                      <Youtube size={14} className="text-[#FF0000] fill-[#FF0000]" />
-                                    </div>
-                                    <div>
-                                      <div className="text-xs font-bold text-gray-800">Video</div>
-                                      <div className="text-[10px] text-gray-400 font-medium">Standard YouTube video</div>
-                                    </div>
-                                  </button>
-                                  <button 
-                                    type="button"
-                                    onClick={() => { setYoutubeType('short'); setShowTypeMenu(false); }}
-                                    className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-all text-left cursor-pointer ${youtubeType === 'short' ? 'bg-gray-50' : ''}`}
-                                  >
-                                    <div className="p-1 bg-gray-100 rounded text-gray-600">
-                                      <ShortsIcon size={14} className="text-[#FF0000]" />
-                                    </div>
-                                    <div>
-                                      <div className="text-xs font-bold text-gray-800">Short</div>
-                                      <div className="text-[10px] text-gray-400 font-medium">Short-form vertical video</div>
-                                    </div>
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                          {activePlatform === 'youtube' && renderTypeDropdown()}
                         </div>
 
                         {/* Plus Add Button */}
@@ -529,7 +571,13 @@ export function PostCreatorPage() {
                               onSelectImage={() => { setUploadModalTab("computer"); setShowUploadModal(true); }} 
                               onSelectVideo={() => { setUploadModalTab("computer"); setShowUploadModal(true); }} 
                               onSelectLibrary={() => { setUploadModalTab("library"); setShowUploadModal(true); }}
-                              onSelectDrive={() => setIsDriveModalOpen(true)}
+                              onSelectDrive={() => {
+                                if (!hasAccess(PRODUCT_IDS.GOOGLE_DRIVE)) {
+                                  setBlockedProductId(PRODUCT_IDS.GOOGLE_DRIVE);
+                                } else {
+                                  setIsDriveModalOpen(true);
+                                }
+                              }}
                             />
                           )}
                         </div>
@@ -618,14 +666,16 @@ export function PostCreatorPage() {
                               <p className="text-[10px] text-gray-500 leading-tight">Limited by the network with less character length support.</p>
                            </div>
                         </div>
-                         <div className={`w-5 h-5 rounded flex items-center justify-center ${activePlatform === 'youtube' ? 'bg-[#FF0000]' : activePlatform === 'tiktok' ? 'bg-black' : 'bg-[#1877F2]'}`}>
+                         <div className={`w-5 h-5 rounded flex items-center justify-center ${activePlatform === 'youtube' ? 'bg-[#FF0000]' : activePlatform === 'tiktok' ? 'bg-black' : activePlatform === 'instagram' ? 'bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF]' : 'bg-[#1877F2]'}`}>
                            {activePlatform === 'youtube' ? (
                              <Youtube size={10} className="text-white fill-white" />
                            ) : activePlatform === 'tiktok' ? (
                               <svg className="w-2.5 h-2.5 text-white fill-white" viewBox="0 0 24 24">
                                 <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.5-1.1-1.02-1.7-2.48-1.9-3.96-.03 2.49 0 4.99 0 7.48-.02 1.9-.38 3.82-1.39 5.43-1.46 2.42-4.13 3.84-6.93 3.55-3.05-.2-5.78-2.44-6.39-5.46-.73-3.27.97-6.9 4.13-7.91 1.09-.34 2.24-.39 3.37-.2v4.02c-1.22-.32-2.58-.09-3.55.74-.95.83-1.29 2.19-1.03 3.4.31 1.65 1.84 2.91 3.53 2.78 1.94-.04 3.42-1.8 3.25-3.73-.02-2.91 0-5.83 0-8.74.02-3.11-.02-6.22.02-9.33z"/>
                               </svg>
-                           ) : (
+                           ) : activePlatform === 'instagram' ? (
+                              <Instagram size={10} className="text-white" />
+                            ) : (
                              <svg className="w-3 h-3 text-white fill-white" viewBox="0 0 24 24">
                                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                              </svg>
@@ -993,6 +1043,32 @@ export function PostCreatorPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Instagram Presets Accordion */}
+                  {activePlatform === 'instagram' && (
+                    <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm transition-all duration-300">
+                      <div 
+                        onClick={() => setInstagramOpen(!instagramOpen)}
+                        className="p-5 flex items-center justify-between hover:bg-gray-50/50 transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Instagram size={18} className="text-[#DD2A7B]" />
+                          <span className="text-[12px] font-bold text-gray-700">Instagram presets</span>
+                        </div>
+                        <ChevronDown size={16} className={`text-gray-400 transition-transform duration-300 ${instagramOpen ? 'rotate-180 text-black' : ''}`} />
+                      </div>
+
+                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${instagramOpen ? 'max-h-[300px] border-t border-gray-50 p-6' : 'max-h-0'}`}>
+                        <div className="space-y-4 text-left">
+                          <p className="text-[11px] text-gray-400 font-medium leading-normal">
+                            Instagram content will be published as an Instagram {instagramType || 'post'}. 
+                            {instagramType === 'reel' && " Ensure your video has a vertical aspect ratio of 9:16."}
+                            {instagramType === 'story' && " Story links or interactive elements should be customized natively after publication."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
               </div>
 
               {/* Approval Workflow Settings */}
@@ -1152,7 +1228,9 @@ export function PostCreatorPage() {
                     <svg className="w-5 h-5 text-black fill-current" viewBox="0 0 24 24">
                        <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.5-1.1-1.02-1.7-2.48-1.9-3.96-.03 2.49 0 4.99 0 7.48-.02 1.9-.38 3.82-1.39 5.43-1.46 2.42-4.13 3.84-6.93 3.55-3.05-.2-5.78-2.44-6.39-5.46-.73-3.27.97-6.9 4.13-7.91 1.09-.34 2.24-.39 3.37-.2v4.02c-1.22-.32-2.58-.09-3.55.74-.95.83-1.29 2.19-1.03 3.4.31 1.65 1.84 2.91 3.53 2.78 1.94-.04 3.42-1.8 3.25-3.73-.02-2.91 0-5.83 0-8.74.02-3.11-.02-6.22.02-9.33z"/>
                     </svg>
-                 ) : (
+                 ) : activePlatform === 'instagram' ? (
+                     <Instagram className="text-[#DD2A7B]" size={20} />
+                  ) : (
                     <svg className="w-5 h-5 text-[#1877F2] fill-[#1877F2]" viewBox="0 0 24 24">
                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                     </svg>
@@ -1181,7 +1259,8 @@ export function PostCreatorPage() {
                       previewDevice={previewDevice}
                        facebookType={facebookType}
                        facebookTitle={facebookTitle}
-                       imageTransform={imageTransform}
+                       instagramType={instagramType}
+                        imageTransform={imageTransform}
                     />
                  )}
               </div>
@@ -1190,6 +1269,8 @@ export function PostCreatorPage() {
                     ? 'YouTube descriptions and setup parameters are fully simulated and will be included in your post' 
                     : activePlatform === 'tiktok'
                     ? 'TikTok video presets and details are fully simulated and will be included in your post'
+                    : activePlatform === 'instagram'
+                    ? 'Instagram photos, Reels, and Stories are fully simulated and will be published on your account'
                     : 'Facebook status updates, photos, and videos are fully supported and will be published on your feed'}
                </p>
            </div>
@@ -1482,6 +1563,43 @@ export function PostCreatorPage() {
         )}
         </div>
       </div>
+      {blockedProductId && (
+        <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center relative overflow-hidden animate-in zoom-in-95 duration-200 mx-4">
+            <button 
+              type="button"
+              onClick={() => setBlockedProductId(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-black transition-colors cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+            
+            <div className="w-14 h-14 bg-gradient-to-tr from-purple-600 to-orange-500 rounded-2xl flex items-center justify-center text-white mb-5 shadow-lg shadow-purple-200 mx-auto">
+              <Lock size={26} className="animate-pulse" />
+            </div>
+            
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              {FEATURE_GATE_REGISTRY[blockedProductId]?.title || "Feature Locked"}
+            </h3>
+            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+              {FEATURE_GATE_REGISTRY[blockedProductId]?.description || "This channel/feature is not available on your current plan. Please upgrade."}
+            </p>
+            
+            <button 
+              type="button"
+              onClick={() => {
+                setBlockedProductId(null);
+                closePostCreator();
+                navigate('/pricing');
+              }}
+              className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-bold text-white transition-all bg-gradient-to-r from-purple-600 to-orange-500 hover:from-purple-700 hover:to-orange-600 shadow-md hover:shadow-lg active:scale-95 cursor-pointer"
+            >
+              Upgrade Plan
+              <ArrowRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

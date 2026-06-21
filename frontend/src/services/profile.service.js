@@ -2,8 +2,15 @@ import apiService from './api';
 
 class ProfileService {
   async getUserProfile() {
-    const response = await apiService.get('/user/profile');
-    return response.data;
+    try {
+      const response = await apiService.get('/user/profile');
+      return response.data;
+    } catch (error) {
+      if (error.status === 403) {
+        return this.getAdminProfile();
+      }
+      throw error;
+    }
   }
 
   async getAdminProfile() {

@@ -14,6 +14,7 @@ async function main() {
   await prisma.userAccount.deleteMany({});
   await prisma.user.deleteMany({});
   await prisma.plan.deleteMany({});
+  await prisma.product.deleteMany({});
   await prisma.planLimit.deleteMany({});
   await prisma.systemPermission.deleteMany({});
 
@@ -44,6 +45,17 @@ async function main() {
     }
   });
 
+  console.log('Seeding Products...');
+  await prisma.product.create({ data: { id: 'youtube_analytics', name: 'YouTube Analytics', category: 'Platforms' } });
+  await prisma.product.create({ data: { id: 'facebook_management', name: 'Facebook Management', category: 'Platforms' } });
+  await prisma.product.create({ data: { id: 'tiktok_creative', name: 'TikTok Creative Suite', category: 'Platforms' } });
+  await prisma.product.create({ data: { id: 'instagram_insights', name: 'Instagram Insights', category: 'Platforms' } });
+  await prisma.product.create({ data: { id: 'ai_content_engine', name: 'AI Content Engine', category: 'AI Tools' } });
+  await prisma.product.create({ data: { id: 'ai_best_time', name: 'AI Best Time Suggest', category: 'AI Tools' } });
+  await prisma.product.create({ data: { id: 'ads_manager', name: 'Ads Manager Pro', category: 'Management' } });
+  await prisma.product.create({ data: { id: 'unified_inbox', name: 'Unified Inbox', category: 'Management' } });
+  await prisma.product.create({ data: { id: 'custom_links', name: 'Custom Branded Links', category: 'Tools' } });
+
   console.log('Seeding Plans...');
   const proPlan = await prisma.plan.create({
     data: {
@@ -53,7 +65,20 @@ async function main() {
       billingCycle: 'MONTHLY',
       description: 'Professional Plan',
       planLimitId: proLimit.id,
-      isActive: true
+      isActive: true,
+      products: {
+        connect: [
+          { id: 'youtube_analytics' },
+          { id: 'facebook_management' },
+          { id: 'tiktok_creative' },
+          { id: 'instagram_insights' },
+          { id: 'ai_content_engine' },
+          { id: 'ai_best_time' },
+          { id: 'ads_manager' },
+          { id: 'unified_inbox' },
+          { id: 'custom_links' }
+        ]
+      }
     }
   });
 
@@ -65,7 +90,13 @@ async function main() {
       billingCycle: 'MONTHLY',
       description: 'Free Plan',
       planLimitId: freeLimit.id,
-      isActive: true
+      isActive: true,
+      products: {
+        connect: [
+          { id: 'youtube_analytics' },
+          { id: 'facebook_management' }
+        ]
+      }
     }
   });
 

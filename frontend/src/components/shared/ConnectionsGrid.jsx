@@ -93,6 +93,33 @@ export function ConnectionsGrid({ className = "", brand, onDisconnect }) {
     }
   };
 
+  const handleConnectInstagram = async () => {
+    if (!brand) {
+      toast.error("Please select a brand first");
+      return;
+    }
+    const status = getStatus("instagram");
+    if (status.connected) {
+      try {
+        await socialService.disconnectInstagramAccount(brand.id);
+        toast.success("Instagram account disconnected");
+        if (onDisconnect) onDisconnect();
+        else window.location.reload();
+      } catch (error) {
+        toast.error(error.message || "Failed to disconnect Instagram");
+      }
+      return;
+    }
+    try {
+      const response = await socialService.getInstagramAuthUrl(brand.id);
+      if (response.url) {
+        window.location.href = response.url;
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to start Instagram connection");
+    }
+  };
+
   const getStatus = (platformId) => {
     if (!brand || !brand.socialAccounts) return { connected: false };
     // Map internal IDs to PlatformType enum in Backend
@@ -185,6 +212,7 @@ export function ConnectionsGrid({ className = "", brand, onDisconnect }) {
                   if (net.id === "youtube") handleConnectYouTube();
                   if (net.id === "facebook") handleConnectFacebook();
                   if (net.id === "tiktok_personal") handleConnectTikTok();
+                  if (net.id === "instagram") handleConnectInstagram();
                 }}
                 className={`w-full h-[60px] rounded-2xl flex items-center justify-between px-6 transition-all transform active:scale-95 shadow-sm border border-black/5 ${net.btnBg} ${net.btnTextColor || 'text-white'}`}
               >

@@ -5,6 +5,7 @@ const { WORKSPACE_DEFAULTS } = require('../../src/utils/constants');
 jest.mock('../../src/repositories/workspace/brand.repository', () => ({
   findManyByUserId: jest.fn(),
   countActiveBrandsByOwnerId: jest.fn(),
+  findOwnedBrandsWithSubscription: jest.fn(),
   create: jest.fn(),
   findById: jest.fn(),
   update: jest.fn(),
@@ -60,8 +61,13 @@ describe('BrandService Unit Tests', () => {
   });
 
   describe('createBrand (BRAND_001 & BRAND_002)', () => {
-    it('should create brand successfully if user brand count is below quota limit (< 5)', async () => {
-      brandRepository.countActiveBrandsByOwnerId.mockResolvedValue(3); // 3 active brands
+    it('should create brand successfully if user brand count is below dynamic quota limit', async () => {
+      const existingBrands = [
+        { id: 'b1', subscription: { plan: { planLimit: { maxBrands: 5 } } } },
+        { id: 'b2', subscription: { plan: { planLimit: { maxBrands: 5 } } } },
+        { id: 'b3', subscription: { plan: { planLimit: { maxBrands: 5 } } } }
+      ];
+      brandRepository.findOwnedBrandsWithSubscription.mockResolvedValue(existingBrands);
       brandRepository.create.mockResolvedValue(mockBrandData);
 
       const brandInput = {
@@ -74,7 +80,7 @@ describe('BrandService Unit Tests', () => {
 
       expect(result.id).toBe(mockBrandId);
       expect(result.name).toBe('TechCorp Global');
-      expect(brandRepository.countActiveBrandsByOwnerId).toHaveBeenCalledWith(mockUserId);
+      expect(brandRepository.findOwnedBrandsWithSubscription).toHaveBeenCalledWith(mockUserId);
       expect(brandRepository.create).toHaveBeenCalledWith({
         name: 'TechCorp Global',
         timezone: 'Asia/Ho_Chi_Minh',
@@ -83,18 +89,21 @@ describe('BrandService Unit Tests', () => {
       });
     });
 
-    it('should throw a 403 error and block creation if user already has 5 active brands', async () => {
-      brandRepository.countActiveBrandsByOwnerId.mockResolvedValue(5); // already 5 brands
+    it('should throw a 403 error and block creation if user already has reached their dynamic brand limit', async () => {
+      const existingBrands = [
+        { id: 'b1', subscription: { plan: { planLimit: { maxBrands: 1 } } } }
+      ];
+      brandRepository.findOwnedBrandsWithSubscription.mockResolvedValue(existingBrands);
 
       const brandInput = {
-        name: 'Brand Sixth',
+        name: 'Brand Second',
         timezone: 'UTC',
         defaultLanguage: 'en'
       };
 
       await expect(brandService.createBrand(mockUserId, brandInput))
         .rejects
-        .toThrow('Brand limit reached. You can only create up to 5 brands.');
+        .toThrow('Brand limit reached. Your current plan allows you to create up to 1 brand(s).');
 
       try {
         await brandService.createBrand(mockUserId, brandInput);

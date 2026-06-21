@@ -9,6 +9,8 @@ import { ConnectionsOverlay } from "./components/shared/ConnectionsOverlay";
 import { GlobalConfirmDialog } from "./components/shared/GlobalConfirmDialog";
 import { useAuthStore } from "./store/useAuthStore";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { FeatureGate } from "./components/shared/FeatureGate";
+import { PRODUCT_IDS } from "./constants/products";
 
 // Auth Pages
 import { LoginPage } from "./pages/auth/Login";
@@ -49,9 +51,11 @@ import { MyTasksPage } from "./pages/manage/MyTasks";
 import { CreateWorkplacePage } from "./pages/manage/CreateWorkplace";
 import { BrandSettingsPage } from "./pages/manage/BrandSettings";
 import { StaffChatPage } from "./pages/manage/StaffChat";
-import {
-  AdsPage, CompetitorsPage, ReportsPage, SmartLinksPage, ConnectPlatformsPage,
-} from "./pages/manage/Placeholder";
+import { AdsPage } from "./pages/manage/Ads";
+import { CompetitorsPage } from "./pages/manage/Competitors";
+import { ReportsPage } from "./pages/manage/Reports";
+import { SmartLinksPage } from "./pages/manage/SmartLinks";
+import { ConnectPlatformsPage } from "./pages/manage/Placeholder";
 
 // Admin Pages
 import { AdminPricing } from "./pages/admin/AdminPricing";
@@ -128,19 +132,19 @@ export default function App() {
                 <Route path="history" element={<HistoryView />} />
               </Route>
               <Route path="/media-library" element={<ProtectedRoute><MediaLibraryPage /></ProtectedRoute>} />
-              <Route path="/smartlinks" element={<ProtectedRoute><SmartLinksPage /></ProtectedRoute>} />
-              <Route path="/ai" element={<ProtectedRoute><AIAssistant /></ProtectedRoute>} />
+              <Route path="/smartlinks" element={<ProtectedRoute><FeatureGate productId={PRODUCT_IDS.CUSTOM_LINKS}><SmartLinksPage /></FeatureGate></ProtectedRoute>} />
+              <Route path="/ai" element={<ProtectedRoute><FeatureGate productId={PRODUCT_IDS.AI_CONTENT_ENGINE}><AIAssistant /></FeatureGate></ProtectedRoute>} />
               <Route path="/hashtags" element={<ProtectedRoute><HashtagManager /></ProtectedRoute>} />
               <Route path="/autolists" element={<ProtectedRoute><AutoLists /></ProtectedRoute>} />
               <Route path="/errors" element={<ProtectedRoute><ErrorPages /></ProtectedRoute>} />
               <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
               
               {/* Protected Manage Routes */}
-              <Route path="/manage/inbox" element={<ProtectedRoute><InboxPage /></ProtectedRoute>} />
+              <Route path="/manage/inbox" element={<ProtectedRoute><FeatureGate productId={PRODUCT_IDS.UNIFIED_INBOX}><InboxPage /></FeatureGate></ProtectedRoute>} />
               <Route path="/manage/team" element={<ProtectedRoute><TeamManagementPage /></ProtectedRoute>} />
               <Route path="/manage/workplace/new" element={<ProtectedRoute><CreateWorkplacePage /></ProtectedRoute>} />
               <Route path="/manage/reports" element={<ProtectedRoute><ReportsPage /></ProtectedRoute>} />
-              <Route path="/manage/ads" element={<ProtectedRoute><AdsPage /></ProtectedRoute>} />
+              <Route path="/manage/ads" element={<ProtectedRoute><FeatureGate productId={PRODUCT_IDS.ADS_MANAGER}><AdsPage /></FeatureGate></ProtectedRoute>} />
               <Route path="/manage/tasks" element={<ProtectedRoute><MyTasksPage /></ProtectedRoute>} />
               <Route path="/manage/competitors" element={<ProtectedRoute><CompetitorsPage /></ProtectedRoute>} />
               <Route path="/manage/connections" element={<ProtectedRoute><BrandSettingsPage /></ProtectedRoute>} />

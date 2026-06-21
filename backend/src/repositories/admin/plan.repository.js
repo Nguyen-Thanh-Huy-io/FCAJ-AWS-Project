@@ -21,6 +21,7 @@ class PlanRepository {
     return prisma.plan.findMany({
       include: {
         planLimit: true,
+        products: true,
         subscriptions: {
           select: {
             id: true,
@@ -44,6 +45,7 @@ class PlanRepository {
       where: { id },
       include: {
         planLimit: true,
+        products: true,
         subscriptions: {
           select: {
             id: true,
@@ -69,21 +71,30 @@ class PlanRepository {
         }
       },
       include: {
-        planLimit: true
+        planLimit: true,
+        products: true
       }
     });
   }
 
   /**
    * Create new plan
-   * @param {Object} planData - { name, priceAmount, currency, billingCycle, description, planLimitId }
+   * @param {Object} planData - { name, priceAmount, currency, billingCycle, description, planLimitId, products }
    * @returns {Promise<Object>} created plan
    */
   async create(planData) {
+    const { products, ...rest } = planData;
+    const data = {
+      ...rest,
+      products: products && Array.isArray(products) 
+        ? { connect: products.map(id => ({ id })) } 
+        : undefined
+    };
     return prisma.plan.create({
-      data: planData,
+      data,
       include: {
-        planLimit: true
+        planLimit: true,
+        products: true
       }
     });
   }
@@ -95,11 +106,19 @@ class PlanRepository {
    * @returns {Promise<Object>} updated plan
    */
   async update(id, updateData) {
+    const { products, ...rest } = updateData;
+    const data = {
+      ...rest,
+      products: products && Array.isArray(products) 
+        ? { set: products.map(id => ({ id })) } 
+        : undefined
+    };
     return prisma.plan.update({
       where: { id },
-      data: updateData,
+      data,
       include: {
-        planLimit: true
+        planLimit: true,
+        products: true
       }
     });
   }
@@ -114,7 +133,8 @@ class PlanRepository {
       where: { id },
       data: { isActive: false },
       include: {
-        planLimit: true
+        planLimit: true,
+        products: true
       }
     });
   }
@@ -128,7 +148,8 @@ class PlanRepository {
     return prisma.plan.findMany({
       where: { isActive },
       include: {
-        planLimit: true
+        planLimit: true,
+        products: true
       },
       orderBy: { priceAmount: 'asc' }
     });

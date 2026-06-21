@@ -1,10 +1,13 @@
 const express = require('express');
 const inboxController = require('../../controllers/social/inbox.controller');
 const { verifyAuth } = require('../../middlewares/auth.middleware');
+const { requireFeature } = require('../../middlewares/feature-gate.middleware');
+const { PRODUCT_IDS } = require('../../utils/constants');
 
 const router = express.Router();
 
 router.use(verifyAuth);
+router.use(requireFeature(PRODUCT_IDS.UNIFIED_INBOX));
 
 /**
  * GET /api/inbox

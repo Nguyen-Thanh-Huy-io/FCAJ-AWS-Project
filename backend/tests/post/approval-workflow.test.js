@@ -27,7 +27,8 @@ jest.mock('../../src/config/prisma', () => {
     findById: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
-    findUnique: jest.fn()
+    findUnique: jest.fn(),
+    count: jest.fn().mockResolvedValue(0)
   };
   const mockApprovalWorkflow = {
     findMany: jest.fn(),
@@ -36,7 +37,19 @@ jest.mock('../../src/config/prisma', () => {
     update: jest.fn()
   };
   const mockBrand = {
-    findUnique: jest.fn()
+    findUnique: jest.fn(),
+    findFirst: jest.fn().mockResolvedValue({
+      id: 'brand-123',
+      subscription: {
+        status: 'ACTIVE',
+        plan: {
+          name: 'PRO',
+          planLimit: {
+            maxPostsPerMonth: 100
+          }
+        }
+      }
+    })
   };
   const mockTeam = {
     findMany: jest.fn()

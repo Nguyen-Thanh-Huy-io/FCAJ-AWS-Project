@@ -230,10 +230,23 @@ model Plan {
 
   planLimit     PlanLimit      @relation(fields: [planLimitId], references: [id], onDelete: Cascade)
   subscriptions Subscription[]
+  products      Product[]      @relation("PlanProducts")
 
   @@unique([name, billingCycle])
   @@map("plans")
 }
+
+model Product {
+  id        String   @id // Uses semantic slug (e.g. 'youtube_analytics')
+  name      String   @unique
+  category  String
+  createdAt DateTime @default(now())
+
+  plans     Plan[]   @relation("PlanProducts")
+
+  @@map("products")
+}
+
 
 model PlanLimit {
   id                    String        @id @default(uuid())

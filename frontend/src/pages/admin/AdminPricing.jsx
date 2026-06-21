@@ -4,20 +4,20 @@ import apiService from "../../services/api";
 import { toast } from "sonner";
 import { useConfirm } from "@/hooks/useConfirm";
 
-// For this MVP, we'll keep products static since there's no model for them yet
-const AVAILABLE_PRODUCTS = [
-  { id: "P1", name: "YouTube Analytics", category: "Platforms", icon: <Globe size={14} /> },
-  { id: "P2", name: "Facebook Management", category: "Platforms", icon: <Globe size={14} /> },
-  { id: "P3", name: "TikTok Creative Suite", category: "Platforms", icon: <Globe size={14} /> },
-  { id: "P4", name: "Instagram Insights", category: "Platforms", icon: <Globe size={14} /> },
-  { id: "P5", name: "AI Content Engine", category: "AI Tools", icon: <Zap size={14} /> },
-  { id: "P6", name: "AI Best Time Suggest", category: "AI Tools", icon: <Zap size={14} /> },
-  { id: "P7", name: "Ads Manager Pro", category: "Management", icon: <Megaphone size={14} /> },
-  { id: "P8", name: "Unified Inbox", category: "Management", icon: <Megaphone size={14} /> },
-  { id: "P9", name: "Custom Branded Links", category: "Tools", icon: <Box size={14} /> },
-];
+// Icons mapping for products based on database IDs/slugs
+const PRODUCT_ICONS = {
+  youtube_analytics: <Globe size={14} />,
+  facebook_management: <Globe size={14} />,
+  tiktok_creative: <Globe size={14} />,
+  instagram_insights: <Globe size={14} />,
+  ai_content_engine: <Zap size={14} />,
+  ai_best_time: <Zap size={14} />,
+  ads_manager: <Megaphone size={14} />,
+  unified_inbox: <Megaphone size={14} />,
+  custom_links: <Box size={14} />
+};
 
-function PlanModal({ isOpen, onClose, onSave, plan = null, availableLimits = [] }) {
+function PlanModal({ isOpen, onClose, onSave, plan = null, availableLimits = [], availableProducts = [] }) {
   const [formData, setFormData] = useState(plan ? {
     name: plan.name,
     priceAmount: plan.price.amount,
@@ -25,9 +25,7 @@ function PlanModal({ isOpen, onClose, onSave, plan = null, availableLimits = [] 
     description: plan.description || "",
     planLimitId: plan.planLimitId || availableLimits[0]?.id || "",
     isActive: plan.isActive,
-    // Note: includedProducts and mostPopular are not in current Prisma model yet
-    // so we'll keep them as UI-only or handle them as part of description/JSON
-    includedProducts: [],
+    includedProducts: plan.includedProducts || [],
     mostPopular: false
   } : {
     name: "STARTER",
@@ -48,7 +46,7 @@ function PlanModal({ isOpen, onClose, onSave, plan = null, availableLimits = [] 
     setFormData({...formData, includedProducts: next});
   };
 
-  const groupedProducts = AVAILABLE_PRODUCTS.reduce((acc, curr) => {
+  const groupedProducts = availableProducts.reduce((acc, curr) => {
     if (!acc[curr.category]) acc[curr.category] = [];
     acc[curr.category].push(curr);
     return acc;
@@ -125,10 +123,10 @@ function PlanModal({ isOpen, onClose, onSave, plan = null, availableLimits = [] 
               </div>
            </div>
 
-           {/* Right Col: Product Selection (Categorized) - UI Only for now */}
+           {/* Right Col: Product Selection (Categorized) */}
            <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Bundle Feature Catalog (UI Only)</label>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Bundle Feature Catalog</label>
                 <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">{formData.includedProducts.length} items bundled</span>
               </div>
               
@@ -142,6 +140,7 @@ function PlanModal({ isOpen, onClose, onSave, plan = null, availableLimits = [] 
                       <div className="grid grid-cols-1 gap-2">
                          {products.map((prod) => {
                            const isSelected = formData.includedProducts.includes(prod.id);
+                           const icon = PRODUCT_ICONS[prod.id] || <Box size={14} />;
                            return (
                              <div 
                                key={prod.id} 
@@ -149,7 +148,7 @@ function PlanModal({ isOpen, onClose, onSave, plan = null, availableLimits = [] 
                                className={`flex items-center gap-3 p-2.5 rounded-xl border cursor-pointer transition-all ${isSelected ? "border-[#0A0A0A] bg-gray-50 shadow-sm" : "border-gray-100 hover:border-gray-200"}`}
                              >
                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isSelected ? "bg-black text-white" : "bg-gray-100 text-gray-400"}`}>
-                                   {prod.icon}
+                                   {icon}
                                 </div>
                                 <div className="flex-1">
                                    <div className="text-xs font-bold text-[#0A0A0A]">{prod.name}</div>
@@ -192,6 +191,7 @@ export function AdminPricing() {
   const confirm = useConfirm();
   const [plans, setPlans] = useState([]);
   const [limits, setLimits] = useState([]);
+  const [products, setProducts] = useState([]);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -200,13 +200,15 @@ export function AdminPricing() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [plansRes, limitsRes] = await Promise.all([
+      const [plansRes, limitsRes, productsRes] = await Promise.all([
         apiService.get("/admin/pricing"),
-        apiService.get("/admin/pricing/limits")
+        apiService.get("/admin/pricing/limits"),
+        apiService.get("/admin/pricing/products")
       ]);
       setPlans(plansRes.data.data.plans);
       setSummary(plansRes.data.data.summary);
       setLimits(limitsRes.data.data);
+      setProducts(productsRes.data.data);
     } catch (error) {
       toast.error("Failed to load pricing data");
     } finally {
@@ -220,12 +222,22 @@ export function AdminPricing() {
 
   const handleSave = async (formData) => {
     try {
+      const payload = {
+        name: formData.name,
+        priceAmount: formData.priceAmount,
+        billingCycle: formData.billingCycle,
+        description: formData.description,
+        planLimitId: formData.planLimitId,
+        isActive: formData.isActive,
+        products: formData.includedProducts
+      };
+
       if (editingPlan) {
-        await apiService.patch(`/admin/pricing/${editingPlan.id}`, formData);
+        await apiService.patch(`/admin/pricing/${editingPlan.id}`, payload);
         toast.success("Plan updated successfully");
       } else {
         await apiService.post("/admin/pricing", {
-           ...formData,
+           ...payload,
            currency: "USD"
         });
         toast.success("Plan created successfully");
@@ -344,6 +356,7 @@ export function AdminPricing() {
           onSave={handleSave} 
           plan={editingPlan} 
           availableLimits={limits}
+          availableProducts={products}
         />
       )}
     </div>

@@ -27,6 +27,15 @@ export const FACEBOOK_TYPE = {
 };
 
 /**
+ * INSTAGRAM_TYPE — Sub-type UI dành riêng cho Instagram.
+ */
+export const INSTAGRAM_TYPE = {
+  POST: 'post',
+  REEL: 'reel',
+  STORY: 'story',
+};
+
+/**
  * TIKTOK_PRIVACY — Privacy setting cho TikTok posts.
  */
 export const TIKTOK_PRIVACY = {

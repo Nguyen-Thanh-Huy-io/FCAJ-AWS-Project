@@ -192,7 +192,8 @@ const ANALYTICS = {
   TYPES: {
     YOUTUBE_DETAILED: 'YOUTUBE_DETAILED',
     FACEBOOK_DETAILED: 'FACEBOOK_DETAILED',
-    TIKTOK_DETAILED: 'TIKTOK_DETAILED'
+    TIKTOK_DETAILED: 'TIKTOK_DETAILED',
+    INSTAGRAM_DETAILED: 'INSTAGRAM_DETAILED'
   },
   METRICS: {
     FACEBOOK: {
@@ -359,6 +360,19 @@ const NOTIFICATION_LABELS = {
   }
 };
 
+const PRODUCT_IDS = {
+  YOUTUBE_ANALYTICS: 'youtube_analytics',
+  FACEBOOK_MANAGEMENT: 'facebook_management',
+  TIKTOK_CREATIVE: 'tiktok_creative',
+  INSTAGRAM_INSIGHTS: 'instagram_insights',
+  AI_CONTENT_ENGINE: 'ai_content_engine',
+  AI_BEST_TIME: 'ai_best_time',
+  ADS_MANAGER: 'ads_manager',
+  UNIFIED_INBOX: 'unified_inbox',
+  CUSTOM_LINKS: 'custom_links',
+  GOOGLE_DRIVE: 'google_drive'
+};
+
 module.exports = {
   PLATFORMS,
   USER_ROLES,
@@ -392,5 +406,6 @@ module.exports = {
   WORKSPACE_DEFAULTS,
   SYSTEM_LABELS,
   SEARCH_PATHS,
-  NOTIFICATION_LABELS
+  NOTIFICATION_LABELS,
+  PRODUCT_IDS
 };

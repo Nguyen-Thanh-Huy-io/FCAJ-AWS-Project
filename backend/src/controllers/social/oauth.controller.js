@@ -2,6 +2,7 @@ const googleOAuthService = require('../../services/social/google-oauth.service')
 const youtubeService = require('../../services/social/youtube');
 const facebookService = require('../../services/social/facebook');
 const tiktokService = require('../../services/social/tiktok');
+const instagramService = require('../../services/social/instagram');
 const tiktokGateway = require('../../services/social/tiktok/tiktok.gateway');
 const { SOCIAL_TECHNICAL } = require('../../utils/constants');
 const asyncHandler = require('../../utils/async-handler');
@@ -88,6 +89,32 @@ class OAuthController {
     try {
       await facebookService.connectChannel(brandId, code, redirectUri);
       return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=facebook_connected`);
+    } catch (error) {
+      return this._handleCallbackError(error, frontendUrl, res);
+    }
+  });
+
+  getInstagramAuthUrl = asyncHandler(async (req, res) => {
+    const { brandId } = req.query;
+    if (!brandId) return res.status(400).json({ message: 'brandId is required' });
+
+    const appId = process.env.FACEBOOK_APP_ID;
+    const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/instagram/callback`;
+    const url = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${brandId}&scope=pages_show_list,instagram_basic,instagram_manage_comments,instagram_manage_insights,instagram_content_publish,pages_read_engagement`;
+    res.json({ url });
+  });
+
+  instagramCallback = asyncHandler(async (req, res) => {
+    const { code, state } = req.query;
+    const brandId = state;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/instagram/callback`;
+
+    if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
+
+    try {
+      await instagramService.connectChannel(brandId, code, redirectUri);
+      return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=instagram_connected`);
     } catch (error) {
       return this._handleCallbackError(error, frontendUrl, res);
     }

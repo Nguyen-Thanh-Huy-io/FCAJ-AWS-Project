@@ -5,8 +5,9 @@ import { useBrand } from "../context/BrandContext";
 import socialService from "../services/social.service";
 import { usePostCreator } from "../context/PostCreatorContext";
 import { DEFAULT_PLATFORM, PLATFORMS } from "../constants/platforms";
+import { PLATFORM_CONFIGS } from "../constants/platformRegistry";
 import { POST_STATUS, PUBLISH_MODE, PUBLISH_MODE_TO_STATUS, STATUS_TO_PUBLISH_MODE } from "../constants/postStatus";
-import { POST_TYPE, YOUTUBE_TYPE, FACEBOOK_TYPE, TIKTOK_PRIVACY, APPROVAL_POLICY, YOUTUBE_DEFAULT_CATEGORY_ID } from "../constants/postTypes";
+import { POST_TYPE, YOUTUBE_TYPE, FACEBOOK_TYPE, INSTAGRAM_TYPE, TIKTOK_PRIVACY, APPROVAL_POLICY, YOUTUBE_DEFAULT_CATEGORY_ID } from "../constants/postTypes";
 import { buildMediaUrl, isVideoPath } from "../utils/url";
 import { validatePostForm } from "@/utils/postValidation";
 import { logger } from "@/utils/logger";
@@ -58,6 +59,11 @@ export function usePostCreatorForm() {
   const [youtubeOpen, setYoutubeOpen] = useState(false);
   const [facebookOpen, setFacebookOpen] = useState(false);
   const [tiktokOpen, setTiktokOpen] = useState(false);
+  const [instagramOpen, setInstagramOpen] = useState(false);
+
+  // Instagram Dropdown / Mode State
+  const [instagramType, setInstagramType] = useState(INSTAGRAM_TYPE.POST);
+  const [showInstagramTypeMenu, setShowInstagramTypeMenu] = useState(false);
   const [tiktokPrivacy, setTiktokPrivacy] = useState(TIKTOK_PRIVACY.PUBLIC);
   const [tiktokAllowComments, setTiktokAllowComments] = useState(true);
   const [tiktokAllowDuet, setTiktokAllowDuet] = useState(true);
@@ -163,6 +169,7 @@ export function usePostCreatorForm() {
       activePlatform,
       facebookType,
       youtubeType,
+      instagramType,
       videoFileUrl,
       videoFile,
       videoDuration,
@@ -323,6 +330,9 @@ export function usePostCreatorForm() {
         setFacebookType(opts.facebookType || "post");
         setFacebookTitle(opts.facebookTitle || "");
 
+        // Setup Instagram
+        setInstagramType(opts.instagramType || "post");
+
         // Setup TikTok
         setTiktokPrivacy(opts.tiktokPrivacy || "public");
         setTiktokAllowComments(opts.tiktokAllowComments !== undefined ? opts.tiktokAllowComments : true);
@@ -366,6 +376,9 @@ export function usePostCreatorForm() {
         setFacebookType(opts.facebookType || "post");
         setFacebookTitle(opts.facebookTitle || "");
 
+        // Setup Instagram
+        setInstagramType(opts.instagramType || "post");
+
         // Setup TikTok
         setTiktokPrivacy(opts.tiktokPrivacy || "public");
         setTiktokAllowComments(opts.tiktokAllowComments !== undefined ? opts.tiktokAllowComments : true);
@@ -406,6 +419,9 @@ export function usePostCreatorForm() {
         setFacebookTitle("");
         setAltText("");
 
+        // Reset Instagram
+        setInstagramType(INSTAGRAM_TYPE.POST);
+
         // Reset TikTok
         setTiktokPrivacy(TIKTOK_PRIVACY.PUBLIC);
         setTiktokAllowComments(true);
@@ -439,6 +455,9 @@ export function usePostCreatorForm() {
     // Setup Facebook
     setFacebookType(opts.facebookType || "post");
     setFacebookTitle(opts.facebookTitle || "");
+
+    // Setup Instagram
+    setInstagramType(opts.instagramType || "post");
 
     // Setup TikTok
     setTiktokPrivacy(opts.tiktokPrivacy || "public");
@@ -476,20 +495,21 @@ export function usePostCreatorForm() {
     setIsCreating(true);
     try {
       // Map publish mode → post status dùng lookup, không dùng if-else chain
-      let status = PUBLISH_MODE_TO_STATUS[selectedPublishId] || POST_STATUS.DRAFT;
+      const status = PUBLISH_MODE_TO_STATUS[selectedPublishId] || POST_STATUS.DRAFT;
 
-      let postType = POST_TYPE.VIDEO;
-      if (activePlatform === PLATFORMS.FACEBOOK) {
-        if (facebookType === FACEBOOK_TYPE.STORY) postType = POST_TYPE.STORY;
-        else if (facebookType === FACEBOOK_TYPE.REEL) postType = POST_TYPE.REEL;
-        else {
-          postType = (uploadedVideoPath || videoFile) ? POST_TYPE.VIDEO : POST_TYPE.IMAGE;
-        }
-      } else if (activePlatform === PLATFORMS.YOUTUBE) {
-        postType = youtubeType === YOUTUBE_TYPE.SHORT ? POST_TYPE.SHORT : POST_TYPE.VIDEO;
-      } else if (activePlatform === PLATFORMS.TIKTOK) {
-        postType = POST_TYPE.VIDEO;
-      }
+      let activeSubType = 'post';
+      if (activePlatform === PLATFORMS.FACEBOOK) activeSubType = facebookType;
+      else if (activePlatform === PLATFORMS.YOUTUBE) activeSubType = youtubeType;
+      else if (activePlatform === PLATFORMS.INSTAGRAM) activeSubType = instagramType;
+      else if (activePlatform === PLATFORMS.TIKTOK) activeSubType = 'video';
+
+      const hasMedia = !!(uploadedVideoPath || videoFile);
+      const isVid = isVideoPath(videoFileUrl, videoFile);
+
+      const platformConfig = PLATFORM_CONFIGS[activePlatform];
+      const postType = platformConfig 
+        ? platformConfig.getPostType(activeSubType, hasMedia, isVid)
+        : POST_TYPE.VIDEO;
 
       const payload = {
         brandId: activeBrand.id,
@@ -516,6 +536,7 @@ export function usePostCreatorForm() {
           firstComment: youtubeFirstComment || globalFirstComment,
           facebookType,
           facebookTitle,
+          instagramType,
           tiktokPrivacy,
           tiktokAllowComments,
           tiktokAllowDuet,
@@ -543,6 +564,7 @@ export function usePostCreatorForm() {
       setGlobalFirstComment("");
       setFacebookTitle("");
       setFacebookType(FACEBOOK_TYPE.POST);
+      setInstagramType(INSTAGRAM_TYPE.POST);
       setAltText("");
       setTiktokPrivacy(TIKTOK_PRIVACY.PUBLIC);
       setTiktokAllowComments(true);
@@ -640,6 +662,13 @@ export function usePostCreatorForm() {
     setShowFacebookTypeMenu,
     facebookTitle,
     setFacebookTitle,
+    // Instagram States
+    instagramOpen,
+    setInstagramOpen,
+    instagramType,
+    setInstagramType,
+    showInstagramTypeMenu,
+    setShowInstagramTypeMenu,
     getValidationErrors,
     altText,
     setAltText,
