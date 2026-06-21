@@ -119,6 +119,16 @@ class SocialService {
     return response.data;
   }
 
+  async getLinkedInAuthUrl(brandId) {
+    const response = await apiService.get(`/social/linkedin/url?brandId=${brandId}`);
+    return response.data;
+  }
+
+  async disconnectLinkedInAccount(brandId) {
+    const response = await apiService.post('/social/linkedin/disconnect', { brandId });
+    return response.data;
+  }
+
   async reassignSocialAccount(platform, platformAccountId, targetBrandId) {
     const response = await apiService.post('/social/reassign', { platform, platformAccountId, targetBrandId });
     return response.data;

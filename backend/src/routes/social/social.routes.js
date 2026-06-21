@@ -24,12 +24,15 @@ router.get('/tiktok/url', verifyAuth, oauthController.getTikTokAuthUrl);
 router.get('/tiktok/callback', oauthController.tiktokCallback);
 router.get('/tiktok/webhook', oauthController.handleTikTokWebhook);
 router.post('/tiktok/webhook', oauthController.handleTikTokWebhook);
+router.get('/linkedin/url', verifyAuth, oauthController.getLinkedInAuthUrl);
+router.get('/linkedin/callback', oauthController.linkedinCallback);
 
 // Facebook Features
 router.get('/facebook/published-posts', verifyAuth, facebookController.getFacebookPublishedPosts);
 router.post('/facebook/disconnect', verifyAuth, socialConnectionController.disconnectFacebookAccount);
 router.post('/instagram/disconnect', verifyAuth, socialConnectionController.disconnectInstagramAccount);
 router.post('/tiktok/disconnect', verifyAuth, socialConnectionController.disconnectTikTokAccount);
+router.post('/linkedin/disconnect', verifyAuth, socialConnectionController.disconnectLinkedInAccount);
 router.post('/reassign', verifyAuth, socialConnectionController.reassignSocialAccount);
 router.get('/tiktok/published-videos', verifyAuth, tiktokController.getTikTokPublishedVideos);
 router.get('/instagram/published-posts', verifyAuth, instagramController.getInstagramPublishedPosts);

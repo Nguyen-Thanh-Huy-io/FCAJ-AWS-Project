@@ -158,5 +158,24 @@ export const PLATFORM_CONFIGS = {
         }
       ]
     }
+  },
+  [PLATFORMS.LINKEDIN]: {
+    id: PLATFORMS.LINKEDIN,
+    name: 'LinkedIn',
+    defaultType: 'post',
+    supportedTypes: [
+      { id: 'post', label: 'Post' }
+    ],
+    getPostType: (subType, hasMedia, isVideo) => {
+      return (hasMedia && isVideo) ? POST_TYPE.VIDEO : POST_TYPE.IMAGE;
+    },
+    validationRules: {
+      _always: [
+        {
+          check: ({ caption }) => caption && caption.length > 3000,
+          message: ({ caption }) => `LinkedIn post caption must be 3000 characters or less. (Current: ${caption.length})`
+        }
+      ]
+    }
   }
 };

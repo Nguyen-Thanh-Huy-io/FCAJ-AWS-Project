@@ -3,6 +3,8 @@ const youtubeService = require('../../services/social/youtube');
 const facebookService = require('../../services/social/facebook');
 const tiktokService = require('../../services/social/tiktok');
 const instagramService = require('../../services/social/instagram');
+const linkedinService = require('../../services/social/linkedin');
+const linkedinGateway = require('../../services/social/linkedin/linkedin.gateway');
 const tiktokGateway = require('../../services/social/tiktok/tiktok.gateway');
 const { SOCIAL_TECHNICAL } = require('../../utils/constants');
 const asyncHandler = require('../../utils/async-handler');
@@ -175,6 +177,31 @@ class OAuthController {
 
     logger.info('[TikTok Webhook] Event received', { type: req.body?.type || 'unknown' });
     res.status(200).json({ status: 'ok' });
+  });
+
+  getLinkedInAuthUrl = asyncHandler(async (req, res) => {
+    const { brandId } = req.query;
+    if (!brandId) return res.status(400).json({ message: 'brandId is required' });
+
+    const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/linkedin/callback`;
+    const url = linkedinGateway.getAuthUrl(brandId, redirectUri);
+    res.json({ url });
+  });
+
+  linkedinCallback = asyncHandler(async (req, res) => {
+    const { code, state } = req.query;
+    const brandId = state;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/linkedin/callback`;
+
+    if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
+
+    try {
+      await linkedinService.connectChannel(brandId, code, redirectUri);
+      return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=linkedin_connected`);
+    } catch (error) {
+      return this._handleCallbackError(error, frontendUrl, res);
+    }
   });
 }
 
