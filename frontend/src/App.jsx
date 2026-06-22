@@ -55,6 +55,7 @@ import { AdsPage } from "./pages/manage/Ads";
 import { CompetitorsPage } from "./pages/manage/Competitors";
 import { ReportsPage } from "./pages/manage/Reports";
 import { SmartLinksPage } from "./pages/manage/SmartLinks";
+import { PublicSmartLinksPage } from "./pages/manage/PublicSmartLinksPage";
 import { ConnectPlatformsPage } from "./pages/manage/Placeholder";
 
 // Admin Pages
@@ -85,7 +86,7 @@ export default function App() {
     );
   }
 
-  const isNoLayout = NO_LAYOUT_PATHS.includes(currentPath);
+  const isNoLayout = NO_LAYOUT_PATHS.includes(currentPath) || currentPath.startsWith("/s/");
   const isSuperadmin = currentPath.startsWith("/admin");
   const isStaff = currentPath.startsWith("/staff");
 
@@ -164,6 +165,7 @@ export default function App() {
               <Route path="/history" element={<ProtectedRoute><StreamHistoryPage /></ProtectedRoute>} />
               <Route path="/connect" element={<ProtectedRoute><ConnectPlatformsPage /></ProtectedRoute>} />
               <Route path="/invite" element={<InviteFlow />} />
+              <Route path="/s/:slug" element={<PublicSmartLinksPage />} />
               
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>

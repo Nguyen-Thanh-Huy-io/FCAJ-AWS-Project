@@ -32,6 +32,7 @@ const teamRoutes = require('./routes/workspace/team.routes');
 const brandRoutes = require('./routes/workspace/brand.routes');
 const autoListRoutes = require('./routes/workspace/auto-list.routes');
 const roleRoutes = require('./routes/workspace/role.routes');
+const smartLinkRoutes = require('./routes/workspace/smart-link.routes');
 const permissionRoutes = require('./routes/workspace/permission.routes');
 const approvalWorkflowRoutes = require('./routes/workspace/approval-workflow.routes');
 
@@ -130,6 +131,7 @@ app.use('/api/brands/:brandId/roles', roleRoutes);
 app.use('/api/brands/:brandId/workflows', approvalWorkflowRoutes);
 app.use('/api/permissions', permissionRoutes);
 app.use('/api/auto-lists', autoListRoutes);
+app.use('/api/smart-links', smartLinkRoutes);
 
 // ── BullMQ Dashboard — protected in production ─────────────────────────────
 // WARNING: In production, add authentication middleware before this route.
