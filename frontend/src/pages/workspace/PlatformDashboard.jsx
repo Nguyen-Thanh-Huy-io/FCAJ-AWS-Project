@@ -24,6 +24,7 @@ import { CompetitorsTab } from "./dashboard/CompetitorsTab";
 import { TrackedVideosTab } from "./dashboard/TrackedVideosTab";
 import { FacebookDashboard } from "./dashboard/FacebookDashboard";
 import { TikTokDashboard } from "./dashboard/TikTokDashboard";
+import { DiscordDashboard } from "./dashboard/DiscordDashboard";
 import { usePlatformDashboard } from "../../hooks/usePlatformDashboard";
 import { DateRangeFilter } from "../../components/app/DateRangeFilter";
 import { useConnections } from "../../context/ConnectionsContext";
@@ -35,6 +36,7 @@ const PLATFORM_CONFIG = {
   facebook: { name: "Facebook", color: "#1877F2", icon: <Facebook size={20} /> },
   tiktok: { name: "TikTok", color: "#000000", icon: <PlayCircle size={20} /> },
   linkedin: { name: "LinkedIn", color: "#0A66C2", icon: <Linkedin size={20} /> },
+  discord: { name: "Discord", color: "#5865F2", icon: <BarChart2 size={20} /> },
 };
 
 const YT_TABS = [
@@ -57,6 +59,11 @@ const FB_TABS = [
 const TT_TABS = [
   { id: "community", label: "COMMUNITY" },
   { id: "posts", label: "POSTS" },
+];
+
+const DISCORD_TABS = [
+  { id: "community", label: "CỘNG ĐỒNG" },
+  { id: "channels", label: "KÊNH KẾT NỐI" },
 ];
 
 export function PlatformDashboardPage() {
@@ -122,7 +129,7 @@ export function PlatformDashboardPage() {
   const navigate = useNavigate();
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
-  const tabs = platform === "facebook" ? FB_TABS : platform === "tiktok" ? TT_TABS : YT_TABS;
+  const tabs = platform === "facebook" ? FB_TABS : platform === "tiktok" ? TT_TABS : platform === "discord" ? DISCORD_TABS : YT_TABS;
 
 
   useEffect(() => {
@@ -311,7 +318,12 @@ export function PlatformDashboardPage() {
           </div>
         )}
 
-        {!metrics ? (
+        {platform === "discord" ? (
+          <DiscordDashboard
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+          />
+        ) : !metrics ? (
           <div className="h-96 flex flex-col items-center justify-center text-center bg-white border border-gray-100 rounded-3xl shadow-sm px-6">
              <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-6">
                 <div style={{ color: config.color }}>{config.icon}</div>

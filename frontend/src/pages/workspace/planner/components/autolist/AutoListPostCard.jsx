@@ -98,7 +98,7 @@ export function AutoListPostCard({
         const formData = new FormData();
         formData.append("video", file); // Backend expects "video" key for uploads
 
-        const res = await apiService.post("/posts/upload", formData, {
+        const res = await apiService.post(`/posts/upload?brandId=${activeBrand?.id}`, formData, {
           headers: {
             "Content-Type": "multipart/form-data"
           }

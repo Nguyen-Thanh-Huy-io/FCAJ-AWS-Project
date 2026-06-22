@@ -202,5 +202,24 @@ export const PLATFORM_CONFIGS = {
         }
       ]
     }
+  },
+  [PLATFORMS.DISCORD]: {
+    id: PLATFORMS.DISCORD,
+    name: 'Discord',
+    defaultType: 'post',
+    supportedTypes: [
+      { id: 'post', label: 'Channel Message' }
+    ],
+    getPostType: (subType, hasMedia, isVideo) => {
+      return (hasMedia && isVideo) ? POST_TYPE.VIDEO : POST_TYPE.IMAGE;
+    },
+    validationRules: {
+      _always: [
+        {
+          check: ({ caption }) => caption && caption.length > 2000,
+          message: ({ caption }) => `Discord message must be 2000 characters or less. (Current: ${caption ? caption.length : 0})`
+        }
+      ]
+    }
   }
 };

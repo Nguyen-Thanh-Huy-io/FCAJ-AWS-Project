@@ -10,11 +10,14 @@ const InboxPlatformFilter = require('./inbox/filters/platform.filter');
 const InboxTabFilter = require('./inbox/filters/tab.filter');
 const InboxStatusFilter = require('./inbox/filters/status.filter');
 const InboxTypeFilter = require('./inbox/filters/type.filter');
+const InboxSocialAccountFilter = require('./inbox/filters/social-account.filter');
 
 const YoutubeCommentSyncStrategy = require('./inbox/strategies/youtube-comment.strategy');
 const FacebookCommentSyncStrategy = require('./inbox/strategies/facebook-comment.strategy');
 const FacebookDMSyncStrategy = require('./inbox/strategies/facebook-dm.strategy');
 const InstagramDMSyncStrategy = require('./inbox/strategies/instagram-dm.strategy');
+const DiscordChannelMessageStrategy = require('./inbox/strategies/discord-channel.strategy');
+const DiscordDirectMessageStrategy = require('./inbox/strategies/discord-dm.strategy');
 
 class InboxService {
   constructor() {
@@ -23,14 +26,17 @@ class InboxService {
       new InboxPlatformFilter(),
       new InboxTabFilter(),
       new InboxStatusFilter(),
-      new InboxTypeFilter()
+      new InboxTypeFilter(),
+      new InboxSocialAccountFilter()
     ]);
 
     this.strategies = [
       new YoutubeCommentSyncStrategy(),
       new FacebookCommentSyncStrategy(),
       new FacebookDMSyncStrategy(),
-      new InstagramDMSyncStrategy()
+      new InstagramDMSyncStrategy(),
+      new DiscordChannelMessageStrategy(),
+      new DiscordDirectMessageStrategy()
     ];
   }
 

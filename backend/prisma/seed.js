@@ -117,8 +117,8 @@ async function main() {
   }
 
   console.log('Seeding User...');
-  // Password is 'admin123'
-  const passwordHash = require('bcryptjs').hashSync('admin123', 10);
+  // Password is 'nhacc123@'
+  const passwordHash = require('bcryptjs').hashSync('nhacc123@', 10);
   const user = await prisma.user.create({
     data: {
       email: 'vothanhnha26@gmail.com',

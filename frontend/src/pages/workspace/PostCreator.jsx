@@ -27,6 +27,7 @@ import { HashtagPickerPopover } from "../../components/workspace/post-creator/Ha
 import { PLATFORM_CONFIGS } from "../../constants/platformRegistry";
 import { Instagram } from "lucide-react";
 import { toast } from "sonner";
+import { useBrandPermission } from "../../hooks/useBrandPermission";
 
 const PUBLISH_OPTIONS = [
   { id: "draft", label: "SAVE AS DRAFT", sub: "Save and publish at a later time" },
@@ -150,8 +151,14 @@ export function PostCreatorPage() {
     setApprovalPolicy,
     requesterNote,
     setRequesterNote,
-    isLoadingReviewers
+    isLoadingReviewers,
+    selectedDiscordChannels,
+    setSelectedDiscordChannels,
+    discordOpen,
+    setDiscordOpen
   } = usePostCreatorForm();
+
+  const discordAccounts = activeBrand?.socialAccounts?.filter(sa => sa.platform === 'DISCORD' && sa.isConnected) || [];
 
   const activeConfig = PLATFORM_CONFIGS[activePlatform];
   const activeType = activePlatform === 'facebook' ? facebookType : activePlatform === 'instagram' ? instagramType : activePlatform === 'youtube' ? youtubeType : 'video';
@@ -231,6 +238,8 @@ export function PostCreatorPage() {
   const navigate = useNavigate();
   const { hasAccess } = useFeatureGate();
   const [blockedProductId, setBlockedProductId] = useState(null);
+  const { hasPermission } = useBrandPermission();
+  const hasCreatePermission = hasPermission('CREATE_POSTS');
 
   const hasFacebookAccess = hasAccess(PRODUCT_IDS.FACEBOOK_MANAGEMENT);
   const hasTiktokAccess = hasAccess(PRODUCT_IDS.TIKTOK_CREATIVE);
@@ -340,6 +349,12 @@ export function PostCreatorPage() {
         {/* Left Panel: Composer */}
         <div className="flex-1 flex flex-col p-8 overflow-y-auto bg-white border-r border-gray-100 scrollbar-thin">
            <div className="max-w-[700px] mx-auto w-full space-y-6">
+              {!hasCreatePermission && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl p-4 text-xs font-bold flex items-center gap-2">
+                  <Info size={16} className="text-amber-500" />
+                  <span>Chế độ Xem: Bạn không có quyền chỉnh sửa hoặc xuất bản bài viết này.</span>
+                </div>
+              )}
               {/* Platform Header */}
               <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -506,6 +521,25 @@ export function PostCreatorPage() {
                           </button>
                           
                           {activePlatform === 'telegram' && renderTypeDropdown()}
+                        </div>
+
+                        {/* Discord Item */}
+                        <div className="flex items-center gap-1.5 relative">
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setActivePlatform("discord");
+                            }}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
+                              activePlatform === 'discord' 
+                                ? 'bg-[#5865F2] text-white' 
+                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                            }`}
+                          >
+                            <MessageSquare size={12} className={activePlatform === 'discord' ? 'fill-white text-white' : 'text-gray-400'} />
+                          </button>
+                          
+                          {activePlatform === 'discord' && renderTypeDropdown()}
                         </div>
 
                         {/* Plus Add Button */}
@@ -715,7 +749,7 @@ export function PostCreatorPage() {
                               <p className="text-[10px] text-gray-500 leading-tight">Limited by the network with less character length support.</p>
                            </div>
                         </div>
-                          <div className={`w-5 h-5 rounded flex items-center justify-center ${activePlatform === 'youtube' ? 'bg-[#FF0000]' : activePlatform === 'tiktok' ? 'bg-black' : activePlatform === 'instagram' ? 'bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF]' : activePlatform === 'linkedin' ? 'bg-[#0077B5]' : activePlatform === 'telegram' ? 'bg-[#0088cc]' : 'bg-[#1877F2]'}`}>
+                          <div className={`w-5 h-5 rounded flex items-center justify-center ${activePlatform === 'youtube' ? 'bg-[#FF0000]' : activePlatform === 'tiktok' ? 'bg-black' : activePlatform === 'instagram' ? 'bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF]' : activePlatform === 'linkedin' ? 'bg-[#0077B5]' : activePlatform === 'telegram' ? 'bg-[#0088cc]' : activePlatform === 'discord' ? 'bg-[#5865F2]' : 'bg-[#1877F2]'}`}>
                             {activePlatform === 'youtube' ? (
                               <Youtube size={10} className="text-white fill-white" />
                             ) : activePlatform === 'tiktok' ? (
@@ -728,6 +762,8 @@ export function PostCreatorPage() {
                                 <Linkedin size={10} className="text-white" />
                             ) : activePlatform === 'telegram' ? (
                                 <Send size={9} className="text-white fill-white translate-x-[-0.5px]" />
+                            ) : activePlatform === 'discord' ? (
+                                <MessageSquare size={9} className="text-white fill-white translate-y-[0.5px]" />
                             ) : (
                               <svg className="w-3 h-3 text-white fill-white" viewBox="0 0 24 24">
                                 <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
@@ -1122,6 +1158,57 @@ export function PostCreatorPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Discord Presets Accordion */}
+                  {activePlatform === 'discord' && (
+                    <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm transition-all duration-300">
+                      <div 
+                        onClick={() => setDiscordOpen(!discordOpen)}
+                        className="p-5 flex items-center justify-between hover:bg-gray-50/50 transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <MessageSquare size={18} className="text-[#5865F2]" />
+                          <span className="text-[12px] font-bold text-gray-700">Discord presets</span>
+                        </div>
+                        <ChevronDown size={16} className={`text-gray-400 transition-transform duration-300 ${discordOpen ? 'rotate-180 text-black' : ''}`} />
+                      </div>
+
+                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${discordOpen ? 'max-h-[400px] border-t border-gray-50 p-6' : 'max-h-0'}`}>
+                        <div className="space-y-4 text-left">
+                          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Chọn Kênh Đăng Bài</label>
+                          <p className="text-[11px] text-gray-400 font-medium leading-normal mb-3">
+                            Chọn máy chủ và kênh chat Discord bạn muốn xuất bản bài viết này:
+                          </p>
+                          {discordAccounts.length === 0 ? (
+                            <p className="text-xs text-amber-600 font-semibold">Chưa có kênh Discord nào được liên kết. Vui lòng liên kết kênh tại trang Quản lý kết nối.</p>
+                          ) : (
+                            <div className="space-y-2 border border-gray-150 rounded-2xl p-4 bg-gray-50/30 max-h-48 overflow-y-auto">
+                              {discordAccounts.map((acc) => (
+                                <label key={acc.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-xl cursor-pointer transition-colors">
+                                  <input 
+                                    type="checkbox" 
+                                    checked={selectedDiscordChannels.includes(acc.id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedDiscordChannels([...selectedDiscordChannels, acc.id]);
+                                      } else {
+                                        setSelectedDiscordChannels(selectedDiscordChannels.filter(id => id !== acc.id));
+                                      }
+                                    }}
+                                    className="rounded border-gray-300 text-[#5865F2] focus:ring-[#5865F2]"
+                                  />
+                                  <div className="text-xs">
+                                    <div className="font-bold text-gray-800">{acc.discordAccount?.guildName || 'Discord Server'}</div>
+                                    <div className="text-gray-400 font-semibold">#{acc.discordAccount?.channelName || acc.displayName}</div>
+                                  </div>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
               </div>
 
               {/* Approval Workflow Settings */}
@@ -1231,26 +1318,51 @@ export function PostCreatorPage() {
                     
                      {isLibrary ? (
                         <button 
-                          onClick={handleCreatePost}
-                          disabled={isCreating}
-                          className="px-8 py-3 bg-[#0A0A0A] text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-black transition-all disabled:opacity-50 cursor-pointer"
+                          onClick={() => {
+                            if (!hasCreatePermission) return;
+                            handleCreatePost();
+                          }}
+                          disabled={isCreating || !hasCreatePermission}
+                          className={`px-8 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-widest transition-all disabled:opacity-50 cursor-pointer ${
+                            hasCreatePermission
+                              ? "bg-[#0A0A0A] text-white hover:bg-black"
+                              : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                          }`}
                         >
                            {isCreating ? <Loader2 size={16} className="animate-spin" /> : "Save Template"}
                         </button>
                      ) : (
                        <div className="flex items-center">
                           <button 
-                            onClick={handleCreatePost}
-                            disabled={isCreating}
-                            className="px-8 py-3 bg-[#0A0A0A] text-white rounded-l-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-black transition-all disabled:opacity-50 cursor-pointer"
+                            onClick={() => {
+                              if (!hasCreatePermission) return;
+                              handleCreatePost();
+                            }}
+                            disabled={isCreating || !hasCreatePermission}
+                            className={`px-8 py-3 rounded-l-2xl text-[11px] font-bold uppercase tracking-widest transition-all disabled:opacity-50 cursor-pointer ${
+                              hasCreatePermission
+                                ? "bg-[#0A0A0A] text-white hover:bg-black"
+                                : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            }`}
                           >
                              {isCreating ? <Loader2 size={16} className="animate-spin" /> : getPublishButtonLabelText()}
                           </button>
                           <div className="relative">
-                             <button onClick={() => setShowPublishMenu(!showPublishMenu)} className="px-3 py-3 bg-[#2D1D35] text-white rounded-r-2xl border-l border-white/10 hover:bg-[#1E1B4B] transition-all cursor-pointer">
+                             <button 
+                               onClick={() => {
+                                 if (!hasCreatePermission) return;
+                                 setShowPublishMenu(!showPublishMenu);
+                               }} 
+                               disabled={!hasCreatePermission}
+                               className={`px-3 py-3 rounded-r-2xl border-l border-white/10 transition-all ${
+                                 hasCreatePermission
+                                   ? "bg-[#2D1D35] text-white hover:bg-[#1E1B4B] cursor-pointer"
+                                   : "bg-gray-300 text-gray-400 cursor-not-allowed"
+                               }`}
+                             >
                                 <ChevronDown size={18} />
                              </button>
-                             {showPublishMenu && (
+                             {showPublishMenu && hasCreatePermission && (
                                 <div className="absolute bottom-full right-0 mb-4 w-64 bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-gray-100 py-3 z-50 animate-in slide-in-from-bottom-2">
                                    {PUBLISH_OPTIONS.map((opt) => (
                                       <button key={opt.id} onClick={() => { setSelectedPublishId(opt.id); setShowPublishMenu(false); }} className={`w-full flex items-center justify-between px-6 py-3 hover:bg-gray-50 transition-all text-left cursor-pointer ${selectedPublishId === opt.id ? 'bg-gray-50' : ''}`}>
@@ -1360,6 +1472,7 @@ export function PostCreatorPage() {
         <MediaUploadModal 
           isOpen={showUploadModal}
           initialTab={uploadModalTab}
+          brandId={activeBrand?.id}
           onClose={() => setShowUploadModal(false)}
           onAccept={(file, path) => {
             if (file) {
@@ -1378,6 +1491,7 @@ export function PostCreatorPage() {
           isOpen={showImageEditor}
           imageUrl={videoFileUrl}
           currentTransform={imageTransform}
+          brandId={activeBrand?.id}
           onClose={() => setShowImageEditor(false)}
           onSave={(file, path, fallbackTransform) => {
             if (file && path) {

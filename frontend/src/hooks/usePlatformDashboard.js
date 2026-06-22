@@ -215,12 +215,15 @@ export function usePlatformDashboard(platform) {
       const ytTabs = ["community", "demographics", "published", "viewed", "competitors"];
       const fbTabs = ["overview", "followers", "clicks", "posts", "interactions", "posts_list"];
       const ttTabs = ["community", "posts"];
+      const discordTabs = ["community", "channels", "posts"];
       
       let isValid = false;
       if (platform === "facebook") {
         isValid = fbTabs.includes(tabParam);
       } else if (platform === "tiktok") {
         isValid = ttTabs.includes(tabParam);
+      } else if (platform === "discord") {
+        isValid = discordTabs.includes(tabParam);
       } else {
         isValid = ytTabs.includes(tabParam);
       }

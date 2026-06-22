@@ -6,7 +6,7 @@ const instagramService = require('../../services/social/instagram');
 const linkedinService = require('../../services/social/linkedin');
 const linkedinGateway = require('../../services/social/linkedin/linkedin.gateway');
 const tiktokGateway = require('../../services/social/tiktok/tiktok.gateway');
-const { SOCIAL_TECHNICAL } = require('../../utils/constants');
+const { SOCIAL_TECHNICAL, GOOGLE_SCOPES, FACEBOOK_API, DEFAULT_CONFIG, API_VERSIONS } = require('../../utils/constants');
 const asyncHandler = require('../../utils/async-handler');
 const logger = require('../../utils/logger');
 const redisClient = require('../../config/redis');
@@ -25,13 +25,13 @@ class OAuthController {
     if (!brandId) return res.status(400).json({ message: 'brandId is required' });
 
     const scopes = [
-      'https://www.googleapis.com/auth/youtube',
-      'https://www.googleapis.com/auth/youtube.readonly',
-      'https://www.googleapis.com/auth/youtube.force-ssl',
-      'https://www.googleapis.com/auth/yt-analytics.readonly',
-      'https://www.googleapis.com/auth/userinfo.email',
-      'https://www.googleapis.com/auth/userinfo.profile',
-      'https://www.googleapis.com/auth/drive.readonly'
+      GOOGLE_SCOPES.YOUTUBE,
+      GOOGLE_SCOPES.YOUTUBE_READONLY,
+      GOOGLE_SCOPES.YOUTUBE_FORCE_SSL,
+      GOOGLE_SCOPES.YT_ANALYTICS_READONLY,
+      GOOGLE_SCOPES.USERINFO_EMAIL,
+      GOOGLE_SCOPES.USERINFO_PROFILE,
+      GOOGLE_SCOPES.DRIVE_READONLY
     ];
     const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/google/callback`;
     const url = googleOAuthService.getAuthUrl(scopes, brandId, redirectUri);
@@ -57,7 +57,7 @@ class OAuthController {
   googleCallback = asyncHandler(async (req, res) => {
     const { code, state } = req.query;
     const brandId = state;
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = DEFAULT_CONFIG.FRONTEND_URL;
     const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/google/callback`;
 
     if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
@@ -76,14 +76,20 @@ class OAuthController {
 
     const appId = process.env.FACEBOOK_APP_ID;
     const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/facebook/callback`;
-    const url = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${brandId}&scope=pages_show_list,pages_read_engagement,pages_read_user_content,read_insights,pages_manage_engagement`;
+    const url = FACEBOOK_API.dialogUrl(
+      API_VERSIONS.FACEBOOK,
+      appId,
+      redirectUri,
+      brandId,
+      'pages_show_list,pages_read_engagement,pages_read_user_content,read_insights,pages_manage_engagement'
+    );
     res.json({ url });
   });
 
   facebookCallback = asyncHandler(async (req, res) => {
     const { code, state } = req.query;
     const brandId = state;
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = DEFAULT_CONFIG.FRONTEND_URL;
     const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/facebook/callback`;
 
     if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
@@ -102,14 +108,20 @@ class OAuthController {
 
     const appId = process.env.FACEBOOK_APP_ID;
     const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/instagram/callback`;
-    const url = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${brandId}&scope=pages_show_list,instagram_basic,instagram_manage_comments,instagram_manage_insights,instagram_content_publish,pages_read_engagement`;
+    const url = FACEBOOK_API.dialogUrl(
+      API_VERSIONS.FACEBOOK,
+      appId,
+      redirectUri,
+      brandId,
+      'pages_show_list,instagram_basic,instagram_manage_comments,instagram_manage_insights,instagram_content_publish,pages_read_engagement'
+    );
     res.json({ url });
   });
 
   instagramCallback = asyncHandler(async (req, res) => {
     const { code, state } = req.query;
     const brandId = state;
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = DEFAULT_CONFIG.FRONTEND_URL;
     const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/instagram/callback`;
 
     if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
@@ -144,7 +156,7 @@ class OAuthController {
   tiktokCallback = asyncHandler(async (req, res) => {
     const { code, state } = req.query;
     const brandId = state;
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = DEFAULT_CONFIG.FRONTEND_URL;
     const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/tiktok/callback`;
 
     if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
@@ -191,7 +203,7 @@ class OAuthController {
   linkedinCallback = asyncHandler(async (req, res) => {
     const { code, state } = req.query;
     const brandId = state;
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = DEFAULT_CONFIG.FRONTEND_URL;
     const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/linkedin/callback`;
 
     if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);

@@ -1,12 +1,12 @@
 const fs = require('fs');
 const path = require('path');
-const { PLATFORMS, SEPARATORS, API_VERSIONS, MEDIA_EXTENSIONS } = require('../../../utils/constants');
+const { PLATFORMS, SEPARATORS, API_VERSIONS, MEDIA_EXTENSIONS, FACEBOOK_API } = require('../../../utils/constants');
 
 class FacebookGateway {
   constructor() {
     this.appId = process.env.FACEBOOK_APP_ID;
     this.appSecret = process.env.FACEBOOK_APP_SECRET;
-    this.graphBaseUrl = `https://graph.facebook.com/${API_VERSIONS.FACEBOOK}`;
+    this.graphBaseUrl = `${FACEBOOK_API.GRAPH_URL}/${API_VERSIONS.FACEBOOK}`;
   }
 
   async exchangeCodeForToken(code, redirectUri) {
@@ -250,7 +250,7 @@ class FacebookGateway {
     if (description) formData.append('description', description);
     formData.append('access_token', pageAccessToken);
 
-    const url = `https://graph-video.facebook.com/${API_VERSIONS.FACEBOOK}/${pageId}/videos`;
+    const url = `${FACEBOOK_API.VIDEO_BASE_URL}/${API_VERSIONS.FACEBOOK}/${pageId}/videos`;
     const res = await fetch(url, { method: 'POST', body: formData });
 
     if (!res.ok) {
@@ -303,7 +303,7 @@ class FacebookGateway {
       formData.append('access_token', pageAccessToken);
 
       if (isVideo) {
-        const uploadUrl = `https://graph-video.facebook.com/${API_VERSIONS.FACEBOOK}/${pageId}/videos`;
+        const uploadUrl = `${FACEBOOK_API.VIDEO_BASE_URL}/${API_VERSIONS.FACEBOOK}/${pageId}/videos`;
         const uploadRes = await fetch(uploadUrl, { method: 'POST', body: formData });
         const { id: videoId } = await uploadRes.json();
 

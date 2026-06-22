@@ -1,10 +1,10 @@
-const { API_VERSIONS, SEPARATORS } = require('../../../utils/constants');
+const { API_VERSIONS, SEPARATORS, FACEBOOK_API } = require('../../../utils/constants');
 const path = require('path');
 const fs = require('fs');
 
 class InstagramGateway {
   constructor() {
-    this.graphBaseUrl = `https://graph.facebook.com/${API_VERSIONS.FACEBOOK || 'v21.0'}`;
+    this.graphBaseUrl = `${FACEBOOK_API.GRAPH_URL}/${API_VERSIONS.FACEBOOK}`;
   }
 
   /**

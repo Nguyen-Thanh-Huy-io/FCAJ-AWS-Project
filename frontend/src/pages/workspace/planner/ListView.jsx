@@ -13,6 +13,7 @@ import { useBrand } from "../../../context/BrandContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useConfirm } from "@/hooks/useConfirm";
+import { useBrandPermission } from "../../../hooks/useBrandPermission";
 
 const STATUS_STYLE = {
   published: "bg-green-50 text-green-700 border-green-100",
@@ -26,6 +27,11 @@ const STATUS_STYLE = {
 
 export function ListView() {
   const confirm = useConfirm();
+  const { hasPermission } = useBrandPermission();
+  const hasCreatePermission = hasPermission("CREATE_POSTS");
+  const hasDeletePermission = hasPermission("DELETE_POSTS");
+  const hasApprovePermission = hasPermission("APPROVE_POSTS");
+
   const [selected, setSelected] = useState([]);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -164,32 +170,47 @@ export function ListView() {
             </div>
          </div>
 
-         <div className="flex items-center gap-3">
-            {selected.length > 0 && (
-               <div className="flex items-center gap-2 animate-in slide-in-from-right-4 duration-300">
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest mr-2">{selected.length} selected</span>
-                  <button 
-                    onClick={handleBulkApprove}
-                    className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-[11px] font-bold text-green-600 hover:bg-green-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-                  >
-                    <CheckCircle size={14} /> Approve
-                  </button>
-                  <button 
-                    onClick={handleBulkDelete}
-                    className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-[11px] font-bold text-red-600 hover:bg-red-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-                  >
-                    <Trash2 size={14} /> Delete
-                  </button>
-               </div>
-            )}
-            <div className="w-px h-6 bg-gray-200 mx-2" />
-            <button 
-              onClick={() => openPostCreator()}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#0A0A0A] text-white rounded-xl text-[12px] font-bold hover:scale-105 active:scale-95 transition-all shadow-lg cursor-pointer"
-            >
-               <Plus size={16} /> Create post
-            </button>
-         </div>
+          <div className="flex items-center gap-3">
+             {selected.length > 0 && (
+                <div className="flex items-center gap-2 animate-in slide-in-from-right-4 duration-300">
+                   <span className="text-xs font-bold text-gray-400 uppercase tracking-widest mr-2">{selected.length} selected</span>
+                   {hasApprovePermission && (
+                     <button 
+                       onClick={handleBulkApprove}
+                       className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-[11px] font-bold text-green-600 hover:bg-green-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                     >
+                       <CheckCircle size={14} /> Approve
+                     </button>
+                   )}
+                   {hasDeletePermission && (
+                     <button 
+                       onClick={handleBulkDelete}
+                       className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-[11px] font-bold text-red-600 hover:bg-red-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                     >
+                       <Trash2 size={14} /> Delete
+                     </button>
+                   )}
+                </div>
+             )}
+             <div className="w-px h-6 bg-gray-200 mx-2" />
+             <button 
+               onClick={() => {
+                 if (!hasCreatePermission) {
+                   toast.error("You do not have permission to create posts");
+                   return;
+                 }
+                 openPostCreator();
+               }}
+               disabled={!hasCreatePermission}
+               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[12px] font-bold transition-all shadow-lg ${
+                 hasCreatePermission 
+                   ? "bg-[#0A0A0A] text-white hover:scale-105 active:scale-95 cursor-pointer"
+                   : "bg-gray-200 text-gray-400 cursor-not-allowed"
+               }`}
+             >
+                <Plus size={16} /> Create post
+             </button>
+          </div>
       </div>
 
       {/* Table Container */}
@@ -367,31 +388,33 @@ export function ListView() {
                           </button>
 
                           {activeMenuId === post.id && (
-                            <>
-                              <div className="fixed inset-0 z-40" onClick={() => setActiveMenuId(null)} />
-                              <div className="absolute right-6 top-12 w-36 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-1 text-left overflow-hidden">
-                                 <button 
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     openPostCreator({ post });
-                                     setActiveMenuId(null);
-                                   }}
-                                   className="w-full px-4 py-2 text-[11px] font-bold text-gray-700 hover:bg-gray-50 transition-all flex items-center gap-2 cursor-pointer"
-                                 >
-                                    <span>✏️</span> Edit Post
-                                 </button>
-                                 <button 
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     handleDeletePost(post.id);
-                                   }}
-                                   className="w-full px-4 py-2 text-[11px] font-bold text-red-600 hover:bg-red-50/50 transition-all flex items-center gap-2 cursor-pointer border-t border-gray-50"
-                                 >
-                                    <span>🗑️</span> Delete Post
-                                 </button>
-                              </div>
-                            </>
-                          )}
+                             <>
+                               <div className="fixed inset-0 z-40" onClick={() => setActiveMenuId(null)} />
+                               <div className="absolute right-6 top-12 w-36 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-1 text-left overflow-hidden">
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openPostCreator({ post });
+                                      setActiveMenuId(null);
+                                    }}
+                                    className="w-full px-4 py-2 text-[11px] font-bold text-gray-700 hover:bg-gray-50 transition-all flex items-center gap-2 cursor-pointer"
+                                  >
+                                     <span>✏️</span> {hasCreatePermission ? 'Edit Post' : 'View Post'}
+                                  </button>
+                                  {hasDeletePermission && (
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeletePost(post.id);
+                                      }}
+                                      className="w-full px-4 py-2 text-[11px] font-bold text-red-600 hover:bg-red-50/50 transition-all flex items-center gap-2 cursor-pointer border-t border-gray-50"
+                                    >
+                                       <span>🗑️</span> Delete Post
+                                    </button>
+                                  )}
+                               </div>
+                             </>
+                           )}
                        </td>
                     </tr>
                   ))}

@@ -7,7 +7,7 @@ const authorizationFacade = require('../services/auth/authorization.facade');
 const checkPermission = (permissionKey) => {
   return async (req, res, next) => {
     // Extract brandId from params, query, or request body
-    const brandId = req.params.brandId || req.query.brandId || req.body.brandId;
+    const brandId = req.params.brandId || req.query.brandId || req.body?.brandId;
     const userId = req.user?.id;
 
     if (!brandId) {

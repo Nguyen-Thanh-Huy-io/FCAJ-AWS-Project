@@ -70,6 +70,8 @@ export function usePostCreatorForm() {
   const [tiktokAllowStitch, setTiktokAllowStitch] = useState(true);
   const [tiktokAiGenerated, setTiktokAiGenerated] = useState(false);
   const [tiktokCommercialContent, setTiktokCommercialContent] = useState(false);
+  const [selectedDiscordChannels, setSelectedDiscordChannels] = useState([]);
+  const [discordOpen, setDiscordOpen] = useState(false);
 
   // Selector Video/Short State
   const [youtubeType, setYoutubeType] = useState(YOUTUBE_TYPE.VIDEO);
@@ -218,7 +220,7 @@ export function usePostCreatorForm() {
     formData.append("video", file);
 
     try {
-      const res = await apiService.post("/posts/upload", formData, {
+      const res = await apiService.post(`/posts/upload?brandId=${activeBrand?.id}`, formData, {
         headers: {
           "Content-Type": "multipart/form-data"
         }
@@ -340,6 +342,7 @@ export function usePostCreatorForm() {
         setTiktokAllowStitch(opts.tiktokAllowStitch !== undefined ? opts.tiktokAllowStitch : true);
         setTiktokAiGenerated(opts.tiktokAiGenerated || false);
         setTiktokCommercialContent(opts.tiktokCommercialContent || false);
+        setSelectedDiscordChannels(opts.selectedDiscordChannels || []);
         
         // Setup media
         if (editingPost.mediaUrls?.[0]) {
@@ -386,6 +389,7 @@ export function usePostCreatorForm() {
         setTiktokAllowStitch(opts.tiktokAllowStitch !== undefined ? opts.tiktokAllowStitch : true);
         setTiktokAiGenerated(opts.tiktokAiGenerated || false);
         setTiktokCommercialContent(opts.tiktokCommercialContent || false);
+        setSelectedDiscordChannels(opts.selectedDiscordChannels || []);
         
         // Setup media
         if (templatePost.mediaUrls?.[0]) {
@@ -429,6 +433,8 @@ export function usePostCreatorForm() {
         setTiktokAllowStitch(true);
         setTiktokAiGenerated(false);
         setTiktokCommercialContent(false);
+        const discordAccs = activeBrand?.socialAccounts?.filter(sa => sa.platform === 'DISCORD' && sa.isConnected) || [];
+        setSelectedDiscordChannels(discordAccs.map(acc => acc.id));
       }
     }
   }, [isOpen, editingPost, templatePost, defaultScheduledAt, initialIsLibrary]);
@@ -542,7 +548,8 @@ export function usePostCreatorForm() {
           tiktokAllowDuet,
           tiktokAllowStitch,
           tiktokAiGenerated,
-          tiktokCommercialContent
+          tiktokCommercialContent,
+          selectedDiscordChannels
         }
       };
 
@@ -698,6 +705,10 @@ export function usePostCreatorForm() {
     setApprovalPolicy,
     requesterNote,
     setRequesterNote,
-    isLoadingReviewers
+    isLoadingReviewers,
+    selectedDiscordChannels,
+    setSelectedDiscordChannels,
+    discordOpen,
+    setDiscordOpen
   };
 }

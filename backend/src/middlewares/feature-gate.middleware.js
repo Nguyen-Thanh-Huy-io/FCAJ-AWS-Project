@@ -7,7 +7,7 @@ const subscriptionGate = require('../services/subscription/subscription-gate.fac
 function requireFeature(productId) {
   return async (req, res, next) => {
     // Retrieve brand ID from header, query, or body
-    const brandId = req.headers['x-brand-id'] || req.query.brandId || req.body.brandId;
+    const brandId = req.headers['x-brand-id'] || req.query.brandId || req.body?.brandId;
     if (!brandId) {
       return res.status(400).json({ 
         message: 'Missing brand configuration header (x-brand-id)',

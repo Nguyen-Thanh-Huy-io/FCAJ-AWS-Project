@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import apiService from "../../../services/api";
 import { useMediaLibrary } from "../../../hooks/useMediaLibrary";
 
-export function MediaUploadModal({ isOpen, onClose, onAccept, initialTab = "computer" }) {
+export function MediaUploadModal({ isOpen, onClose, onAccept, brandId, initialTab = "computer" }) {
   const [activeTab, setActiveTab] = useState(initialTab); // 'computer' | 'url' | 'library'
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -72,7 +72,7 @@ export function MediaUploadModal({ isOpen, onClose, onAccept, initialTab = "comp
       formData.append("video", selectedFile); // Key matches backend expectation for post upload
 
       try {
-        const res = await apiService.post("/posts/upload", formData, {
+        const res = await apiService.post(`/posts/upload?brandId=${brandId}`, formData, {
           headers: {
             "Content-Type": "multipart/form-data"
           }

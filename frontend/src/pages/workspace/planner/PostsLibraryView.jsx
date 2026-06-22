@@ -9,12 +9,15 @@ import { usePostCreator } from "../../../context/PostCreatorContext";
 import postService from "../../../services/post.service";
 import { useBrand } from "../../../context/BrandContext";
 import { toast } from "sonner";
+import { useBrandPermission } from "../../../hooks/useBrandPermission";
 
 export function PostsLibraryView() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const { activeBrand } = useBrand();
   const [searchTerm, setSearchTerm] = useState("");
+  const { hasPermission } = useBrandPermission();
+  const hasCreatePermission = hasPermission('CREATE_POSTS');
 
   const { openPostCreator } = usePostCreator();
 
@@ -61,8 +64,19 @@ export function PostsLibraryView() {
                />
             </div>
             <button 
-              onClick={() => openPostCreator({ isLibrary: true })}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#0A0A0A] text-white rounded-xl text-[12px] font-bold hover:scale-105 active:scale-95 transition-all shadow-lg cursor-pointer"
+              onClick={() => {
+                if (!hasCreatePermission) {
+                  toast.error("You do not have permission to create templates");
+                  return;
+                }
+                openPostCreator({ isLibrary: true });
+              }}
+              disabled={!hasCreatePermission}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[12px] font-bold transition-all shadow-lg ${
+                hasCreatePermission 
+                  ? 'bg-[#0A0A0A] text-white hover:scale-105 active:scale-95 cursor-pointer' 
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
             >
                <Plus size={16} /> Add template
             </button>
@@ -95,8 +109,19 @@ export function PostsLibraryView() {
               <h3 className="text-2xl font-bold text-white uppercase tracking-tight">Organize your best content</h3>
               <p className="text-gray-400 max-w-md mx-auto text-sm font-medium leading-relaxed">Save your top-performing posts as templates and reuse them with one click. Build a library of consistent, high-quality content.</p>
               <button 
-                onClick={() => openPostCreator({ isLibrary: true })}
-                className="mt-6 px-10 py-3 bg-[#D9F99D] text-[#0A0A0A] rounded-2xl text-sm font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl cursor-pointer"
+                onClick={() => {
+                  if (!hasCreatePermission) {
+                    toast.error("You do not have permission to create templates");
+                    return;
+                  }
+                  openPostCreator({ isLibrary: true });
+                }}
+                disabled={!hasCreatePermission}
+                className={`mt-6 px-10 py-3 rounded-2xl text-sm font-black uppercase tracking-widest transition-all shadow-xl ${
+                  hasCreatePermission
+                    ? 'bg-[#D9F99D] text-[#0A0A0A] hover:scale-105 cursor-pointer'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                }`}
               >
                 Create First Template
               </button>
@@ -118,15 +143,17 @@ export function PostsLibraryView() {
                    )}
                    
                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-2.5 transition-all">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openPostCreator({ template: item });
-                        }}
-                        className="px-4 py-2 bg-[#D9F99D] hover:bg-[#bef264] text-[#0A0A0A] rounded-xl text-xs font-black uppercase tracking-wider transition-all transform hover:scale-105 shadow-md flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Plus size={14} /> Use Template
-                      </button>
+                      {hasCreatePermission && (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openPostCreator({ template: item });
+                          }}
+                          className="px-4 py-2 bg-[#D9F99D] hover:bg-[#bef264] text-[#0A0A0A] rounded-xl text-xs font-black uppercase tracking-wider transition-all transform hover:scale-105 shadow-md flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Plus size={14} /> Use Template
+                        </button>
+                      )}
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
@@ -134,21 +161,29 @@ export function PostsLibraryView() {
                         }}
                         className="px-4 py-2 bg-white hover:bg-gray-100 text-gray-800 rounded-xl text-xs font-bold uppercase tracking-wider transition-all transform hover:scale-105 shadow-md flex items-center gap-1.5 cursor-pointer"
                       >
-                        <Edit size={14} /> Edit Template
+                        {hasCreatePermission ? (
+                          <>
+                            <Edit size={14} /> Edit Template
+                          </>
+                        ) : (
+                          <>
+                            <Eye size={14} /> View Template
+                          </>
+                        )}
                       </button>
                    </div>
 
                    <div className="absolute top-4 right-4 flex gap-1">
                       {item.platforms.map(plt => (
-                        <div key={plt} className="w-8 h-8 rounded-full bg-white/80 backdrop-blur-md flex items-center justify-center shadow-sm border border-white/50">
-                           {plt === "YOUTUBE" ? (
-                              <Youtube size={14} className="text-[#FF0000]" />
-                            ) : plt === "FACEBOOK" ? (
-                              <Facebook size={14} className="text-[#1877F2] fill-[#1877F2]" />
-                            ) : (
-                              <PlayCircle size={14} />
-                            )}
-                        </div>
+                         <div key={plt} className="w-8 h-8 rounded-full bg-white/80 backdrop-blur-md flex items-center justify-center shadow-sm border border-white/50">
+                            {plt === "YOUTUBE" ? (
+                               <Youtube size={14} className="text-[#FF0000]" />
+                             ) : plt === "FACEBOOK" ? (
+                               <Facebook size={14} className="text-[#1877F2] fill-[#1877F2]" />
+                             ) : (
+                               <PlayCircle size={14} />
+                             )}
+                         </div>
                       ))}
                    </div>
                 </div>

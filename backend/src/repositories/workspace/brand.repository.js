@@ -18,7 +18,8 @@ class BrandRepository {
             instagramAccount: true,
             facebookPage: true,
             tikTokAccount: true,
-            linkedInAccount: true
+            linkedInAccount: true,
+            discordAccount: true
           }
         },
         teamMembers: {

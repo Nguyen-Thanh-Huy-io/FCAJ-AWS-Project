@@ -8,6 +8,9 @@ const googleDriveController = require('../../controllers/social/google-drive.con
 const socialAnalyticsController = require('../../controllers/social/social-analytics.controller');
 const socialConnectionController = require('../../controllers/social/social-connection.controller');
 const telegramController = require('../../controllers/social/telegram.controller');
+const discordController = require('../../controllers/social/discord.controller');
+const discordOAuthController = require('../../controllers/social/discord-oauth.controller');
+const discordStatsController = require('../../controllers/social/discord-stats.controller');
 const { verifyAuth } = require('../../middlewares/auth.middleware');
 const { requireFeature } = require('../../middlewares/feature-gate.middleware');
 const { PRODUCT_IDS } = require('../../utils/constants');
@@ -27,6 +30,14 @@ router.get('/tiktok/webhook', oauthController.handleTikTokWebhook);
 router.post('/tiktok/webhook', oauthController.handleTikTokWebhook);
 router.get('/linkedin/url', verifyAuth, oauthController.getLinkedInAuthUrl);
 router.get('/linkedin/callback', oauthController.linkedinCallback);
+router.get('/discord/url', verifyAuth, discordOAuthController.getDiscordAuthUrl);
+router.get('/discord/callback', discordOAuthController.discordCallback);
+router.get('/discord/channels', verifyAuth, discordOAuthController.getGuildChannels);
+router.post('/discord/connect-channel', verifyAuth, discordOAuthController.connectGuildChannel);
+router.post('/discord/connect-server', verifyAuth, discordOAuthController.connectGuildServer);
+router.post('/discord/disconnect-channel', verifyAuth, discordOAuthController.disconnectGuildChannel);
+router.get('/discord/stats', verifyAuth, discordStatsController.getStats);
+router.post('/discord/snapshot', verifyAuth, discordStatsController.triggerSnapshot);
 
 // Facebook Features
 router.get('/facebook/published-posts', verifyAuth, facebookController.getFacebookPublishedPosts);
@@ -36,6 +47,8 @@ router.post('/tiktok/disconnect', verifyAuth, socialConnectionController.disconn
 router.post('/linkedin/disconnect', verifyAuth, socialConnectionController.disconnectLinkedInAccount);
 router.post('/telegram/connect', verifyAuth, telegramController.connectTelegram);
 router.post('/telegram/disconnect', verifyAuth, socialConnectionController.disconnectTelegramAccount);
+router.post('/discord/connect', verifyAuth, discordController.connectDiscord);
+router.post('/discord/disconnect', verifyAuth, socialConnectionController.disconnectDiscordAccount);
 router.post('/reassign', verifyAuth, socialConnectionController.reassignSocialAccount);
 router.get('/tiktok/published-videos', verifyAuth, tiktokController.getTikTokPublishedVideos);
 router.get('/instagram/published-posts', verifyAuth, instagramController.getInstagramPublishedPosts);

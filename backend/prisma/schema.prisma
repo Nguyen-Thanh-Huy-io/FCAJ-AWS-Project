@@ -122,6 +122,7 @@ model Brand {
   subscriptionAddons SubscriptionAddon[]
   supportTickets     SupportTicket[]
   trackedVideos      TrackedVideo[]
+  discordGuildSnapshots DiscordGuildSnapshot[]
 
   @@index([ownerId])
   @@map("brands")
@@ -371,6 +372,7 @@ model SocialAccount {
   linkedInAccount  LinkedInAccount?
   youtubeChannel   YouTubeChannel?
   telegramAccount  TelegramAccount?
+  discordAccount   DiscordAccount?
 
   @@unique([brandId, platform, platformAccountId])
   @@index([brandId])
@@ -475,6 +477,38 @@ model TelegramAccount {
   socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
 
   @@map("telegram_accounts")
+}
+
+model DiscordAccount {
+  id              String  @id @default(uuid())
+  socialAccountId String  @unique
+  guildId         String? // Discord Guild/Server ID (for tracking)
+  guildName       String  @default("Discord Server")
+  channelName     String  @default("general")
+  webhookUrl      String? @db.Text // Nullable: pending server (channel not yet selected)
+  isPending       Boolean @default(false) // true = server connected but no channel chosen yet
+  memberCount     Int     @default(0)
+  onlineCount     Int     @default(0)
+  lastSyncAt      DateTime?
+
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@map("discord_accounts")
+}
+
+model DiscordGuildSnapshot {
+  id          String   @id @default(uuid())
+  guildId     String   // Discord Guild ID
+  brandId     String
+  memberCount Int      @default(0)
+  onlineCount Int      @default(0)
+  snapshotAt  DateTime @default(now())
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, brandId, snapshotAt])
+  @@index([brandId, guildId])
+  @@map("discord_guild_snapshots")
 }
 
 model AdAccount {
@@ -1139,6 +1173,7 @@ enum PlatformType {
   BLUESKY
   GOOGLE_BUSINESS
   TELEGRAM
+  DISCORD
 }
 
 enum AdPlatformType {

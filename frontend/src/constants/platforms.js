@@ -9,6 +9,7 @@ export const PLATFORMS = {
   INSTAGRAM: 'instagram',
   LINKEDIN: 'linkedin',
   TELEGRAM: 'telegram',
+  DISCORD: 'discord',
 };
 
 /** Tên hiển thị */
@@ -19,6 +20,7 @@ export const PLATFORM_LABELS = {
   [PLATFORMS.INSTAGRAM]: 'Instagram',
   [PLATFORMS.LINKEDIN]: 'LinkedIn',
   [PLATFORMS.TELEGRAM]: 'Telegram',
+  [PLATFORMS.DISCORD]: 'Discord',
 };
 
 /** Default tab khi vào Platform Dashboard */
@@ -29,6 +31,7 @@ export const PLATFORM_DEFAULT_TAB = {
   [PLATFORMS.INSTAGRAM]: 'overview',
   [PLATFORMS.LINKEDIN]: 'overview',
   [PLATFORMS.TELEGRAM]: 'overview',
+  [PLATFORMS.DISCORD]: 'overview',
 };
 
 /** Platform gửi lên backend (uppercase) */
@@ -39,6 +42,7 @@ export const PLATFORM_API_KEY = {
   [PLATFORMS.INSTAGRAM]: 'INSTAGRAM',
   [PLATFORMS.LINKEDIN]: 'LINKEDIN',
   [PLATFORMS.TELEGRAM]: 'TELEGRAM',
+  [PLATFORMS.DISCORD]: 'DISCORD',
   X: 'TWITTER_X', // special case
 };
 

@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   Youtube, Instagram, Facebook, Linkedin,
   TrendingUp, List, Hash, Settings, Search,
-  PlayCircle, FileText, Megaphone, Plus, ClipboardCheck
+  PlayCircle, FileText, Megaphone, Plus, ClipboardCheck, MessageSquare
 } from "lucide-react";
 import { useConnections } from "../context/ConnectionsContext";
 import { useBrand } from "../context/BrandContext";
@@ -14,6 +14,7 @@ const PLATFORMS = [
   { name: "Instagram", icon: <Instagram size={18} />, path: "/dashboard/instagram", color: "#E1306C", brand: "T" },
   { name: "TikTok", icon: <PlayCircle size={18} />, path: "/dashboard/tiktok", color: "#000000", brand: "T" },
   { name: "LinkedIn", icon: <Linkedin size={18} />, path: "/dashboard/linkedin", color: "#0A66C2", brand: "T" },
+  { name: "Discord", icon: <MessageSquare size={18} />, path: "/dashboard/discord", color: "#5865F2", brand: "T" },
   { name: "More connection", icon: <Plus size={18} />, isAction: true, color: "#3B82F6" },
 ];
 

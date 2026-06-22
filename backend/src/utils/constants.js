@@ -10,7 +10,8 @@ const PLATFORMS = {
   TIKTOK: 'TIKTOK',
   LINKEDIN: 'LINKEDIN',
   TWITTER_X: 'TWITTER_X',
-  TELEGRAM: 'TELEGRAM'
+  TELEGRAM: 'TELEGRAM',
+  DISCORD: 'DISCORD'
 };
 
 const USER_ROLES = {
@@ -105,13 +106,16 @@ const TEAM_STATUS = {
   PENDING:  'PENDING'
 };
 
-/** Permission keys — đồng bộ với cột permissionKey trong DB. */
 const PERMISSION_KEYS = {
-  APPROVE_POSTS:   'APPROVE_POSTS',
-  MANAGE_TEAM:     'MANAGE_TEAM',
-  MANAGE_BRAND:    'MANAGE_BRAND',
   CREATE_POSTS:    'CREATE_POSTS',
   PUBLISH_POSTS:   'PUBLISH_POSTS',
+  APPROVE_POSTS:   'APPROVE_POSTS',
+  DELETE_POSTS:    'DELETE_POSTS',
+  MANAGE_ROLES:    'MANAGE_ROLES',
+  INVITE_MEMBERS:  'INVITE_MEMBERS',
+  // Keep legacy keys
+  MANAGE_TEAM:     'MANAGE_TEAM',
+  MANAGE_BRAND:    'MANAGE_BRAND',
   VIEW_ANALYTICS:  'VIEW_ANALYTICS'
 };
 
@@ -197,7 +201,8 @@ const ANALYTICS = {
     TIKTOK_DETAILED: 'TIKTOK_DETAILED',
     INSTAGRAM_DETAILED: 'INSTAGRAM_DETAILED',
     LINKEDIN_DETAILED: 'LINKEDIN_DETAILED',
-    TELEGRAM_DETAILED: 'TELEGRAM_DETAILED'
+    TELEGRAM_DETAILED: 'TELEGRAM_DETAILED',
+    DISCORD_DETAILED: 'DISCORD_DETAILED'
   },
   METRICS: {
     FACEBOOK: {
@@ -302,7 +307,49 @@ const DEFAULT_CONFIG = {
   TIME: '12:00',
   CURRENCY: 'USD',
   UNTITLED_POST: 'Untitled Post',
-  NO_CONTENT: 'No content'
+  NO_CONTENT: 'No content',
+  FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173'
+};
+
+const DISCORD_API = {
+  BASE_URL: 'https://discord.com/api/v10',
+  CDN_AVATAR: 'https://cdn.discordapp.com/avatars',
+  CHANNEL_TYPES: {
+    TEXT: 0,
+    DM: 1,
+    NEWS: 5
+  },
+  MESSAGE_LIMIT: 50
+};
+
+const FACEBOOK_API = {
+  GRAPH_URL: 'https://graph.facebook.com',
+  VIDEO_BASE_URL: 'https://graph-video.facebook.com',
+  // Build avatar URL: /v25.0/{userId}/picture?type=small
+  avatarUrl: (version, userId) => `https://graph.facebook.com/${version}/${userId}/picture?type=small`,
+  // Build OAuth dialog URL
+  dialogUrl: (version, appId, redirectUri, state, scope) =>
+    `https://www.facebook.com/${version}/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=${scope}`
+};
+
+const TIKTOK_API = {
+  BASE_URL: 'https://open.tiktokapis.com',
+  AUTH_URL: 'https://www.tiktok.com/v2/auth/authorize'
+};
+
+const YOUTUBE_API = {
+  BASE_URL: 'https://www.youtube.com',
+  videoUrl: (videoId) => `https://www.youtube.com/watch?v=${videoId}`
+};
+
+const GOOGLE_SCOPES = {
+  YOUTUBE: 'https://www.googleapis.com/auth/youtube',
+  YOUTUBE_READONLY: 'https://www.googleapis.com/auth/youtube.readonly',
+  YOUTUBE_FORCE_SSL: 'https://www.googleapis.com/auth/youtube.force-ssl',
+  YT_ANALYTICS_READONLY: 'https://www.googleapis.com/auth/yt-analytics.readonly',
+  USERINFO_EMAIL: 'https://www.googleapis.com/auth/userinfo.email',
+  USERINFO_PROFILE: 'https://www.googleapis.com/auth/userinfo.profile',
+  DRIVE_READONLY: 'https://www.googleapis.com/auth/drive.readonly'
 };
 
 const API_VERSIONS = {
@@ -403,6 +450,11 @@ module.exports = {
   YOUTUBE_CATEGORIES,
   NOTIFICATION_TYPES,
   DEFAULT_CONFIG,
+  DISCORD_API,
+  FACEBOOK_API,
+  TIKTOK_API,
+  YOUTUBE_API,
+  GOOGLE_SCOPES,
   API_VERSIONS,
   MEDIA_EXTENSIONS,
   AUDIT_CONFIG,

@@ -35,6 +35,10 @@ class AutoListService {
     return autoListRepository.delete(id);
   }
 
+  async updateLastPostedAt(id, lastPostedAt) {
+    await autoListRepository.update(id, { lastPostedAt });
+  }
+
   async toggleStatus(id) {
     const list = await autoListRepository.findById(id);
     if (!list) throw new Error('AutoList not found');
@@ -63,13 +67,19 @@ class AutoListService {
     
     let unpublishedPosts = (autoList.posts || []).filter(p => p.status !== POST_STATUS.PUBLISHED && p.status !== POST_STATUS.FAILED && p.status !== POST_STATUS.REJECTED);
     
-    // Logic: If Loop is enabled but everything is published, duplicate posts as new DRAFTs to preserve history
+    // Logic: If Loop is enabled but everything is published or failed, duplicate posts as new DRAFTs to preserve history
     if (unpublishedPosts.length === 0 && autoList.loopEnabled && (autoList.posts || []).length > 0) {
       console.log(`[AutoList] 🔄 Queue ${autoListId} dry but Loop enabled. Reviving all posts by duplicating...`);
       
-      const publishedPosts = (autoList.posts || []).filter(p => p.status === POST_STATUS.PUBLISHED && !p.isDeleted);
+      const postsToRevive = (autoList.posts || []).filter(p => 
+        (p.status === POST_STATUS.PUBLISHED || p.status === POST_STATUS.FAILED || p.status === POST_STATUS.REJECTED) && !p.isDeleted
+      );
       
-      for (const p of publishedPosts) {
+      for (const p of postsToRevive) {
+        // 1. Detach original post from this Autolist (so it becomes a static history record)
+        await postRepository.update(p.id, { autoListId: null });
+
+        // 2. Create the revived draft in the queue
         const duplicateData = {
           brandId: p.brandId,
           createdByUserId: p.createdByUserId,
@@ -90,7 +100,7 @@ class AutoListService {
           metadata: p.metadata,
           isCollaboration: p.isCollaboration,
           collaboratorHandle: p.collaboratorHandle,
-          autoListId: p.autoListId
+          autoListId: autoListId
         };
         await postRepository.create(duplicateData);
       }
@@ -173,7 +183,19 @@ class AutoListService {
       .filter(p => p.status === POST_STATUS.PUBLISHED && p.publishedAt)
       .sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
 
-    const fromDate = publishedPosts.length > 0 ? new Date(publishedPosts[0].publishedAt) : new Date();
+    let fromDate = new Date();
+    if (autoList.lastPostedAt) {
+      fromDate = new Date(autoList.lastPostedAt);
+    } else if (publishedPosts.length > 0) {
+      fromDate = new Date(publishedPosts[0].publishedAt);
+    }
+
+    // Protect against stale fromDate values (older than 1 interval) to prevent safety breaks or massive drifts
+    const intervalMs = (autoList.intervalMinutes || 60) * 60 * 1000;
+    if (fromDate.getTime() < Date.now() - intervalMs) {
+      fromDate = new Date();
+    }
+
     const slots = strategy.calculateNextSlots(autoList, unpublishedPosts.length, fromDate, new Date());
 
     for (let i = 0; i < unpublishedPosts.length; i++) {

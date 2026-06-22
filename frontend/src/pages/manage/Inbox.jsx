@@ -15,6 +15,7 @@ import { VideoContextCard } from "../../components/inbox/VideoContextCard";
 import { ReplyComposer } from "../../components/inbox/ReplyComposer";
 
 export function InboxPage() {
+  const { activeBrand } = useBrand();
   const { filters, updateFilters, clearFilters, searchParamsString } = useFilters({
     tab: "Unresolved",
     platform: "YouTube",
@@ -27,6 +28,24 @@ export function InboxPage() {
   const [searchTerm, setSearchTerm] = useState(filters.search || "");
   const debouncedSearch = useDebounce(searchTerm, 300);
 
+  // Discord Guilds & Channels extraction from Brand context
+  const discordAccounts = activeBrand?.socialAccounts?.filter(sa => sa.platform === "DISCORD" && sa.isConnected) || [];
+  const serversMap = {};
+  discordAccounts.forEach(sa => {
+    const da = sa.discordAccount;
+    if (da && da.guildId) {
+      serversMap[da.guildId] = da.guildName || "Discord Server";
+    }
+  });
+  const serversList = Object.entries(serversMap).map(([id, name]) => ({ id, name }));
+  const selectedServerId = filters.guildId || "";
+  const channelsList = discordAccounts
+    .filter(sa => sa.discordAccount?.guildId === selectedServerId)
+    .map(sa => ({
+      id: sa.id,
+      name: sa.discordAccount?.channelName || "general"
+    }));
+
   const [inboxData, setInboxData] = useState({ data: [], meta: {} });
   const [loading, setLoading] = useState(false);
   const [activeConv, setActiveConv] = useState(null);
@@ -35,7 +54,6 @@ export function InboxPage() {
   const [threadLoading, setThreadLoading] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
-  const { activeBrand } = useBrand();
   const [isReplying, setIsReplying] = useState(false);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
 
@@ -174,7 +192,7 @@ export function InboxPage() {
                 <Facebook className="text-[#1877F2] fill-[#1877F2]" size={20} />
               </button>
               <button
-                onClick={() => updateFilters({ platform: "Instagram" })}
+                onClick={() => updateFilters({ platform: "Instagram", guildId: null, socialAccountId: null })}
                 className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
                   platformFilter.toLowerCase() === "instagram"
                     ? "bg-pink-50 border border-pink-100 shadow-sm"
@@ -183,6 +201,16 @@ export function InboxPage() {
               >
                 <Instagram className="text-[#E1306C]" size={20} />
               </button>
+              <button
+                onClick={() => updateFilters({ platform: "Discord", guildId: null, socialAccountId: null })}
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+                  platformFilter.toLowerCase() === "discord"
+                    ? "bg-indigo-50 border border-indigo-100 shadow-sm"
+                    : "opacity-40 hover:opacity-80"
+                }`}
+              >
+                <MessageSquare className="text-[#5865F2] fill-[#5865F2]" size={20} />
+              </button>
             </div>
            <div className="flex items-center gap-2">
              <button onClick={handleSync} disabled={isSyncing} className="p-1.5 hover:bg-gray-100 rounded-full text-gray-400"><RefreshCw size={18} className={isSyncing ? "animate-spin" : ""} /></button>
@@ -190,7 +218,7 @@ export function InboxPage() {
            </div>
         </div>
 
-        <div className="p-4 flex gap-2">
+        <div className="p-4 pb-2 flex gap-2">
            <div className="relative flex-1 group">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
               <input type="text" placeholder="Search conversation..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-gray-50/50 border border-gray-200 rounded-xl py-2.5 pl-10 pr-4 text-xs focus:outline-none" />
@@ -238,6 +266,7 @@ export function InboxPage() {
                       <div className="flex items-center gap-1.5">
                         <Facebook className="text-[#1877F2] fill-[#1877F2]" size={14} />
                         <Instagram className="text-[#E1306C]" size={14} />
+                        <MessageSquare className="text-[#5865F2] fill-[#5865F2]" size={14} />
                         {filters.type === "DIRECT_MESSAGE" && <Check size={12} className="text-green-500 ml-1" />}
                       </div>
                     </button>
@@ -254,6 +283,7 @@ export function InboxPage() {
                         <Facebook className="text-[#1877F2] fill-[#1877F2]" size={14} />
                         <Youtube className="text-[#FF0000] fill-[#FF0000]" size={14} />
                         <Instagram className="text-[#E1306C]" size={14} />
+                        <MessageSquare className="text-[#5865F2] fill-[#5865F2]" size={14} />
                         {filters.type === "COMMENT" && <Check size={12} className="text-green-500 ml-1" />}
                       </div>
                     </button>
@@ -262,6 +292,34 @@ export function InboxPage() {
               )}
             </div>
         </div>
+
+        {/* Discord specific Server and Channel filters */}
+        {platformFilter.toLowerCase() === "discord" && (
+          <div className="px-4 pb-3 flex gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+            <select
+              value={selectedServerId}
+              onChange={(e) => updateFilters({ guildId: e.target.value || null, socialAccountId: null })}
+              className="flex-1 bg-gray-50 border border-gray-200 rounded-xl py-2 px-3 text-xs font-medium focus:outline-none cursor-pointer"
+            >
+              <option value="">All Servers</option>
+              {serversList.map(srv => (
+                <option key={srv.id} value={srv.id}>{srv.name}</option>
+              ))}
+            </select>
+
+            <select
+              value={filters.socialAccountId || ""}
+              onChange={(e) => updateFilters({ socialAccountId: e.target.value || null })}
+              disabled={!selectedServerId}
+              className="flex-1 bg-gray-50 border border-gray-200 rounded-xl py-2 px-3 text-xs font-medium focus:outline-none cursor-pointer disabled:opacity-50"
+            >
+              <option value="">All Channels</option>
+              {channelsList.map(chan => (
+                <option key={chan.id} value={chan.id}>#{chan.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="flex px-2 border-b border-gray-50">
            {["Unresolved", "Unread", "All"].map(t => (
@@ -345,16 +403,18 @@ export function InboxPage() {
                         </div>
                       )}
                       <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-white flex items-center justify-center shadow-sm z-20">
-                         {activeConv.platform?.toLowerCase() === "facebook" ? (
-                           <Facebook className="text-[#1877F2] fill-[#1877F2]" size={8} />
-                         ) : activeConv.platform?.toLowerCase() === "instagram" ? (
-                           <Instagram className="text-[#E1306C]" size={8} />
-                         ) : (
-                           <Youtube className="text-[#FF0000] fill-[#FF0000]" size={8} />
-                         )}
-                      </div>
-                   </div>
-                   <div>
+                          {activeConv.platform?.toLowerCase() === "facebook" ? (
+                            <Facebook className="text-[#1877F2] fill-[#1877F2]" size={8} />
+                          ) : activeConv.platform?.toLowerCase() === "instagram" ? (
+                            <Instagram className="text-[#E1306C]" size={8} />
+                          ) : activeConv.platform?.toLowerCase() === "discord" ? (
+                            <MessageSquare className="text-[#5865F2] fill-[#5865F2]" size={8} />
+                          ) : (
+                            <Youtube className="text-[#FF0000] fill-[#FF0000]" size={8} />
+                          )}
+                       </div>
+                    </div>
+                    <div>
                       <h4 className="text-[13px] font-bold text-[#0A0A0A]">{activeConv.user}</h4>
                       <div className="flex items-center gap-1"><MessageSquare className="text-gray-400" size={10} /><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{activeConv.type === 'direct_message' ? 'PRIVATE MESSAGE' : 'COMMENT'}</span></div>
                    </div>

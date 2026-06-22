@@ -1,7 +1,7 @@
 const youtubeGateway = require('./youtube.gateway');
 const googleOAuthService = require('../google-oauth.service');
 const socialAccountRepository = require('../../../repositories/social/social-account.repository');
-const { PLATFORMS, POST_STATUS, YOUTUBE_PRIVACY, YOUTUBE_CATEGORIES, SEPARATORS, POST_TYPES } = require('../../../utils/constants');
+const { PLATFORMS, POST_STATUS, YOUTUBE_PRIVACY, YOUTUBE_CATEGORIES, SEPARATORS, POST_TYPES, YOUTUBE_API } = require('../../../utils/constants');
 const fs = require('fs');
 const path = require('path');
 
@@ -30,7 +30,7 @@ class YouTubePublishService {
 
     return {
       platformVideoId: videoId,
-      videoUrl: `https://www.youtube.com/watch?v=${videoId}`,
+      videoUrl: YOUTUBE_API.videoUrl(videoId),
       status: POST_STATUS.PUBLISHED,
       publishedAt: new Date(uploadRes.data.snippet.publishedAt)
     };
