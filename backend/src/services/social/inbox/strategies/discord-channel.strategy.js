@@ -107,6 +107,22 @@ class DiscordChannelMessageStrategy extends BaseSyncStrategy {
       socialAccountId: socialAccount.id
     });
   }
+
+  async updateReply(brandId, platformItemId, text) {
+    const reply = await inboxRepository.findInboxItemByPlatformId(platformItemId);
+    if (!reply) throw new Error('Reply not found in database');
+    const channelId = reply.relatedPostId;
+    if (!channelId) throw new Error('Discord Channel ID could not be resolved');
+    return await discordGateway.updateChannelMessage(channelId, platformItemId, text);
+  }
+
+  async deleteReply(brandId, platformItemId) {
+    const reply = await inboxRepository.findInboxItemByPlatformId(platformItemId);
+    if (!reply) throw new Error('Reply not found in database');
+    const channelId = reply.relatedPostId;
+    if (!channelId) throw new Error('Discord Channel ID could not be resolved');
+    return await discordGateway.deleteChannelMessage(channelId, platformItemId);
+  }
 }
 
 module.exports = DiscordChannelMessageStrategy;

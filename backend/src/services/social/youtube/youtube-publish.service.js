@@ -111,6 +111,14 @@ class YouTubePublishService {
       }
     }
   }
+
+  async deletePost(brandId, platformPostId) {
+    const { auth } = await this._getAuthContext(brandId);
+    if (platformPostId && platformPostId.startsWith('mock-')) {
+      return { success: true };
+    }
+    return await youtubeGateway.deleteVideo(auth, platformPostId);
+  }
 }
 
 module.exports = new YouTubePublishService();

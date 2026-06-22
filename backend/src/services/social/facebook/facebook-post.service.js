@@ -52,6 +52,27 @@ class FacebookPostService {
     return { platformVideoId: result.id, publishedAt: new Date() };
   }
 
+  async updatePost(brandId, platformPostId, postData) {
+    const { pageAccessToken } = await this._getAccountCredentials(brandId);
+    
+    if (pageAccessToken && pageAccessToken.startsWith('mock-')) {
+      return { success: true, mock: true };
+    }
+
+    const { caption } = postData;
+    return await facebookGateway.updatePostMessage(platformPostId, caption || '', pageAccessToken);
+  }
+
+  async deletePost(brandId, platformPostId) {
+    const { pageAccessToken } = await this._getAccountCredentials(brandId);
+
+    if (pageAccessToken && pageAccessToken.startsWith('mock-')) {
+      return { success: true, mock: true };
+    }
+
+    return await facebookGateway.deletePost(platformPostId, pageAccessToken);
+  }
+
   // ============= Private Helper Methods =============
 
   async _getAccountCredentials(brandId) {

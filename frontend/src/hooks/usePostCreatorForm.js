@@ -556,32 +556,36 @@ export function usePostCreatorForm() {
       if (editingPost) {
         await apiService.put(`/posts/${editingPost.id}`, payload);
         toast.success("Post updated successfully");
+        // Đóng form ngay sau khi cập nhật thành công để tránh user vô tình tạo thêm bài mới
+        closePostCreator();
       } else {
         await apiService.post('/posts', payload);
         toast.success("Post created successfully");
+        // Reset state sau khi tạo bài mới thành công
+        setActivePlatform(DEFAULT_PLATFORM);
+        setScheduledDate(toLocalDatetimeString(new Date()));
+        setIsLibrary(false);
+        setSelectedPublishId(PUBLISH_MODE.NOW);
+        setYoutubeType(YOUTUBE_TYPE.VIDEO);
+        setYoutubeTitle("");
+        setYoutubeTags("");
+        setYoutubeFirstComment("");
+        setGlobalFirstComment("");
+        setFacebookTitle("");
+        setFacebookType(FACEBOOK_TYPE.POST);
+        setInstagramType(INSTAGRAM_TYPE.POST);
+        setAltText("");
+        setTiktokPrivacy(TIKTOK_PRIVACY.PUBLIC);
+        setTiktokAllowComments(true);
+        setTiktokAllowDuet(true);
+        setTiktokAllowStitch(true);
+        setTiktokAiGenerated(false);
+        setTiktokCommercialContent(false);
+        setVideoFile(null);
+        setVideoFileUrl("");
+        setUploadedVideoPath("");
+        closePostCreator();
       }
-      setActivePlatform(DEFAULT_PLATFORM);
-      setScheduledDate(toLocalDatetimeString(new Date()));
-      setIsLibrary(false);
-      setSelectedPublishId(PUBLISH_MODE.NOW);
-      setYoutubeType(YOUTUBE_TYPE.VIDEO);
-      setYoutubeTitle("");
-      setYoutubeTags("");
-      setYoutubeFirstComment("");
-      setGlobalFirstComment("");
-      setFacebookTitle("");
-      setFacebookType(FACEBOOK_TYPE.POST);
-      setInstagramType(INSTAGRAM_TYPE.POST);
-      setAltText("");
-      setTiktokPrivacy(TIKTOK_PRIVACY.PUBLIC);
-      setTiktokAllowComments(true);
-      setTiktokAllowDuet(true);
-      setTiktokAllowStitch(true);
-      setTiktokAiGenerated(false);
-      setTiktokCommercialContent(false);
-      setVideoFile(null);
-      setVideoFileUrl("");
-      setUploadedVideoPath("");
     } catch (error) {
       console.error("Failed to create/update post:", error);
       toast.error(error.response?.data?.message || "Failed to create post");

@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useBrandPermission } from "../../../hooks/useBrandPermission";
+import { AccessGuard } from "../../../components/shared/AccessGuard";
 
 const STATUS_STYLE = {
   published: "bg-green-50 text-green-700 border-green-100",
@@ -29,8 +30,6 @@ export function ListView() {
   const confirm = useConfirm();
   const { hasPermission } = useBrandPermission();
   const hasCreatePermission = hasPermission("CREATE_POSTS");
-  const hasDeletePermission = hasPermission("DELETE_POSTS");
-  const hasApprovePermission = hasPermission("APPROVE_POSTS");
 
   const [selected, setSelected] = useState([]);
   const [posts, setPosts] = useState([]);
@@ -83,17 +82,46 @@ export function ListView() {
 
   const handleBulkDelete = async () => {
     if (!activeBrand || selected.length === 0) return;
-    const isConfirmed = await confirm({
-      title: "Delete Posts?",
-      description: `Are you sure you want to delete ${selected.length} posts?`,
-      confirmText: "Delete",
-      cancelText: "Cancel",
-      variant: "destructive"
-    });
-    if (!isConfirmed) return;
-    
+
+    const selectedPosts = posts.filter(p => selected.includes(p.id));
+    const hasPublished = selectedPosts.some(p => p.status?.toLowerCase() === "published");
+
+    let deleteFromSocials = false;
+    let proceed = false;
+
+    if (hasPublished) {
+      const wantDeleteSocial = await confirm({
+        title: "Xóa bài viết?",
+        description: "Một số bài viết đã được đăng. Bạn có muốn xóa bài viết này trên các nền tảng mạng xã hội liên kết không?",
+        confirmText: "Xóa trên tất cả nền tảng",
+        secondaryText: "Chỉ xóa trên hệ thống",
+        cancelText: "Hủy",
+        variant: "destructive"
+      });
+      if (wantDeleteSocial === true) {
+        deleteFromSocials = true;
+        proceed = true;
+      } else if (wantDeleteSocial === false) {
+        deleteFromSocials = false;
+        proceed = true;
+      }
+    } else {
+      const isConfirmed = await confirm({
+        title: "Xóa bài viết?",
+        description: `Bạn có chắc chắn muốn xóa ${selected.length} bài viết?`,
+        confirmText: "Xóa",
+        cancelText: "Hủy",
+        variant: "destructive"
+      });
+      if (isConfirmed) {
+        proceed = true;
+      }
+    }
+
+    if (!proceed) return;
+
     try {
-      await postService.deletePosts(activeBrand.id, selected);
+      await postService.deletePosts(activeBrand.id, selected, deleteFromSocials);
       toast.success("Posts deleted successfully");
       setSelected([]);
       fetchPosts();
@@ -116,17 +144,46 @@ export function ListView() {
 
   const handleDeletePost = async (id) => {
     if (!activeBrand) return;
-    const isConfirmed = await confirm({
-      title: "Delete Post?",
-      description: "Are you sure you want to delete this post?",
-      confirmText: "Delete",
-      cancelText: "Cancel",
-      variant: "destructive"
-    });
-    if (!isConfirmed) return;
-    
+
+    const postToDelete = posts.find(p => p.id === id);
+    const isPublished = postToDelete?.status?.toLowerCase() === "published";
+
+    let deleteFromSocials = false;
+    let proceed = false;
+
+    if (isPublished) {
+      const wantDeleteSocial = await confirm({
+        title: "Xóa bài viết?",
+        description: "Bài viết này đã được đăng. Bạn có muốn xóa bài viết trên các nền tảng mạng xã hội liên kết không?",
+        confirmText: "Xóa trên tất cả nền tảng",
+        secondaryText: "Chỉ xóa trên hệ thống",
+        cancelText: "Hủy",
+        variant: "destructive"
+      });
+      if (wantDeleteSocial === true) {
+        deleteFromSocials = true;
+        proceed = true;
+      } else if (wantDeleteSocial === false) {
+        deleteFromSocials = false;
+        proceed = true;
+      }
+    } else {
+      const isConfirmed = await confirm({
+        title: "Xóa bài viết?",
+        description: "Bạn có chắc chắn muốn xóa bài viết này?",
+        confirmText: "Xóa",
+        cancelText: "Hủy",
+        variant: "destructive"
+      });
+      if (isConfirmed) {
+        proceed = true;
+      }
+    }
+
+    if (!proceed) return;
+
     try {
-      await postService.deletePosts(activeBrand.id, [id]);
+      await postService.deletePosts(activeBrand.id, [id], deleteFromSocials);
       toast.success("Post deleted successfully");
       fetchPosts();
     } catch (e) {
@@ -174,42 +231,33 @@ export function ListView() {
              {selected.length > 0 && (
                 <div className="flex items-center gap-2 animate-in slide-in-from-right-4 duration-300">
                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest mr-2">{selected.length} selected</span>
-                   {hasApprovePermission && (
-                     <button 
-                       onClick={handleBulkApprove}
-                       className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-[11px] font-bold text-green-600 hover:bg-green-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-                     >
-                       <CheckCircle size={14} /> Approve
-                     </button>
-                   )}
-                   {hasDeletePermission && (
-                     <button 
-                       onClick={handleBulkDelete}
-                       className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-[11px] font-bold text-red-600 hover:bg-red-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-                     >
-                       <Trash2 size={14} /> Delete
-                     </button>
-                   )}
+                   <AccessGuard feature="APPROVE_POSTS">
+                      <button 
+                        onClick={handleBulkApprove}
+                        className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-[11px] font-bold text-green-600 hover:bg-green-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                      >
+                        <CheckCircle size={14} /> Approve
+                      </button>
+                    </AccessGuard>
+                   <AccessGuard feature="DELETE_POSTS">
+                      <button 
+                        onClick={handleBulkDelete}
+                        className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-[11px] font-bold text-red-600 hover:bg-red-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                      >
+                        <Trash2 size={14} /> Delete
+                      </button>
+                    </AccessGuard>
                 </div>
              )}
              <div className="w-px h-6 bg-gray-200 mx-2" />
-             <button 
-               onClick={() => {
-                 if (!hasCreatePermission) {
-                   toast.error("You do not have permission to create posts");
-                   return;
-                 }
-                 openPostCreator();
-               }}
-               disabled={!hasCreatePermission}
-               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[12px] font-bold transition-all shadow-lg ${
-                 hasCreatePermission 
-                   ? "bg-[#0A0A0A] text-white hover:scale-105 active:scale-95 cursor-pointer"
-                   : "bg-gray-200 text-gray-400 cursor-not-allowed"
-               }`}
-             >
-                <Plus size={16} /> Create post
-             </button>
+             <AccessGuard feature="CREATE_POSTS">
+               <button 
+                 onClick={openPostCreator}
+                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[12px] font-bold bg-[#0A0A0A] text-white hover:scale-105 active:scale-95 cursor-pointer transition-all shadow-lg"
+               >
+                  <Plus size={16} /> Create post
+               </button>
+             </AccessGuard>
           </div>
       </div>
 
@@ -401,7 +449,7 @@ export function ListView() {
                                   >
                                      <span>✏️</span> {hasCreatePermission ? 'Edit Post' : 'View Post'}
                                   </button>
-                                  {hasDeletePermission && (
+                                  <AccessGuard feature="DELETE_POSTS">
                                     <button 
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -411,7 +459,7 @@ export function ListView() {
                                     >
                                        <span>🗑️</span> Delete Post
                                     </button>
-                                  )}
+                                  </AccessGuard>
                                </div>
                              </>
                            )}

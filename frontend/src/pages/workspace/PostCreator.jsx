@@ -284,11 +284,34 @@ export function PostCreatorPage() {
   if (!isOpen) return null;
 
   const getPublishButtonLabelText = () => {
+    // Chế độ edit: luôn hiển thị "UPDATE" để phân biệt rõ với create
+    if (editingPost) return 'UPDATE';
     if (selectedPublishId === 'draft') return 'SAVE';
     if (selectedPublishId === 'review') return 'SEND';
     if (!hasApprovePermission) return 'SUBMIT';
     return selectedPublishId === 'now' ? 'PUBLISH' : 'SCHEDULE';
   };
+
+  // Lọc PUBLISH_OPTIONS phù hợp khi ở chế độ edit
+  const getEditPublishOptions = () => {
+    if (!editingPost) return PUBLISH_OPTIONS;
+    const postStatus = editingPost.status?.toLowerCase();
+    // Bài đã published: chỉ cho edit nội dung, không đổi chế độ
+    if (postStatus === 'published') return [];
+    // Bài scheduled: kiểm tra xem thời hạn đã tới chưa
+    if (postStatus === 'scheduled' && editingPost.scheduledAt) {
+      const scheduledTime = new Date(editingPost.scheduledAt);
+      const isPastDeadline = scheduledTime <= new Date();
+      if (isPastDeadline) {
+        // Thời hạn đã qua: chỉ cho lưu draft
+        return PUBLISH_OPTIONS.filter(o => o.id === 'draft');
+      }
+    }
+    // draft/review/schedule chưa tới hạn: cho phép đổi mode (trừ publish now nếu không có quyền)
+    return PUBLISH_OPTIONS.filter(o => o.id !== 'now' || hasApprovePermission);
+  };
+
+  const editablePublishOptions = getEditPublishOptions();
 
   const currentOption = PUBLISH_OPTIONS.find(o => o.id === selectedPublishId);
   const PreviewComponent = PreviewStrategies[activePlatform];
@@ -1364,14 +1387,19 @@ export function PostCreatorPage() {
                              </button>
                              {showPublishMenu && hasCreatePermission && (
                                 <div className="absolute bottom-full right-0 mb-4 w-64 bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-gray-100 py-3 z-50 animate-in slide-in-from-bottom-2">
-                                   {PUBLISH_OPTIONS.map((opt) => (
-                                      <button key={opt.id} onClick={() => { setSelectedPublishId(opt.id); setShowPublishMenu(false); }} className={`w-full flex items-center justify-between px-6 py-3 hover:bg-gray-50 transition-all text-left cursor-pointer ${selectedPublishId === opt.id ? 'bg-gray-50' : ''}`}>
-                                         <div>
-                                            <div className="text-[10px] font-black text-gray-800 uppercase tracking-widest">{opt.label}</div>
-                                            <div className="text-[9px] text-gray-400 font-bold">{opt.sub}</div>
-                                         </div>
-                                      </button>
-                                   ))}
+                                   {editablePublishOptions.length === 0 ? (
+                                      <div className="px-6 py-3 text-[10px] text-gray-400 font-bold text-center">
+                                        Bài đã đăng — chỉ có thể chỉnh nội dung
+                                      </div>
+                                    ) : editablePublishOptions.map((opt) => (
+                                       <button key={opt.id} onClick={() => { setSelectedPublishId(opt.id); setShowPublishMenu(false); }} className={`w-full flex items-center justify-between px-6 py-3 hover:bg-gray-50 transition-all text-left cursor-pointer ${selectedPublishId === opt.id ? 'bg-gray-50' : ''}`}>
+                                          <div>
+                                             <div className="text-[10px] font-black text-gray-800 uppercase tracking-widest">{opt.label}</div>
+                                             <div className="text-[9px] text-gray-400 font-bold">{opt.sub}</div>
+                                          </div>
+                                          {selectedPublishId === opt.id && <Check size={14} className="text-gray-800 shrink-0" />}
+                                       </button>
+                                    ))}
                                 </div>
                              )}
                           </div>

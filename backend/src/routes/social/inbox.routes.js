@@ -34,9 +34,9 @@ router.post('/reply', featureGate, inboxController.replyToItem);
  */
 router.patch('/:id/status', inboxController.updateStatus);
 
-/**
- * PATCH /api/inbox/:id/metadata — thao tác trên item cụ thể, không cần feature gate
- */
 router.patch('/:id/metadata', inboxController.updateMetadata);
+
+router.patch('/replies/:replyId', featureGate, inboxController.updateReply);
+router.delete('/replies/:replyId', featureGate, inboxController.deleteReply);
 
 module.exports = router;

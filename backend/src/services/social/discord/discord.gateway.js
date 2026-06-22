@@ -53,23 +53,28 @@ class DiscordGateway {
    * Gửi tin nhắn văn bản qua Webhook
    */
   async sendMessage(webhookUrl, text) {
-    const response = await fetch(webhookUrl, {
+    const url = new URL(webhookUrl);
+    url.searchParams.set('wait', 'true');
+    const response = await fetch(url.toString(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: text })
     });
-    if (!response.ok && response.status !== 204) {
+    if (!response.ok) {
       const errorMsg = await response.text();
       throw new Error(`Failed to send Discord message [${response.status}]: ${errorMsg}`);
     }
-    return { id: `discord-msg-${Date.now()}` };
+    const data = await response.json();
+    return { id: data.id };
   }
 
   /**
    * Gửi ảnh (embed) qua Webhook
    */
   async sendPhoto(webhookUrl, photoUrl, caption) {
-    const response = await fetch(webhookUrl, {
+    const url = new URL(webhookUrl);
+    url.searchParams.set('wait', 'true');
+    const response = await fetch(url.toString(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -77,28 +82,60 @@ class DiscordGateway {
         embeds: [{ image: { url: photoUrl } }]
       })
     });
-    if (!response.ok && response.status !== 204) {
+    if (!response.ok) {
       const errorMsg = await response.text();
       throw new Error(`Failed to send Discord photo [${response.status}]: ${errorMsg}`);
     }
-    return { id: `discord-photo-${Date.now()}` };
+    const data = await response.json();
+    return { id: data.id };
   }
 
   /**
    * Gửi video qua Webhook (Discord tự embed link video)
    */
   async sendVideo(webhookUrl, videoUrl, caption) {
+    const url = new URL(webhookUrl);
+    url.searchParams.set('wait', 'true');
     const content = caption ? `${caption}\n${videoUrl}` : videoUrl;
-    const response = await fetch(webhookUrl, {
+    const response = await fetch(url.toString(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content })
     });
-    if (!response.ok && response.status !== 204) {
+    if (!response.ok) {
       const errorMsg = await response.text();
       throw new Error(`Failed to send Discord video [${response.status}]: ${errorMsg}`);
     }
-    return { id: `discord-video-${Date.now()}` };
+    const data = await response.json();
+    return { id: data.id };
+  }
+
+  async updateWebhookMessage(webhookUrl, messageId, text) {
+    const url = new URL(webhookUrl);
+    url.pathname = `${url.pathname}/messages/${messageId}`;
+    const response = await fetch(url.toString(), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: text })
+    });
+    if (!response.ok) {
+      const errorMsg = await response.text();
+      throw new Error(`Failed to update Discord webhook message [${response.status}]: ${errorMsg}`);
+    }
+    return response.json();
+  }
+
+  async deleteWebhookMessage(webhookUrl, messageId) {
+    const url = new URL(webhookUrl);
+    url.pathname = `${url.pathname}/messages/${messageId}`;
+    const response = await fetch(url.toString(), {
+      method: 'DELETE'
+    });
+    if (!response.ok) {
+      const errorMsg = await response.text();
+      throw new Error(`Failed to delete Discord webhook message [${response.status}]: ${errorMsg}`);
+    }
+    return true;
   }
 
   // ─── Guild ─────────────────────────────────────────────────────────────────
@@ -173,6 +210,14 @@ class DiscordGateway {
   buildAvatarUrl(userId, avatarHash) {
     if (!avatarHash) return null;
     return `${DISCORD_API.CDN_AVATAR}/${userId}/${avatarHash}.png`;
+  }
+
+  async updateChannelMessage(channelId, messageId, text) {
+    return this._request('PATCH', `/channels/${channelId}/messages/${messageId}`, { content: text });
+  }
+
+  async deleteChannelMessage(channelId, messageId) {
+    return this._request('DELETE', `/channels/${channelId}/messages/${messageId}`);
   }
 }
 

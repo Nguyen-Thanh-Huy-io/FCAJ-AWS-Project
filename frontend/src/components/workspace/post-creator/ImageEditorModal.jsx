@@ -7,9 +7,9 @@ import { Viewport } from "./image-editor/Viewport";
 import { SettingsPanel, FILTER_PRESETS } from "./image-editor/SettingsPanel";
 
 export function ImageEditorModal({ isOpen, imageUrl, currentTransform, brandId, onClose, onSave }) {
-  if (!isOpen) return null;
-
   const editor = useImageEditor({ imageUrl, currentTransform, brandId, onSave, onClose });
+
+  if (!isOpen) return null;
 
   const selectedFilterObj = FILTER_PRESETS.find(f => f.id === editor.activeFilter);
   const filterClass = selectedFilterObj ? selectedFilterObj.class : '';

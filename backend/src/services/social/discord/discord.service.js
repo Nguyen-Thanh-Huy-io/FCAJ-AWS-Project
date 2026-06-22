@@ -3,6 +3,7 @@ const discordGateway = require('./discord.gateway');
 const discordPublishStrategyFactory = require('./publish-strategies/publish-strategy.factory');
 const socialAccountRepository = require('../../../repositories/social/social-account.repository');
 const prisma = require('../../../config/prisma');
+const { PLATFORMS } = require('../../../utils/constants');
 
 class DiscordService extends BaseSocialService {
   /**
@@ -107,7 +108,7 @@ class DiscordService extends BaseSocialService {
     await prisma.socialAccount.deleteMany({
       where: {
         brandId,
-        platform: 'DISCORD',
+        platform: PLATFORMS.DISCORD,
         platformAccountId: guildId
       }
     });
@@ -139,7 +140,7 @@ class DiscordService extends BaseSocialService {
   async publishPost(brandId, postData) {
     const selectedChannelIds = postData.options?.selectedDiscordChannels;
 
-    const accounts = await socialAccountRepository.findByBrandAndPlatform(brandId, 'DISCORD');
+    const accounts = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORMS.DISCORD);
     let connectedAccounts = accounts.filter(acc => acc.isConnected);
 
     // Nếu có danh sách kênh được chọn, thực hiện lọc
@@ -174,6 +175,7 @@ class DiscordService extends BaseSocialService {
 
     return {
       id: results[0].id,
+      platformVideoId: results[0].id,
       publishedChannels: results
     };
   }
@@ -283,6 +285,37 @@ class DiscordService extends BaseSocialService {
 
   async replyToComment(brandId, parentCommentId, text) {
     return null;
+  }
+
+  async updatePublishedPost(brandId, platformPostId, postData) {
+    const accounts = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORMS.DISCORD);
+    const connectedAccounts = accounts.filter(acc => acc.isConnected);
+    if (connectedAccounts.length === 0) throw new Error('No connected Discord channels found');
+
+    const { caption } = postData;
+    for (const account of connectedAccounts) {
+      try {
+        await discordGateway.updateWebhookMessage(account.accessToken, platformPostId, caption || '');
+      } catch (err) {
+        console.error(`Failed to update post in Discord channel ${account.displayName}:`, err.message);
+      }
+    }
+    return { success: true };
+  }
+
+  async deletePost(brandId, platformPostId) {
+    const accounts = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORMS.DISCORD);
+    const connectedAccounts = accounts.filter(acc => acc.isConnected);
+    if (connectedAccounts.length === 0) throw new Error('No connected Discord channels found');
+
+    for (const account of connectedAccounts) {
+      try {
+        await discordGateway.deleteWebhookMessage(account.accessToken, platformPostId);
+      } catch (err) {
+        console.error(`Failed to delete post from Discord channel ${account.displayName}:`, err.message);
+      }
+    }
+    return { success: true };
   }
 }
 

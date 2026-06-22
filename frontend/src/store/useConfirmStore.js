@@ -11,6 +11,7 @@ export const useConfirmStore = create((set, get) => ({
   description: '',
   confirmText: 'Xác nhận',
   cancelText: 'Hủy',
+  secondaryText: '',
   variant: 'destructive',
   resolve: null,
 
@@ -22,6 +23,7 @@ export const useConfirmStore = create((set, get) => ({
         description: options.description || '',
         confirmText: options.confirmText || 'Xác nhận',
         cancelText: options.cancelText || 'Hủy',
+        secondaryText: options.secondaryText || '',
         variant: options.variant || 'destructive',
         resolve,
       });
@@ -34,9 +36,17 @@ export const useConfirmStore = create((set, get) => ({
     set({ isOpen: false, resolve: null });
   },
 
-  onCancel: () => {
+  onSecondary: () => {
     const { resolve } = get();
     if (resolve) resolve(false);
+    set({ isOpen: false, resolve: null });
+  },
+
+  onCancel: () => {
+    const { resolve, secondaryText } = get();
+    if (resolve) {
+      resolve(secondaryText ? null : false);
+    }
     set({ isOpen: false, resolve: null });
   }
 }));

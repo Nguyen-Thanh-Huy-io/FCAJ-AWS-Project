@@ -1,7 +1,7 @@
 const postRepository = require('../../repositories/workspace/post.repository');
 const brandRepository = require('../../repositories/workspace/brand.repository');
 const socialPlatformFactory = require('../social/social-platform.factory');
-const { POST_STATUS, POST_TYPES, SEPARATORS, WORKSPACE_DEFAULTS } = require('../../utils/constants');
+const { POST_STATUS, POST_TYPES, SEPARATORS, WORKSPACE_DEFAULTS, PLATFORMS } = require('../../utils/constants');
 const { eventEmitter, EVENTS } = require('../../events/event-emitter');
 const { upsertPublishJob, removePublishJob } = require('../../queues/publish.queue');
 const authorizationFacade = require('../auth/authorization.facade');
@@ -110,7 +110,31 @@ class PostService {
   async updatePost(id, postData, brandId, userId) {
     const post = await postRepository.findById(id);
     if (!post || post.brandId !== brandId) throw new Error('Post not found or unauthorized');
-    if (post.status === POST_STATUS.PUBLISHED) throw new Error('Cannot update an already published post');
+    if (post.status === POST_STATUS.PUBLISHED) {
+      const targetPlatforms = post.targetPlatforms ? post.targetPlatforms.split(',').map(p => p.trim().toUpperCase()) : [];
+      const hasFacebook = targetPlatforms.includes(PLATFORMS.FACEBOOK);
+      const hasDiscord = targetPlatforms.includes(PLATFORMS.DISCORD);
+      
+      if ((hasFacebook || hasDiscord) && post.platformPostId) {
+        const socialPlatformFactory = require('../social/social-platform.factory');
+        if (hasFacebook) {
+          try {
+            await socialPlatformFactory.getService(PLATFORMS.FACEBOOK).updatePublishedPost(brandId, post.platformPostId, postData);
+          } catch (err) {
+            console.error(`[Post Service] Failed to update post on Facebook:`, err.message);
+          }
+        }
+        if (hasDiscord) {
+          try {
+            await socialPlatformFactory.getService(PLATFORMS.DISCORD).updatePublishedPost(brandId, post.platformPostId, postData);
+          } catch (err) {
+            console.error(`[Post Service] Failed to update post on Discord:`, err.message);
+          }
+        }
+      } else {
+        throw new Error('Cannot update an already published post for this platform');
+      }
+    }
 
     const data = this._prepareUpdateData(postData);
 
@@ -152,7 +176,7 @@ class PostService {
       }
     }
 
-    const statusChangedToPublished = postData.status?.toUpperCase() === POST_STATUS.PUBLISHED;
+    const statusChangedToPublished = post.status !== POST_STATUS.PUBLISHED && postData.status?.toUpperCase() === POST_STATUS.PUBLISHED;
     eventEmitter.emit(EVENTS.POST.UPDATED, { post: updatedPost, options: postData.options, statusChangedToPublished });
 
     return this._formatPostResponse(updatedPost);
@@ -174,8 +198,28 @@ class PostService {
     return count;
   }
 
-  async bulkDelete(ids, brandId) {
+  async bulkDelete(ids, brandId, deleteFromSocials = false) {
     const posts = await postRepository.findManyByIdsAndBrand(ids, brandId);
+
+    if (deleteFromSocials) {
+      const socialPlatformFactory = require('../social/social-platform.factory');
+      for (const post of posts) {
+        if (post.status === POST_STATUS.PUBLISHED && post.platformPostId) {
+          const targetPlatforms = post.targetPlatforms ? post.targetPlatforms.split(',').map(p => p.trim().toUpperCase()) : [];
+          for (const platform of targetPlatforms) {
+            try {
+              const service = socialPlatformFactory.getService(platform);
+              if (service.deletePost) {
+                await service.deletePost(brandId, post.platformPostId);
+              }
+            } catch (err) {
+              console.error(`[Post Service] Failed to delete post on ${platform}:`, err.message);
+            }
+          }
+        }
+      }
+    }
+
     const autolistIds = [...new Set(posts.map(p => p.autoListId).filter(Boolean))];
 
     const result = await postRepository.updateMany({ id: { in: ids }, brandId }, { isDeleted: true, deletedAt: new Date() });

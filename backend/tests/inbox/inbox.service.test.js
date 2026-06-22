@@ -207,4 +207,48 @@ describe('InboxService Unit Tests', () => {
       expect(updated.internalNotes).toBe('Note updated');
     });
   });
+
+  describe('INBOX_006 - updateReply & deleteReply', () => {
+    it('should update reply successfully through correct strategy', async () => {
+      const mockReplyItem = {
+        id: 'reply-123',
+        platform: 'FACEBOOK',
+        platformItemId: 'fb_comment_456',
+        inbox: { brandId: 'brand-abc' }
+      };
+      
+      inboxRepository.findById.mockResolvedValue(mockReplyItem);
+      const activeStrategy = inboxService.strategies.find(s => s.supportsReply(mockReplyItem));
+      activeStrategy.updateReply = jest.fn().mockResolvedValue({ success: true });
+      inboxRepository.updateInboxItem.mockResolvedValue({ ...mockReplyItem, content: 'Updated Content' });
+
+      const result = await inboxService.updateReply('brand-abc', 'reply-123', 'Updated Content');
+
+      expect(inboxRepository.findById).toHaveBeenCalledWith('reply-123');
+      expect(activeStrategy.updateReply).toHaveBeenCalledWith('brand-abc', 'fb_comment_456', 'Updated Content');
+      expect(inboxRepository.updateInboxItem).toHaveBeenCalledWith('reply-123', { content: 'Updated Content' });
+      expect(result.content).toBe('Updated Content');
+    });
+
+    it('should delete reply successfully through correct strategy', async () => {
+      const mockReplyItem = {
+        id: 'reply-123',
+        platform: 'FACEBOOK',
+        platformItemId: 'fb_comment_456',
+        inbox: { brandId: 'brand-abc' }
+      };
+
+      inboxRepository.findById.mockResolvedValue(mockReplyItem);
+      const activeStrategy = inboxService.strategies.find(s => s.supportsReply(mockReplyItem));
+      activeStrategy.deleteReply = jest.fn().mockResolvedValue({ success: true });
+      inboxRepository.deleteInboxItem = jest.fn().mockResolvedValue(true);
+
+      const result = await inboxService.deleteReply('brand-abc', 'reply-123');
+
+      expect(inboxRepository.findById).toHaveBeenCalledWith('reply-123');
+      expect(activeStrategy.deleteReply).toHaveBeenCalledWith('brand-abc', 'fb_comment_456');
+      expect(inboxRepository.deleteInboxItem).toHaveBeenCalledWith('reply-123');
+      expect(result).toBe(true);
+    });
+  });
 });

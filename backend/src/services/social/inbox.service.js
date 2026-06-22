@@ -208,6 +208,32 @@ class InboxService {
     return reply;
   }
 
+  async updateReply(brandId, replyId, text) {
+    const reply = await inboxRepository.findById(replyId);
+    if (!reply) throw new Error('Reply not found');
+
+    const strategy = this.strategies.find(s => s.supportsReply(reply));
+    if (!strategy) {
+      throw new Error(`No strategy found to update reply for platform ${reply.platform}`);
+    }
+
+    await strategy.updateReply(brandId, reply.platformItemId, text);
+    return await inboxRepository.updateInboxItem(replyId, { content: text });
+  }
+
+  async deleteReply(brandId, replyId) {
+    const reply = await inboxRepository.findById(replyId);
+    if (!reply) throw new Error('Reply not found');
+
+    const strategy = this.strategies.find(s => s.supportsReply(reply));
+    if (!strategy) {
+      throw new Error(`No strategy found to delete reply for platform ${reply.platform}`);
+    }
+
+    await strategy.deleteReply(brandId, reply.platformItemId);
+    return await inboxRepository.deleteInboxItem(replyId);
+  }
+
   async updateItemStatus(itemId, status) {
     const item = await inboxRepository.findById(itemId);
     if (!item) throw new Error('Item not found');

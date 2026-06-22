@@ -17,9 +17,9 @@ class PostService {
     return response.data;
   }
 
-  async deletePosts(brandId, ids) {
+  async deletePosts(brandId, ids, deleteFromSocials = false) {
     const response = await apiService.delete('/posts/bulk', {
-      data: { brandId, ids }
+      data: { brandId, ids, deleteFromSocials }
     });
     return response.data;
   }

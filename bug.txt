@@ -1,1 +1,10 @@
-GET http://localhost:3000/api/user/profile 403 (Forbidden)
+logger.js:43 [PubliCast] [ERROR] Warning: Internal React error: Expected static flag was missing. Please notify the React team.
+    at ImageEditorModal (http://localhost:5173/src/components/workspace/post-creator/ImageEditorModal.jsx?t=1782131687120:25:36)
+    at div
+    at div
+    at div
+    at PostCreatorPage (http://localhost:5173/src/pages/workspace/PostCreator.jsx?t=1782144566928:204:7)
+    at div
+    at App (http://localhost:5173/src/App.jsx?t=1782144566928:76:40)
+    at Router (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=3510640f:7500:13)
+    at BrowserRouter (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=3510640f:10787:3)

@@ -10,6 +10,7 @@ import postService from "../../../services/post.service";
 import { useBrand } from "../../../context/BrandContext";
 import { toast } from "sonner";
 import { useBrandPermission } from "../../../hooks/useBrandPermission";
+import { AccessGuard } from "../../../components/shared/AccessGuard";
 
 export function PostsLibraryView() {
   const [posts, setPosts] = useState([]);
@@ -63,23 +64,14 @@ export function PostsLibraryView() {
                  className="w-full bg-white border border-gray-200 rounded-xl py-2 pl-9 pr-4 text-[11px] focus:outline-none focus:ring-2 focus:ring-[#D9F99D]/50 transition-all"
                />
             </div>
-            <button 
-              onClick={() => {
-                if (!hasCreatePermission) {
-                  toast.error("You do not have permission to create templates");
-                  return;
-                }
-                openPostCreator({ isLibrary: true });
-              }}
-              disabled={!hasCreatePermission}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[12px] font-bold transition-all shadow-lg ${
-                hasCreatePermission 
-                  ? 'bg-[#0A0A0A] text-white hover:scale-105 active:scale-95 cursor-pointer' 
-                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              }`}
-            >
-               <Plus size={16} /> Add template
-            </button>
+            <AccessGuard feature="CREATE_POSTS">
+              <button 
+                onClick={() => openPostCreator({ isLibrary: true })}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[12px] font-bold bg-[#0A0A0A] text-white hover:scale-105 active:scale-95 cursor-pointer transition-all shadow-lg"
+              >
+                 <Plus size={16} /> Add template
+              </button>
+            </AccessGuard>
          </div>
       </div>
 
@@ -108,23 +100,14 @@ export function PostsLibraryView() {
               </div>
               <h3 className="text-2xl font-bold text-white uppercase tracking-tight">Organize your best content</h3>
               <p className="text-gray-400 max-w-md mx-auto text-sm font-medium leading-relaxed">Save your top-performing posts as templates and reuse them with one click. Build a library of consistent, high-quality content.</p>
-              <button 
-                onClick={() => {
-                  if (!hasCreatePermission) {
-                    toast.error("You do not have permission to create templates");
-                    return;
-                  }
-                  openPostCreator({ isLibrary: true });
-                }}
-                disabled={!hasCreatePermission}
-                className={`mt-6 px-10 py-3 rounded-2xl text-sm font-black uppercase tracking-widest transition-all shadow-xl ${
-                  hasCreatePermission
-                    ? 'bg-[#D9F99D] text-[#0A0A0A] hover:scale-105 cursor-pointer'
-                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                Create First Template
-              </button>
+              <AccessGuard feature="CREATE_POSTS">
+                 <button 
+                   onClick={() => openPostCreator({ isLibrary: true })}
+                   className="mt-6 px-10 py-3 rounded-2xl text-sm font-black uppercase tracking-widest bg-[#D9F99D] text-[#0A0A0A] hover:scale-105 cursor-pointer transition-all shadow-xl"
+                 >
+                   Create First Template
+                 </button>
+               </AccessGuard>
            </div>
         </div>
       ) : (
@@ -143,7 +126,7 @@ export function PostsLibraryView() {
                    )}
                    
                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-2.5 transition-all">
-                      {hasCreatePermission && (
+                      <AccessGuard feature="CREATE_POSTS">
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
@@ -153,7 +136,7 @@ export function PostsLibraryView() {
                         >
                           <Plus size={14} /> Use Template
                         </button>
-                      )}
+                      </AccessGuard>
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();

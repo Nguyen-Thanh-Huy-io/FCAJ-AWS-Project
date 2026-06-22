@@ -325,6 +325,46 @@ class FacebookGateway {
     }
   }
 
+  async updatePostMessage(postId, message, pageAccessToken) {
+    const url = `${this.graphBaseUrl}/${postId}?message=${encodeURIComponent(message)}&access_token=${pageAccessToken}`;
+    const res = await fetch(url, { method: 'POST' });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error?.message || 'Failed to update Facebook post content');
+    }
+    return res.json();
+  }
+
+  async deletePost(postId, pageAccessToken) {
+    const url = `${this.graphBaseUrl}/${postId}?access_token=${pageAccessToken}`;
+    const res = await fetch(url, { method: 'DELETE' });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error?.message || 'Failed to delete Facebook post');
+    }
+    return res.json();
+  }
+
+  async updateComment(commentId, text, pageAccessToken) {
+    const url = `${this.graphBaseUrl}/${commentId}?message=${encodeURIComponent(text)}&access_token=${pageAccessToken}`;
+    const res = await fetch(url, { method: 'POST' });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error?.message || 'Failed to update Facebook comment');
+    }
+    return res.json();
+  }
+
+  async deleteComment(commentId, pageAccessToken) {
+    const url = `${this.graphBaseUrl}/${commentId}?access_token=${pageAccessToken}`;
+    const res = await fetch(url, { method: 'DELETE' });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error?.message || 'Failed to delete Facebook comment');
+    }
+    return res.json();
+  }
+
   // ============= Private Helper Methods =============
 
   /**

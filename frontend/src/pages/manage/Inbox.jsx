@@ -56,6 +56,8 @@ export function InboxPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+  const [editingReplyId, setEditingReplyId] = useState(null);
+  const [editingText, setEditingText] = useState("");
 
   // Sync debounced search
   useEffect(() => {
@@ -162,6 +164,38 @@ export function InboxPage() {
       toast.error("Failed to send reply: " + (e.response?.data?.message || e.message));
     } finally {
       setIsReplying(false);
+    }
+  };
+
+  const handleUpdateReply = async (replyId, newText) => {
+    if (!newText || !activeBrand) return;
+    try {
+      await apiService.patch(`/inbox/replies/${replyId}`, {
+        brandId: activeBrand.id,
+        text: newText
+      });
+      toast.success("Reply updated successfully");
+      setEditingReplyId(null);
+      setEditingText("");
+      await fetchThread();
+    } catch (e) {
+      toast.error("Failed to update reply: " + (e.response?.data?.message || e.message));
+    }
+  };
+
+  const handleDeleteReply = async (replyId) => {
+    if (!activeBrand) return;
+    const isConfirmed = window.confirm("Are you sure you want to delete this reply?");
+    if (!isConfirmed) return;
+
+    try {
+      await apiService.delete(`/inbox/replies/${replyId}`, {
+        data: { brandId: activeBrand.id }
+      });
+      toast.success("Reply deleted successfully");
+      await fetchThread();
+    } catch (e) {
+      toast.error("Failed to delete reply: " + (e.response?.data?.message || e.message));
     }
   };
 
@@ -437,7 +471,7 @@ export function InboxPage() {
                     <VideoContextCard videoContext={videoContext} />
                     <div className="flex flex-col gap-8">
                       {thread.map((msg, i) => (
-                        <div key={i} className={`flex items-start gap-4 w-full ${msg.from === "me" ? "flex-row-reverse" : ""}`}>
+                        <div key={i} className={`flex items-start gap-4 w-full group/msg ${msg.from === "me" ? "flex-row-reverse" : ""}`}>
                            <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border-2 border-white shadow-sm bg-gray-50 flex items-center justify-center">
                               {msg.from === "me" ? (
                                 <div className="w-full h-full bg-[#FF4F9A] flex items-center justify-center text-white text-[11px] font-bold">{activeBrand?.name?.charAt(0) || "C"}</div>
@@ -445,8 +479,56 @@ export function InboxPage() {
                                 <SafeAvatar src={msg.avatar} name={msg.author} className="w-full h-full object-cover" />
                               )}
                            </div>
+                           
+                           {/* Hover edit/delete action controls */}
+                           {msg.from === "me" && editingReplyId !== msg.id && (
+                             <div className="opacity-0 group-hover/msg:opacity-100 transition-opacity flex gap-2 self-center mr-2">
+                               <button 
+                                 onClick={() => { 
+                                   setEditingReplyId(msg.id); 
+                                   setEditingText(msg.text); 
+                                 }} 
+                                 className="text-[10px] font-bold text-gray-400 hover:text-black transition-all bg-white border border-gray-100 px-2 py-1 rounded-lg shadow-sm cursor-pointer"
+                               >
+                                 ✏️ Edit
+                               </button>
+                               <button 
+                                 onClick={() => handleDeleteReply(msg.id)} 
+                                 className="text-[10px] font-bold text-red-400 hover:text-red-600 transition-all bg-white border border-gray-100 px-2 py-1 rounded-lg shadow-sm cursor-pointer"
+                               >
+                                 🗑️ Delete
+                               </button>
+                             </div>
+                           )}
+
                            <div className={`max-w-[70%] space-y-1.5 flex flex-col ${msg.from === "me" ? "items-end" : "items-start"}`}>
-                              <div className={`px-5 py-3 text-[13px] leading-relaxed shadow-sm ${msg.from === "me" ? "bg-[#FEF3C7] text-[#92400E] rounded-2xl rounded-tr-none border border-[#FDE68A] self-end" : "bg-[#EEF2FF] text-[#1E1B4B] rounded-2xl rounded-tl-none border border-[#E0E7FF] self-start"}`} dangerouslySetInnerHTML={{ __html: msg.text }} />
+                              {editingReplyId === msg.id ? (
+                                <div className="w-full flex flex-col gap-2 bg-[#FEF3C7] border border-[#FDE68A] p-3 rounded-2xl rounded-tr-none">
+                                  <textarea
+                                    value={editingText}
+                                    onChange={(e) => setEditingText(e.target.value)}
+                                    className="w-full bg-white border border-gray-200 rounded-xl p-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400"
+                                    rows={2}
+                                  />
+                                  <div className="flex justify-end gap-2">
+                                    <button 
+                                      onClick={() => setEditingReplyId(null)} 
+                                      className="px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-[10px] font-bold text-gray-500 hover:bg-gray-50 cursor-pointer"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button 
+                                      onClick={() => handleUpdateReply(msg.id, editingText)} 
+                                      className="px-2.5 py-1 bg-[#0A0A0A] text-white rounded-lg text-[10px] font-bold hover:scale-105 transition-all cursor-pointer"
+                                    >
+                                      Save
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className={`px-5 py-3 text-[13px] leading-relaxed shadow-sm ${msg.from === "me" ? "bg-[#FEF3C7] text-[#92400E] rounded-2xl rounded-tr-none border border-[#FDE68A] self-end" : "bg-[#EEF2FF] text-[#1E1B4B] rounded-2xl rounded-tl-none border border-[#E0E7FF] self-start"}`} dangerouslySetInnerHTML={{ __html: msg.text }} />
+                              )}
+                              
                               <div className={`flex items-center gap-1.5 px-1 ${msg.from === "me" ? "flex-row-reverse" : ""}`}>
                                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{msg.from === "me" ? "Manager" : msg.author}</span>
                                  <span className="text-[14px] text-gray-200 leading-none">·</span>

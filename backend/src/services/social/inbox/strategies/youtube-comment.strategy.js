@@ -127,6 +127,16 @@ class YoutubeCommentSyncStrategy extends BaseSyncStrategy {
       );
     }
   }
+
+  async updateReply(brandId, platformItemId, text) {
+    const { auth } = await this._getAccountAndAuth(brandId);
+    return await youtubeGateway.updateComment(auth, platformItemId, text);
+  }
+
+  async deleteReply(brandId, platformItemId) {
+    const { auth } = await this._getAccountAndAuth(brandId);
+    return await youtubeGateway.deleteComment(auth, platformItemId);
+  }
 }
 
 module.exports = YoutubeCommentSyncStrategy;

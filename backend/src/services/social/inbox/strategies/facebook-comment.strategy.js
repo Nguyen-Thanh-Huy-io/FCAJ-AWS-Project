@@ -138,6 +138,16 @@ class FacebookCommentSyncStrategy extends BaseSyncStrategy {
       );
     }
   }
+
+  async updateReply(brandId, platformItemId, text) {
+    const { pageAccessToken } = await this._getAccountAndToken(brandId);
+    return await facebookGateway.updateComment(platformItemId, text, pageAccessToken);
+  }
+
+  async deleteReply(brandId, platformItemId) {
+    const { pageAccessToken } = await this._getAccountAndToken(brandId);
+    return await facebookGateway.deleteComment(platformItemId, pageAccessToken);
+  }
 }
 
 module.exports = FacebookCommentSyncStrategy;

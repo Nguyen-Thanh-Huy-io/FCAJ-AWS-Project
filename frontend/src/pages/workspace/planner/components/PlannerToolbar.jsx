@@ -11,7 +11,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { format } from 'date-fns';
 import postService from '../../../../services/post.service';
 import { buildMediaUrl } from '@/utils/url';
-import { useBrandPermission } from '../../../../hooks/useBrandPermission';
+import { AccessGuard } from '../../../../components/shared/AccessGuard';
 
 const PLATFORM_DETAILS = {
   INSTAGRAM: {
@@ -91,8 +91,6 @@ export function PlannerToolbar({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { hasPermission } = useBrandPermission();
-  const hasCreatePermission = hasPermission('CREATE_POSTS');
   
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
@@ -508,23 +506,15 @@ export function PlannerToolbar({
 
                 <div className="my-1 border-t border-gray-100" />
 
-                {/* 4. Import CSV */}
-                <button 
-                  onClick={() => {
-                    if (!hasCreatePermission) {
-                      toast.error("You do not have permission to import posts");
-                      return;
-                    }
-                    fileInputRef.current?.click();
-                  }}
-                  disabled={!hasCreatePermission}
-                  className={`w-full px-4 py-2 text-xs font-bold flex items-center gap-3 group transition-colors border-none bg-transparent ${
-                    hasCreatePermission ? 'text-gray-700 hover:bg-gray-50 cursor-pointer' : 'text-gray-300 cursor-not-allowed'
-                  }`}
-                >
-                  <Upload size={14} className={hasCreatePermission ? 'text-gray-400 group-hover:text-gray-700' : 'text-gray-200'} />
-                  <span>Import CSV</span>
-                </button>
+                <AccessGuard feature="IMPORT_CSV">
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full px-4 py-2 text-xs font-bold flex items-center gap-3 group transition-colors border-none bg-transparent text-gray-700 hover:bg-gray-50 cursor-pointer"
+                  >
+                    <Upload size={14} className="text-gray-400 group-hover:text-gray-700" />
+                    <span>Import CSV</span>
+                  </button>
+                </AccessGuard>
 
                 {/* 5. Export CSV */}
                 <button 
@@ -641,25 +631,15 @@ export function PlannerToolbar({
           <Image size={18} />
         </button>
 
-        {/* Create Post Button */}
-        <button 
-          onClick={() => {
-            if (!hasCreatePermission) {
-              toast.error("You do not have permission to create posts");
-              return;
-            }
-            onCreatePostClick();
-          }}
-          disabled={!hasCreatePermission}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all shadow-md ${
-            hasCreatePermission 
-              ? 'bg-[#0A0A0A] hover:bg-[#1A1A1A] text-white hover:scale-[1.02] active:scale-[0.98] cursor-pointer'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-          }`}
-        >
-          <Plus size={16} />
-          <span>Create post</span>
-        </button>
+        <AccessGuard feature="CREATE_POSTS">
+          <button 
+            onClick={onCreatePostClick}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold bg-[#0A0A0A] hover:bg-[#1A1A1A] text-white hover:scale-[1.02] active:scale-[0.98] cursor-pointer transition-all shadow-md"
+          >
+            <Plus size={16} />
+            <span>Create post</span>
+          </button>
+        </AccessGuard>
       </div>
 
       {/* Hidden File Input for CSV Imports */}

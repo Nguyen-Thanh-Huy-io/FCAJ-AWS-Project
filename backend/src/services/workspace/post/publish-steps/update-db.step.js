@@ -30,13 +30,13 @@ class UpdatePostStatusStep extends BaseStep {
         await this._handleLoopCycle(post, {
           status: POST_STATUS.PUBLISHED,
           publishedAt: primaryResult.publishedAt || new Date(),
-          platformPostId: primaryResult.platformVideoId
+          platformPostId: primaryResult.platformVideoId || primaryResult.id
         });
       } else {
         // Standard non-loop behavior: mark the post itself as published
         await postRepository.update(post.id, {
           status: POST_STATUS.PUBLISHED,
-          platformPostId: primaryResult.platformVideoId,
+          platformPostId: primaryResult.platformVideoId || primaryResult.id,
           publishedAt: primaryResult.publishedAt || new Date()
         });
       }

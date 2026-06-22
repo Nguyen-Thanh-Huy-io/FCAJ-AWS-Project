@@ -32,6 +32,14 @@ class FacebookService extends BaseSocialService {
     return facebookPost.publishPost(brandId, postData);
   }
 
+  async updatePublishedPost(brandId, platformPostId, postData) {
+    return facebookPost.updatePost(brandId, platformPostId, postData);
+  }
+
+  async deletePost(brandId, platformPostId) {
+    return facebookPost.deletePost(brandId, platformPostId);
+  }
+
   // --- Unsupported or Stub methods for LSP Compliance ---
   async trackVideo(brandId, videoUrl) {
     return null;
