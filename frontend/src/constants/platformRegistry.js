@@ -177,5 +177,30 @@ export const PLATFORM_CONFIGS = {
         }
       ]
     }
+  },
+  [PLATFORMS.TELEGRAM]: {
+    id: PLATFORMS.TELEGRAM,
+    name: 'Telegram',
+    defaultType: 'post',
+    supportedTypes: [
+      { id: 'post', label: 'Channel Post' }
+    ],
+    getPostType: (subType, hasMedia, isVideo) => {
+      return (hasMedia && isVideo) ? POST_TYPE.VIDEO : POST_TYPE.IMAGE;
+    },
+    validationRules: {
+      _always: [
+        {
+          check: ({ caption, hasMedia }) => {
+            const limit = hasMedia ? 1024 : 4096;
+            return caption && caption.length > limit;
+          },
+          message: ({ caption, hasMedia }) => {
+            const limit = hasMedia ? 1024 : 4096;
+            return `Telegram post caption with ${hasMedia ? 'media' : 'text only'} must be ${limit} characters or less. (Current: ${caption ? caption.length : 0})`;
+          }
+        }
+      ]
+    }
   }
 };

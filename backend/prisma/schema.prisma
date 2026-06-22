@@ -370,6 +370,7 @@ model SocialAccount {
   tikTokAccount    TikTokAccount?
   linkedInAccount  LinkedInAccount?
   youtubeChannel   YouTubeChannel?
+  telegramAccount  TelegramAccount?
 
   @@unique([brandId, platform, platformAccountId])
   @@index([brandId])
@@ -463,6 +464,17 @@ model LinkedInAccount {
   socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
 
   @@map("linkedin_accounts")
+}
+
+model TelegramAccount {
+  id              String  @id @default(uuid())
+  socialAccountId String  @unique
+  chatType        String  @default("channel") // "channel" or "group"
+  memberCount     Int     @default(0)
+
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@map("telegram_accounts")
 }
 
 model AdAccount {
@@ -1126,6 +1138,7 @@ enum PlatformType {
   THREADS
   BLUESKY
   GOOGLE_BUSINESS
+  TELEGRAM
 }
 
 enum AdPlatformType {

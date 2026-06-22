@@ -3,11 +3,13 @@ import { PreviewFacebook } from "./PreviewFacebook";
 import { PreviewTikTok } from "./PreviewTikTok";
 import { PreviewInstagram } from "./PreviewInstagram";
 import { PreviewLinkedIn } from "./PreviewLinkedIn";
+import { PreviewTelegram } from "./PreviewTelegram";
 
 export const PreviewStrategies = {
   youtube: PreviewYouTube,
   facebook: PreviewFacebook,
   tiktok: PreviewTikTok,
   instagram: PreviewInstagram,
-  linkedin: PreviewLinkedIn
+  linkedin: PreviewLinkedIn,
+  telegram: PreviewTelegram
 };

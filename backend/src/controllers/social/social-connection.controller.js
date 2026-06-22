@@ -45,6 +45,14 @@ class SocialConnectionController {
     res.json({ success: true, message: 'LinkedIn account disconnected successfully' });
   });
 
+  disconnectTelegramAccount = asyncHandler(async (req, res) => {
+    const { brandId } = req.body;
+    if (!brandId) return res.status(400).json({ message: 'brandId is required' });
+
+    await socialService.disconnectAccount(brandId, PLATFORMS.TELEGRAM);
+    res.json({ success: true, message: 'Telegram account disconnected successfully' });
+  });
+
   reassignSocialAccount = asyncHandler(async (req, res) => {
     const { platform, platformAccountId, targetBrandId } = req.body;
     if (!platform || !platformAccountId || !targetBrandId) {

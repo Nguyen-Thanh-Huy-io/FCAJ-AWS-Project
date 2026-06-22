@@ -8,6 +8,7 @@ export const PLATFORMS = {
   TIKTOK: 'tiktok',
   INSTAGRAM: 'instagram',
   LINKEDIN: 'linkedin',
+  TELEGRAM: 'telegram',
 };
 
 /** Tên hiển thị */
@@ -17,6 +18,7 @@ export const PLATFORM_LABELS = {
   [PLATFORMS.TIKTOK]: 'TikTok',
   [PLATFORMS.INSTAGRAM]: 'Instagram',
   [PLATFORMS.LINKEDIN]: 'LinkedIn',
+  [PLATFORMS.TELEGRAM]: 'Telegram',
 };
 
 /** Default tab khi vào Platform Dashboard */
@@ -26,6 +28,7 @@ export const PLATFORM_DEFAULT_TAB = {
   [PLATFORMS.TIKTOK]: 'community',
   [PLATFORMS.INSTAGRAM]: 'overview',
   [PLATFORMS.LINKEDIN]: 'overview',
+  [PLATFORMS.TELEGRAM]: 'overview',
 };
 
 /** Platform gửi lên backend (uppercase) */
@@ -35,6 +38,7 @@ export const PLATFORM_API_KEY = {
   [PLATFORMS.TIKTOK]: 'TIKTOK',
   [PLATFORMS.INSTAGRAM]: 'INSTAGRAM',
   [PLATFORMS.LINKEDIN]: 'LINKEDIN',
+  [PLATFORMS.TELEGRAM]: 'TELEGRAM',
   X: 'TWITTER_X', // special case
 };
 

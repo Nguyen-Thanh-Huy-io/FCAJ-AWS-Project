@@ -6,7 +6,7 @@ import {
   Calendar, Youtube, PlayCircle, Smartphone, Monitor, Info, MessageSquare,
   Languages, Settings, LayoutGrid, Film, PlusCircle, AlertCircle, Check,
   MoreHorizontal, Edit, Type, Trash2, Diamond, Search, Lock, Sparkles, ArrowRight,
-  Linkedin
+  Linkedin, Send
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useFeatureGate } from "../../hooks/useFeatureGate";
@@ -489,6 +489,25 @@ export function PostCreatorPage() {
                           {activePlatform === 'linkedin' && renderTypeDropdown()}
                         </div>
 
+                        {/* Telegram Item */}
+                        <div className="flex items-center gap-1.5 relative">
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setActivePlatform("telegram");
+                            }}
+                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
+                              activePlatform === 'telegram' 
+                                ? 'bg-[#0088cc] text-white' 
+                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                            }`}
+                          >
+                            <Send size={12} className={activePlatform === 'telegram' ? 'fill-white text-white' : 'text-gray-400'} />
+                          </button>
+                          
+                          {activePlatform === 'telegram' && renderTypeDropdown()}
+                        </div>
+
                         {/* Plus Add Button */}
                         <button type="button" className="w-7 h-7 rounded-full bg-gray-50 border border-dashed border-gray-200 flex items-center justify-center text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-all cursor-pointer">
                           <Plus size={14} />
@@ -696,23 +715,25 @@ export function PostCreatorPage() {
                               <p className="text-[10px] text-gray-500 leading-tight">Limited by the network with less character length support.</p>
                            </div>
                         </div>
-                         <div className={`w-5 h-5 rounded flex items-center justify-center ${activePlatform === 'youtube' ? 'bg-[#FF0000]' : activePlatform === 'tiktok' ? 'bg-black' : activePlatform === 'instagram' ? 'bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF]' : activePlatform === 'linkedin' ? 'bg-[#0077B5]' : 'bg-[#1877F2]'}`}>
-                           {activePlatform === 'youtube' ? (
-                             <Youtube size={10} className="text-white fill-white" />
-                           ) : activePlatform === 'tiktok' ? (
-                              <svg className="w-2.5 h-2.5 text-white fill-white" viewBox="0 0 24 24">
-                                <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.5-1.1-1.02-1.7-2.48-1.9-3.96-.03 2.49 0 4.99 0 7.48-.02 1.9-.38 3.82-1.39 5.43-1.46 2.42-4.13 3.84-6.93 3.55-3.05-.2-5.78-2.44-6.39-5.46-.73-3.27.97-6.9 4.13-7.91 1.09-.34 2.24-.39 3.37-.2v4.02c-1.22-.32-2.58-.09-3.55.74-.95.83-1.29 2.19-1.03 3.4.31 1.65 1.84 2.91 3.53 2.78 1.94-.04 3.42-1.8 3.25-3.73-.02-2.91 0-5.83 0-8.74.02-3.11-.02-6.22.02-9.33z"/>
-                              </svg>
-                           ) : activePlatform === 'instagram' ? (
-                              <Instagram size={10} className="text-white" />
+                          <div className={`w-5 h-5 rounded flex items-center justify-center ${activePlatform === 'youtube' ? 'bg-[#FF0000]' : activePlatform === 'tiktok' ? 'bg-black' : activePlatform === 'instagram' ? 'bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF]' : activePlatform === 'linkedin' ? 'bg-[#0077B5]' : activePlatform === 'telegram' ? 'bg-[#0088cc]' : 'bg-[#1877F2]'}`}>
+                            {activePlatform === 'youtube' ? (
+                              <Youtube size={10} className="text-white fill-white" />
+                            ) : activePlatform === 'tiktok' ? (
+                               <svg className="w-2.5 h-2.5 text-white fill-white" viewBox="0 0 24 24">
+                                 <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.5-1.1-1.02-1.7-2.48-1.9-3.96-.03 2.49 0 4.99 0 7.48-.02 1.9-.38 3.82-1.39 5.43-1.46 2.42-4.13 3.84-6.93 3.55-3.05-.2-5.78-2.44-6.39-5.46-.73-3.27.97-6.9 4.13-7.91 1.09-.34 2.24-.39 3.37-.2v4.02c-1.22-.32-2.58-.09-3.55.74-.95.83-1.29 2.19-1.03 3.4.31 1.65 1.84 2.91 3.53 2.78 1.94-.04 3.42-1.8 3.25-3.73-.02-2.91 0-5.83 0-8.74.02-3.11-.02-6.22.02-9.33z"/>
+                               </svg>
+                            ) : activePlatform === 'instagram' ? (
+                               <Instagram size={10} className="text-white" />
                             ) : activePlatform === 'linkedin' ? (
-                               <Linkedin size={10} className="text-white" />
+                                <Linkedin size={10} className="text-white" />
+                            ) : activePlatform === 'telegram' ? (
+                                <Send size={9} className="text-white fill-white translate-x-[-0.5px]" />
                             ) : (
-                             <svg className="w-3 h-3 text-white fill-white" viewBox="0 0 24 24">
-                               <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                             </svg>
-                           )}
-                         </div>
+                              <svg className="w-3 h-3 text-white fill-white" viewBox="0 0 24 24">
+                                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                              </svg>
+                            )}
+                          </div>
                      </div>
                   </div>
               </div>

@@ -3,6 +3,7 @@ const facebookService = require('./facebook');
 const tiktokService = require('./tiktok');
 const instagramService = require('./instagram');
 const linkedinService = require('./linkedin');
+const telegramService = require('./telegram');
 const createSyncCacheProxy = require('./sync-cache.proxy');
 const { PLATFORMS } = require('../../utils/constants');
 
@@ -14,6 +15,7 @@ class SocialPlatformFactory {
       [PLATFORMS.TIKTOK]: createSyncCacheProxy(tiktokService),
       [PLATFORMS.INSTAGRAM]: createSyncCacheProxy(instagramService),
       [PLATFORMS.LINKEDIN]: createSyncCacheProxy(linkedinService),
+      [PLATFORMS.TELEGRAM]: createSyncCacheProxy(telegramService),
       // Khi tích hợp các nền tảng mới sau này, chỉ cần khai báo tại đây:
     };
   }

@@ -7,6 +7,7 @@ const instagramController = require('../../controllers/social/instagram.controll
 const googleDriveController = require('../../controllers/social/google-drive.controller');
 const socialAnalyticsController = require('../../controllers/social/social-analytics.controller');
 const socialConnectionController = require('../../controllers/social/social-connection.controller');
+const telegramController = require('../../controllers/social/telegram.controller');
 const { verifyAuth } = require('../../middlewares/auth.middleware');
 const { requireFeature } = require('../../middlewares/feature-gate.middleware');
 const { PRODUCT_IDS } = require('../../utils/constants');
@@ -33,6 +34,8 @@ router.post('/facebook/disconnect', verifyAuth, socialConnectionController.disco
 router.post('/instagram/disconnect', verifyAuth, socialConnectionController.disconnectInstagramAccount);
 router.post('/tiktok/disconnect', verifyAuth, socialConnectionController.disconnectTikTokAccount);
 router.post('/linkedin/disconnect', verifyAuth, socialConnectionController.disconnectLinkedInAccount);
+router.post('/telegram/connect', verifyAuth, telegramController.connectTelegram);
+router.post('/telegram/disconnect', verifyAuth, socialConnectionController.disconnectTelegramAccount);
 router.post('/reassign', verifyAuth, socialConnectionController.reassignSocialAccount);
 router.get('/tiktok/published-videos', verifyAuth, tiktokController.getTikTokPublishedVideos);
 router.get('/instagram/published-posts', verifyAuth, instagramController.getInstagramPublishedPosts);

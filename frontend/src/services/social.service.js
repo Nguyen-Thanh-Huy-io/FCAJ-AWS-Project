@@ -129,6 +129,16 @@ class SocialService {
     return response.data;
   }
 
+  async connectTelegramAccount(brandId, botToken, chatId) {
+    const response = await apiService.post('/social/telegram/connect', { brandId, botToken, chatId });
+    return response.data;
+  }
+
+  async disconnectTelegramAccount(brandId) {
+    const response = await apiService.post('/social/telegram/disconnect', { brandId });
+    return response.data;
+  }
+
   async reassignSocialAccount(platform, platformAccountId, targetBrandId) {
     const response = await apiService.post('/social/reassign', { platform, platformAccountId, targetBrandId });
     return response.data;
