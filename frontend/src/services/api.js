@@ -10,6 +10,7 @@ class ApiService {
       timeout: 10000, // 10 giây timeout, tránh treo vô hạn
       headers: {
         'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
       },
       withCredentials: true,
     });

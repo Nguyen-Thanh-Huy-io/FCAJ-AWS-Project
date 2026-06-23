@@ -932,6 +932,7 @@ model SmartLink {
   backgroundType  String
   backgroundValue String
   buttonStyle     String
+  socialLinks     String?  @db.LongText
   totalClicks     Int      @default(0)
   uniqueVisitors  Int      @default(0)
   isPublished     Boolean  @default(false)
@@ -940,6 +941,7 @@ model SmartLink {
 
   brand Brand      @relation(fields: [brandId], references: [id], onDelete: Cascade)
   links LinkItem[]
+  dailyMetrics SmartLinkDailyMetric[]
 
   @@index([brandId])
   @@map("smart_links")
@@ -951,6 +953,7 @@ model LinkItem {
   title          String
   url            String
   iconUrl        String?
+  linkStyle      String?  @db.Text
   emoji          String?
   position       Int
   isActive       Boolean   @default(true)
@@ -961,9 +964,42 @@ model LinkItem {
   createdAt      DateTime  @default(now())
 
   smartLink SmartLink @relation(fields: [smartLinkId], references: [id], onDelete: Cascade)
+  dailyMetrics LinkItemDailyMetric[]
 
   @@index([smartLinkId])
   @@map("link_items")
+}
+
+model SmartLinkDailyMetric {
+  id             String   @id @default(uuid())
+  smartLinkId    String
+  date           DateTime @db.Date
+  pageViews      Int      @default(0)
+  uniqueVisitors Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  smartLink SmartLink @relation(fields: [smartLinkId], references: [id], onDelete: Cascade)
+
+  @@unique([smartLinkId, date])
+  @@index([smartLinkId, date])
+  @@map("smart_link_daily_metrics")
+}
+
+model LinkItemDailyMetric {
+  id          String   @id @default(uuid())
+  linkItemId  String
+  smartLinkId String
+  date        DateTime @db.Date
+  clicks      Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  linkItem LinkItem @relation(fields: [linkItemId], references: [id], onDelete: Cascade)
+
+  @@unique([linkItemId, date])
+  @@index([smartLinkId, date])
+  @@map("link_item_daily_metrics")
 }
 
 model HashtagTracker {

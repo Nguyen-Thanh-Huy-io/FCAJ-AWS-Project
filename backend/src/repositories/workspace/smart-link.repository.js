@@ -52,6 +52,7 @@ class SmartLinkRepository {
               title: l.title,
               url: l.url,
               iconUrl: l.iconUrl || null,
+              linkStyle: l.linkStyle || null,
               emoji: l.emoji || null,
               position: l.position !== undefined ? l.position : index,
               isActive: l.isActive !== undefined ? l.isActive : true,
@@ -111,6 +112,7 @@ class SmartLinkRepository {
             title: l.title,
             url: l.url,
             iconUrl: l.iconUrl || null,
+            linkStyle: l.linkStyle || null,
             emoji: l.emoji || null,
             position,
             isActive: l.isActive !== undefined ? l.isActive : true,
@@ -154,9 +156,51 @@ class SmartLinkRepository {
     return await prisma.smartLink.update({
       where: { id },
       data: {
-        totalClicks: { increment: 1 }, // we can use totalClicks as overall page views or keep it simple
         uniqueVisitors: isUnique ? { increment: 1 } : undefined
       }
+    });
+  }
+
+  async incrementTotalClicks(id) {
+    return await prisma.smartLink.update({
+      where: { id },
+      data: {
+        totalClicks: { increment: 1 }
+      }
+    });
+  }
+
+  async upsertDailyPageView(id, date, isUnique) {
+    return await prisma.smartLinkDailyMetric.upsert({
+      where: {
+        smartLinkId_date: {
+          smartLinkId: id,
+          date
+        }
+      },
+      update: {
+        pageViews: { increment: 1 },
+        uniqueVisitors: isUnique ? { increment: 1 } : undefined
+      },
+      create: {
+        smartLinkId: id,
+        date,
+        pageViews: 1,
+        uniqueVisitors: isUnique ? 1 : 0
+      }
+    });
+  }
+
+  async findDailyMetrics(id, startDate, endDate) {
+    return await prisma.smartLinkDailyMetric.findMany({
+      where: {
+        smartLinkId: id,
+        date: {
+          gte: startDate,
+          lte: endDate
+        }
+      },
+      orderBy: { date: 'asc' }
     });
   }
 }

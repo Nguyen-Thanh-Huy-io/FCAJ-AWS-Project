@@ -15,7 +15,11 @@ class SmartLinkAnalyticsService {
       // Here we just increment uniqueVisitors based on random probability or simulation, or mark true for now
       const isUnique = true; 
       
-      await smartLinkRepository.incrementPageView(smartLinkId, isUnique);
+      const today = this._today();
+      await Promise.all([
+        smartLinkRepository.incrementPageView(smartLinkId, isUnique),
+        smartLinkRepository.upsertDailyPageView(smartLinkId, today, isUnique)
+      ]);
     } catch (err) {
       console.error('Error tracking page view:', err.message);
     }
@@ -31,7 +35,33 @@ class SmartLinkAnalyticsService {
     if (!linkItemId) {
       throw new Error('Link Item ID is required');
     }
-    return await linkItemRepository.incrementClicks(linkItemId);
+
+    const existingLink = await linkItemRepository.findById(linkItemId);
+    if (!existingLink) {
+      const error = new Error('Link Item not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const updatedLink = await linkItemRepository.incrementClicks(linkItemId);
+    const today = this._today();
+
+    try {
+      await Promise.all([
+        smartLinkRepository.incrementTotalClicks(existingLink.smartLinkId),
+        linkItemRepository.upsertDailyClick(updatedLink.id, existingLink.smartLinkId, today)
+      ]);
+    } catch (err) {
+      console.error('Error tracking link click metrics:', err.message);
+    }
+
+    return updatedLink;
+  }
+
+  _today() {
+    const date = new Date();
+    date.setUTCHours(0, 0, 0, 0);
+    return date;
   }
 }
 

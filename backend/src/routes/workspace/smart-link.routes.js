@@ -7,6 +7,7 @@ const router = express.Router();
 // Private Endpoints
 router.get('/', verifyAuth, smartLinkController.getSmartLink);
 router.post('/', verifyAuth, smartLinkController.createSmartLink);
+router.get('/:id/analytics', verifyAuth, smartLinkController.getAnalytics);
 router.put('/:id', verifyAuth, smartLinkController.updateSmartLink);
 
 // Public Endpoints

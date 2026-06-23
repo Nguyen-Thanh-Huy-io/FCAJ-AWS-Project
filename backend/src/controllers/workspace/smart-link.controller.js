@@ -40,6 +40,20 @@ class SmartLinkController {
     });
   });
 
+  getAnalytics = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { brandId, from, to } = req.query;
+    if (!brandId) {
+      return res.status(400).json({ message: 'brandId is required' });
+    }
+
+    const analytics = await smartLinkService.getAnalytics(id, brandId, { from, to });
+    res.status(200).json({
+      message: 'SmartLink analytics retrieved successfully',
+      data: analytics
+    });
+  });
+
   getPublicSmartLink = asyncHandler(async (req, res) => {
     const { slug } = req.params;
     const smartLink = await smartLinkService.getPublicSmartLinkBySlug(slug);

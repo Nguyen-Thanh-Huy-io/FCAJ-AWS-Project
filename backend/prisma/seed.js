@@ -250,6 +250,166 @@ async function main() {
     }
   });
 
+  console.log('Seeding SmartLinks...');
+  const smartLink = await prisma.smartLink.create({
+    data: {
+      brandId: brand.id,
+      slug: 'metricool-instagram-en',
+      pageTitle: 'Metricool Instagram EN',
+      bio: 'Social analytics, content planning, and link performance in one place.',
+      profileImageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
+      backgroundType: 'THEME',
+      backgroundValue: 'midnight',
+      buttonStyle: 'rounded',
+      socialLinks: 'instagram=https://instagram.com/publicast;youtube=https://youtube.com/@publicast;twitter=https://x.com/publicast',
+      isPublished: true,
+      links: {
+        create: [
+          {
+            title: 'Download the FREE 2026 Social Media Calendar',
+            url: 'https://publicast.com/calendar',
+            emoji: '📅',
+            position: 0,
+            isActive: true,
+            iconUrl: '',
+            linkStyle: 'style:bgColor=#E6B325;textColor=#FFFFFF;borderColor=#E6B325',
+            clicks: 134
+          },
+          {
+            title: 'Watch the webinar replay',
+            url: 'https://publicast.com/webinar',
+            emoji: '🎥',
+            position: 1,
+            isActive: true,
+            iconUrl: '',
+            linkStyle: 'style:bgColor=#4A90E2;textColor=#FFFFFF;borderColor=#4A90E2',
+            clicks: 58
+          },
+          {
+            title: 'Read the growth playbook',
+            url: 'https://publicast.com/playbook',
+            emoji: '📘',
+            position: 2,
+            isActive: true,
+            iconUrl: '',
+            linkStyle: 'style:bgColor=#E65C9C;textColor=#FFFFFF;borderColor=#E65C9C',
+            clicks: 36
+          }
+        ]
+      }
+    },
+    include: {
+      links: true
+    }
+  });
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  // Seed 90 days of metrics
+  const analyticsDays = Array.from({ length: 90 }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(date.getDate() - (89 - index));
+    
+    // Wave patterns for realistic weekly cycle
+    const dayOfWeek = date.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday = 0, Saturday = 6
+    const weekendFactor = isWeekend ? 0.45 : 1.0; // Drop in weekend traffic
+    
+    const sineWave = Math.sin((index / 89) * Math.PI * 6) * 0.4 + 0.6; // Multi-cycle wave
+    const randomNoise = (Math.random() * 0.2) - 0.1; // Minor daily variations
+    
+    // Spikes representing campaign posts or newsletter blasts
+    let spike = 0;
+    if (index === 15) spike = 45; // Huge spike early on
+    if (index === 42) spike = 35;
+    if (index === 78) spike = 50; // Spike in the last 2 weeks
+    if (index === 87) spike = 25;
+    
+    const visits = Math.max(8, Math.round((30 + sineWave * 50 + spike) * weekendFactor + (Math.random() * 6)));
+    const buttonClicks = Math.max(3, Math.round(visits * (0.65 + randomNoise)));
+    const uniqueVisitors = Math.max(2, Math.round(visits * (0.75 + randomNoise * 0.5)));
+    
+    return {
+      date,
+      visits,
+      buttonClicks,
+      uniqueVisitors
+    };
+  });
+
+  await prisma.smartLinkDailyMetric.createMany({
+    data: analyticsDays.map((day) => ({
+      smartLinkId: smartLink.id,
+      date: day.date,
+      pageViews: day.visits,
+      uniqueVisitors: day.uniqueVisitors
+    }))
+  });
+
+  const linkOne = smartLink.links[0];
+  const linkTwo = smartLink.links[1];
+  const linkThree = smartLink.links[2];
+
+  let totalClicksOne = 0;
+  let totalClicksTwo = 0;
+  let totalClicksThree = 0;
+
+  const linkMetrics = analyticsDays.flatMap((day) => {
+    const clicksOne = Math.max(1, Math.round(day.buttonClicks * 0.48));
+    const clicksTwo = Math.max(0, Math.round(day.buttonClicks * 0.32));
+    const clicksThree = Math.max(0, Math.round(day.buttonClicks * 0.20));
+
+    totalClicksOne += clicksOne;
+    totalClicksTwo += clicksTwo;
+    totalClicksThree += clicksThree;
+
+    return [
+      {
+        smartLinkId: smartLink.id,
+        linkItemId: linkOne.id,
+        date: day.date,
+        clicks: clicksOne
+      },
+      {
+        smartLinkId: smartLink.id,
+        linkItemId: linkTwo.id,
+        date: day.date,
+        clicks: clicksTwo
+      },
+      {
+        smartLinkId: smartLink.id,
+        linkItemId: linkThree.id,
+        date: day.date,
+        clicks: clicksThree
+      }
+    ];
+  });
+
+  await prisma.linkItemDailyMetric.createMany({
+    data: linkMetrics
+  });
+
+  // Update totalClicks on the SmartLink and individual LinkItems
+  const sumTotalClicks = totalClicksOne + totalClicksTwo + totalClicksThree;
+  await prisma.smartLink.update({
+    where: { id: smartLink.id },
+    data: { totalClicks: sumTotalClicks }
+  });
+
+  await prisma.linkItem.update({
+    where: { id: linkOne.id },
+    data: { clicks: totalClicksOne }
+  });
+  await prisma.linkItem.update({
+    where: { id: linkTwo.id },
+    data: { clicks: totalClicksTwo }
+  });
+  await prisma.linkItem.update({
+    where: { id: linkThree.id },
+    data: { clicks: totalClicksThree }
+  });
+
   console.log('Seeding Custom Roles...');
   
   // 1. Social Specialist Role
