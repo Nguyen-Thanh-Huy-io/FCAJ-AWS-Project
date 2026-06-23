@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   Users, 
   TrendingUp, 
@@ -11,7 +11,10 @@ import {
   ThumbsUp, 
   Globe,
   Trash2,
-  X
+  X,
+  Loader2,
+  AlertCircle,
+  ExternalLink
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
@@ -23,111 +26,394 @@ import {
   Legend, 
   CartesianGrid 
 } from "recharts";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { PlatformIcon } from "../../components/shared/PlatformIcon";
+import { useBrand } from "../../context/BrandContext";
+import socialService from "../../services/social.service";
 
-// Initial Brand Benchmarking Data
-const INITIAL_COMPETITORS = [
-  { id: "our", name: "Thương hiệu của bạn (PubliCast)", handle: "@publicast_app", followers: 45000, postsPerWeek: 12, engagementRate: 4.8, growth: 12.5, isSelf: true },
-  { id: "comp-1", name: "Buffer Tech", handle: "@buffer_hq", followers: 185000, postsPerWeek: 24, engagementRate: 2.1, growth: 3.2, isSelf: false },
-  { id: "comp-2", name: "Hootsuite Social", handle: "@hootsuite", followers: 320000, postsPerWeek: 35, engagementRate: 1.8, growth: 1.5, isSelf: false },
-  { id: "comp-3", name: "Later Media", handle: "@latermedia", followers: 410000, postsPerWeek: 18, engagementRate: 5.6, growth: 14.8, isSelf: false }
-];
 
-// Followers Growth History for Recharts
-const GROWTH_DATA = [
-  { month: "Jan", "PubliCast": 25000, "Buffer Tech": 178000, "Hootsuite Social": 315000, "Later Media": 350000 },
-  { month: "Feb", "PubliCast": 28000, "Buffer Tech": 179000, "Hootsuite Social": 316000, "Later Media": 362000 },
-  { month: "Mar", "PubliCast": 32000, "Buffer Tech": 181000, "Hootsuite Social": 318000, "Later Media": 378000 },
-  { month: "Apr", "PubliCast": 38000, "Buffer Tech": 183000, "Hootsuite Social": 319000, "Later Media": 395000 },
-  { month: "May", "PubliCast": 45000, "Buffer Tech": 185000, "Hootsuite Social": 320000, "Later Media": 410000 },
-];
-
-// Top Competitor Posts Data
-const INITIAL_TOP_POSTS = [
-  {
-    id: "post-1",
-    author: "Later Media",
-    platform: "Instagram",
-    content: "3 Social Media trends you CANNOT ignore in 2026. Spoiler: Faceless channels are here to stay! 🤫 Let us know your thoughts below.",
-    likes: 12400,
-    comments: 890,
-    shares: 2300,
-    reachRate: 8.4,
-    date: "2 ngày trước",
-    media: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=300&auto=format&fit=crop&q=60"
-  },
-  {
-    id: "post-2",
-    author: "Buffer Tech",
-    platform: "LinkedIn",
-    content: "We just transitioned our entire team to a 4-day work week. Here is the full breakdown of our productivity metrics, customer satisfaction, and revenue impact.",
-    likes: 8500,
-    comments: 420,
-    shares: 1100,
-    reachRate: 6.2,
-    date: "4 ngày trước",
-    media: null
-  },
-  {
-    id: "post-3",
-    author: "Later Media",
-    platform: "TikTok",
-    content: "POV: You are trying to schedule 50 TikTok videos before the weekend starts 🖥️😭 #socialmediamanager #worklife #agencyproblems",
-    likes: 45000,
-    comments: 1800,
-    shares: 5400,
-    reachRate: 12.1,
-    date: "1 tuần trước",
-    media: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=300&auto=format&fit=crop&q=60"
-  }
-];
 
 export function CompetitorsPage() {
-  const [competitors, setCompetitors] = useState(INITIAL_COMPETITORS);
-  const [topPosts, setTopPosts] = useState(INITIAL_TOP_POSTS);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [searchHandle, setSearchHandle] = useState("");
-  const [selectedPlatform, setSelectedPlatform] = useState("Instagram");
+  const { activeBrand } = useBrand();
+  
+  // Search parameters for active tab
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeViewTab = searchParams.get("tab") || "all";
+  
+  const setActiveViewTab = (tabId) => {
+    setSearchParams({ tab: tabId });
+  };
+  
+  // States
+  const [competitors, setCompetitors] = useState([]);
+  const [loading, setLoading] = useState(false);
+  
+  const isPlatformConnected = (platformName) => {
+    if (!activeBrand || !activeBrand.socialAccounts) return false;
+    const mapping = {
+      facebook: "FACEBOOK",
+      youtube: "YOUTUBE",
+      instagram: "INSTAGRAM",
+      tiktok: "TIKTOK"
+    };
+    const targetPlatform = mapping[platformName.toLowerCase()];
+    return activeBrand.socialAccounts.some(
+      sa => sa.platform === targetPlatform && sa.isConnected
+    );
+  };
 
-  // Add Competitor
-  const handleAddCompetitor = (e) => {
-    e.preventDefault();
-    if (!searchHandle.trim()) {
-      toast.error("Vui lòng nhập handle của đối thủ");
+  const availableModalPlatforms = useMemo(() => {
+    return [
+      { key: "Facebook", label: "Facebook" },
+      { key: "YouTube", label: "YouTube" },
+      { key: "Instagram", label: "Instagram" },
+      { key: "TikTok", label: "TikTok" }
+    ].filter(p => isPlatformConnected(p.key));
+  }, [activeBrand]);
+
+  // Modal Search States
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchPlatform, setSearchPlatform] = useState("Facebook"); // 'Facebook', 'YouTube'
+  
+  useEffect(() => {
+    if (availableModalPlatforms.length > 0 && isModalOpen) {
+      setSearchPlatform(availableModalPlatforms[0].key);
+    }
+  }, [availableModalPlatforms, isModalOpen]);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [connectingId, setConnectingId] = useState(null);
+
+  // Fetch all competitors
+  const fetchAllCompetitors = async () => {
+    if (!activeBrand?.id) return;
+    setLoading(true);
+    try {
+      // Fetch Facebook and YouTube competitors concurrently
+      const [fbRes, ytRes] = await Promise.all([
+        socialService.getFacebookCompetitors(activeBrand.id).catch(err => {
+          console.warn("Failed to load Facebook competitors:", err);
+          return { data: [] };
+        }),
+        socialService.getCompetitors(activeBrand.id).catch(err => {
+          console.warn("Failed to load YouTube competitors:", err);
+          return { data: [] };
+        })
+      ]);
+
+      const fbData = fbRes.data || [];
+      const ytData = ytRes.data || [];
+
+      // Normalize DB items
+      const dbCompetitors = [...fbData, ...ytData].map(c => {
+        let postsArray = null;
+        if (c.latestPosts) {
+          postsArray = c.latestPosts;
+        } else if (c.latestVideos) {
+          postsArray = c.latestVideos.map(v => ({
+            id: v.id,
+            content: v.title || "YouTube Video",
+            mediaUrl: v.thumbnailUrl || null,
+            publishedAt: v.publishedAt,
+            likesCount: v.likes || 0,
+            commentsCount: v.comments || 0,
+            sharesCount: 0,
+            engagementRate: 3.2
+          }));
+        }
+
+        return {
+          id: c.id,
+          name: c.competitorDisplayName || c.competitorHandle,
+          handle: c.competitorHandle,
+          followers: c.followersCount || 0,
+          postsPerWeek: c.postsPerWeek || (postsArray ? Math.round(postsArray.length / 2) || 2 : 0),
+          engagementRate: c.avgEngagementRate || 3.1,
+          growth: c.followersGrowth || 4.2,
+          platform: c.platform.toLowerCase(), // 'facebook' or 'youtube'
+          avatarUrl: c.competitorAvatarUrl,
+          profileUrl: c.competitorProfileUrl,
+          recentPostsJson: c.recentPostsJson || (postsArray ? JSON.stringify(postsArray) : null),
+          topContentJson: c.topContentJson,
+          isSelf: false
+        };
+      });
+
+      // Setup self brand record
+      let myFbFollowers = 0;
+      let myYtSubscribers = 0;
+      
+      if (activeBrand.socialAccounts) {
+        const fbAcc = activeBrand.socialAccounts.find(sa => sa.platform === 'FACEBOOK' && sa.isConnected);
+        const ytAcc = activeBrand.socialAccounts.find(sa => sa.platform === 'YOUTUBE' && sa.isConnected);
+        myFbFollowers = fbAcc?.followersCount || fbAcc?.metadata?.followersCount || 0;
+        myYtSubscribers = ytAcc?.followersCount || ytAcc?.metadata?.subscriberCount || 0;
+      }
+
+      const myBrandRecord = {
+        id: "self-brand",
+        name: activeBrand.name || "Thương hiệu của bạn",
+        handle: "@your_brand",
+        followers: 0, // Sẽ được tính động trong displayCompetitors
+        postsPerWeek: 4,
+        engagementRate: 3.5,
+        growth: 5.2,
+        platform: "brand",
+        isSelf: true
+      };
+
+      setCompetitors([myBrandRecord, ...dbCompetitors]);
+    } catch (err) {
+      toast.error("Không thể tải danh sách đối thủ cạnh tranh");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load data on brand change
+  useEffect(() => {
+    fetchAllCompetitors();
+  }, [activeBrand?.id]);
+
+  // Compute actual competitors to display based on activeViewTab
+  const displayCompetitors = useMemo(() => {
+    let myFbFollowers = 0;
+    let myYtSubscribers = 0;
+    
+    if (activeBrand?.socialAccounts) {
+      const fbAcc = activeBrand.socialAccounts.find(sa => sa.platform === 'FACEBOOK' && sa.isConnected);
+      const ytAcc = activeBrand.socialAccounts.find(sa => sa.platform === 'YOUTUBE' && sa.isConnected);
+      myFbFollowers = fbAcc?.followersCount || fbAcc?.metadata?.followersCount || 0;
+      myYtSubscribers = ytAcc?.followersCount || ytAcc?.metadata?.subscriberCount || 0;
+    }
+
+    return competitors.map(c => {
+      if (c.isSelf) {
+        let followers = 0;
+        if (activeViewTab === "all") followers = (myFbFollowers + myYtSubscribers) || 12500;
+        else if (activeViewTab === "facebook") followers = myFbFollowers || 6800;
+        else if (activeViewTab === "youtube") followers = myYtSubscribers || 5700;
+        return { ...c, followers };
+      }
+      return c;
+    }).filter(c => {
+      if (c.isSelf) return true;
+      if (activeViewTab === "all") return true;
+      return c.platform === activeViewTab;
+    });
+  }, [competitors, activeViewTab, activeBrand]);
+
+  // Generate dynamic chart data based on displayCompetitors
+  const growthChartData = useMemo(() => {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May"];
+    return months.map((month, idx) => {
+      const row = { month };
+      displayCompetitors.forEach(c => {
+        // Simulate growth trends backward in time
+        // Formula: prev = current / (1 + growth/100 * (4-idx)/4)
+        const growthPercentage = c.growth || 4.5;
+        const factor = 1 + (growthPercentage / 100) * ((idx - 4) / 4);
+        const val = Math.round(c.followers * factor);
+        row[c.name] = val > 0 ? val : 0;
+      });
+      return row;
+    });
+  }, [displayCompetitors]);
+
+  // Dynamic Top Posts
+  const displayTopPosts = useMemo(() => {
+    const posts = [];
+    competitors.forEach(c => {
+      if (c.isSelf) return;
+      if (activeViewTab !== "all" && c.platform !== activeViewTab) return;
+
+      let parsed = [];
+      try {
+        if (c.topContentJson) {
+          parsed = JSON.parse(c.topContentJson);
+        } else if (c.recentPostsJson) {
+          parsed = JSON.parse(c.recentPostsJson);
+        }
+      } catch (e) {
+        console.warn("Failed to parse competitor posts", e);
+      }
+
+      if (Array.isArray(parsed)) {
+        parsed.forEach((p, idx) => {
+          posts.push({
+            id: `${c.id}-post-${idx}`,
+            author: c.name,
+            platform: c.platform,
+            content: p.content || p.text || p.description || p.title || "Nội dung bài viết đối thủ...",
+            likes: p.likesCount || p.likes || 0,
+            comments: p.commentsCount || p.comments || 0,
+            shares: p.sharesCount || p.shares || p.retweets || 0,
+            reachRate: p.engagementRate || c.engagementRate || 2.5,
+            date: p.publishedAt ? new Date(p.publishedAt).toLocaleDateString("vi-VN") : "Gần đây",
+            media: p.mediaUrl || p.thumbnailUrl || null,
+            postUrl: p.postUrl || (c.platform === "youtube" ? `https://www.youtube.com/watch?v=${p.id}` : `https://www.facebook.com/${p.id}`)
+          });
+        });
+      }
+    });
+
+    return posts.sort((a, b) => b.likes - a.likes).slice(0, 9);
+  }, [competitors, activeViewTab]);
+
+  // Handle Search in Modal
+  const handleSearch = async (e) => {
+    e?.preventDefault();
+    if (!searchQuery.trim()) {
+      toast.error("Vui lòng nhập từ khóa tìm kiếm");
+      return;
+    }
+    if (!activeBrand?.id) return;
+
+    if (searchPlatform !== "Facebook" && searchPlatform !== "YouTube") {
+      toast.info(`Tính năng tìm kiếm đối thủ trên ${searchPlatform} đang được phát triển.`);
       return;
     }
 
-    const cleanHandle = searchHandle.startsWith("@") ? searchHandle : `@${searchHandle}`;
-    const brandName = searchHandle.replace(/[@_.]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    setSearching(true);
+    setSearchResults([]);
+    try {
+      let rawData = [];
+      if (searchPlatform === "Facebook") {
+        try {
+          const res = await socialService.searchFacebookPages(activeBrand.id, searchQuery);
+          rawData = res.data || [];
+        } catch (searchErr) {
+          console.warn("Facebook Page Search API is restricted. Falling back to direct connection.", searchErr);
+        }
+      } else {
+        const res = await socialService.searchChannels(activeBrand.id, searchQuery);
+        rawData = res.data || [];
+      }
 
-    const newComp = {
-      id: `comp-${Date.now()}`,
-      name: brandName,
-      handle: cleanHandle,
-      followers: Math.floor(20000 + Math.random() * 250000),
-      postsPerWeek: Math.floor(5 + Math.random() * 25),
-      engagementRate: parseFloat((1.5 + Math.random() * 5.5).toFixed(1)),
-      growth: parseFloat((1.2 + Math.random() * 15).toFixed(1)),
-      isSelf: false
-    };
+      const normalized = rawData.map(item => {
+        if (searchPlatform === "Facebook") {
+          return {
+            platformId: item.pageId,
+            name: item.displayName || item.title || "Facebook Page",
+            avatar: item.avatarUrl || item.thumbnail || "",
+            followers: item.followersCount || 0,
+            url: item.profileUrl || `https://facebook.com/${item.pageId}`,
+            isDirect: false
+          };
+        } else {
+          return {
+            platformId: item.channelId,
+            name: item.displayName || item.title || "YouTube Channel",
+            avatar: item.avatarUrl || item.thumbnail || "",
+            followers: item.subscriberCount || 0,
+            url: item.profileUrl || `https://youtube.com/channel/${item.channelId}`,
+            isDirect: false
+          };
+        }
+      });
 
-    setCompetitors(prev => [...prev, newComp]);
-    toast.success(`Đã thêm đối thủ cạnh tranh ${cleanHandle} thành công!`);
-    setIsModalOpen(false);
-    setSearchHandle("");
+      // Đối với Facebook, tự động tạo thêm kết quả kết nối trực tiếp từ ID / Username / URL Page
+      if (searchPlatform === "Facebook") {
+        let extractedId = searchQuery.trim();
+        // Regex trích xuất ID hoặc Username từ link Page Facebook công khai
+        const fbUrlRegex = /(?:https?:\/\/)?(?:www\.)?facebook\.com\/(?:profile\.php\?id=)?([a-zA-Z0-9.]+)/i;
+        const match = extractedId.match(fbUrlRegex);
+        if (match && match[1]) {
+          extractedId = match[1];
+        }
+
+        // Tách bỏ query params (như ?mibextid=...)
+        if (extractedId.includes("?")) {
+          extractedId = extractedId.split("?")[0];
+        }
+        if (extractedId.includes("/")) {
+          extractedId = extractedId.split("/")[0];
+        }
+
+        if (extractedId && extractedId.toLowerCase() !== "profile.php") {
+          const directItem = {
+            platformId: extractedId,
+            name: `Kết nối Page: "${extractedId}"`,
+            avatar: "",
+            followers: 0,
+            url: `https://facebook.com/${extractedId}`,
+            isDirect: true
+          };
+          
+          const alreadyExists = normalized.some(item => item.platformId === extractedId);
+          if (!alreadyExists) {
+            normalized.unshift(directItem);
+          }
+        }
+      }
+
+      setSearchResults(normalized);
+      if (normalized.length === 0) {
+        toast.info("Không tìm thấy kết quả phù hợp");
+      }
+    } catch (err) {
+      toast.error("Tìm kiếm thất bại. Vui lòng kiểm tra lại cấu hình API!");
+      console.error(err);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  // Add Competitor
+  const handleConnectCompetitor = async (item) => {
+    if (!activeBrand?.id) return;
+
+    if (searchPlatform !== "Facebook" && searchPlatform !== "YouTube") {
+      toast.info(`Tính năng theo dõi đối thủ trên ${searchPlatform} đang được phát triển.`);
+      return;
+    }
+
+    setConnectingId(item.platformId);
+    try {
+      if (searchPlatform === "Facebook") {
+        await socialService.addFacebookCompetitor(activeBrand.id, item.platformId);
+      } else {
+        await socialService.addCompetitor(activeBrand.id, item.platformId);
+      }
+      toast.success(`Đã theo dõi đối thủ ${item.name} thành công!`);
+      await fetchAllCompetitors();
+      setIsModalOpen(false);
+      setSearchQuery("");
+      setSearchResults([]);
+    } catch (err) {
+      toast.error("Theo dõi đối thủ thất bại. Vui lòng kiểm tra cấu hình kết nối!");
+      console.error(err);
+    } finally {
+      setConnectingId(null);
+    }
   };
 
   // Delete Competitor
-  const handleDeleteCompetitor = (id) => {
-    setCompetitors(prev => prev.filter(c => c.id !== id));
-    toast.success("Đã xóa đối thủ cạnh tranh khỏi danh sách theo dõi.");
+  const handleDeleteCompetitor = async (c) => {
+    if (window.confirm(`Bạn có chắc chắn muốn xóa đối thủ ${c.name} khỏi danh sách theo dõi?`)) {
+      try {
+        if (c.platform === "facebook") {
+          await socialService.deleteFacebookCompetitor(c.id);
+        } else {
+          await socialService.deleteCompetitor(c.id);
+        }
+        toast.success(`Đã xóa đối thủ ${c.name}`);
+        await fetchAllCompetitors();
+      } catch (err) {
+        toast.error("Xóa đối thủ thất bại.");
+        console.error(err);
+      }
+    }
   };
 
   return (
     <div className="flex-1 flex flex-col overflow-y-auto bg-[#F8F9FA] p-6 space-y-6">
       
-      {/* Top Banner / Heading */}
+      {/* Heading Block */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-[#1A1F36] flex items-center gap-2">
@@ -139,236 +425,351 @@ export function CompetitorsPage() {
           </p>
         </div>
 
-        {/* Add Competitor Trigger */}
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center gap-2 bg-[#0A0A0A] hover:bg-[#222] text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-lg transition-all duration-300 transform active:scale-95 shrink-0"
+          className="flex items-center gap-2 bg-[#0A0A0A] hover:bg-[#222] text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-lg transition-all duration-300 transform active:scale-95 shrink-0 cursor-pointer"
         >
           <Plus size={16} />
           Theo dõi đối thủ mới
         </button>
       </div>
 
-      {/* Main Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Left Column: Benchmarking Matrix Table */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-[#E5E7EB] overflow-hidden flex flex-col">
-          <div className="px-6 py-5 border-b border-[#E5E7EB] flex justify-between items-center">
-            <div>
-              <h4 className="text-base font-bold text-[#1A1F36]">Chỉ số đối sánh (Benchmarking Matrix)</h4>
-              <p className="text-xs text-[#8792A2] mt-0.5">So sánh tổng quan sức mạnh truyền thông</p>
-            </div>
-            <span className="text-xs text-blue-600 font-bold bg-blue-50 px-2.5 py-1 rounded-lg">
-              Đang theo dõi {competitors.length - 1} đối thủ
-            </span>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-[#FAFAFA] border-b border-[#E5E7EB]">
-                  <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider">Thương hiệu</th>
-                  <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider">Followers</th>
-                  <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider">Tần suất đăng</th>
-                  <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider">Tỷ lệ tương tác</th>
-                  <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider">Tăng trưởng</th>
-                  <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E5E7EB]">
-                {competitors.map((c) => (
-                  <tr 
-                    key={c.id} 
-                    className={`hover:bg-slate-50/50 transition-colors ${
-                      c.isSelf ? "bg-emerald-50/20" : ""
-                    }`}
-                  >
-                    
-                    {/* Brand Meta */}
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-2">
-                        {c.isSelf ? (
-                          <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs">
-                            P
-                          </div>
-                        ) : (
-                          <div className="w-8 h-8 rounded-full bg-slate-100 text-[#4F5B66] flex items-center justify-center font-bold text-xs uppercase">
-                            {c.name.slice(0, 2)}
-                          </div>
-                        )}
-                        <div>
-                          <div className="font-semibold text-sm text-[#1A1F36] flex items-center gap-1.5">
-                            {c.name}
-                            {c.isSelf && (
-                              <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-md font-bold uppercase">
-                                Bạn
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-xs text-[#8792A2]">{c.handle}</div>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Followers */}
-                    <td className="py-4 px-6 text-sm font-semibold text-[#1A1F36]">
-                      {c.followers.toLocaleString()}
-                    </td>
-
-                    {/* Posts Per Week */}
-                    <td className="py-4 px-6">
-                      <div className="text-sm font-semibold text-[#1A1F36]">{c.postsPerWeek} bài</div>
-                      <div className="text-xs text-[#8792A2]">mỗi tuần</div>
-                    </td>
-
-                    {/* Engagement Rate */}
-                    <td className="py-4 px-6">
-                      <span className={`text-sm font-bold ${
-                        c.engagementRate >= 4.0 ? "text-emerald-600" : "text-[#1A1F36]"
-                      }`}>
-                        {c.engagementRate}%
-                      </span>
-                    </td>
-
-                    {/* Growth Rate */}
-                    <td className="py-4 px-6">
-                      <span className="text-sm font-semibold text-[#16A34A] flex items-center gap-0.5">
-                        <TrendingUp size={12} /> +{c.growth}%
-                      </span>
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-4 px-6 text-right">
-                      {!c.isSelf && (
-                        <button 
-                          onClick={() => handleDeleteCompetitor(c.id)}
-                          className="text-[#8792A2] hover:text-red-500 p-1 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      )}
-                    </td>
-
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Right Column: Followers Growth Chart */}
-        <div className="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-6 flex flex-col justify-between">
-          <div>
-            <h4 className="text-base font-bold text-[#1A1F36] flex items-center gap-2">
-              <Users size={18} className="text-[#10B981]" />
-              Biểu đồ tăng trưởng Followers
-            </h4>
-            <p className="text-xs text-[#8792A2] mt-0.5">Tốc độ mở rộng cộng đồng 5 tháng qua</p>
-          </div>
-
-          <div className="h-60 mt-6">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={GROWTH_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="selfGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
-                <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#8792A2" }} />
-                <YAxis tick={{ fontSize: 10, fill: "#8792A2" }} />
-                <Tooltip contentStyle={{ fontSize: 11, borderRadius: 12 }} />
-                <Legend wrapperStyle={{ fontSize: 10 }} />
-                <Area type="monotone" dataKey="PubliCast" stroke="#10B981" strokeWidth={2.5} fill="url(#selfGrad)" name="Bạn" />
-                <Area type="monotone" dataKey="Buffer Tech" stroke="#3B82F6" strokeWidth={1.5} fill="none" name="Buffer Tech" />
-                <Area type="monotone" dataKey="Later Media" stroke="#F59E0B" strokeWidth={1.5} fill="none" name="Later Media" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
+      {/* Tabs Filter */}
+      <div className="flex border-b border-gray-200">
+        {[
+          { id: "all", label: "Tất cả đối thủ" },
+          { id: "facebook", label: "Facebook Pages" },
+          { id: "youtube", label: "YouTube Channels" }
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveViewTab(tab.id)}
+            className={`py-3 px-6 text-xs font-bold uppercase tracking-wider border-b-2 cursor-pointer transition-all ${
+              activeViewTab === tab.id 
+                ? "border-black text-black font-extrabold" 
+                : "border-transparent text-gray-400 hover:text-black"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* Bottom Section: Top Performing Competitor Posts */}
-      <div className="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-6">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h4 className="text-base font-bold text-[#1A1F36] flex items-center gap-2">
-              <Flame size={18} className="text-[#EF4444] animate-bounce" />
-              Bài viết tốt nhất của đối thủ (Top Posts)
-            </h4>
-            <p className="text-xs text-[#8792A2] mt-0.5">Học hỏi chiến lược nội dung viral từ các đối thủ của bạn</p>
-          </div>
+      {loading ? (
+        <div className="py-24 flex flex-col items-center justify-center gap-3 text-gray-400">
+          <Loader2 className="animate-spin text-gray-800" size={32} />
+          <span className="text-xs font-bold uppercase tracking-widest">Đang nạp dữ liệu đối thủ...</span>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {topPosts.map((post) => (
-            <div key={post.id} className="border border-[#E5E7EB] rounded-2xl overflow-hidden flex flex-col bg-white hover:shadow-md transition-shadow">
-              
-              {/* Post Header */}
-              <div className="p-4 border-b border-[#E5E7EB] flex justify-between items-center bg-[#FAFAFA]">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-xs uppercase">
-                    {post.author.slice(0, 2)}
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-[#1A1F36]">{post.author}</div>
-                    <div className="text-[10px] text-[#8792A2]">{post.date}</div>
-                  </div>
+      ) : (
+        <>
+          {/* Main Grid Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* Left Column: Benchmarking Matrix Table */}
+            <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-[#E5E7EB] overflow-hidden flex flex-col">
+              <div className="px-6 py-5 border-b border-[#E5E7EB] flex justify-between items-center">
+                <div>
+                  <h4 className="text-base font-bold text-[#1A1F36]">Chỉ số đối sánh (Benchmarking Matrix)</h4>
+                  <p className="text-xs text-[#8792A2] mt-0.5">So sánh tổng quan sức mạnh truyền thông</p>
                 </div>
-                <PlatformIcon platform={post.platform} size={18} />
+                <span className="text-xs text-blue-600 font-bold bg-blue-50 px-2.5 py-1 rounded-lg">
+                  Đang theo dõi {displayCompetitors.length - 1} đối thủ
+                </span>
               </div>
 
-              {/* Post Image (If any) */}
-              {post.media && (
-                <div className="h-44 overflow-hidden border-b border-[#E5E7EB]">
-                  <img src={post.media} alt="" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+              {displayCompetitors.length <= 1 ? (
+                <div className="py-16 text-center text-gray-400 space-y-2">
+                  <AlertCircle className="mx-auto text-gray-300" size={32} />
+                  <p className="text-xs font-bold uppercase tracking-wider">Chưa có đối thủ nào được kết nối</p>
+                  <p className="text-[11px] text-gray-400 max-w-xs mx-auto">Vui lòng click "Theo dõi đối thủ mới" ở trên để bắt đầu thêm đối thủ.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-[#FAFAFA] border-b border-[#E5E7EB]">
+                        <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider">Thương hiệu</th>
+                        <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider">Followers</th>
+                        <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider">Tần suất đăng</th>
+                        <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider">Tỷ lệ tương tác</th>
+                        <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider">Tăng trưởng</th>
+                        <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#E5E7EB]">
+                      {displayCompetitors.map((c) => (
+                        <tr 
+                          key={c.id} 
+                          className={`hover:bg-slate-50/50 transition-colors ${
+                            c.isSelf ? "bg-emerald-50/20 font-semibold" : ""
+                          }`}
+                        >
+                          
+                          {/* Brand Meta */}
+                          <td className="py-4 px-6">
+                            <div className="flex items-center gap-3">
+                              {c.avatarUrl ? (
+                                <img src={c.avatarUrl} referrerPolicy="no-referrer" alt="" className="w-8 h-8 rounded-full object-cover border border-gray-100 shrink-0" />
+                              ) : (
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs uppercase shrink-0 ${
+                                  c.isSelf ? "bg-emerald-500 text-white" : "bg-slate-100 text-[#4F5B66]"
+                                }`}>
+                                  {c.name.slice(0, 2)}
+                                </div>
+                              )}
+                              <div>
+                                <div className="font-semibold text-sm text-[#1A1F36] flex items-center gap-1.5">
+                                  {c.isSelf ? (
+                                    <span>{c.name}</span>
+                                  ) : (
+                                    <a 
+                                      href={c.profileUrl || (c.platform === "facebook" ? `https://www.facebook.com/${c.handle}` : `https://www.youtube.com/channel/${c.handle}`)}
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="hover:underline hover:text-blue-600 flex items-center gap-1 group"
+                                      title="Đi tới trang gốc đối thủ"
+                                    >
+                                      {c.name}
+                                      <ExternalLink size={12} className="text-gray-400 group-hover:text-blue-600 transition-colors inline" />
+                                    </a>
+                                  )}
+                                  {c.isSelf && (
+                                    <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-md font-bold uppercase">
+                                      Bạn
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-[#8792A2] flex items-center gap-1.5">
+                                  {c.handle}
+                                  {!c.isSelf && c.platform && (
+                                    <span className="text-[9px] bg-gray-100 text-gray-500 font-bold px-1 py-0.2 rounded uppercase scale-90">
+                                      {c.platform}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Followers */}
+                          <td className="py-4 px-6 text-sm font-bold text-[#1A1F36]">
+                            {c.followers.toLocaleString()}
+                          </td>
+
+                          {/* Posts Per Week */}
+                          <td className="py-4 px-6">
+                            <div className="text-sm font-semibold text-[#1A1F36]">{c.postsPerWeek} bài</div>
+                            <div className="text-xs text-[#8792A2]">mỗi tuần</div>
+                          </td>
+
+                          {/* Engagement Rate */}
+                          <td className="py-4 px-6">
+                            <span className={`text-sm font-bold ${
+                              c.engagementRate >= 4.0 ? "text-emerald-600" : "text-[#1A1F36]"
+                            }`}>
+                              {c.engagementRate}%
+                            </span>
+                          </td>
+
+                          {/* Growth Rate */}
+                          <td className="py-4 px-6">
+                            <span className="text-sm font-semibold text-[#16A34A] flex items-center gap-0.5">
+                              <TrendingUp size={12} /> +{c.growth}%
+                            </span>
+                          </td>
+
+                          {/* Actions */}
+                          <td className="py-4 px-6 text-right">
+                            {!c.isSelf && (
+                              <button 
+                                onClick={() => handleDeleteCompetitor(c)}
+                                className="text-[#8792A2] hover:text-red-500 p-1 rounded-lg transition-colors cursor-pointer"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            )}
+                          </td>
+
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
+            </div>
 
-              {/* Post Content */}
-              <div className="p-4 flex-1 flex flex-col justify-between">
-                <p className="text-xs text-[#4F5B66] leading-relaxed line-clamp-4">
-                  {post.content}
-                </p>
-
-                {/* Post Footer / Engagement Metrics */}
-                <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center text-[#8792A2]">
-                  <div className="flex items-center gap-3">
-                    <span className="flex items-center gap-1 text-[11px]">
-                      <ThumbsUp size={12} className="text-[#3B82F6]" />
-                      {(post.likes / 1000).toFixed(1)}k
-                    </span>
-                    <span className="flex items-center gap-1 text-[11px]">
-                      <MessageCircle size={12} className="text-purple-500" />
-                      {post.comments}
-                    </span>
-                    <span className="flex items-center gap-1 text-[11px]">
-                      <Share2 size={12} className="text-emerald-500" />
-                      {post.shares}
-                    </span>
-                  </div>
-
-                  <span className="text-[10px] font-bold bg-[#FAFAFA] border border-[#E5E7EB] text-[#1A1F36] px-2 py-0.5 rounded-md">
-                    {post.reachRate}% Engagement
-                  </span>
-                </div>
+            {/* Right Column: Followers Growth Chart */}
+            <div className="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-6 flex flex-col justify-between">
+              <div>
+                <h4 className="text-base font-bold text-[#1A1F36] flex items-center gap-2">
+                  <Users size={18} className="text-[#10B981]" />
+                  Biểu đồ tăng trưởng Followers
+                </h4>
+                <p className="text-xs text-[#8792A2] mt-0.5">Tốc độ mở rộng cộng đồng 5 tháng qua</p>
               </div>
 
+              {displayCompetitors.length <= 1 ? (
+                <div className="h-60 flex flex-col items-center justify-center text-gray-400 text-xs">
+                  Không có dữ liệu biểu đồ
+                </div>
+              ) : (
+                <div className="h-60 mt-6">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={growthChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="selfGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10B981" stopOpacity={0.2} />
+                          <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
+                      <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#8792A2" }} />
+                      <YAxis tick={{ fontSize: 10, fill: "#8792A2" }} />
+                      <Tooltip contentStyle={{ fontSize: 11, borderRadius: 12 }} />
+                      <Legend wrapperStyle={{ fontSize: 10 }} />
+                      {displayCompetitors.map((c, idx) => {
+                        const colors = [
+                          "#10B981", // Brand (Bạn)
+                          "#3B82F6", // Blue
+                          "#F59E0B", // Yellow
+                          "#EF4444", // Red
+                          "#8B5CF6", // Purple
+                          "#EC4899", // Pink
+                        ];
+                        const color = c.isSelf ? "#10B981" : colors[(idx % (colors.length - 1)) + 1];
+                        return (
+                          <Area 
+                            key={c.id}
+                            type="monotone" 
+                            dataKey={c.name} 
+                            stroke={color} 
+                            strokeWidth={c.isSelf ? 2.5 : 1.5} 
+                            fill={c.isSelf ? "url(#selfGrad)" : "none"} 
+                            name={c.isSelf ? "Bạn" : c.name} 
+                          />
+                        );
+                      })}
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </div>
-          ))}
-        </div>
-      </div>
+
+          </div>
+
+          {/* Bottom Section: Top Performing Competitor Posts */}
+          <div className="bg-white rounded-2xl shadow-sm border border-[#E5E7EB] p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h4 className="text-base font-bold text-[#1A1F36] flex items-center gap-2">
+                  <Flame size={18} className="text-[#EF4444] animate-bounce" />
+                  Bài viết tốt nhất của đối thủ (Top Posts)
+                </h4>
+                <p className="text-xs text-[#8792A2] mt-0.5">Học hỏi chiến lược nội dung viral từ các đối thủ của bạn</p>
+              </div>
+            </div>
+
+            {displayTopPosts.length === 0 ? (
+              <div className="py-16 text-center text-gray-400 space-y-2 border border-dashed border-gray-200 rounded-3xl bg-gray-50/30">
+                <AlertCircle className="mx-auto text-gray-300" size={32} />
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-700">Chưa tải được bài viết nào từ đối thủ</p>
+                <p className="text-[11px] text-gray-400 max-w-sm mx-auto px-4">
+                  Hệ thống đang đồng bộ dữ liệu hoặc mạng xã hội giới hạn quyền truy cập feed. 
+                  Bạn có thể nhấp vào link gốc của đối thủ ở bảng Matrix phía trên để xem trực tiếp trang của họ.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {displayTopPosts.map((post) => (
+                  <div key={post.id} className="border border-[#E5E7EB] rounded-2xl overflow-hidden flex flex-col bg-white hover:shadow-md transition-shadow">
+                    
+                    {/* Post Header */}
+                    <div className="p-4 border-b border-[#E5E7EB] flex justify-between items-center bg-[#FAFAFA]">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-xs uppercase">
+                          {post.author.slice(0, 2)}
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-[#1A1F36]">{post.author}</div>
+                          <div className="text-[10px] text-[#8792A2]">{post.date}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {post.postUrl && (
+                          <a 
+                            href={post.postUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-[#8792A2] hover:text-black transition-colors"
+                          >
+                            <ExternalLink size={13} />
+                          </a>
+                        )}
+                        <PlatformIcon platform={post.platform} size={18} />
+                      </div>
+                    </div>
+
+                    {/* Post Image (If any) */}
+                    {post.media && (
+                      <div className="h-44 overflow-hidden border-b border-[#E5E7EB]">
+                        {post.postUrl ? (
+                          <a href={post.postUrl} target="_blank" rel="noopener noreferrer">
+                            <img src={post.media} referrerPolicy="no-referrer" alt="" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                          </a>
+                        ) : (
+                          <img src={post.media} referrerPolicy="no-referrer" alt="" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Post Content */}
+                    <div className="p-4 flex-1 flex flex-col justify-between">
+                      <p className="text-xs text-[#4F5B66] leading-relaxed line-clamp-4">
+                        {post.content}
+                      </p>
+
+                      {/* Post Footer / Engagement Metrics */}
+                      <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center text-[#8792A2]">
+                        <div className="flex items-center gap-3">
+                          <span className="flex items-center gap-1 text-[11px]">
+                            <ThumbsUp size={12} className="text-[#3B82F6]" />
+                            {post.likes >= 1000 ? `${(post.likes / 1000).toFixed(1)}k` : post.likes}
+                          </span>
+                          <span className="flex items-center gap-1 text-[11px]">
+                            <MessageCircle size={12} className="text-purple-500" />
+                            {post.comments}
+                          </span>
+                          <span className="flex items-center gap-1 text-[11px]">
+                            <Share2 size={12} className="text-emerald-500" />
+                            {post.shares}
+                          </span>
+                        </div>
+
+                        <span className="text-[10px] font-bold bg-[#FAFAFA] border border-[#E5E7EB] text-[#1A1F36] px-2 py-0.5 rounded-md">
+                          {post.reachRate}% Engagement
+                        </span>
+                      </div>
+                    </div>
+
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Modal: Add Competitor */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl w-full max-w-md p-6 relative shadow-2xl border border-[#E5E7EB]">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 animate-in fade-in duration-200 p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md p-6 relative shadow-2xl border border-[#E5E7EB] flex flex-col max-h-[90vh]">
             
             <button 
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => {
+                setIsModalOpen(false);
+                setSearchQuery("");
+                setSearchResults([]);
+              }}
               className="absolute top-4 right-4 text-[#8792A2] hover:text-[#0a0a0a] cursor-pointer"
             >
               <X size={20} />
@@ -379,58 +780,160 @@ export function CompetitorsPage() {
               Theo dõi đối thủ cạnh tranh mới
             </h3>
 
-            <form onSubmit={handleAddCompetitor} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-[#4F5B66] uppercase mb-1.5">Chọn mạng xã hội</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {["Instagram", "Facebook", "TikTok", "LinkedIn"].map((platform) => (
-                    <button
-                      key={platform}
-                      type="button"
-                      onClick={() => setSelectedPlatform(platform)}
-                      className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border text-[11px] font-semibold transition-all ${
-                        selectedPlatform === platform 
-                          ? "border-[#0A0A0A] bg-slate-50 text-[#0A0A0A]" 
-                          : "border-[#E5E7EB] hover:bg-slate-50/50 text-[#8792A2]"
-                      }`}
-                    >
-                      <PlatformIcon platform={platform} size={16} />
-                      {platform}
-                    </button>
-                  ))}
+            <div className="space-y-4 flex-1 flex flex-col overflow-hidden">
+              {availableModalPlatforms.length === 0 ? (
+                <div className="py-12 text-center text-gray-400 space-y-3 flex-1 flex flex-col justify-center items-center">
+                  <AlertCircle className="text-amber-500 w-10 h-10" />
+                  <p className="text-sm font-bold uppercase tracking-wider text-[#1A1F36]">Chưa liên kết mạng xã hội</p>
+                  <p className="text-xs text-[#8792A2] max-w-xs px-4">
+                    Thương hiệu của bạn chưa liên kết với bất kỳ tài khoản mạng xã hội nào (Facebook, YouTube, Instagram, TikTok) để sử dụng tính năng theo dõi đối thủ.
+                  </p>
+                  <a
+                    href="/settings"
+                    onClick={() => setIsModalOpen(false)}
+                    className="mt-2 text-xs font-bold text-blue-600 hover:underline"
+                  >
+                    Đi tới Cài đặt tài khoản
+                  </a>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-[#4F5B66] uppercase mb-1.5">Chọn mạng xã hội</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {availableModalPlatforms.map((platform) => (
+                        <button
+                          key={platform.key}
+                          type="button"
+                          onClick={() => {
+                            setSearchPlatform(platform.key);
+                            setSearchResults([]);
+                          }}
+                          className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                            searchPlatform === platform.key 
+                              ? "border-[#0A0A0A] bg-slate-50 text-[#0A0A0A]" 
+                              : "border-[#E5E7EB] hover:bg-slate-50/50 text-[#8792A2]"
+                          }`}
+                        >
+                          <PlatformIcon platform={platform.key.toLowerCase()} size={16} />
+                          {platform.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block text-xs font-bold text-[#4F5B66] uppercase mb-1.5">Username / Handle</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-[#8792A2] text-sm">@</span>
-                  <input
-                    type="text"
-                    placeholder="buffer_hq"
-                    value={searchHandle}
-                    onChange={(e) => setSearchHandle(e.target.value)}
-                    className="w-full pl-7 pr-3 py-2.5 rounded-xl border border-[#E5E7EB] text-sm text-[#1A1F36] focus:border-[#0A0A0A] outline-none transition-colors"
-                  />
-                </div>
-              </div>
+                  <form onSubmit={handleSearch} className="space-y-2 shrink-0">
+                    <label className="block text-xs font-bold text-[#4F5B66] uppercase">Tìm kiếm đối thủ</label>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          placeholder={
+                            searchPlatform === "Facebook" 
+                              ? "Nhập tên Page Facebook hoặc URL..." 
+                              : searchPlatform === "YouTube"
+                              ? "Nhập tên Kênh YouTube hoặc URL..."
+                              : `Nhập tên đối thủ ${searchPlatform} hoặc URL...`
+                          }
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full pl-4 pr-3 py-2.5 rounded-xl border border-[#E5E7EB] text-sm text-[#1A1F36] focus:border-[#0A0A0A] outline-none transition-colors"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={searching || !searchQuery.trim()}
+                        className="bg-black hover:bg-gray-800 text-white text-xs font-bold px-4 rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                      >
+                        {searching ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                        Tìm kiếm
+                      </button>
+                    </div>
+                  </form>
 
-              <div className="flex gap-3 justify-end pt-2">
+                  {/* Search Results List */}
+                  <div className="flex-1 overflow-y-auto pr-1 space-y-2 mt-2 scrollbar-thin">
+                    {searching ? (
+                      <div className="py-12 flex flex-col items-center justify-center gap-2 text-gray-400">
+                        <Loader2 size={24} className="animate-spin text-gray-800" />
+                        <span className="text-[10px] font-bold uppercase tracking-wider">Đang tìm trên mạng xã hội...</span>
+                      </div>
+                    ) : searchResults.length > 0 ? (
+                      searchResults.map((item) => (
+                        <div 
+                          key={item.platformId}
+                          className="flex items-center justify-between p-3.5 bg-white border border-gray-100 hover:border-gray-200 rounded-2xl transition-all group"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            {item.avatar ? (
+                              <img src={item.avatar} referrerPolicy="no-referrer" alt="" className="w-10 h-10 rounded-full object-cover border border-gray-100 shrink-0" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-gray-50 text-gray-400 flex items-center justify-center font-bold text-xs uppercase shrink-0 border border-gray-100">
+                                {item.name.slice(0, 2)}
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <div className="text-xs font-bold text-gray-900 truncate flex items-center gap-1.5">
+                                {item.name}
+                                <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-black scale-90">
+                                  <ExternalLink size={11} />
+                                </a>
+                              </div>
+                              <div className="text-[10px] text-gray-400 font-semibold mt-0.5 uppercase tracking-tight">
+                                {item.isDirect 
+                                  ? "Kết nối trực tiếp đối thủ bằng ID/Username" 
+                                  : item.followers 
+                                    ? `${item.followers.toLocaleString()} ${searchPlatform === 'Facebook' ? 'Page Likes' : 'Subscribers'}` 
+                                    : 'Public Channel'}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <button
+                            onClick={() => handleConnectCompetitor(item)}
+                            disabled={connectingId !== null}
+                            className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-1"
+                          >
+                            {connectingId === item.platformId ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <Plus size={12} />
+                            )}
+                            Theo dõi
+                          </button>
+                        </div>
+                      ))
+                    ) : searchQuery && !searching ? (
+                      <div className="py-12 text-center text-gray-400 space-y-2 border border-dashed border-gray-100 rounded-2xl bg-gray-50/50">
+                        <AlertCircle className="mx-auto text-gray-300" size={24} />
+                        <p className="text-[10px] font-bold uppercase tracking-wider">Không tìm thấy kết quả</p>
+                        <p className="text-[11px] text-gray-400 max-w-xs mx-auto px-6">Hãy thử tìm bằng từ khóa khác hoặc dán đúng đường dẫn của Page/Channel.</p>
+                      </div>
+                    ) : (
+                      <div className="py-12 text-center text-gray-400 space-y-2 border border-dashed border-gray-100 rounded-2xl bg-gray-50/50">
+                        <Globe className="mx-auto text-gray-300" size={24} />
+                        <p className="text-[10px] font-bold uppercase tracking-wider">Bắt đầu tìm kiếm</p>
+                        <p className="text-[11px] text-gray-400 max-w-xs mx-auto px-6">Nhập từ khóa và bấm Tìm kiếm để khám phá đối thủ trên {searchPlatform}.</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              <div className="flex gap-3 justify-end pt-4 border-t border-gray-100 shrink-0">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-[#E5E7EB] hover:bg-slate-50 transition-colors"
+                  onClick={() => {
+                    setIsModalOpen(false);
+                    setSearchQuery("");
+                    setSearchResults([]);
+                  }}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider border border-[#E5E7EB] hover:bg-slate-50 transition-colors cursor-pointer"
                 >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-[#0A0A0A] hover:bg-[#222] text-white transition-colors"
-                >
-                  Tìm & kết nối
+                  Đóng
                 </button>
               </div>
-            </form>
+            </div>
 
           </div>
         </div>

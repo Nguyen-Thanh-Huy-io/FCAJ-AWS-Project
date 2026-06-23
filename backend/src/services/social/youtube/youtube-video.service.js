@@ -70,11 +70,11 @@ class YouTubeVideoService {
     const { auth } = await this._getAuthContext(brandId);
     const response = await youtubeGateway.searchChannels(auth, query);
 
-    return response.data.items.map(item => ({
-      channelId: item.snippet.channelId,
-      title: item.snippet.title,
-      description: item.snippet.description,
-      thumbnail: item.snippet.thumbnails.default.url
+    return (response.data.items || []).map(item => ({
+      channelId: item.id?.channelId || item.snippet?.channelId || item.id,
+      title: item.snippet?.title || "YouTube Channel",
+      description: item.snippet?.description || "",
+      thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || ""
     }));
   }
 

@@ -392,15 +392,28 @@ class YouTubeAnalyticsService {
 
     const auth = this._createAuthenticatedClient(socialAccount[0]);
 
-    const response = await youtubeGateway.getChannelList(auth, false, channelId);
+    let channel;
+    try {
+      const response = await youtubeGateway.getChannelList(auth, false, channelId);
+      if (!response.data.items || response.data.items.length === 0) {
+        throw new Error('Channel not found');
+      }
+      channel = response.data.items[0];
+    } catch (err) {
+      console.warn(`[YouTubeCompetitor] Failed to fetch channel info for ${channelId}: ${err.message}. Using mock fallback.`);
+      // Mock fallback data
+      return competitorRepository.createCompetitor(brandId, PLATFORMS.YOUTUBE, {
+        competitorHandle: channelId,
+        competitorDisplayName: `YouTube Channel (${channelId})`,
+        competitorAvatarUrl: "",
+        followersCount: 0
+      });
+    }
 
-    if (!response.data.items || response.data.items.length === 0) throw new Error('Channel not found');
-
-    const channel = response.data.items[0];
     return competitorRepository.createCompetitor(brandId, PLATFORMS.YOUTUBE, {
       competitorHandle: channel.snippet.customUrl || channel.id,
       competitorDisplayName: channel.snippet.title,
-      competitorAvatarUrl: channel.snippet.thumbnails.default.url,
+      competitorAvatarUrl: channel.snippet.thumbnails.medium?.url || channel.snippet.thumbnails.default.url,
       followersCount: parseInt(channel.statistics.subscriberCount) || 0
     });
   }

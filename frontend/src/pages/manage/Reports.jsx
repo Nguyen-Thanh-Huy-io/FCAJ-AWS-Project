@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   FileText, 
   Download, 
@@ -13,21 +13,18 @@ import {
   RefreshCw,
   Clock,
   CheckCircle2,
-  X
+  X,
+  Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 import { PlatformIcon } from "../../components/shared/PlatformIcon";
-
-// Simulated Generated Reports
-const INITIAL_REPORTS = [
-  { id: "rep-1", title: "Báo cáo Hiệu suất Tháng 5 - 2025", type: "PDF", size: "2.4 MB", date: "31/05/2025", creator: "Nguyen Minh", downloads: 14, platforms: ["YouTube", "Facebook", "Instagram"] },
-  { id: "rep-2", title: "Bảng tính Chi tiêu & ROI Quảng cáo Tuần 22", type: "Excel", size: "480 KB", date: "24/05/2025", creator: "Nguyen Minh", downloads: 8, platforms: ["Facebook", "Google"] },
-  { id: "rep-3", title: "Báo cáo Tăng trưởng Kênh TikTok Q2", type: "PDF", size: "5.1 MB", date: "15/05/2025", creator: "David Chen", downloads: 22, platforms: ["TikTok"] },
-  { id: "rep-4", title: "Tổng hợp Tương tác Thương hiệu Custom Range", type: "PDF", size: "1.8 MB", date: "02/05/2025", creator: "Nguyen Minh", downloads: 5, platforms: ["YouTube", "Facebook", "TikTok", "LinkedIn", "X"] }
-];
+import { useBrand } from "../../context/BrandContext";
+import apiService from "../../services/api";
 
 export function ReportsPage() {
-  const [reports, setReports] = useState(INITIAL_REPORTS);
+  const { activeBrand } = useBrand();
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Custom Report Builder States
@@ -39,6 +36,25 @@ export function ReportsPage() {
   const [dateRange, setDateRange] = useState("Tháng này");
   const [brandLogo, setBrandLogo] = useState(true);
 
+  // Fetch reports from API
+  const fetchReports = async () => {
+    if (!activeBrand) return;
+    setLoading(true);
+    try {
+      const res = await apiService.get(`/reports?brandId=${activeBrand.id}`);
+      setReports(res.data.reports || []);
+    } catch (err) {
+      toast.error("Không thể tải danh sách báo cáo.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReports();
+  }, [activeBrand]);
+
   // Toggle Platform selection
   const handleTogglePlatform = (p) => {
     setSelectedPlatforms(prev => ({
@@ -48,8 +64,10 @@ export function ReportsPage() {
   };
 
   // Trigger Report Generation
-  const handleGenerateReport = (e) => {
+  const handleGenerateReport = async (e) => {
     e.preventDefault();
+    if (!activeBrand) return;
+
     if (!reportTitle.trim()) {
       toast.error("Vui lòng nhập tên báo cáo");
       return;
@@ -61,31 +79,60 @@ export function ReportsPage() {
       return;
     }
 
-    const newReport = {
-      id: `rep-${Date.now()}`,
-      title: reportTitle,
-      type: reportType,
-      size: reportType === "PDF" ? "1.5 MB" : "320 KB",
-      date: new Date().toLocaleDateString("vi-VN"),
-      creator: "Nguyen Minh",
-      downloads: 0,
-      platforms: enabledPlatforms
-    };
-
-    setReports(prev => [newReport, ...prev]);
-    toast.success(`Đang khởi tạo báo cáo "${reportTitle}"... Đã hoàn thành!`);
-    setIsModalOpen(false);
-    setReportTitle("");
+    const toastId = toast.loading(`Đang khởi tạo báo cáo "${reportTitle}"...`);
+    try {
+      const res = await apiService.post(`/reports?brandId=${activeBrand.id}`, {
+        title: reportTitle,
+        format: reportType,
+        dateRange,
+        platforms: enabledPlatforms,
+        isWhiteLabel: brandLogo,
+        brandLogoUrl: activeBrand.logoUrl || null,
+        brandColorHex: "#3B82F6"
+      });
+      
+      setReports(prev => [res.data.report, ...prev]);
+      toast.success(`Khởi tạo báo cáo "${reportTitle}" thành công!`, { id: toastId });
+      setIsModalOpen(false);
+      setReportTitle("");
+    } catch (err) {
+      toast.error("Tạo báo cáo thất bại: " + (err.message || "Lỗi hệ thống"), { id: toastId });
+      console.error(err);
+    }
   };
 
   // Delete Report
-  const handleDeleteReport = (id) => {
-    setReports(prev => prev.filter(r => r.id !== id));
-    toast.success("Đã xóa báo cáo khỏi hệ thống lưu trữ.");
+  const handleDeleteReport = async (id) => {
+    if (!activeBrand) return;
+    
+    try {
+      await apiService.delete(`/reports/${id}?brandId=${activeBrand.id}`);
+      setReports(prev => prev.filter(r => r.id !== id));
+      toast.success("Đã xóa báo cáo khỏi hệ thống lưu trữ.");
+    } catch (err) {
+      toast.error("Xóa báo cáo thất bại: " + (err.message || "Lỗi hệ thống"));
+      console.error(err);
+    }
   };
 
-  // Download Simulation
-  const handleDownload = (title) => {
+  // Download Report File
+  const handleDownload = (fileUrl, title) => {
+    if (!fileUrl) {
+      toast.error("Không tìm thấy đường dẫn tải báo cáo.");
+      return;
+    }
+    
+    const backendBase = (import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api").replace('/api', '');
+    const downloadUrl = `${backendBase}${fileUrl}`;
+    
+    // Open in a new tab or trigger down
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.setAttribute("download", title);
+    link.target = "_blank";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     toast.success(`Bắt đầu tải xuống file: ${title}`);
   };
 
@@ -130,88 +177,101 @@ export function ReportsPage() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-[#FAFAFA] border-b border-[#E5E7EB]">
-                  <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider">Định dạng</th>
-                  <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider">Tên tài liệu</th>
-                  <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider">Kênh xuất</th>
-                  <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider">Ngày tạo / Tác giả</th>
-                  <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider">Dung lượng</th>
-                  <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E5E7EB]">
-                {reports.map((r) => (
-                  <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
-                    
-                    {/* Document Icon format */}
-                    <td className="py-4 px-6">
-                      <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${
-                        r.type === "PDF" 
-                          ? "bg-red-50 text-red-600 border border-red-100" 
-                          : "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                      }`}>
-                        {r.type}
-                      </span>
-                    </td>
-
-                    {/* Title & Stats */}
-                    <td className="py-4 px-6">
-                      <div className="font-semibold text-sm text-[#1A1F36] max-w-[220px] truncate" title={r.title}>
-                        {r.title}
-                      </div>
-                      <div className="text-xs text-[#8792A2] mt-0.5">Tải xuống: {r.downloads} lần</div>
-                    </td>
-
-                    {/* Channels */}
-                    <td className="py-4 px-6">
-                      <div className="flex -space-x-1.5 items-center">
-                        {r.platforms.map((p) => (
-                          <div 
-                            key={p} 
-                            className="w-5.5 h-5.5 rounded-full bg-white border border-[#E5E7EB] flex items-center justify-center shadow-sm"
-                            title={p}
-                          >
-                            <PlatformIcon platform={p} size={11} />
-                          </div>
-                        ))}
-                      </div>
-                    </td>
-
-                    {/* Date / Author */}
-                    <td className="py-4 px-6">
-                      <div className="text-sm font-semibold text-[#1A1F36]">{r.date}</div>
-                      <div className="text-xs text-[#8792A2]">{r.creator}</div>
-                    </td>
-
-                    {/* File Size */}
-                    <td className="py-4 px-6 text-sm text-[#4F5B66]">
-                      {r.size}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-4 px-6 text-right space-x-1">
-                      <button 
-                        onClick={() => handleDownload(r.title)}
-                        className="text-[#8792A2] hover:text-[#0A0A0A] p-1.5 rounded-lg border border-[#E5E7EB] hover:bg-slate-50 transition-all inline-flex items-center cursor-pointer"
-                        title="Tải xuống"
-                      >
-                        <Download size={14} />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteReport(r.id)}
-                        className="text-[#8792A2] hover:text-red-500 p-1.5 rounded-lg border border-[#E5E7EB] hover:bg-red-50 transition-all inline-flex items-center cursor-pointer"
-                        title="Xóa"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-
+            {loading ? (
+              <div className="p-12 flex flex-col items-center justify-center text-[#8792A2] gap-3">
+                <Loader2 size={32} className="animate-spin text-[#3B82F6]" />
+                <span className="text-sm">Đang tải danh sách báo cáo...</span>
+              </div>
+            ) : reports.length === 0 ? (
+              <div className="p-12 text-center text-[#8792A2]">
+                <FileText size={48} className="mx-auto text-slate-300 mb-3" />
+                <p className="text-sm">Không có báo cáo nào được lưu trữ.</p>
+                <p className="text-xs mt-1">Hãy nhấn nút "Tạo báo cáo tùy chỉnh" để bắt đầu.</p>
+              </div>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#FAFAFA] border-b border-[#E5E7EB]">
+                    <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider">Định dạng</th>
+                    <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider">Tên tài liệu</th>
+                    <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider">Kênh xuất</th>
+                    <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider">Ngày tạo / Tác giả</th>
+                    <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider">Dung lượng</th>
+                    <th className="py-3.5 px-6 text-xs font-bold text-[#8792A2] uppercase tracking-wider"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-[#E5E7EB]">
+                  {reports.map((r) => (
+                    <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
+                      
+                      {/* Document Icon format */}
+                      <td className="py-4 px-6">
+                        <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${
+                          r.type === "PDF" 
+                            ? "bg-red-50 text-red-600 border border-red-100" 
+                            : "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                        }`}>
+                          {r.type}
+                        </span>
+                      </td>
+
+                      {/* Title & Stats */}
+                      <td className="py-4 px-6">
+                        <div className="font-semibold text-sm text-[#1A1F36] max-w-[220px] truncate" title={r.title}>
+                          {r.title}
+                        </div>
+                        <div className="text-xs text-[#8792A2] mt-0.5">Tải xuống: {r.downloads || 0} lần</div>
+                      </td>
+
+                      {/* Channels */}
+                      <td className="py-4 px-6">
+                        <div className="flex -space-x-1.5 items-center">
+                          {r.platforms && r.platforms.map((p) => (
+                            <div 
+                              key={p} 
+                              className="w-5.5 h-5.5 rounded-full bg-white border border-[#E5E7EB] flex items-center justify-center shadow-sm"
+                              title={p}
+                            >
+                              <PlatformIcon platform={p} size={11} />
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+
+                      {/* Date / Author */}
+                      <td className="py-4 px-6">
+                        <div className="text-sm font-semibold text-[#1A1F36]">{r.date}</div>
+                        <div className="text-xs text-[#8792A2]">{r.creator}</div>
+                      </td>
+
+                      {/* File Size */}
+                      <td className="py-4 px-6 text-sm text-[#4F5B66]">
+                        {r.size}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-4 px-6 text-right space-x-1">
+                        <button 
+                          onClick={() => handleDownload(r.fileUrl, r.title)}
+                          className="text-[#8792A2] hover:text-[#0A0A0A] p-1.5 rounded-lg border border-[#E5E7EB] hover:bg-slate-50 transition-all inline-flex items-center cursor-pointer"
+                          title="Tải xuống"
+                        >
+                          <Download size={14} />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteReport(r.id)}
+                          className="text-[#8792A2] hover:text-red-500 p-1.5 rounded-lg border border-[#E5E7EB] hover:bg-red-50 transition-all inline-flex items-center cursor-pointer"
+                          title="Xóa"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
+
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 
@@ -231,16 +291,31 @@ export function ReportsPage() {
             {/* Page header */}
             <div className="flex justify-between items-start border-b border-slate-200 pb-3">
               <div className="flex items-center gap-2">
-                {brandLogo ? (
-                  <div className="w-6 h-6 bg-slate-800 text-white flex items-center justify-center font-bold text-[10px] rounded-lg">
-                    PC
-                  </div>
+                {brandLogo && activeBrand ? (
+                  activeBrand.logoUrl ? (
+                    <img 
+                      src={activeBrand.logoUrl} 
+                      alt="Brand Logo" 
+                      className="w-6 h-6 rounded-lg object-cover" 
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = "";
+                        e.target.className = "hidden";
+                      }}
+                    />
+                  ) : (
+                    <div className="w-6 h-6 bg-slate-800 text-white flex items-center justify-center font-bold text-[10px] rounded-lg">
+                      {activeBrand.name.substring(0, 2).toUpperCase()}
+                    </div>
+                  )
                 ) : (
                   <div className="w-6 h-6 border border-slate-200 rounded-lg" />
                 )}
-                <span className="text-[10px] font-bold text-slate-800">PubliCast Media Report</span>
+                <span className="text-[10px] font-bold text-slate-800">
+                  {activeBrand ? activeBrand.name : "PubliCast"} Media Report
+                </span>
               </div>
-              <span className="text-[8px] text-[#8792A2] font-mono">Q2 - 2025</span>
+              <span className="text-[8px] text-[#8792A2] font-mono">Q2 - 2026</span>
             </div>
 
             {/* Document Title */}
@@ -275,7 +350,7 @@ export function ReportsPage() {
 
             {/* Page Footer */}
             <div className="text-center text-[7px] text-[#8792A2] border-t border-slate-200 pt-2 font-mono">
-              Trang 1 / 14 | Powered by PubliCast AI Engine
+              Trang 1 / 1 | Powered by PubliCast AI Engine
             </div>
 
           </div>
@@ -286,7 +361,7 @@ export function ReportsPage() {
               Báo cáo tự động được cấu hình
             </div>
             <p className="text-[11px] text-[#8792A2] leading-relaxed">
-              Hệ thống sẽ gửi file PDF báo cáo phân tích tổng quan vào Email Nguyen Minh lúc 08:00 sáng Thứ Hai hàng tuần.
+              Hệ thống sẽ gửi file PDF báo cáo phân tích tổng quan vào Email định kỳ hàng tuần.
             </p>
           </div>
 
@@ -332,7 +407,7 @@ export function ReportsPage() {
                     className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-sm text-[#1A1F36] focus:border-[#0A0A0A] outline-none cursor-pointer bg-white"
                   >
                     <option value="PDF">Tài liệu PDF (.pdf)</option>
-                    <option value="Excel">Bảng tính Excel (.xlsx)</option>
+                    <option value="Excel">Bảng tính Excel (.xlsx/.csv)</option>
                   </select>
                 </div>
 
@@ -343,8 +418,8 @@ export function ReportsPage() {
                     onChange={(e) => setDateRange(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-xl border border-[#E5E7EB] text-sm text-[#1A1F36] focus:border-[#0A0A0A] outline-none cursor-pointer bg-white"
                   >
-                    <option value="Tháng này">Tháng này (Tháng 5 - 2025)</option>
-                    <option value="Tháng trước">Tháng trước (Tháng 4 - 2025)</option>
+                    <option value="Tháng này">Tháng này</option>
+                    <option value="Tháng trước">Tháng trước</option>
                     <option value="7 ngày qua">7 ngày qua</option>
                     <option value="30 ngày qua">30 ngày qua</option>
                   </select>
@@ -382,7 +457,7 @@ export function ReportsPage() {
               <div className="border-t border-[#E5E7EB] pt-4 flex items-center justify-between">
                 <div className="flex flex-col">
                   <span className="text-xs font-bold text-[#1A1F36]">Tích hợp Logo Thương hiệu</span>
-                  <span className="text-[11px] text-[#8792A2]">Tự động thêm logo PubliCast vào tiêu đề báo cáo</span>
+                  <span className="text-[11px] text-[#8792A2]">Tự động thêm logo thương hiệu vào tiêu đề báo cáo</span>
                 </div>
                 <button
                   type="button"

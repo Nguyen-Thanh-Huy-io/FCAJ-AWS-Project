@@ -444,6 +444,18 @@ const PRODUCT_IDS = {
   GOOGLE_DRIVE: 'google_drive'
 };
 
+const REPORT_FORMATS = {
+  PDF: 'PDF',
+  CSV: 'CSV',
+  LOOKER_STUDIO: 'LOOKER_STUDIO'
+};
+
+const REPORT_FREQUENCIES = {
+  DAILY: 'DAILY',
+  WEEKLY: 'WEEKLY',
+  MONTHLY: 'MONTHLY'
+};
+
 module.exports = {
   PLATFORMS,
   USER_ROLES,
@@ -484,5 +496,8 @@ module.exports = {
   SYSTEM_LABELS,
   SEARCH_PATHS,
   NOTIFICATION_LABELS,
-  PRODUCT_IDS
+  PRODUCT_IDS,
+  REPORT_FORMATS,
+  REPORT_FREQUENCIES
 };
+
