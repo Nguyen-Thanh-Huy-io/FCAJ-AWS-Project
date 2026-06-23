@@ -20,6 +20,19 @@ class PostController {
   });
 
   /**
+   * GET /api/posts/platform-limits
+   * Fetch all limits configuration from DB
+   */
+  getPlatformLimits = asyncHandler(async (req, res) => {
+    const prisma = require('../../config/prisma');
+    const limits = await prisma.platformLimit.findMany();
+    res.status(200).json({
+      message: 'Platform limits retrieved successfully',
+      data: limits
+    });
+  });
+
+  /**
    * POST /api/posts
    * Create a new post
    */

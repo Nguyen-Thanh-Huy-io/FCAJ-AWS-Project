@@ -38,6 +38,11 @@ class PostService {
     const response = await apiService.delete(`/posts/trash?brandId=${brandId}`);
     return response.data;
   }
+
+  async getPlatformLimits() {
+    const response = await apiService.get('/posts/platform-limits');
+    return response.data;
+  }
 }
 
 const postService = new PostService();

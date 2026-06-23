@@ -15,6 +15,12 @@ router.use(verifyAuth);
 router.get('/', postController.getPosts);
 
 /**
+ * GET /api/posts/platform-limits
+ * Fetch all limits configuration from DB
+ */
+router.get('/platform-limits', postController.getPlatformLimits);
+
+/**
  * POST /api/posts
  * Create a new post
  */

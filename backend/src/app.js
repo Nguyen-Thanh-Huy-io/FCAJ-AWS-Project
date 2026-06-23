@@ -18,6 +18,7 @@ const pricingRoutes = require('./routes/admin/pricing.routes');
 const auditLogRoutes = require('./routes/admin/audit-log.routes');
 const revenueRoutes = require('./routes/admin/revenue.routes');
 const productRoutes = require('./routes/admin/product.routes');
+const platformLimitRoutes = require('./routes/admin/platform-limit.routes');
 
 // Routes - Social Domain
 const socialRoutes = require('./routes/social/social.routes');
@@ -126,6 +127,7 @@ app.use('/api/inbox', inboxRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin/revenue', revenueRoutes);
 app.use('/api/admin/products', productRoutes);
+app.use('/api/admin/platform-limits', platformLimitRoutes);
 app.use('/api/social', socialRoutes);
 app.use('/api/brands', brandRoutes);
 app.use('/api/brands/:brandId/roles', roleRoutes);

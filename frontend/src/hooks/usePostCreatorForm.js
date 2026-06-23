@@ -11,6 +11,7 @@ import { POST_TYPE, YOUTUBE_TYPE, FACEBOOK_TYPE, INSTAGRAM_TYPE, TIKTOK_PRIVACY,
 import { buildMediaUrl, isVideoPath } from "../utils/url";
 import { validatePostForm } from "@/utils/postValidation";
 import { logger } from "@/utils/logger";
+import postService from "../services/post.service";
 
 const toLocalDatetimeString = (dateInput) => {
   if (!dateInput) return "";
@@ -45,7 +46,9 @@ export function usePostCreatorForm() {
   const [caption, setCaption] = useState("");
   const [title, setTitle] = useState("");
   const [altText, setAltText] = useState("");
+  const [selectedPlatforms, setSelectedPlatforms] = useState([DEFAULT_PLATFORM]);
   const [activePlatform, setActivePlatform] = useState(DEFAULT_PLATFORM);
+  const [platformLimits, setPlatformLimits] = useState([]);
   const [previewDevice, setPreviewDevice] = useState("mobile");
   const [showPublishMenu, setShowPublishMenu] = useState(false);
   const [selectedPublishId, setSelectedPublishId] = useState("now");
@@ -124,12 +127,23 @@ export function usePostCreatorForm() {
       }
     };
 
+    const fetchLimits = async () => {
+      try {
+        const res = await postService.getPlatformLimits();
+        setPlatformLimits(res.data || []);
+      } catch (err) {
+        logger.error("Failed to load platform limits from DB:", err);
+      }
+    };
+
     if (isOpen && activeBrand?.id) {
       fetchReviewers();
+      fetchLimits();
     } else {
       setPotentialReviewers([]);
       setSelectedReviewerId("");
       setSelectedReviewerIds([]);
+      setPlatformLimits([]);
     }
   }, [isOpen, activeBrand?.id]);
 
@@ -162,13 +176,33 @@ export function usePostCreatorForm() {
     };
   }, [videoFileUrl, videoFile]);
 
+  const togglePlatform = (platform) => {
+    setSelectedPlatforms((prev) => {
+      const platLower = platform.toLowerCase();
+      if (prev.includes(platLower)) {
+        if (prev.length === 1) {
+          toast.warning("At least one platform must be selected");
+          return prev;
+        }
+        const next = prev.filter((p) => p !== platLower);
+        if (activePlatform === platLower) {
+          setActivePlatform(next[0]);
+        }
+        return next;
+      } else {
+        setActivePlatform(platLower);
+        return [...prev, platLower];
+      }
+    });
+  };
+
   // Validation function
   const getValidationErrors = () => {
     return validatePostForm({
       isLibrary,
       selectedPublishId,
       scheduledDate,
-      activePlatform,
+      selectedPlatforms,
       facebookType,
       youtubeType,
       instagramType,
@@ -177,7 +211,8 @@ export function usePostCreatorForm() {
       videoDuration,
       videoWidth,
       videoHeight,
-      uploadedVideoPath
+      uploadedVideoPath,
+      platformLimits
     });
   };
 
@@ -302,14 +337,19 @@ export function usePostCreatorForm() {
     }
   }, [isOpen, activeBrand]);
 
-  // Populate form states when editing a post
   useEffect(() => {
     if (isOpen) {
       if (editingPost) {
         setCaption(editingPost.caption || "");
         setTitle(editingPost.title || "");
         setAltText(editingPost.altText || "");
-        setActivePlatform(editingPost.platforms?.[0]?.toLowerCase() || "youtube");
+        
+        const loadedPlatforms = editingPost.platforms && editingPost.platforms.length > 0
+          ? editingPost.platforms.map(p => p.toLowerCase())
+          : [DEFAULT_PLATFORM];
+        setSelectedPlatforms(loadedPlatforms);
+        setActivePlatform(loadedPlatforms[0] || DEFAULT_PLATFORM);
+
         setScheduledDate(editingPost.scheduledAt ? toLocalDatetimeString(editingPost.scheduledAt) : toLocalDatetimeString(new Date()));
         setIsLibrary(editingPost.isLibrary || false);
         
@@ -358,7 +398,13 @@ export function usePostCreatorForm() {
         setCaption(templatePost.caption || "");
         setTitle(templatePost.title || "");
         setAltText(templatePost.altText || "");
-        setActivePlatform(templatePost.platforms?.[0]?.toLowerCase() || "youtube");
+        
+        const loadedPlatforms = templatePost.platforms && templatePost.platforms.length > 0
+          ? templatePost.platforms.map(p => p.toLowerCase())
+          : [DEFAULT_PLATFORM];
+        setSelectedPlatforms(loadedPlatforms);
+        setActivePlatform(loadedPlatforms[0] || DEFAULT_PLATFORM);
+
         setScheduledDate(defaultScheduledAt ? toLocalDatetimeString(defaultScheduledAt) : toLocalDatetimeString(new Date()));
         setIsLibrary(initialIsLibrary || false);
         setSelectedPublishId(defaultScheduledAt ? "schedule" : "now");
@@ -404,7 +450,28 @@ export function usePostCreatorForm() {
         // Reset for new creation
         setCaption("");
         setTitle("");
-        setActivePlatform(DEFAULT_PLATFORM);
+        
+        const connected = activeBrand?.socialAccounts
+          ?.filter(sa => sa.isConnected)
+          ?.map(sa => {
+            const mapping = {
+              FACEBOOK: "facebook",
+              INSTAGRAM: "instagram",
+              YOUTUBE: "youtube",
+              TIKTOK: "tiktok",
+              LINKEDIN: "linkedin",
+              TELEGRAM: "telegram",
+              DISCORD: "discord"
+            };
+            return mapping[sa.platform];
+          })
+          ?.filter(Boolean) || [];
+        const initialPlatform = connected.includes(DEFAULT_PLATFORM)
+          ? DEFAULT_PLATFORM
+          : (connected[0] || DEFAULT_PLATFORM);
+
+        setSelectedPlatforms([initialPlatform]);
+        setActivePlatform(initialPlatform);
         setScheduledDate(defaultScheduledAt ? toLocalDatetimeString(defaultScheduledAt) : toLocalDatetimeString(new Date()));
         setIsLibrary(initialIsLibrary || false);
         setSelectedPublishId(defaultScheduledAt ? PUBLISH_MODE.SCHEDULE : PUBLISH_MODE.NOW);
@@ -437,7 +504,7 @@ export function usePostCreatorForm() {
         setSelectedDiscordChannels(discordAccs.map(acc => acc.id));
       }
     }
-  }, [isOpen, editingPost, templatePost, defaultScheduledAt, initialIsLibrary]);
+  }, [isOpen, editingPost, templatePost, defaultScheduledAt, initialIsLibrary, activeBrand]);
 
   const loadTemplate = (template) => {
     if (!template) return;
@@ -525,7 +592,7 @@ export function usePostCreatorForm() {
         status,
         isLibrary,
         altText,
-        targetPlatforms: [activePlatform.toUpperCase()],
+        targetPlatforms: selectedPlatforms.map(p => p.toUpperCase()),
         scheduledAt: selectedPublishId === 'now' ? null : (scheduledDate ? new Date(scheduledDate).toISOString() : null),
         mediaUrls: uploadedVideoPath ? [uploadedVideoPath] : [],
         reviewerIds: selectedReviewerIds,
@@ -562,6 +629,7 @@ export function usePostCreatorForm() {
         await apiService.post('/posts', payload);
         toast.success("Post created successfully");
         // Reset state sau khi tạo bài mới thành công
+        setSelectedPlatforms([DEFAULT_PLATFORM]);
         setActivePlatform(DEFAULT_PLATFORM);
         setScheduledDate(toLocalDatetimeString(new Date()));
         setIsLibrary(false);
@@ -601,8 +669,11 @@ export function usePostCreatorForm() {
     setCaption,
     title,
     setTitle,
+    selectedPlatforms,
+    togglePlatform,
     activePlatform,
     setActivePlatform,
+    platformLimits,
     previewDevice,
     setPreviewDevice,
     showPublishMenu,
