@@ -42,6 +42,13 @@ router.post('/discord/snapshot', verifyAuth, discordStatsController.triggerSnaps
 // Facebook Features
 router.get('/facebook/published-posts', verifyAuth, facebookController.getFacebookPublishedPosts);
 router.post('/facebook/disconnect', verifyAuth, socialConnectionController.disconnectFacebookAccount);
+
+// Facebook Competitors
+router.get('/facebook/search-pages', verifyAuth, facebookController.searchFacebookPages);
+router.post('/facebook/competitors', verifyAuth, facebookController.addFacebookCompetitor);
+router.get('/facebook/competitors', verifyAuth, facebookController.getFacebookCompetitors);
+router.delete('/facebook/competitors/:id', verifyAuth, facebookController.deleteFacebookCompetitor);
+
 router.post('/instagram/disconnect', verifyAuth, socialConnectionController.disconnectInstagramAccount);
 router.post('/tiktok/disconnect', verifyAuth, socialConnectionController.disconnectTikTokAccount);
 router.post('/linkedin/disconnect', verifyAuth, socialConnectionController.disconnectLinkedInAccount);

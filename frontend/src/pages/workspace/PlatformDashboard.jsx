@@ -25,6 +25,7 @@ import { TrackedVideosTab } from "./dashboard/TrackedVideosTab";
 import { FacebookDashboard } from "./dashboard/FacebookDashboard";
 import { TikTokDashboard } from "./dashboard/TikTokDashboard";
 import { DiscordDashboard } from "./dashboard/DiscordDashboard";
+import { InstagramAccountTab } from "./dashboard/InstagramAccountTab";
 import { usePlatformDashboard } from "../../hooks/usePlatformDashboard";
 import { DateRangeFilter } from "../../components/app/DateRangeFilter";
 import { useConnections } from "../../context/ConnectionsContext";
@@ -48,12 +49,10 @@ const YT_TABS = [
 ];
 
 const FB_TABS = [
-  { id: "overview", label: "OVERVIEW" },
-  { id: "followers", label: "FOLLOWERS" },
-  { id: "clicks", label: "CLICKS" },
-  { id: "posts", label: "POSTS" },
-  { id: "interactions", label: "INTERACTIONS" },
-  { id: "posts_list", label: "LIST OF POSTS" },
+  { id: "overview",    label: "OVERVIEW" },
+  { id: "posts",       label: "POSTS" },
+  { id: "stories",     label: "STORIES" },
+  { id: "competitors", label: "COMPETITORS" },
 ];
 
 const TT_TABS = [
@@ -64,6 +63,12 @@ const TT_TABS = [
 const DISCORD_TABS = [
   { id: "community", label: "CỘNG ĐỒNG" },
   { id: "channels", label: "KÊNH KẾT NỐI" },
+];
+
+const IG_TABS = [
+  { id: "community", label: "COMMUNITY" },
+  { id: "account", label: "ACCOUNT" },
+  { id: "competitors", label: "COMPETITORS" },
 ];
 
 export function PlatformDashboardPage() {
@@ -129,7 +134,7 @@ export function PlatformDashboardPage() {
   const navigate = useNavigate();
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
-  const tabs = platform === "facebook" ? FB_TABS : platform === "tiktok" ? TT_TABS : platform === "discord" ? DISCORD_TABS : YT_TABS;
+  const tabs = platform === "instagram" ? IG_TABS : platform === "facebook" ? FB_TABS : platform === "tiktok" ? TT_TABS : platform === "discord" ? DISCORD_TABS : YT_TABS;
 
 
   useEffect(() => {
@@ -286,11 +291,17 @@ export function PlatformDashboardPage() {
                 className="w-5 h-5 rounded-md flex items-center justify-center"
                 style={{ backgroundColor: config.color }}
               >
-                 {platform === "facebook" ? (
-                   <Facebook size={10} className="text-white fill-white" />
-                 ) : (
-                   <Youtube size={10} className="text-white fill-white" />
-                 )}
+                  {platform === "facebook" ? (
+                    <Facebook size={10} className="text-white fill-white" />
+                  ) : platform === "instagram" ? (
+                    <Instagram size={10} className="text-white" />
+                  ) : platform === "tiktok" ? (
+                    <PlayCircle size={10} className="text-white fill-white" />
+                  ) : platform === "discord" ? (
+                    <BarChart2 size={10} className="text-white fill-white" />
+                  ) : (
+                    <Youtube size={10} className="text-white fill-white" />
+                  )}
               </div>
            </div>
         </div>
@@ -352,7 +363,92 @@ export function PlatformDashboardPage() {
             fetchPublishedVideos={fetchPublishedVideos}
             prevPageToken={prevPageToken}
             nextPageToken={nextPageToken}
+            isCompetitorModalOpen={isCompetitorModalOpen}
+            setIsCompetitorModalOpen={setIsCompetitorModalOpen}
+            competitorQuery={competitorQuery}
+            setCompetitorQuery={setCompetitorQuery}
+            handleSearchCompetitors={handleSearchCompetitors}
+            isSearching={isSearching}
+            searchResults={searchResults}
+            handleAddCompetitor={handleAddCompetitor}
+            handleDeleteCompetitor={handleDeleteCompetitor}
+            isCompetitorLoading={isCompetitorLoading}
+            competitors={competitors}
           />
+        ) : platform === "instagram" ? (
+          <>
+            {activeTab === "community" && (
+              <div className="space-y-6">
+                {(() => {
+                  const igGrowthConfig = [
+                    {
+                      key: "followers",
+                      label: "Followers",
+                      color: "bg-[#8E9BEE] text-white",
+                      chartColor: "#8E9BEE",
+                      type: "area",
+                      value: metrics?.instagramAccount?.followersCount || 0
+                    },
+                    {
+                      key: "following",
+                      label: "Following",
+                      color: "bg-[#A7F3D0] text-gray-900",
+                      chartColor: "#A7F3D0",
+                      type: "line",
+                      value: metrics?.instagramAccount?.followingCount || 0
+                    },
+                    {
+                      key: "totalContent",
+                      label: "Total content",
+                      color: "bg-[#E6A34A] text-white",
+                      chartColor: "#E6A34A",
+                      type: "bar",
+                      value: metrics?.instagramAccount?.mediaCount || 0
+                    }
+                  ];
+
+                  return (
+                    <GenericDashboardTab
+                      title="Growth"
+                      description="Growth metrics for Followers, Following, and Total Content"
+                      data={communityGrowthData}
+                      metricConfig={igGrowthConfig}
+                      watermark="publicast"
+                    />
+                  );
+                })()}
+              </div>
+            )}
+
+            {activeTab === "account" && (
+              <InstagramAccountTab
+                metrics={metrics}
+                realData={realData}
+                publishedVideos={publishedVideos}
+                isPublishedLoading={isPublishedLoading}
+                pageSize={pageSize}
+                setPageSize={setPageSize}
+                fetchPublishedVideos={fetchPublishedVideos}
+                prevPageToken={prevPageToken}
+                nextPageToken={nextPageToken}
+              />
+            )}
+
+            {activeTab === "competitors" && (
+              <CompetitorsTab
+                competitors={competitors}
+                isLoading={isCompetitorLoading}
+                onAddCompetitor={handleAddCompetitor}
+                onDeleteCompetitor={handleDeleteCompetitor}
+                searchQuery={competitorQuery}
+                setSearchQuery={setCompetitorQuery}
+                searchResults={searchResults}
+                isSearching={isSearching}
+                isModalOpen={isCompetitorModalOpen}
+                setIsModalOpen={setIsCompetitorModalOpen}
+              />
+            )}
+          </>
         ) : platform === "tiktok" ? (
           <TikTokDashboard
             metrics={metrics}

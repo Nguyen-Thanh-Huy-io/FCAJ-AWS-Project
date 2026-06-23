@@ -87,6 +87,29 @@ class SocialService {
     return response.data;
   }
 
+  // ── Facebook Competitors ──────────────────────────────────────────────────
+
+  async searchFacebookPages(brandId, query) {
+    const response = await apiService.get(`/social/facebook/search-pages?brandId=${brandId}&query=${encodeURIComponent(query)}`);
+    return response.data;
+  }
+
+  async addFacebookCompetitor(brandId, pageId) {
+    const response = await apiService.post('/social/facebook/competitors', { brandId, pageId });
+    return response.data;
+  }
+
+  async getFacebookCompetitors(brandId) {
+    const response = await apiService.get(`/social/facebook/competitors?brandId=${brandId}`);
+    return response.data;
+  }
+
+  async deleteFacebookCompetitor(id) {
+    const response = await apiService.delete(`/social/facebook/competitors/${id}`);
+    return response.data;
+  }
+
+
   async getTikTokAuthUrl(brandId) {
     const response = await apiService.get(`/social/tiktok/url?brandId=${brandId}`);
     return response.data;

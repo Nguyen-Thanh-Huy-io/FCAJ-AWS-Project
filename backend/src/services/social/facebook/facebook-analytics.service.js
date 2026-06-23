@@ -49,7 +49,7 @@ class FacebookAnalyticsService {
     };
 
     const sortedDates = Object.keys(dailyMap).sort().map(d => dailyMap[d]);
-    return this._calculateTotalsAndFormatResponse(sortedDates, currentVal, feedStats);
+    return this._calculateTotalsAndFormatResponse(sortedDates, currentVal, feedStats, []);
   }
 
   async getChannelInfo(auth, startDate, endDate, socialAccountId = null) {
@@ -139,6 +139,43 @@ class FacebookAnalyticsService {
         }
       }
 
+      // Fetch Page Stories
+      let stories = [];
+      try {
+        const rawStories = await facebookGateway.getPageStories(pageId, pageAccessToken);
+        for (const story of rawStories) {
+          const insights = await facebookGateway.getStoryInsights(story.id, pageAccessToken);
+          const mappedInsights = {};
+          insights.forEach(item => {
+            mappedInsights[item.name] = item.values?.[0]?.value || 0;
+          });
+
+          // Completion rate logic: (reach - exits) / reach
+          const reach = mappedInsights.reach || 0;
+          const exits = mappedInsights.exits || 0;
+          const completionRate = reach ? parseFloat(((reach - exits) / reach).toFixed(4)) : 0;
+          const exitRate = mappedInsights.impressions ? parseFloat((exits / mappedInsights.impressions).toFixed(4)) : 0;
+
+          stories.push({
+            platformStoryId: story.id,
+            publishedAt: story.creation_time,
+            expiresAt: new Date(new Date(story.creation_time).getTime() + 24 * 60 * 60 * 1000).toISOString(),
+            mediaType: story.media_type || 'IMAGE',
+            mediaUrl: story.media_url || null,
+            thumbnailUrl: story.media_url || null,
+            reach: reach,
+            impressions: mappedInsights.impressions || 0,
+            exits: exits,
+            replies: mappedInsights.replies || 0,
+            linkClicks: mappedInsights.link_clicks || 0,
+            completionRate: completionRate,
+            exitRate: exitRate
+          });
+        }
+      } catch (err) {
+        console.error('[Facebook Stories] Failed to fetch real stories:', err.message);
+      }
+
       const sortedDates = Object.keys(dailyMap).sort().map(d => {
         const { _fromDb, ...cleanData } = dailyMap[d];
         return cleanData;
@@ -155,7 +192,7 @@ class FacebookAnalyticsService {
         }
       }
 
-      return this._calculateTotalsAndFormatResponse(finalData.length > 0 ? finalData : sortedDates, currentFollowersCount, feedStats);
+      return this._calculateTotalsAndFormatResponse(finalData.length > 0 ? finalData : sortedDates, currentFollowersCount, feedStats, stories);
     } catch (error) {
       console.error('Error fetching Facebook Page Analytics:', error);
       throw error;
@@ -329,7 +366,7 @@ class FacebookAnalyticsService {
     });
   }
 
-  _calculateTotalsAndFormatResponse(sortedDates, currentFollowersCount, feedStats) {
+  _calculateTotalsAndFormatResponse(sortedDates, currentFollowersCount, feedStats, stories = []) {
     let tempFollowers = currentFollowersCount;
     for (let i = sortedDates.length - 1; i >= 0; i--) {
       sortedDates[i].followers = tempFollowers;
@@ -364,6 +401,7 @@ class FacebookAnalyticsService {
     return {
       startDate: sortedDates[0]?.date,
       endDate: sortedDates[sortedDates.length - 1]?.date,
+      stories: stories,
       summary: {
         followers: currentFollowersCount,
         views: totalViews,

@@ -74,9 +74,9 @@ class InstagramPostService {
       const shares = metrics.shares || 0;
       
       const totalInteractions = reactions + comments + shares;
-      const reach = metrics.reach || (totalInteractions > 0 ? Math.round(totalInteractions * 8 + 5) : 0);
-      const views = metrics.impressions || (reach > 0 ? Math.round(reach * 1.3) : 0);
-      const clicks = metrics.clicks || (reactions > 0 ? Math.round(reactions * 0.15) : 0);
+      const reach = metrics.reach || 0;
+      const views = metrics.impressions || 0;
+      const clicks = metrics.clicks || 0;
 
       const engagement = reach ? parseFloat((((reactions + comments + shares + clicks) / reach) * 100).toFixed(2)) : 0;
 
@@ -124,9 +124,6 @@ class InstagramPostService {
   _formatFallbackPost(post) {
     const reactions = post.like_count || 0;
     const comments = post.comments_count || 0;
-    const totalInteractions = reactions + comments;
-    const simulatedReach = totalInteractions > 0 ? Math.round(totalInteractions * 8 + 5) : 0;
-    const simulatedViews = simulatedReach > 0 ? Math.round(simulatedReach * 1.3) : 0;
 
     return {
       id: post.id,
@@ -135,16 +132,16 @@ class InstagramPostService {
       mediaUrl: post.media_url || post.thumbnail_url || '',
       date: post.timestamp,
       status: POST_STATUS.PUBLISHED,
-      reach: simulatedReach,
-      views: simulatedViews,
+      reach: 0,
+      views: 0,
       reactions,
       comments,
       shares: 0,
       clicks: 0,
       linkClicks: 0,
-      videoViews: post.media_type === 'VIDEO' ? simulatedViews : 0,
-      videoTimeWatched: post.media_type === 'VIDEO' ? '0:20' : '0:00',
-      engagement: simulatedReach ? parseFloat(((totalInteractions / simulatedReach) * 100).toFixed(2)) : 0,
+      videoViews: 0,
+      videoTimeWatched: '0:00',
+      engagement: 0,
       spent: 0
     };
   }

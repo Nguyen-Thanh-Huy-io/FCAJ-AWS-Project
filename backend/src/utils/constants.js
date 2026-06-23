@@ -206,13 +206,13 @@ const ANALYTICS = {
   },
   METRICS: {
     FACEBOOK: {
-      VIEWS: 'page_views_total',
-      IMPRESSIONS: 'page_impressions_unique',
+      VIEWS: 'page_media_view',
+      IMPRESSIONS: 'page_total_media_view_unique',
       FOLLOWS: 'page_daily_follows_unique',
       ENGAGEMENTS: 'page_post_engagements',
       ACTIONS: 'page_total_actions',
-      POST_REACH: 'post_impressions_unique',
-      POST_VIEWS: 'post_impressions',
+      POST_REACH: 'post_total_media_view_unique',
+      POST_VIEWS: 'post_media_view',
       POST_CLICKS: 'post_clicks_by_type'
     },
     YOUTUBE: {

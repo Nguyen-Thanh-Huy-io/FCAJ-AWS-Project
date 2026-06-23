@@ -2,6 +2,7 @@ const BaseSocialService = require('../base-social.service');
 const facebookAnalytics = require('./facebook-analytics.service');
 const facebookPost = require('./facebook-post.service');
 const facebookComment = require('./facebook-comment.service');
+const facebookCompetitor = require('./facebook-competitor.service');
 
 class FacebookService extends BaseSocialService {
   // --- Analytics & Page ---
@@ -50,11 +51,19 @@ class FacebookService extends BaseSocialService {
   }
 
   async searchChannel(brandId, query) {
-    return [];
+    return facebookCompetitor.searchPages(brandId, query);
   }
 
-  async addCompetitor(brandId, channelId) {
-    return null;
+  async addCompetitor(brandId, pageId) {
+    return facebookCompetitor.addCompetitor(brandId, pageId);
+  }
+
+  async getCompetitors(brandId) {
+    return facebookCompetitor.getCompetitors(brandId);
+  }
+
+  async deleteCompetitor(id) {
+    return facebookCompetitor.deleteCompetitor(id);
   }
 
   async fetchChannelComments(brandId) {

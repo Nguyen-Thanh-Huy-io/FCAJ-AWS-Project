@@ -118,17 +118,7 @@ class InstagramAnalyticsService {
 
       console.log(`[Instagram Analytics] Smart Sync: Requesting ${missingRanges.length} missing ranges from API for ${igAccountId}`);
 
-      // Thực tế, ta sẽ gọi API cho các khoảng còn thiếu
-      // Do Graph API giới hạn nên ta có thể fallback mô phỏng nếu không có insights thật từ Facebook
-      const mockResult = this._getMockAnalyticsReport(startDate, endDate, currentFollowersCount);
-      Object.keys(dailyMap).forEach(dateStr => {
-        if (!dailyMap[dateStr]._fromDb) {
-          const mockDay = mockResult.growth.find(g => g.date === dateStr);
-          if (mockDay) {
-            Object.assign(dailyMap[dateStr], mockDay);
-          }
-        }
-      });
+      // No mock fallback for real accounts to ensure clean real-time data only.
 
       const feedResult = await instagramGateway.getInstagramMediaFeed(igAccountId, accessToken, null, 100).catch(() => ({ data: [] }));
       const feedStats = this._processFeed(feedResult.data || [], dailyMap);

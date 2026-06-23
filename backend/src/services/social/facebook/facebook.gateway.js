@@ -70,10 +70,12 @@ class FacebookGateway {
     const until = Math.floor(new Date(endDate).getTime() / 1000);
 
     const fullMetrics = [
-      'page_views_total',
-      'page_impressions_unique',
+      'page_media_view',
+      'page_total_media_view_unique',
       'page_daily_follows_unique',
-      'page_post_engagements'
+      'page_daily_unfollows_unique',
+      'page_post_engagements',
+      'page_total_actions'
     ];
 
     const tryFetch = async (metricList) => {
@@ -91,8 +93,10 @@ class FacebookGateway {
     if (result.error && result.error.code === 100) {
       const legacyMetrics = [
         'page_views_total',
-        'page_impressions_unique',
-        'page_post_engagements'
+        'page_post_engagements',
+        'page_total_actions',
+        'page_daily_follows_unique',
+        'page_daily_unfollows_unique'
       ];
       result = await tryFetch(legacyMetrics);
     }
@@ -126,11 +130,34 @@ class FacebookGateway {
     };
   }
 
-  async getPostInsights(postId, pageAccessToken) {
-    const metrics = 'post_impressions_unique,post_impressions,post_clicks_by_type';
-    const url = `${this.graphBaseUrl}/${postId}/insights?metric=${metrics}&access_token=${pageAccessToken}`;
-    
+  async getPageStories(pageId, pageAccessToken) {
+    const url = `${this.graphBaseUrl}/${pageId}/stories?fields=id,media_type,media_url,creation_time,status&access_token=${pageAccessToken}`;
     const res = await fetch(url);
+    if (!res.ok) {
+      return [];
+    }
+    const data = await res.json();
+    return data.data || [];
+  }
+
+  async getStoryInsights(storyId, pageAccessToken) {
+    const metrics = 'exits,replies,taps_forward,taps_back,impressions,reach';
+    const url = `${this.graphBaseUrl}/${storyId}/insights?metric=${metrics}&access_token=${pageAccessToken}`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.data || [];
+  }
+
+  async getPostInsights(postId, pageAccessToken) {
+    const newMetrics = 'post_total_media_view_unique,post_media_view,post_clicks_by_type';
+    let url = `${this.graphBaseUrl}/${postId}/insights?metric=${newMetrics}&access_token=${pageAccessToken}`;
+    let res = await fetch(url);
+    if (!res.ok) {
+      const legacyMetrics = 'post_impressions_unique,post_impressions,post_clicks_by_type';
+      url = `${this.graphBaseUrl}/${postId}/insights?metric=${legacyMetrics}&access_token=${pageAccessToken}`;
+      res = await fetch(url);
+    }
     if (!res.ok) return [];
 
     const data = await res.json();
@@ -418,6 +445,55 @@ class FacebookGateway {
       }
       return { buffer: fs.readFileSync(localPath), filename: path.basename(localPath) };
     }
+  }
+
+  /**
+   * Tìm kiếm Facebook Pages công khai theo query string.
+   * Dùng Graph API /search endpoint (cần App Access Token hoặc User Access Token).
+   * @param {string} appAccessToken - App-level access token (APP_ID|APP_SECRET)
+   * @param {string} query - Từ khóa tìm kiếm
+   * @returns {Array} Danh sách pages kết quả
+   */
+  async searchFacebookPages(appAccessToken, query) {
+    const url = `${this.graphBaseUrl}/search?q=${encodeURIComponent(query)}&type=page&fields=id,name,picture{url},fan_count,followers_count,category&access_token=${appAccessToken}&limit=10`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error?.message || 'Failed to search Facebook pages');
+    }
+    const data = await res.json();
+    return (data.data || []).map(p => ({
+      pageId: p.id,
+      title: p.name,
+      thumbnail: p.picture?.data?.url || null,
+      followersCount: p.followers_count || p.fan_count || 0,
+      category: p.category || null,
+    }));
+  }
+
+  /**
+   * Lấy thông tin public của một Facebook Page theo pageId.
+   * Dùng App Access Token để fetch — không cần user login page đó.
+   * @param {string} pageId
+   * @param {string} appAccessToken
+   * @returns {Object} Page info
+   */
+  async getPublicPageInfo(pageId, appAccessToken) {
+    const url = `${this.graphBaseUrl}/${pageId}?fields=id,name,picture{url},fan_count,followers_count,category,link&access_token=${appAccessToken}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error?.message || `Failed to fetch public page info for ${pageId}`);
+    }
+    const data = await res.json();
+    return {
+      pageId: data.id,
+      displayName: data.name,
+      avatarUrl: data.picture?.data?.url || null,
+      followersCount: data.followers_count || data.fan_count || 0,
+      category: data.category || null,
+      profileUrl: data.link || `https://www.facebook.com/${data.id}`,
+    };
   }
 }
 

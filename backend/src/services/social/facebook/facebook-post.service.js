@@ -128,9 +128,11 @@ class FacebookPostService {
   _parseInsightsMetrics(insights) {
     const result = { reach: 0, views: 0, clicks: 0, linkClicks: 0 };
     for (const item of insights) {
-      if (item.name === 'post_impressions_unique') result.reach = item.values?.[0]?.value || 0;
-      else if (item.name === 'post_impressions') result.views = item.values?.[0]?.value || 0;
-      else if (item.name === 'post_clicks_by_type') {
+      if (item.name === 'post_total_media_view_unique' || item.name === 'post_impressions_unique') {
+        result.reach = item.values?.[0]?.value || 0;
+      } else if (item.name === 'post_media_view' || item.name === 'post_impressions') {
+        result.views = item.values?.[0]?.value || 0;
+      } else if (item.name === 'post_clicks_by_type') {
         const types = item.values?.[0]?.value || {};
         result.clicks = Object.values(types).reduce((sum, val) => sum + val, 0);
         result.linkClicks = types['link clicks'] || 0;
