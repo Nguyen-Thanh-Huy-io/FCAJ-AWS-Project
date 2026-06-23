@@ -428,10 +428,20 @@ class FacebookAnalyticsService {
 
   async connectChannel(brandId, code, redirectUri) {
     const tokens = await facebookGateway.exchangeCodeForToken(code, redirectUri);
+    
+    // Diagnostics
+    const permissions = await facebookGateway.getUserPermissions(tokens.access_token).catch(() => []);
     const pages = await facebookGateway.getUserPages(tokens.access_token);
 
+    console.log('[Facebook Connect Diagnostics]', {
+      permissions,
+      pagesCount: pages.length,
+      pages: pages.map(p => ({ id: p.id, name: p.name }))
+    });
+
     if (pages.length === 0) {
-      throw new Error('No Facebook Page found managed by this account. Please verify permissions.');
+      const scopes = permissions.map(p => `${p.permission}:${p.status}`).join(', ');
+      throw new Error(`Không tìm thấy Trang Facebook. Quyền đã cấp: [${scopes || 'none'}]. Hãy đảm bảo tài khoản FB của bạn có quyền Quản trị (Admin) trên Trang.`);
     }
 
     const selectedPage = pages[0];

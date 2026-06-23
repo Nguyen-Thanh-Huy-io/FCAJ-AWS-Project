@@ -82,7 +82,7 @@ class OAuthController {
       appId,
       redirectUri,
       state,
-      'pages_show_list,pages_read_engagement,pages_read_user_content,read_insights,pages_manage_engagement'
+      'pages_show_list,pages_read_engagement,pages_read_user_content,read_insights,pages_manage_engagement,business_management'
     );
     res.json({ url });
   });
@@ -130,7 +130,7 @@ class OAuthController {
       appId,
       redirectUri,
       state,
-      'pages_show_list,instagram_basic,instagram_manage_comments,instagram_manage_insights,instagram_content_publish,pages_read_engagement'
+      'pages_show_list,instagram_basic,instagram_manage_comments,instagram_manage_insights,instagram_content_publish,pages_read_engagement,business_management'
     );
     res.json({ url });
   });

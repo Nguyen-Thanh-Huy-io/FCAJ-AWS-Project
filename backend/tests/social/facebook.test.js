@@ -132,6 +132,7 @@ describe('Facebook Integration Service Tests', () => {
 
       facebookGateway.exchangeCodeForToken.mockResolvedValue(mockUserToken);
       facebookGateway.getUserPages.mockResolvedValue(mockPages);
+      facebookGateway.getUserPermissions.mockResolvedValue([]);
       facebookGateway.getPageDetails.mockResolvedValue(mockPageDetails);
       facebookGateway.getPageInsights.mockResolvedValue([]);
       facebookGateway.getPageFeed.mockResolvedValue({ data: [] });
