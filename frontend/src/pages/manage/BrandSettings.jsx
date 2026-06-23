@@ -76,7 +76,8 @@ export function BrandSettingsPage() {
         setConflictData({ channelName, platformAccountId, platform, existingBrandName });
       }
     } else if (error) {
-      toast.error(`Connection error: ${error}`);
+      const errorMsg = params.get("message");
+      toast.error(errorMsg || `Connection error: ${error}`);
     }
     
     if (tabParam === "connections") setActiveTab("connections");

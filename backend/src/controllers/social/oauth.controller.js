@@ -51,7 +51,7 @@ class OAuthController {
       return res.redirect(`${frontendUrl}/manage/connections?${queryParams}`);
     }
     logger.error('Social OAuth Connection Error:', error);
-    return res.redirect(`${frontendUrl}/manage/connections?error=connection_failed`);
+    return res.redirect(`${frontendUrl}/manage/connections?error=connection_failed&message=${encodeURIComponent(error.message)}`);
   }
 
   googleCallback = asyncHandler(async (req, res) => {
