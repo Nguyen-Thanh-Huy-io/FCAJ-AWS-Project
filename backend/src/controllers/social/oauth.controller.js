@@ -6,7 +6,7 @@ const instagramService = require('../../services/social/instagram');
 const linkedinService = require('../../services/social/linkedin');
 const linkedinGateway = require('../../services/social/linkedin/linkedin.gateway');
 const tiktokGateway = require('../../services/social/tiktok/tiktok.gateway');
-const { SOCIAL_TECHNICAL, GOOGLE_SCOPES, FACEBOOK_API, DEFAULT_CONFIG, API_VERSIONS } = require('../../utils/constants');
+const { SOCIAL_TECHNICAL, GOOGLE_SCOPES, FACEBOOK_SCOPES, FACEBOOK_API, DEFAULT_CONFIG, API_VERSIONS } = require('../../utils/constants');
 const asyncHandler = require('../../utils/async-handler');
 const logger = require('../../utils/logger');
 const redisClient = require('../../config/redis');
@@ -82,7 +82,7 @@ class OAuthController {
       appId,
       redirectUri,
       state,
-      'pages_show_list,pages_read_engagement,pages_read_user_content,read_insights,pages_manage_engagement,business_management'
+      FACEBOOK_SCOPES.FACEBOOK
     );
     res.json({ url });
   });
@@ -130,7 +130,7 @@ class OAuthController {
       appId,
       redirectUri,
       state,
-      'pages_show_list,instagram_basic,instagram_manage_comments,instagram_manage_insights,instagram_content_publish,pages_read_engagement,business_management'
+      FACEBOOK_SCOPES.INSTAGRAM
     );
     res.json({ url });
   });

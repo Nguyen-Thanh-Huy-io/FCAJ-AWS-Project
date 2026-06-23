@@ -352,6 +352,26 @@ const GOOGLE_SCOPES = {
   DRIVE_READONLY: 'https://www.googleapis.com/auth/drive.readonly'
 };
 
+const FACEBOOK_SCOPES = {
+  FACEBOOK: [
+    'pages_show_list',
+    'pages_read_engagement',
+    'pages_read_user_content',
+    'read_insights',
+    'pages_manage_engagement',
+    'business_management'
+  ].join(','),
+  INSTAGRAM: [
+    'pages_show_list',
+    'instagram_basic',
+    'instagram_manage_comments',
+    'instagram_manage_insights',
+    'instagram_content_publish',
+    'pages_read_engagement',
+    'business_management'
+  ].join(',')
+};
+
 const API_VERSIONS = {
   FACEBOOK: 'v25.0',
   YOUTUBE: 'v3',
@@ -455,6 +475,7 @@ module.exports = {
   TIKTOK_API,
   YOUTUBE_API,
   GOOGLE_SCOPES,
+  FACEBOOK_SCOPES,
   API_VERSIONS,
   MEDIA_EXTENSIONS,
   AUDIT_CONFIG,
