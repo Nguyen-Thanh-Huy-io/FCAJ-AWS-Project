@@ -76,11 +76,12 @@ class OAuthController {
 
     const appId = process.env.FACEBOOK_APP_ID;
     const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/facebook/callback`;
+    const state = `facebook:${brandId}`;
     const url = FACEBOOK_API.dialogUrl(
       API_VERSIONS.FACEBOOK,
       appId,
       redirectUri,
-      brandId,
+      state,
       'pages_show_list,pages_read_engagement,pages_read_user_content,read_insights,pages_manage_engagement'
     );
     res.json({ url });
@@ -88,15 +89,29 @@ class OAuthController {
 
   facebookCallback = asyncHandler(async (req, res) => {
     const { code, state } = req.query;
-    const brandId = state;
+    
+    let platform = 'facebook';
+    let brandId = state;
+
+    if (state && state.includes(':')) {
+      const parts = state.split(':');
+      platform = parts[0];
+      brandId = parts[1];
+    }
+
     const frontendUrl = DEFAULT_CONFIG.FRONTEND_URL;
     const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/facebook/callback`;
 
     if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
 
     try {
-      await facebookService.connectChannel(brandId, code, redirectUri);
-      return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=facebook_connected`);
+      if (platform === 'instagram') {
+        await instagramService.connectChannel(brandId, code, redirectUri);
+        return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=instagram_connected`);
+      } else {
+        await facebookService.connectChannel(brandId, code, redirectUri);
+        return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=facebook_connected`);
+      }
     } catch (error) {
       return this._handleCallbackError(error, frontendUrl, res);
     }
@@ -107,12 +122,14 @@ class OAuthController {
     if (!brandId) return res.status(400).json({ message: 'brandId is required' });
 
     const appId = process.env.FACEBOOK_APP_ID;
-    const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/instagram/callback`;
+    // Reuse facebook callback to prevent Whitelist Redirect URI block issues on FB App Console
+    const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/facebook/callback`;
+    const state = `instagram:${brandId}`;
     const url = FACEBOOK_API.dialogUrl(
       API_VERSIONS.FACEBOOK,
       appId,
       redirectUri,
-      brandId,
+      state,
       'pages_show_list,instagram_basic,instagram_manage_comments,instagram_manage_insights,instagram_content_publish,pages_read_engagement'
     );
     res.json({ url });
