@@ -30,7 +30,8 @@ jest.mock('../../src/services/social/connection-conflict.guard', () => ({
 }));
 jest.mock('../../src/services/social/facebook/facebook.gateway', () => ({
   exchangeCodeForToken: jest.fn().mockResolvedValue({ access_token: 'fb_user_token_123' }),
-  getUserPages: jest.fn().mockResolvedValue([{ id: 'page_123', name: 'Facebook Page', access_token: 'page_token_123' }])
+  getUserPages: jest.fn().mockResolvedValue([{ id: 'page_123', name: 'Facebook Page', access_token: 'page_token_123' }]),
+  getUserPermissions: jest.fn().mockResolvedValue([])
 }));
 
 describe('Instagram Integration Service Tests', () => {

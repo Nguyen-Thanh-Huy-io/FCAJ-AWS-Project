@@ -34,6 +34,14 @@ class FacebookGateway {
     return data.data || [];
   }
 
+  async getUserPermissions(userAccessToken) {
+    const url = `${this.graphBaseUrl}/me/permissions?access_token=${userAccessToken}`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.data || [];
+  }
+
   async getPageDetails(pageId, pageAccessToken) {
     const url = `${this.graphBaseUrl}/${pageId}?fields=id,name,picture{url},category,about,website,fan_count,followers_count&access_token=${pageAccessToken}`;
     
