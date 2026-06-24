@@ -38,6 +38,8 @@ const permissionRoutes = require('./routes/workspace/permission.routes');
 const approvalWorkflowRoutes = require('./routes/workspace/approval-workflow.routes');
 const aiRoutes = require('./routes/workspace/ai.routes');
 const reportRoutes = require('./routes/workspace/report.routes');
+const hashtagRoutes = require('./routes/workspace/hashtag.routes');
+const adAccountRoutes = require('./routes/workspace/ad-account.routes');
 
 
 // Routes - Core Domain
@@ -139,6 +141,8 @@ app.use('/api/auto-lists', autoListRoutes);
 app.use('/api/smart-links', smartLinkRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/hashtags', hashtagRoutes);
+app.use('/api/ad-accounts', adAccountRoutes);
 
 
 // ── BullMQ Dashboard — protected in production ─────────────────────────────

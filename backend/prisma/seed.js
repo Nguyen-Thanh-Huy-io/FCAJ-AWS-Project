@@ -8,6 +8,9 @@ async function main() {
   await prisma.customRolePermission.deleteMany({});
   await prisma.customRole.deleteMany({});
   await prisma.team.deleteMany({});
+  await prisma.adAnalytics.deleteMany({});
+  await prisma.analytics.deleteMany({});
+  await prisma.adAccount.deleteMany({});
   await prisma.brand.deleteMany({});
   await prisma.subscription.deleteMany({});
   await prisma.userSettings.deleteMany({});
@@ -673,6 +676,120 @@ async function main() {
       },
       update: limit,
       create: limit
+    });
+  }
+
+  console.log('Seeding AdAccounts and AdAnalytics...');
+  const fbAdAccount = await prisma.adAccount.create({
+    data: {
+      brandId: brand.id,
+      platform: 'META_ADS',
+      platformAccountId: 'act_10928374',
+      accountName: 'Meta Ads - PubliCast Campaign',
+      currency: 'USD',
+      timezone: 'Asia/Ho_Chi_Minh',
+      accessToken: 'eaab_mock_token_123',
+      isActive: true,
+      lastSyncAt: new Date()
+    }
+  });
+
+  const ggAdAccount = await prisma.adAccount.create({
+    data: {
+      brandId: brand.id,
+      platform: 'GOOGLE_ADS',
+      platformAccountId: 'act_82736451',
+      accountName: 'Google Search Ads - PubliCast App',
+      currency: 'USD',
+      timezone: 'Asia/Ho_Chi_Minh',
+      accessToken: 'ya29_mock_token_456',
+      isActive: true,
+      lastSyncAt: new Date()
+    }
+  });
+
+  // Generate daily metrics for both ad accounts for 30 days
+  const adAnalyticsList = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+
+    // FB Ads metrics
+    const fbSpend = parseFloat((50 + Math.sin(i) * 20 + Math.random() * 10).toFixed(2));
+    const fbImpressions = Math.floor(fbSpend * 80 + Math.random() * 200);
+    const fbClicks = Math.floor(fbImpressions * 0.022 + Math.random() * 15);
+    const fbConversions = Math.floor(fbClicks * 0.12 + Math.random() * 2);
+    const fbConversionValue = fbConversions * 45; // 45$ per conversion value
+    const fbRoas = fbSpend > 0 ? parseFloat((fbConversionValue / fbSpend).toFixed(2)) : 0;
+
+    const fbAnalytics = await prisma.analytics.create({
+      data: {
+        brandId: brand.id,
+        adAccountId: fbAdAccount.id,
+        dateFrom: d,
+        dateTo: d,
+        granularity: 'DAY',
+        fetchedAt: new Date(),
+        analyticsType: 'AD',
+        adAnalytics: {
+          create: {
+            campaignId: 'camp_fb_q2',
+            campaignName: 'Summer Launch Campaign',
+            adSetId: 'adset_fb_1',
+            totalSpend: fbSpend,
+            impressions: fbImpressions,
+            clicks: fbClicks,
+            ctr: fbImpressions > 0 ? parseFloat(((fbClicks / fbImpressions) * 100).toFixed(2)) : 0,
+            cpc: fbClicks > 0 ? parseFloat((fbSpend / fbClicks).toFixed(2)) : 0,
+            cpm: fbImpressions > 0 ? parseFloat(((fbSpend / fbImpressions) * 1000).toFixed(2)) : 0,
+            conversions: fbConversions,
+            conversionValue: fbConversionValue,
+            cpa: fbConversions > 0 ? parseFloat((fbSpend / fbConversions).toFixed(2)) : 0,
+            roas: fbRoas,
+            reach: Math.floor(fbImpressions * 0.85),
+            frequency: 1.0
+          }
+        }
+      }
+    });
+
+    // Google Ads metrics
+    const ggSpend = parseFloat((80 + Math.cos(i) * 30 + Math.random() * 15).toFixed(2));
+    const ggImpressions = Math.floor(ggSpend * 60 + Math.random() * 150);
+    const ggClicks = Math.floor(ggImpressions * 0.038 + Math.random() * 25);
+    const ggConversions = Math.floor(ggClicks * 0.08 + Math.random() * 3);
+    const ggConversionValue = ggConversions * 50;
+    const ggRoas = ggSpend > 0 ? parseFloat((ggConversionValue / ggSpend).toFixed(2)) : 0;
+
+    const ggAnalytics = await prisma.analytics.create({
+      data: {
+        brandId: brand.id,
+        adAccountId: ggAdAccount.id,
+        dateFrom: d,
+        dateTo: d,
+        granularity: 'DAY',
+        fetchedAt: new Date(),
+        analyticsType: 'AD',
+        adAnalytics: {
+          create: {
+            campaignId: 'camp_gg_search',
+            campaignName: 'SaaS App Search Leads',
+            adSetId: 'adset_gg_2',
+            totalSpend: ggSpend,
+            impressions: ggImpressions,
+            clicks: ggClicks,
+            ctr: ggImpressions > 0 ? parseFloat(((ggClicks / ggImpressions) * 100).toFixed(2)) : 0,
+            cpc: ggClicks > 0 ? parseFloat((ggSpend / ggClicks).toFixed(2)) : 0,
+            cpm: ggImpressions > 0 ? parseFloat(((ggSpend / ggImpressions) * 1000).toFixed(2)) : 0,
+            conversions: ggConversions,
+            conversionValue: ggConversionValue,
+            cpa: ggConversions > 0 ? parseFloat((ggSpend / ggConversions).toFixed(2)) : 0,
+            roas: ggRoas,
+            reach: Math.floor(ggImpressions * 0.9),
+            frequency: 1.0
+          }
+        }
+      }
     });
   }
 
