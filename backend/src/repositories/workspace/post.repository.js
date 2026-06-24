@@ -121,6 +121,20 @@ class PostRepository {
       data
     });
   }
+
+  async countActivePostsThisMonth(brandId) {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    return prisma.post.count({
+      where: {
+        brandId,
+        createdAt: { gte: startOfMonth },
+        isDeleted: false
+      }
+    });
+  }
 }
 
 module.exports = new PostRepository();

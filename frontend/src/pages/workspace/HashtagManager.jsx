@@ -1,67 +1,65 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { X, Plus, Hash, Layers, BarChart2, Compass } from "lucide-react";
+import { X, Plus, Hash, Layers, BarChart2, Compass, Trash2, Globe, Sparkles, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
+import apiService from "../../services/api";
+import { useBrand } from "../../context/BrandContext";
 
-const hashtagSets = [
-  {
-    name: "Fitness Motivation",
-    count: 24,
-    tags: ["#fitnessmotivation", "#workout", "#gym", "#fitlife", "#healthylifestyle", "#personaltrainer", "#fitnesschallenge", "#bodybuilding"],
-    more: 16,
-    reach: "12.4K",
-    platforms: ["IG", "TK"],
-  },
-  {
-    name: "Tech Reviews",
-    count: 18,
-    tags: ["#techreview", "#gadgets", "#technology", "#smartphone", "#apple", "#android", "#unboxing", "#tech"],
-    more: 10,
-    reach: "8.1K",
-    platforms: ["YT", "TK", "X"],
-  },
-  {
-    name: "Business Growth",
-    count: 31,
-    tags: ["#entrepreneur", "#business", "#startup", "#marketing", "#digitalmarketing", "#growthhacking", "#socialmedia", "#branding"],
-    more: 23,
-    reach: "5.6K",
-    platforms: ["LI", "IG"],
-  },
-];
+const categories = ["Trending", "Fitness", "Food", "Tech", "Travel", "Fashion", "Business"];
+const platformColors = { YT: "#FF0000", IG: "#E1306C", TK: "#000000", LI: "#0A66C2", X: "#0A0A0A" };
 
-const discoverTags = [
+const TREND_MOCK_HASHTAGS = [
   { tag: "#fitness", posts: "2.4M", trend: "up" },
   { tag: "#motivation", posts: "1.8M", trend: "up" },
   { tag: "#gym", posts: "3.1M", trend: "stable" },
   { tag: "#workout", posts: "2.7M", trend: "up" },
   { tag: "#health", posts: "4.2M", trend: "stable" },
-  { tag: "#bodybuilding", posts: "1.2M", trend: "down" },
-  { tag: "#lifestyle", posts: "5.1M", trend: "up" },
-  { tag: "#mindset", posts: "890K", trend: "up" },
-  { tag: "#nutrition", posts: "1.4M", trend: "stable" },
-  { tag: "#yoga", posts: "2.1M", trend: "up" },
+  { tag: "#tech", posts: "1.2M", trend: "up" },
+  { tag: "#marketing", posts: "2.1M", trend: "up" },
+  { tag: "#business", posts: "1.9M", trend: "up" }
 ];
-
-const topHashtagsData = [
-  { tag: "#fitness", reach: 82000 },
-  { tag: "#workout", reach: 65000 },
-  { tag: "#gym", reach: 54000 },
-  { tag: "#motivation", reach: 48000 },
-  { tag: "#health", reach: 41000 },
-];
-
-const categories = ["Trending", "Fitness", "Food", "Tech", "Travel", "Fashion", "Business"];
-const platformColors = { YT: "#FF0000", IG: "#E1306C", TK: "#000000", LI: "#0A66C2", X: "#0A0A0A" };
 
 export function HashtagManager() {
+  const { activeBrand } = useBrand();
   const location = useLocation();
   const navigate = useNavigate();
+  
   const [activeCategory, setActiveCategory] = useState("Trending");
   const [activeTab, setActiveTab] = useState("sets");
-  const [selectedSet, setSelectedSet] = useState(null);
-  const [newTag, setNewTag] = useState("");
-  const [customTags, setCustomTags] = useState(["#myhashtag", "#example"]);
+  const [loading, setLoading] = useState(false);
+  
+  // Real DB states
+  const [hashtagSets, setHashtagSets] = useState([]);
+  const [trackedHashtags, setTrackedHashtags] = useState([]);
+  
+  // Editor / Create Modal States
+  const [selectedSet, setSelectedSet] = useState(null); // HashtagSet Object
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [setName, setSetName] = useState("");
+  const [setTags, setSetTags] = useState([]);
+  const [newTagInput, setNewTagInput] = useState("");
+  const [targetPlatforms, setTargetPlatforms] = useState(["IG", "TK"]);
+
+  // Fetch from Server
+  const loadData = async (silent = false) => {
+    if (!activeBrand?.id) return;
+    if (!silent) setLoading(true);
+    try {
+      const res = await apiService.get(`/hashtags?brandId=${activeBrand.id}`);
+      setHashtagSets(res.data.sets || []);
+      setTrackedHashtags(res.data.trackers || []);
+    } catch (err) {
+      toast.error("Không thể tải dữ liệu Hashtags.");
+      console.error(err);
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [activeBrand?.id]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -76,34 +74,138 @@ export function HashtagManager() {
     navigate(`${location.pathname}?tab=${tabKey}`);
   };
 
+  // Create Set Action
+  const handleCreateSet = async (e) => {
+    e.preventDefault();
+    if (!setName || setTags.length === 0) {
+      toast.warning("Vui lòng điền tên bộ hashtag và thêm ít nhất một thẻ tag.");
+      return;
+    }
+    try {
+      const payload = {
+        brandId: activeBrand.id,
+        name: setName,
+        hashtags: setTags,
+        targetPlatforms
+      };
+      await apiService.post("/hashtags/sets", payload);
+      toast.success("Đã tạo bộ hashtag thành công!");
+      setIsCreateOpen(false);
+      setSetName("");
+      setSetTags([]);
+      loadData(true);
+    } catch (error) {
+      toast.error(error.message || "Tạo bộ hashtag thất bại.");
+    }
+  };
+
+  // Update Set Action
+  const handleUpdateSet = async () => {
+    if (!selectedSet) return;
+    try {
+      const payload = {
+        name: selectedSet.name,
+        hashtags: selectedSet.tags,
+        targetPlatforms: selectedSet.targetPlatforms
+      };
+      await apiService.put(`/hashtags/sets/${selectedSet.id}`, payload);
+      toast.success("Cập nhật bộ hashtag thành công!");
+      setSelectedSet(null);
+      loadData(true);
+    } catch (error) {
+      toast.error(error.message || "Cập nhật thất bại.");
+    }
+  };
+
+  // Delete Set Action
+  const handleDeleteSet = async (setId) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa bộ hashtag này?")) return;
+    try {
+      await apiService.delete(`/hashtags/sets/${setId}`);
+      toast.success("Đã xóa bộ hashtag thành công.");
+      loadData(true);
+    } catch (error) {
+      toast.error(error.message || "Xóa thất bại.");
+    }
+  };
+
+  // Add tag to list inside form
+  const addTagToForm = (e) => {
+    if (e.key === "Enter" || e.type === "click") {
+      e.preventDefault();
+      if (!newTagInput.trim()) return;
+      const formatted = newTagInput.startsWith("#") ? newTagInput.trim() : `#${newTagInput.trim()}`;
+      if (selectedSet) {
+        if (!selectedSet.tags.includes(formatted)) {
+          setSelectedSet({ ...selectedSet, tags: [...selectedSet.tags, formatted] });
+        }
+      } else {
+        if (!setTags.includes(formatted)) {
+          setSetTags([...setTags, formatted]);
+        }
+      }
+      setNewTagInput("");
+    }
+  };
+
+  // Stop tracking a tag
+  const handleUntrackTag = async (trackerId) => {
+    try {
+      await apiService.delete(`/hashtags/track/${trackerId}`);
+      toast.success("Đã ngưng theo dõi hashtag.");
+      loadData(true);
+    } catch (error) {
+      toast.error("Không thể ngưng theo dõi tag.");
+    }
+  };
+
+  // Track new tag from search/discover panel
+  const handleTrackNewTag = async (tagText) => {
+    if (!activeBrand?.id) return;
+    try {
+      await apiService.post("/hashtags/track", {
+        brandId: activeBrand.id,
+        hashtag: tagText,
+        platform: "IG"
+      });
+      toast.success(`Đang theo dõi tag: ${tagText}`);
+      loadData(true);
+    } catch (error) {
+      toast.error(error.message || "Không thể theo dõi tag.");
+    }
+  };
+
   return (
-    <div className="flex-1 overflow-y-auto bg-white font-sans">
+    <div className="flex-1 overflow-y-auto bg-slate-50 font-sans">
       {/* Header */}
-      <div className="px-10 py-8 border-b border-gray-100 flex items-center justify-between">
+      <div className="px-10 py-8 bg-white border-b border-gray-100 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#0A0A0A]">Hashtag Manager</h1>
-          <p className="text-gray-500 mt-1">Organize your hashtags into sets and discover new trending ones.</p>
+          <h1 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+            <Hash className="text-blue-500" size={24} />
+            Hashtag Manager & Analytics
+          </h1>
+          <p className="text-xs text-gray-400 mt-1">Lưu trữ bộ hashtag thương hiệu và kiểm tra phân tích reach thực tế.</p>
         </div>
-        <div className="flex gap-3">
-          <div className="relative hidden md:block">
-            <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input placeholder="Search sets..." className="pl-9 pr-4 py-2 rounded-xl bg-gray-50 border border-gray-100 text-sm outline-none focus:border-black transition-all" />
-          </div>
-          <button className="px-6 py-2 rounded-xl bg-[#0A0A0A] text-white text-sm font-bold shadow-lg hover:bg-gray-800 transition-all">+ Create Set</button>
-        </div>
+        <button 
+          onClick={() => setIsCreateOpen(true)}
+          className="px-5 py-2.5 rounded-xl bg-black text-white text-xs font-bold shadow-md hover:bg-gray-800 transition-all flex items-center gap-1 cursor-pointer"
+        >
+          <Plus size={14} />
+          CREATE SET
+        </button>
       </div>
 
       {/* Internal Tabs */}
-      <div className="px-10 border-b border-gray-100 flex gap-10">
+      <div className="px-10 bg-white border-b border-gray-100 flex gap-8">
         {[
-          { id: "sets", label: "My Sets", icon: <Layers size={16} /> },
-          { id: "discover", label: "Discover", icon: <Compass size={16} /> },
-          { id: "stats", label: "Performance", icon: <BarChart2 size={16} /> },
+          { id: "sets", label: "Bộ Hashtag (My Sets)", icon: <Layers size={14} /> },
+          { id: "discover", label: "Khám phá (Discover Trend)", icon: <Compass size={14} /> },
+          { id: "stats", label: "Hiệu suất (Performance)", icon: <BarChart2 size={14} /> },
         ].map(tab => (
           <button
             key={tab.id}
             onClick={() => handleTabChange(tab.id)}
-            className="py-4 text-sm font-bold tracking-tight transition-all relative flex items-center gap-2"
+            className="py-4 text-xs font-bold tracking-tight transition-all relative flex items-center gap-2"
             style={{ color: activeTab === tab.id ? "#0A0A0A" : "#9CA3AF" }}
           >
             {tab.icon}
@@ -114,158 +216,296 @@ export function HashtagManager() {
       </div>
 
       {/* Content */}
-      <div className="p-10 max-w-[1200px]">
-        {activeTab === "sets" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-300">
-            {hashtagSets.map((set) => (
-              <div key={set.name} className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-all group">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-[#0A0A0A]">{set.name}</span>
-                    <span className="px-2 py-0.5 rounded-full bg-gray-50 text-[10px] font-bold text-gray-400 border border-gray-100">{set.count} tags</span>
-                  </div>
-                  <button className="p-1 text-gray-400 hover:text-black opacity-0 group-hover:opacity-100 transition-all"><X size={16} /></button>
-                </div>
-                <div className="flex flex-wrap gap-1.5 mb-6 min-h-[60px]">
-                  {set.tags.map((tag) => (
-                    <span key={tag} className="px-2.5 py-1 rounded-lg bg-gray-50 text-[#0A0A0A] text-[11px] font-medium border border-gray-100">{tag}</span>
-                  ))}
-                  {set.more > 0 && <span className="text-[11px] text-gray-400 mt-1">+{set.more} more</span>}
-                </div>
-                <div className="flex items-center justify-between pt-4 border-t border-gray-50">
-                  <div className="text-[10px] font-bold text-green-600 uppercase tracking-widest">↑ {set.reach} reach</div>
-                  <div className="flex gap-1">
-                    {set.platforms.map((p) => (
-                      <div key={p} className="w-5 h-5 rounded-md flex items-center justify-center shadow-sm" style={{ backgroundColor: platformColors[p] }}>
-                        <span className="text-[8px] text-white font-black">{p}</span>
+      <div className="p-10 max-w-[1200px] mx-auto">
+        {loading ? (
+          <div className="flex items-center justify-center py-20 text-xs text-gray-400 font-bold gap-2">
+            <div className="w-5 h-5 border-2 border-t-transparent border-black rounded-full animate-spin" />
+            Đang tải dữ liệu...
+          </div>
+        ) : (
+          <>
+            {activeTab === "sets" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-300">
+                {hashtagSets.map((set) => {
+                  const tagList = set.hashtags ? set.hashtags.split(",") : [];
+                  const platformList = set.targetPlatforms ? set.targetPlatforms.split(",") : ["IG"];
+                  return (
+                    <div key={set.id} className="bg-white rounded-2xl p-6 border border-gray-150 shadow-sm hover:shadow-md transition-all group flex flex-col justify-between min-h-[220px]">
+                      <div>
+                        <div className="flex items-center justify-between mb-3.5">
+                          <span className="text-sm font-bold text-gray-900">{set.name}</span>
+                          <button 
+                            onClick={() => handleDeleteSet(set.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-gray-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 mb-6">
+                          {tagList.map((tag) => (
+                            <span key={tag} className="px-2 py-0.5 rounded-md bg-slate-50 text-slate-600 text-[10px] font-semibold border border-gray-100">{tag}</span>
+                          ))}
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-                <button
-                  onClick={() => setSelectedSet(set.name)}
-                  className="w-full mt-6 py-2.5 rounded-xl bg-gray-50 text-[#6B7280] text-xs font-bold hover:bg-black hover:text-white transition-all"
+                      
+                      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                        <div className="flex gap-1">
+                          {platformList.map((p) => (
+                            <div key={p} className="w-5 h-5 rounded-md flex items-center justify-center shadow-xs" style={{ backgroundColor: platformColors[p] || "#0A0A0A" }}>
+                              <span className="text-[8px] text-white font-black">{p}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => setSelectedSet({
+                            id: set.id,
+                            name: set.name,
+                            tags: tagList,
+                            targetPlatforms: platformList
+                          })}
+                          className="py-1.5 px-3 rounded-lg bg-gray-50 text-gray-600 text-[10px] font-bold hover:bg-black hover:text-white transition-all cursor-pointer border border-gray-150"
+                        >
+                          Sửa Set
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Create new dashed card */}
+                <div 
+                  onClick={() => setIsCreateOpen(true)}
+                  className="border-2 border-dashed border-gray-200 rounded-2xl p-6 bg-white flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-gray-50 hover:border-gray-300 transition-all group min-h-[220px]"
                 >
-                  Edit Tags
-                </button>
+                   <div className="w-11 h-11 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 group-hover:scale-110 transition-transform">
+                      <Plus size={20} />
+                   </div>
+                   <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Create New Set</span>
+                </div>
               </div>
-            ))}
+            )}
 
-            {/* Create new dashed card */}
-            <div className="border-2 border-dashed border-gray-100 rounded-3xl p-6 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-gray-50 hover:border-gray-200 transition-all group min-h-[220px]">
-               <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-300 group-hover:scale-110 transition-transform">
-                  <Plus size={24} />
-               </div>
-               <span className="text-sm font-bold text-gray-300 uppercase tracking-widest">Create New Set</span>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "discover" && (
-          <div className="animate-in fade-in duration-300">
-            <div className="flex gap-2 mb-8 flex-wrap">
-              {categories.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setActiveCategory(c)}
-                  className={`px-5 py-2 rounded-full text-xs font-bold transition-all border ${activeCategory === c ? "bg-[#0A0A0A] text-white border-black" : "bg-white text-gray-500 border-gray-100 hover:border-gray-200"}`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {discoverTags.map((tag) => (
-                <div key={tag.tag} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm hover:border-gray-200 transition-all">
-                  <div className="font-bold text-[#0A0A0A] mb-1">{tag.tag}</div>
-                  <div className="text-[10px] text-gray-400 font-bold uppercase mb-3">{tag.posts} posts</div>
-                  <div className="flex items-center justify-between">
-                    <span className={`text-xs font-black ${tag.trend === "up" ? "text-green-500" : tag.trend === "down" ? "text-red-500" : "text-gray-400"}`}>
-                      {tag.trend === "up" ? "TRENDING ↑" : tag.trend === "down" ? "DOWN ↓" : "STABLE →"}
-                    </span>
-                    <button className="text-[10px] font-bold text-blue-600 hover:underline">+ Save</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === "stats" && (
-          <div className="space-y-10 animate-in fade-in duration-300">
-            <div className="bg-white rounded-[32px] p-8 border border-gray-100 shadow-sm">
-              <h3 className="text-sm font-bold text-[#0A0A0A] mb-8 uppercase tracking-widest">Performance by Reach</h3>
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={topHashtagsData}>
-                  <XAxis dataKey="tag" tick={{ fontSize: 11, fill: "#9CA3AF", fontWeight: 700 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} />
-                  <Tooltip cursor={{ fill: '#F9FAFB' }} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }} />
-                  <Bar dataKey="reach" fill="#0A0A0A" radius={[6, 6, 0, 0]} barSize={40} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-gray-50/50 border-b border-gray-100">
-                    {["Hashtag", "Usage Frequency", "Avg Reach", "Platform", ""].map((h) => (
-                      <th key={h} className="px-8 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {topHashtagsData.map((row) => (
-                    <tr key={row.tag} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-8 py-4 text-sm font-bold text-[#0A0A0A]">{row.tag}</td>
-                      <td className="px-8 py-4 text-sm text-gray-500">{Math.floor(Math.random() * 50 + 10)} times</td>
-                      <td className="px-8 py-4 text-sm font-bold text-[#0A0A0A]">{(row.reach / 1000).toFixed(1)}K</td>
-                      <td className="px-8 py-4">
-                        <span className="px-2.5 py-1 rounded-lg bg-pink-50 text-[#E1306C] text-[10px] font-black uppercase tracking-tighter">Instagram</span>
-                      </td>
-                      <td className="px-8 py-4 text-right">
-                         <button className="text-blue-600 text-xs font-bold hover:underline">Analysis →</button>
-                      </td>
-                    </tr>
+            {activeTab === "discover" && (
+              <div className="animate-in fade-in duration-300 space-y-6">
+                <div className="flex gap-2 flex-wrap">
+                  {categories.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setActiveCategory(c)}
+                      className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${activeCategory === c ? "bg-[#0A0A0A] text-white border-black" : "bg-white text-gray-400 border-gray-100 hover:border-gray-200 cursor-pointer"}`}
+                    >
+                      {c}
+                    </button>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {TREND_MOCK_HASHTAGS.map((tag) => (
+                    <div key={tag.tag} className="bg-white rounded-xl p-4 border border-gray-150 shadow-xs flex flex-col justify-between min-h-[110px]">
+                      <div>
+                        <div className="font-bold text-gray-900 text-xs flex items-center gap-1">
+                          <Globe size={11} className="text-gray-400" />
+                          {tag.tag}
+                        </div>
+                        <div className="text-[9px] text-gray-400 font-bold uppercase mt-1">{tag.posts} posts</div>
+                      </div>
+                      <div className="flex items-center justify-between pt-3 border-t border-gray-50">
+                        <span className={`text-[9px] font-extrabold ${tag.trend === "up" ? "text-green-500" : "text-gray-400"}`}>
+                          {tag.trend === "up" ? "TRENDING ↑" : "STABLE →"}
+                        </span>
+                        <button 
+                          onClick={() => handleTrackNewTag(tag.tag)}
+                          className="text-[9px] font-bold text-blue-600 hover:underline cursor-pointer"
+                        >
+                          + Track Tag
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === "stats" && (
+              <div className="space-y-8 animate-in fade-in duration-300">
+                {trackedHashtags.length === 0 ? (
+                  <div className="bg-white rounded-2xl p-10 border border-gray-150 shadow-xs flex flex-col items-center justify-center text-center gap-2">
+                    <AlertCircle size={24} className="text-gray-300" />
+                    <span className="text-xs text-gray-500 font-bold">Chưa theo dõi thẻ phân tích nào</span>
+                    <p className="text-[10px] text-gray-400 max-w-[320px]">
+                      Vào tab Khám phá và chọn bấm "+ Track Tag" để thêm thẻ hashtag phân tích reach và số bài đăng thực tế.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="bg-white rounded-2xl p-6 border border-gray-150 shadow-xs">
+                      <h3 className="text-xs font-bold text-gray-800 mb-6 uppercase tracking-wider">Reach Performance of Tracked Tags</h3>
+                      <ResponsiveContainer width="100%" height={240}>
+                        <BarChart data={trackedHashtags.map(t => ({ tag: t.hashtag, reach: t.totalReach || 0 }))}>
+                          <XAxis dataKey="tag" tick={{ fontSize: 10, fill: "#9CA3AF", fontWeight: 700 }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fontSize: 10, fill: "#9CA3AF" }} axisLine={false} tickLine={false} />
+                          <Tooltip cursor={{ fill: '#F9FAFB' }} contentStyle={{ borderRadius: 12, border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }} />
+                          <Bar dataKey="reach" fill="#2563eb" radius={[4, 4, 0, 0]} barSize={35} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    <div className="bg-white rounded-2xl border border-gray-150 shadow-xs overflow-hidden">
+                      <table className="w-full text-left">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-gray-150">
+                            {["Hashtag", "Usage Frequency", "Avg Reach", "Platform", ""].map((h) => (
+                              <th key={h} className="px-6 py-3.5 text-[9px] font-bold text-gray-400 uppercase tracking-widest">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {trackedHashtags.map((row) => (
+                            <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="px-6 py-4 text-xs font-bold text-gray-900">{row.hashtag}</td>
+                              <td className="px-6 py-4 text-xs text-gray-400 font-semibold">{row.postsLast24h} posts/24h</td>
+                              <td className="px-6 py-4 text-xs font-bold text-gray-900">{(row.totalReach / 1000).toFixed(1)}K reach</td>
+                              <td className="px-6 py-4">
+                                <span className="px-2.5 py-0.5 rounded bg-pink-50 text-[#E1306C] text-[9px] font-bold uppercase tracking-tight">Instagram</span>
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                 <button 
+                                   onClick={() => handleUntrackTag(row.id)}
+                                   className="text-red-500 text-[10px] font-bold hover:underline cursor-pointer"
+                                 >
+                                   Ngừng Track
+                                 </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      {/* Slide-in Editor (Simplified for brevity) */}
+      {/* Editor Modal for Updating Set */}
       {selectedSet && (
-        <div className="fixed inset-0 z-[100] flex justify-end">
-           <div className="absolute inset-0 bg-black/20" onClick={() => setSelectedSet(null)} />
-           <div className="w-[480px] h-full bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-              <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                 <h3 className="font-bold text-[#0A0A0A]">Edit Set: {selectedSet}</h3>
-                 <button onClick={() => setSelectedSet(null)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+        <div className="fixed inset-0 z-50 flex justify-end">
+           <div className="absolute inset-0 bg-black/30 backdrop-blur-xs" onClick={() => setSelectedSet(null)} />
+           <div className="w-[450px] h-full bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-350">
+              <div className="p-5 border-b border-gray-150 flex items-center justify-between">
+                 <h3 className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
+                   <Sparkles className="text-indigo-500" size={16} />
+                   Edit Set: {selectedSet.name}
+                 </h3>
+                 <button onClick={() => setSelectedSet(null)} className="p-2 hover:bg-gray-100 rounded-full transition-all cursor-pointer"><X size={18} /></button>
               </div>
-              <div className="p-8 flex-1 overflow-y-auto space-y-6">
+              <div className="p-6 flex-1 overflow-y-auto space-y-5">
                  <div>
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Hashtags</label>
-                    <div className="flex flex-wrap gap-2 p-4 rounded-2xl bg-gray-50 border border-gray-100">
-                       {customTags.map(t => (
-                         <span key={t} className="px-3 py-1 bg-white rounded-lg text-xs font-bold flex items-center gap-2 border border-gray-200">
-                            {t} <button onClick={() => setCustomTags(prev => prev.filter(x => x !== t))}><X size={12} /></button>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Tên bộ</label>
+                    <input 
+                      type="text"
+                      value={selectedSet.name}
+                      onChange={(e) => setSelectedSet({ ...selectedSet, name: e.target.value })}
+                      className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:border-gray-400"
+                    />
+                 </div>
+                 <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Hashtags</label>
+                    <div className="flex flex-wrap gap-1.5 p-3 rounded-xl bg-slate-50 border border-gray-150 min-h-[90px] mb-3">
+                       {selectedSet.tags.map(t => (
+                         <span key={t} className="px-2.5 py-1 bg-white rounded-lg text-[10px] font-bold flex items-center gap-1.5 border border-gray-200">
+                            {t} 
+                            <button onClick={() => setSelectedSet({ ...selectedSet, tags: selectedSet.tags.filter(x => x !== t) })} className="hover:text-red-500"><X size={11} /></button>
                          </span>
                        ))}
                     </div>
+                    
+                    <div className="flex gap-2">
+                      <input 
+                        type="text"
+                        placeholder="Thêm hashtag mới..."
+                        value={newTagInput}
+                        onChange={(e) => setNewTagInput(e.target.value)}
+                        onKeyDown={addTagToForm}
+                        className="flex-1 bg-white border border-gray-250 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:border-gray-400"
+                      />
+                      <button 
+                        onClick={addTagToForm}
+                        className="px-3.5 bg-black hover:bg-gray-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                      >
+                        Thêm
+                      </button>
+                    </div>
                  </div>
               </div>
-              <div className="p-6 bg-gray-50 border-t border-gray-100">
-                 <button className="w-full py-3 bg-[#0A0A0A] text-white rounded-xl font-bold">Save Changes</button>
+              <div className="p-5 bg-slate-50 border-t border-gray-150 flex gap-2">
+                 <button onClick={() => setSelectedSet(null)} className="flex-1 py-2.5 rounded-xl bg-white border border-gray-250 text-gray-700 text-xs font-bold transition-all cursor-pointer">Hủy</button>
+                 <button onClick={handleUpdateSet} className="flex-1 py-2.5 rounded-xl bg-black text-white text-xs font-bold hover:bg-gray-800 transition-all cursor-pointer shadow-sm">Lưu thay đổi</button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* Editor Modal for Creating new Set */}
+      {isCreateOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+           <div className="absolute inset-0 bg-black/30 backdrop-blur-xs" onClick={() => setIsCreateOpen(false)} />
+           <div className="w-[450px] h-full bg-white shadow-2xl flex flex-col animate-in slide-in-from-right duration-350">
+              <div className="p-5 border-b border-gray-150 flex items-center justify-between">
+                 <h3 className="font-bold text-sm text-gray-900 flex items-center gap-1.5">
+                   <Plus className="text-blue-500" size={16} />
+                   Tạo bộ Hashtag mới
+                 </h3>
+                 <button onClick={() => setIsCreateOpen(false)} className="p-2 hover:bg-gray-100 rounded-full transition-all cursor-pointer"><X size={18} /></button>
+              </div>
+              <div className="p-6 flex-1 overflow-y-auto space-y-5">
+                 <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Tên bộ</label>
+                    <input 
+                      type="text"
+                      placeholder="e.g. Technology Trends"
+                      value={setName}
+                      onChange={(e) => setSetName(e.target.value)}
+                      className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:border-gray-400"
+                    />
+                 </div>
+                 <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 block">Hashtags</label>
+                    <div className="flex flex-wrap gap-1.5 p-3 rounded-xl bg-slate-50 border border-gray-150 min-h-[90px] mb-3">
+                       {setTags.map(t => (
+                         <span key={t} className="px-2.5 py-1 bg-white rounded-lg text-[10px] font-bold flex items-center gap-1.5 border border-gray-200">
+                            {t} 
+                            <button onClick={() => setSetTags(prev => prev.filter(x => x !== t))} className="hover:text-red-500"><X size={11} /></button>
+                         </span>
+                       ))}
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <input 
+                        type="text"
+                        placeholder="Thêm hashtag mới..."
+                        value={newTagInput}
+                        onChange={(e) => setNewTagInput(e.target.value)}
+                        onKeyDown={addTagToForm}
+                        className="flex-1 bg-white border border-gray-250 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:border-gray-400"
+                      />
+                      <button 
+                        onClick={addTagToForm}
+                        className="px-3.5 bg-black hover:bg-gray-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                      >
+                        Thêm
+                      </button>
+                    </div>
+                 </div>
+              </div>
+              <div className="p-5 bg-slate-50 border-t border-gray-150 flex gap-2">
+                 <button onClick={() => setIsCreateOpen(false)} className="flex-1 py-2.5 rounded-xl bg-white border border-gray-250 text-gray-700 text-xs font-bold transition-all cursor-pointer">Hủy</button>
+                 <button onClick={handleCreateSet} className="flex-1 py-2.5 rounded-xl bg-black text-white text-xs font-bold hover:bg-gray-800 transition-all cursor-pointer shadow-sm">Tạo bộ</button>
               </div>
            </div>
         </div>
       )}
     </div>
   );
-}
-
-function SearchIcon({ size, className }) {
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>;
 }

@@ -10,6 +10,7 @@ class ApiService {
       timeout: 10000, // 10 giây timeout, tránh treo vô hạn
       headers: {
         'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
       },
       withCredentials: true,
     });
@@ -30,7 +31,9 @@ class ApiService {
       (error) => {
         // Handle global errors here
         const message = error.response?.data?.message || error.response?.data?.errors?.[0]?.msg || error.message;
-        return Promise.reject(new Error(message));
+        const customError = new Error(message);
+        customError.status = error.response?.status;
+        return Promise.reject(customError);
       }
     );
   }

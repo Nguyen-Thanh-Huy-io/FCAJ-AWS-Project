@@ -5,6 +5,12 @@ const { SUBSCRIPTION_STATUS } = require('../../utils/constants');
  * Plan Repository - Data Access Layer
  * Handles all database operations for Plan model
  * Single Responsibility: Database queries only
+const { SUBSCRIPTION_STATUS } = require('../../utils/constants');
+
+/**
+ * Plan Repository - Data Access Layer
+ * Handles all database operations for Plan model
+ * Single Responsibility: Database queries only
  */
 class PlanRepository {
   /**
@@ -15,13 +21,13 @@ class PlanRepository {
     return prisma.plan.findMany({
       include: {
         planLimit: true,
+        products: true,
         subscriptions: {
           select: {
             id: true,
-            userId: true,
-            startDate: true,
-            endDate: true,
-            status: true
+            status: true,
+            currentPeriodStart: true,
+            currentPeriodEnd: true
           }
         }
       },
@@ -39,10 +45,10 @@ class PlanRepository {
       where: { id },
       include: {
         planLimit: true,
+        products: true,
         subscriptions: {
           select: {
             id: true,
-            userId: true,
             status: true
           }
         }
@@ -65,21 +71,30 @@ class PlanRepository {
         }
       },
       include: {
-        planLimit: true
+        planLimit: true,
+        products: true
       }
     });
   }
 
   /**
    * Create new plan
-   * @param {Object} planData - { name, priceAmount, currency, billingCycle, description, planLimitId }
+   * @param {Object} planData - { name, priceAmount, currency, billingCycle, description, planLimitId, products }
    * @returns {Promise<Object>} created plan
    */
   async create(planData) {
+    const { products, ...rest } = planData;
+    const data = {
+      ...rest,
+      products: products && Array.isArray(products) 
+        ? { connect: products.map(id => ({ id })) } 
+        : undefined
+    };
     return prisma.plan.create({
-      data: planData,
+      data,
       include: {
-        planLimit: true
+        planLimit: true,
+        products: true
       }
     });
   }
@@ -91,11 +106,19 @@ class PlanRepository {
    * @returns {Promise<Object>} updated plan
    */
   async update(id, updateData) {
+    const { products, ...rest } = updateData;
+    const data = {
+      ...rest,
+      products: products && Array.isArray(products) 
+        ? { set: products.map(id => ({ id })) } 
+        : undefined
+    };
     return prisma.plan.update({
       where: { id },
-      data: updateData,
+      data,
       include: {
-        planLimit: true
+        planLimit: true,
+        products: true
       }
     });
   }
@@ -110,7 +133,8 @@ class PlanRepository {
       where: { id },
       data: { isActive: false },
       include: {
-        planLimit: true
+        planLimit: true,
+        products: true
       }
     });
   }
@@ -124,7 +148,8 @@ class PlanRepository {
     return prisma.plan.findMany({
       where: { isActive },
       include: {
-        planLimit: true
+        planLimit: true,
+        products: true
       },
       orderBy: { priceAmount: 'asc' }
     });
@@ -138,7 +163,20 @@ class PlanRepository {
   async getSubscriptionStats(planId) {
     const subscriptions = await prisma.subscription.findMany({
       where: { planId },
-      include: { user: { select: { id: true, email: true } } }
+      include: {
+        brand: {
+          select: {
+            id: true,
+            name: true,
+            owner: {
+              select: {
+                id: true,
+                email: true
+              }
+            }
+          }
+        }
+      }
     });
 
     return {

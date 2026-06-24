@@ -35,6 +35,12 @@ router.get('/analytics/revenue', pricingController.getPricingAnalytics);
 router.get('/limits', pricingController.getPlanLimits);
 
 /**
+ * GET /admin/pricing/products
+ * Get all products for selection
+ */
+router.get('/products', pricingController.getProducts);
+
+/**
  * GET /admin/pricing/:planId
  * Get single plan details
  */

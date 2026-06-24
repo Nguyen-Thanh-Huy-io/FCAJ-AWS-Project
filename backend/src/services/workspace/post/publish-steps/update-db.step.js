@@ -14,58 +14,71 @@ class UpdatePostStatusStep extends BaseStep {
     const allSuccessful = results.every(r => r.success);
     const firstFailure = results.find(r => !r.success);
 
+    // Logic: Handle AutoList Loop (Repeat) mode
+    let shouldLoop = false;
+    if (post.autoListId) {
+      const autoList = await autoListRepository.findById(post.autoListId);
+      if (autoList && autoList.loopEnabled) {
+        shouldLoop = true;
+      }
+    }
+
     if (allSuccessful) {
       const primaryResult = results[0].result;
 
-      // Logic: Handle AutoList Loop (Repeat) mode
-      let shouldLoop = false;
-      if (post.autoListId) {
-        const autoList = await autoListRepository.findById(post.autoListId);
-        if (autoList && autoList.loopEnabled) {
-          shouldLoop = true;
-        }
-      }
-
       if (shouldLoop) {
-        await this._handleLoopCycle(post, primaryResult);
+        await this._handleLoopCycle(post, {
+          status: POST_STATUS.PUBLISHED,
+          publishedAt: primaryResult.publishedAt || new Date(),
+          platformPostId: primaryResult.platformVideoId || primaryResult.id
+        });
       } else {
         // Standard non-loop behavior: mark the post itself as published
         await postRepository.update(post.id, {
           status: POST_STATUS.PUBLISHED,
-          platformPostId: primaryResult.platformVideoId,
+          platformPostId: primaryResult.platformVideoId || primaryResult.id,
           publishedAt: primaryResult.publishedAt || new Date()
         });
       }
     } else {
       // Handle Failure
-      await postRepository.update(post.id, {
-        status: POST_STATUS.FAILED,
-        failureReason: firstFailure ? `${firstFailure.platform}: ${firstFailure.error}` : 'Unknown publishing error'
-      });
+      const failureReason = firstFailure ? `${firstFailure.platform}: ${firstFailure.error}` : 'Unknown publishing error';
+      if (shouldLoop) {
+        await this._handleLoopCycle(post, {
+          status: POST_STATUS.FAILED,
+          failureReason
+        });
+      } else {
+        await postRepository.update(post.id, {
+          status: POST_STATUS.FAILED,
+          failureReason
+        });
+      }
     }
 
     // Post-Publish: Trigger stats update and rescheduling for AutoLists
     if (post.autoListId) {
       const autoListService = require('../../auto-list.service');
+      await autoListService.updateLastPostedAt(post.autoListId, new Date());
       await autoListService.recalculateQueueSchedules(post.autoListId);
     }
   }
 
   /**
    * Performs the loop cycle:
-   * 1. Creates a published clone of the post for history/analytics.
+   * 1. Creates a published or failed clone of the post for history/analytics (with autoListId = null).
    * 2. Resets the original post to the end of the queue.
    */
-  async _handleLoopCycle(post, publishResult) {
+  async _handleLoopCycle(post, cycleData) {
     try {
-      // 1. Snapshot the successful publication into a new static record (history)
+      // 1. Snapshot the publication result into a new static record (history)
       await postRepository.create({
         brandId: post.brandId,
         createdByUserId: post.createdByUserId,
         title: post.title,
         caption: post.caption,
         type: post.type,
-        status: POST_STATUS.PUBLISHED,
+        status: cycleData.status,
         targetPlatforms: post.targetPlatforms,
         mediaUrls: post.mediaUrls,
         mediaThumbnailUrls: post.mediaThumbnailUrls,
@@ -79,8 +92,9 @@ class UpdatePostStatusStep extends BaseStep {
         metadata: post.metadata,
         isCollaboration: post.isCollaboration,
         collaboratorHandle: post.collaboratorHandle,
-        publishedAt: publishResult.publishedAt || new Date(),
-        platformPostId: publishResult.platformVideoId,
+        publishedAt: cycleData.publishedAt || null,
+        platformPostId: cycleData.platformPostId || null,
+        failureReason: cycleData.failureReason || null,
         isLibrary: false
         // autoListId is NULL for the history snapshot so it doesn't appear in the queue
       });
@@ -90,7 +104,8 @@ class UpdatePostStatusStep extends BaseStep {
         createdAt: new Date(), // Move to end
         status: POST_STATUS.DRAFT, // autoListService will set to SCHEDULED if list is active
         platformPostId: null,
-        publishedAt: null
+        publishedAt: null,
+        failureReason: null
       });
     } catch (err) {
       console.error('[UpdatePostStatusStep] Loop cycle failure:', err.message);

@@ -14,10 +14,17 @@ class BrandService {
   }
 
   async createBrand(userId, brandData) {
-    // Giới hạn số lượng Brand tối đa của mỗi user (ví dụ: tối đa 5 brand cho tài khoản cơ bản)
-    const activeBrandsCount = await brandRepository.countActiveBrandsByOwnerId(userId);
-    if (activeBrandsCount >= 5) {
-      const error = new Error('Brand limit reached. You can only create up to 5 brands.');
+    // Lấy tất cả thương hiệu mà user sở hữu kèm theo giới hạn gói dịch vụ
+    const ownedBrands = await brandRepository.findOwnedBrandsWithSubscription(userId);
+    
+    // Tìm giới hạn maxBrands cao nhất từ các thương hiệu đang sở hữu
+    const allowedLimit = ownedBrands.reduce((max, b) => {
+      const brandMax = b.subscription?.plan?.planLimit?.maxBrands || 1;
+      return Math.max(max, brandMax);
+    }, 1);
+
+    if (ownedBrands.length >= allowedLimit) {
+      const error = new Error(`Brand limit reached. Your current plan allows you to create up to ${allowedLimit} brand(s).`);
       error.statusCode = 403;
       throw error;
     }

@@ -114,6 +114,13 @@ class PricingService {
     return await planLimitRepository.findAll();
   }
 
+  async getAllProducts() {
+    const prisma = require('../../config/prisma');
+    return await prisma.product.findMany({
+      orderBy: { id: 'asc' }
+    });
+  }
+
   // ============= Private Helper Methods =============
 
   _formatPlanLimit(limit) {
@@ -137,8 +144,10 @@ class PricingService {
       price: { amount: parseFloat(plan.priceAmount), currency: plan.currency },
       billingCycle: plan.billingCycle,
       description: plan.description,
+      planLimitId: plan.planLimitId,
       isActive: plan.isActive,
       limits: this._formatPlanLimit(plan.planLimit),
+      includedProducts: plan.products ? plan.products.map(p => p.id) : [],
       createdAt: plan.createdAt
     };
     if (includeStats) res.subscriptionCount = plan.subscriptions?.length || 0;

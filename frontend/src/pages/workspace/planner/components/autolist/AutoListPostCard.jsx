@@ -98,7 +98,7 @@ export function AutoListPostCard({
         const formData = new FormData();
         formData.append("video", file); // Backend expects "video" key for uploads
 
-        const res = await apiService.post("/posts/upload", formData, {
+        const res = await apiService.post(`/posts/upload?brandId=${activeBrand?.id}`, formData, {
           headers: {
             "Content-Type": "multipart/form-data"
           }
@@ -239,7 +239,19 @@ export function AutoListPostCard({
                   onClose={() => setActivePopover(null)} 
                   onSelectImage={() => fileInputRef.current?.click()} 
                   onSelectVideo={() => fileInputRef.current?.click()} 
-                  onSelectDrive={() => setIsDriveModalOpen(true)}
+                  onSelectDrive={() => {
+                    const hasDriveAccess = activeBrand?.currentPlan?.name === 'PRO';
+                    if (!hasDriveAccess) {
+                      toast.error("Tính năng import từ Google Drive yêu cầu gói PRO.", {
+                        action: {
+                          label: "Nâng cấp",
+                          onClick: () => window.location.href = '/pricing'
+                        }
+                      });
+                    } else {
+                      setIsDriveModalOpen(true);
+                    }
+                  }}
                 />
               )}
             </div>

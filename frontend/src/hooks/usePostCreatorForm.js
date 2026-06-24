@@ -5,11 +5,13 @@ import { useBrand } from "../context/BrandContext";
 import socialService from "../services/social.service";
 import { usePostCreator } from "../context/PostCreatorContext";
 import { DEFAULT_PLATFORM, PLATFORMS } from "../constants/platforms";
+import { PLATFORM_CONFIGS } from "../constants/platformRegistry";
 import { POST_STATUS, PUBLISH_MODE, PUBLISH_MODE_TO_STATUS, STATUS_TO_PUBLISH_MODE } from "../constants/postStatus";
-import { POST_TYPE, YOUTUBE_TYPE, FACEBOOK_TYPE, TIKTOK_PRIVACY, APPROVAL_POLICY, YOUTUBE_DEFAULT_CATEGORY_ID } from "../constants/postTypes";
+import { POST_TYPE, YOUTUBE_TYPE, FACEBOOK_TYPE, INSTAGRAM_TYPE, TIKTOK_PRIVACY, APPROVAL_POLICY, YOUTUBE_DEFAULT_CATEGORY_ID } from "../constants/postTypes";
 import { buildMediaUrl, isVideoPath } from "../utils/url";
 import { validatePostForm } from "@/utils/postValidation";
 import { logger } from "@/utils/logger";
+import postService from "../services/post.service";
 
 const toLocalDatetimeString = (dateInput) => {
   if (!dateInput) return "";
@@ -38,13 +40,17 @@ export function usePostCreatorForm() {
     isUploadingVideo, 
     setIsUploadingVideo,
     uploadedVideoPath, 
-    setUploadedVideoPath
+    setUploadedVideoPath,
+    albumMedia,
+    setAlbumMedia
   } = usePostCreator();
   
   const [caption, setCaption] = useState("");
   const [title, setTitle] = useState("");
   const [altText, setAltText] = useState("");
+  const [selectedPlatforms, setSelectedPlatforms] = useState([DEFAULT_PLATFORM]);
   const [activePlatform, setActivePlatform] = useState(DEFAULT_PLATFORM);
+  const [platformLimits, setPlatformLimits] = useState([]);
   const [previewDevice, setPreviewDevice] = useState("mobile");
   const [showPublishMenu, setShowPublishMenu] = useState(false);
   const [selectedPublishId, setSelectedPublishId] = useState("now");
@@ -58,12 +64,19 @@ export function usePostCreatorForm() {
   const [youtubeOpen, setYoutubeOpen] = useState(false);
   const [facebookOpen, setFacebookOpen] = useState(false);
   const [tiktokOpen, setTiktokOpen] = useState(false);
+  const [instagramOpen, setInstagramOpen] = useState(false);
+
+  // Instagram Dropdown / Mode State
+  const [instagramType, setInstagramType] = useState(INSTAGRAM_TYPE.POST);
+  const [showInstagramTypeMenu, setShowInstagramTypeMenu] = useState(false);
   const [tiktokPrivacy, setTiktokPrivacy] = useState(TIKTOK_PRIVACY.PUBLIC);
   const [tiktokAllowComments, setTiktokAllowComments] = useState(true);
   const [tiktokAllowDuet, setTiktokAllowDuet] = useState(true);
   const [tiktokAllowStitch, setTiktokAllowStitch] = useState(true);
   const [tiktokAiGenerated, setTiktokAiGenerated] = useState(false);
   const [tiktokCommercialContent, setTiktokCommercialContent] = useState(false);
+  const [selectedDiscordChannels, setSelectedDiscordChannels] = useState([]);
+  const [discordOpen, setDiscordOpen] = useState(false);
 
   // Selector Video/Short State
   const [youtubeType, setYoutubeType] = useState(YOUTUBE_TYPE.VIDEO);
@@ -83,6 +96,9 @@ export function usePostCreatorForm() {
   const [youtubeTags, setYoutubeTags] = useState("");
   const [youtubeFirstComment, setYoutubeFirstComment] = useState("");
   const [globalFirstComment, setGlobalFirstComment] = useState("");
+
+  // Threads States
+  const [threadsWhoCanReply, setThreadsWhoCanReply] = useState("everyone");
 
   // Video metadata states for format validation
   const [videoDuration, setVideoDuration] = useState(0);
@@ -116,12 +132,23 @@ export function usePostCreatorForm() {
       }
     };
 
+    const fetchLimits = async () => {
+      try {
+        const res = await postService.getPlatformLimits();
+        setPlatformLimits(res.data || []);
+      } catch (err) {
+        logger.error("Failed to load platform limits from DB:", err);
+      }
+    };
+
     if (isOpen && activeBrand?.id) {
       fetchReviewers();
+      fetchLimits();
     } else {
       setPotentialReviewers([]);
       setSelectedReviewerId("");
       setSelectedReviewerIds([]);
+      setPlatformLimits([]);
     }
   }, [isOpen, activeBrand?.id]);
 
@@ -154,21 +181,44 @@ export function usePostCreatorForm() {
     };
   }, [videoFileUrl, videoFile]);
 
-  // Validation function
+  const togglePlatform = (platform) => {
+    setSelectedPlatforms((prev) => {
+      const platLower = platform.toLowerCase();
+      if (prev.includes(platLower)) {
+        if (prev.length === 1) {
+          toast.warning("At least one platform must be selected");
+          return prev;
+        }
+        const next = prev.filter((p) => p !== platLower);
+        if (activePlatform === platLower) {
+          setActivePlatform(next[0]);
+        }
+        return next;
+      } else {
+        setActivePlatform(platLower);
+        return [...prev, platLower];
+      }
+    });
+  };
+
   const getValidationErrors = () => {
+    const isAlbum = selectedPlatforms.includes('facebook') && activePlatform === 'facebook' && facebookType === 'album';
     return validatePostForm({
       isLibrary,
       selectedPublishId,
       scheduledDate,
-      activePlatform,
+      selectedPlatforms,
       facebookType,
       youtubeType,
+      instagramType,
       videoFileUrl,
       videoFile,
       videoDuration,
       videoWidth,
       videoHeight,
-      uploadedVideoPath
+      uploadedVideoPath,
+      platformLimits,
+      mediaCount: isAlbum ? albumMedia.length : 0
     });
   };
 
@@ -211,7 +261,7 @@ export function usePostCreatorForm() {
     formData.append("video", file);
 
     try {
-      const res = await apiService.post("/posts/upload", formData, {
+      const res = await apiService.post(`/posts/upload?brandId=${activeBrand?.id}`, formData, {
         headers: {
           "Content-Type": "multipart/form-data"
         }
@@ -288,19 +338,18 @@ export function usePostCreatorForm() {
   };
 
   useEffect(() => {
-    if (isOpen && activeBrand) {
-      fetchPlaylists();
-    }
-  }, [isOpen, activeBrand]);
-
-  // Populate form states when editing a post
-  useEffect(() => {
     if (isOpen) {
       if (editingPost) {
         setCaption(editingPost.caption || "");
         setTitle(editingPost.title || "");
         setAltText(editingPost.altText || "");
-        setActivePlatform(editingPost.platforms?.[0]?.toLowerCase() || "youtube");
+        
+        const loadedPlatforms = editingPost.platforms && editingPost.platforms.length > 0
+          ? editingPost.platforms.map(p => p.toLowerCase())
+          : [DEFAULT_PLATFORM];
+        setSelectedPlatforms(loadedPlatforms);
+        setActivePlatform(loadedPlatforms[0] || DEFAULT_PLATFORM);
+
         setScheduledDate(editingPost.scheduledAt ? toLocalDatetimeString(editingPost.scheduledAt) : toLocalDatetimeString(new Date()));
         setIsLibrary(editingPost.isLibrary || false);
         
@@ -318,10 +367,14 @@ export function usePostCreatorForm() {
         setYoutubeTags(opts.tags || "");
         setYoutubeFirstComment(opts.firstComment || "");
         setGlobalFirstComment(opts.firstComment || "");
+        setThreadsWhoCanReply(opts.threadsWhoCanReply || "everyone");
 
         // Setup Facebook
         setFacebookType(opts.facebookType || "post");
         setFacebookTitle(opts.facebookTitle || "");
+
+        // Setup Instagram
+        setInstagramType(opts.instagramType || "post");
 
         // Setup TikTok
         setTiktokPrivacy(opts.tiktokPrivacy || "public");
@@ -330,9 +383,12 @@ export function usePostCreatorForm() {
         setTiktokAllowStitch(opts.tiktokAllowStitch !== undefined ? opts.tiktokAllowStitch : true);
         setTiktokAiGenerated(opts.tiktokAiGenerated || false);
         setTiktokCommercialContent(opts.tiktokCommercialContent || false);
+        setSelectedDiscordChannels(opts.selectedDiscordChannels || []);
         
         // Setup media
-        if (editingPost.mediaUrls?.[0]) {
+        if (opts.facebookType === 'album' && opts.albumMedia) {
+          setAlbumMedia(opts.albumMedia);
+        } else if (editingPost.mediaUrls?.[0]) {
           const path = editingPost.mediaUrls[0];
           setUploadedVideoPath(path);
           setVideoFileUrl(buildMediaUrl(path));
@@ -345,7 +401,13 @@ export function usePostCreatorForm() {
         setCaption(templatePost.caption || "");
         setTitle(templatePost.title || "");
         setAltText(templatePost.altText || "");
-        setActivePlatform(templatePost.platforms?.[0]?.toLowerCase() || "youtube");
+        
+        const loadedPlatforms = templatePost.platforms && templatePost.platforms.length > 0
+          ? templatePost.platforms.map(p => p.toLowerCase())
+          : [DEFAULT_PLATFORM];
+        setSelectedPlatforms(loadedPlatforms);
+        setActivePlatform(loadedPlatforms[0] || DEFAULT_PLATFORM);
+
         setScheduledDate(defaultScheduledAt ? toLocalDatetimeString(defaultScheduledAt) : toLocalDatetimeString(new Date()));
         setIsLibrary(initialIsLibrary || false);
         setSelectedPublishId(defaultScheduledAt ? "schedule" : "now");
@@ -361,10 +423,14 @@ export function usePostCreatorForm() {
         setYoutubeTags(opts.tags || "");
         setYoutubeFirstComment(opts.firstComment || "");
         setGlobalFirstComment(opts.firstComment || "");
+        setThreadsWhoCanReply(opts.threadsWhoCanReply || "everyone");
 
         // Setup Facebook
         setFacebookType(opts.facebookType || "post");
         setFacebookTitle(opts.facebookTitle || "");
+
+        // Setup Instagram
+        setInstagramType(opts.instagramType || "post");
 
         // Setup TikTok
         setTiktokPrivacy(opts.tiktokPrivacy || "public");
@@ -373,9 +439,12 @@ export function usePostCreatorForm() {
         setTiktokAllowStitch(opts.tiktokAllowStitch !== undefined ? opts.tiktokAllowStitch : true);
         setTiktokAiGenerated(opts.tiktokAiGenerated || false);
         setTiktokCommercialContent(opts.tiktokCommercialContent || false);
+        setSelectedDiscordChannels(opts.selectedDiscordChannels || []);
         
         // Setup media
-        if (templatePost.mediaUrls?.[0]) {
+        if (opts.facebookType === 'album' && opts.albumMedia) {
+          setAlbumMedia(opts.albumMedia);
+        } else if (templatePost.mediaUrls?.[0]) {
           const path = templatePost.mediaUrls[0];
           setUploadedVideoPath(path);
           setVideoFileUrl(buildMediaUrl(path));
@@ -387,7 +456,29 @@ export function usePostCreatorForm() {
         // Reset for new creation
         setCaption("");
         setTitle("");
-        setActivePlatform(DEFAULT_PLATFORM);
+        
+        const connected = activeBrand?.socialAccounts
+          ?.filter(sa => sa.isConnected)
+          ?.map(sa => {
+            const mapping = {
+              FACEBOOK: "facebook",
+              INSTAGRAM: "instagram",
+              YOUTUBE: "youtube",
+              TIKTOK: "tiktok",
+              LINKEDIN: "linkedin",
+              TELEGRAM: "telegram",
+              DISCORD: "discord",
+              THREADS: "threads"
+            };
+            return mapping[sa.platform];
+          })
+          ?.filter(Boolean) || [];
+        const initialPlatform = connected.includes(DEFAULT_PLATFORM)
+          ? DEFAULT_PLATFORM
+          : (connected[0] || DEFAULT_PLATFORM);
+
+        setSelectedPlatforms([initialPlatform]);
+        setActivePlatform(initialPlatform);
         setScheduledDate(defaultScheduledAt ? toLocalDatetimeString(defaultScheduledAt) : toLocalDatetimeString(new Date()));
         setIsLibrary(initialIsLibrary || false);
         setSelectedPublishId(defaultScheduledAt ? PUBLISH_MODE.SCHEDULE : PUBLISH_MODE.NOW);
@@ -405,6 +496,10 @@ export function usePostCreatorForm() {
         setFacebookType(FACEBOOK_TYPE.POST);
         setFacebookTitle("");
         setAltText("");
+        setAlbumMedia([]);
+
+        // Reset Instagram
+        setInstagramType(INSTAGRAM_TYPE.POST);
 
         // Reset TikTok
         setTiktokPrivacy(TIKTOK_PRIVACY.PUBLIC);
@@ -413,9 +508,11 @@ export function usePostCreatorForm() {
         setTiktokAllowStitch(true);
         setTiktokAiGenerated(false);
         setTiktokCommercialContent(false);
+        const discordAccs = activeBrand?.socialAccounts?.filter(sa => sa.platform === 'DISCORD' && sa.isConnected) || [];
+        setSelectedDiscordChannels(discordAccs.map(acc => acc.id));
       }
     }
-  }, [isOpen, editingPost, templatePost, defaultScheduledAt, initialIsLibrary]);
+  }, [isOpen, editingPost, templatePost, defaultScheduledAt, initialIsLibrary, activeBrand]);
 
   const loadTemplate = (template) => {
     if (!template) return;
@@ -435,10 +532,14 @@ export function usePostCreatorForm() {
     setYoutubeTags(opts.tags || "");
     setYoutubeFirstComment(opts.firstComment || "");
     setGlobalFirstComment(opts.firstComment || "");
+    setThreadsWhoCanReply(opts.threadsWhoCanReply || "everyone");
 
     // Setup Facebook
     setFacebookType(opts.facebookType || "post");
     setFacebookTitle(opts.facebookTitle || "");
+
+    // Setup Instagram
+    setInstagramType(opts.instagramType || "post");
 
     // Setup TikTok
     setTiktokPrivacy(opts.tiktokPrivacy || "public");
@@ -449,7 +550,9 @@ export function usePostCreatorForm() {
     setTiktokCommercialContent(opts.tiktokCommercialContent || false);
     
     // Setup media
-    if (template.mediaUrls?.[0]) {
+    if (opts.facebookType === 'album' && opts.albumMedia) {
+      setAlbumMedia(opts.albumMedia);
+    } else if (template.mediaUrls?.[0]) {
       const path = template.mediaUrls[0];
       setUploadedVideoPath(path);
       setVideoFileUrl(buildMediaUrl(path));
@@ -468,6 +571,7 @@ export function usePostCreatorForm() {
 
     const errors = getValidationErrors();
     if (errors.length > 0) {
+      console.warn("Validation errors detected in PostCreator Form:", errors);
       toast.error("Please resolve the validation errors first");
       return;
     }
@@ -475,20 +579,30 @@ export function usePostCreatorForm() {
     setIsCreating(true);
     try {
       // Map publish mode → post status dùng lookup, không dùng if-else chain
-      let status = PUBLISH_MODE_TO_STATUS[selectedPublishId] || POST_STATUS.DRAFT;
+      const status = PUBLISH_MODE_TO_STATUS[selectedPublishId] || POST_STATUS.DRAFT;
 
-      let postType = POST_TYPE.VIDEO;
-      if (activePlatform === PLATFORMS.FACEBOOK) {
-        if (facebookType === FACEBOOK_TYPE.STORY) postType = POST_TYPE.STORY;
-        else if (facebookType === FACEBOOK_TYPE.REEL) postType = POST_TYPE.REEL;
-        else {
-          postType = (uploadedVideoPath || videoFile) ? POST_TYPE.VIDEO : POST_TYPE.IMAGE;
-        }
-      } else if (activePlatform === PLATFORMS.YOUTUBE) {
-        postType = youtubeType === YOUTUBE_TYPE.SHORT ? POST_TYPE.SHORT : POST_TYPE.VIDEO;
-      } else if (activePlatform === PLATFORMS.TIKTOK) {
-        postType = POST_TYPE.VIDEO;
-      }
+      let activeSubType = 'post';
+      if (activePlatform === PLATFORMS.FACEBOOK) activeSubType = facebookType;
+      else if (activePlatform === PLATFORMS.YOUTUBE) activeSubType = youtubeType;
+      else if (activePlatform === PLATFORMS.INSTAGRAM) activeSubType = instagramType;
+      else if (activePlatform === PLATFORMS.TIKTOK) activeSubType = 'video';
+
+      const isAlbum = activePlatform === PLATFORMS.FACEBOOK && facebookType === 'album';
+      const hasMedia = isAlbum ? albumMedia.length > 0 : !!(uploadedVideoPath || videoFile);
+      const isVid = !isAlbum && isVideoPath(videoFileUrl, videoFile);
+
+      const platformConfig = PLATFORM_CONFIGS[activePlatform];
+      const postType = platformConfig 
+        ? platformConfig.getPostType(activeSubType, hasMedia, isVid)
+        : POST_TYPE.VIDEO;
+
+      // Chuẩn bị danh sách URLs và captions cho Album
+      const postMediaUrls = isAlbum 
+        ? albumMedia.map(item => item.path).filter(Boolean)
+        : (uploadedVideoPath ? [uploadedVideoPath] : []);
+      const mediaCaptions = isAlbum
+        ? albumMedia.map(item => item.caption || "")
+        : [];
 
       const payload = {
         brandId: activeBrand.id,
@@ -498,9 +612,9 @@ export function usePostCreatorForm() {
         status,
         isLibrary,
         altText,
-        targetPlatforms: [activePlatform.toUpperCase()],
+        targetPlatforms: selectedPlatforms.map(p => p.toUpperCase()),
         scheduledAt: selectedPublishId === 'now' ? null : (scheduledDate ? new Date(scheduledDate).toISOString() : null),
-        mediaUrls: uploadedVideoPath ? [uploadedVideoPath] : [],
+        mediaUrls: postMediaUrls,
         reviewerIds: selectedReviewerIds,
         approvalPolicy: approvalPolicy,
         requesterNote: requesterNote || "Vui lòng phê duyệt bài viết này.",
@@ -515,44 +629,56 @@ export function usePostCreatorForm() {
           firstComment: youtubeFirstComment || globalFirstComment,
           facebookType,
           facebookTitle,
+          instagramType,
           tiktokPrivacy,
           tiktokAllowComments,
           tiktokAllowDuet,
           tiktokAllowStitch,
           tiktokAiGenerated,
-          tiktokCommercialContent
+          tiktokCommercialContent,
+          selectedDiscordChannels,
+          albumMedia,
+          mediaCaptions,
+          threadsWhoCanReply
         }
       };
 
       if (editingPost) {
         await apiService.put(`/posts/${editingPost.id}`, payload);
         toast.success("Post updated successfully");
+        // Đóng form ngay sau khi cập nhật thành công để tránh user vô tình tạo thêm bài mới
+        closePostCreator();
       } else {
         await apiService.post('/posts', payload);
         toast.success("Post created successfully");
+        // Reset state sau khi tạo bài mới thành công
+        setSelectedPlatforms([DEFAULT_PLATFORM]);
+        setActivePlatform(DEFAULT_PLATFORM);
+        setScheduledDate(toLocalDatetimeString(new Date()));
+        setIsLibrary(false);
+        setSelectedPublishId(PUBLISH_MODE.NOW);
+        setYoutubeType(YOUTUBE_TYPE.VIDEO);
+        setYoutubeTitle("");
+        setYoutubeTags("");
+        setYoutubeFirstComment("");
+        setGlobalFirstComment("");
+        setFacebookTitle("");
+        setFacebookType(FACEBOOK_TYPE.POST);
+        setInstagramType(INSTAGRAM_TYPE.POST);
+        setAltText("");
+        setTiktokPrivacy(TIKTOK_PRIVACY.PUBLIC);
+        setTiktokAllowComments(true);
+        setTiktokAllowDuet(true);
+        setTiktokAllowStitch(true);
+        setTiktokAiGenerated(false);
+        setTiktokCommercialContent(false);
+        setVideoFile(null);
+        setVideoFileUrl("");
+        setUploadedVideoPath("");
+        closePostCreator();
       }
-      setActivePlatform(DEFAULT_PLATFORM);
-      setScheduledDate(toLocalDatetimeString(new Date()));
-      setIsLibrary(false);
-      setSelectedPublishId(PUBLISH_MODE.NOW);
-      setYoutubeType(YOUTUBE_TYPE.VIDEO);
-      setYoutubeTitle("");
-      setYoutubeTags("");
-      setYoutubeFirstComment("");
-      setGlobalFirstComment("");
-      setFacebookTitle("");
-      setFacebookType(FACEBOOK_TYPE.POST);
-      setAltText("");
-      setTiktokPrivacy(TIKTOK_PRIVACY.PUBLIC);
-      setTiktokAllowComments(true);
-      setTiktokAllowDuet(true);
-      setTiktokAllowStitch(true);
-      setTiktokAiGenerated(false);
-      setTiktokCommercialContent(false);
-      setVideoFile(null);
-      setVideoFileUrl("");
-      setUploadedVideoPath("");
     } catch (error) {
+      console.error("Failed to create/update post:", error);
       toast.error(error.response?.data?.message || "Failed to create post");
     } finally {
       setIsCreating(false);
@@ -566,8 +692,11 @@ export function usePostCreatorForm() {
     setCaption,
     title,
     setTitle,
+    selectedPlatforms,
+    togglePlatform,
     activePlatform,
     setActivePlatform,
+    platformLimits,
     previewDevice,
     setPreviewDevice,
     showPublishMenu,
@@ -638,6 +767,13 @@ export function usePostCreatorForm() {
     setShowFacebookTypeMenu,
     facebookTitle,
     setFacebookTitle,
+    // Instagram States
+    instagramOpen,
+    setInstagramOpen,
+    instagramType,
+    setInstagramType,
+    showInstagramTypeMenu,
+    setShowInstagramTypeMenu,
     getValidationErrors,
     altText,
     setAltText,
@@ -667,6 +803,15 @@ export function usePostCreatorForm() {
     setApprovalPolicy,
     requesterNote,
     setRequesterNote,
-    isLoadingReviewers
+    isLoadingReviewers,
+    selectedDiscordChannels,
+    setSelectedDiscordChannels,
+    discordOpen,
+    setDiscordOpen,
+    albumMedia,
+    setAlbumMedia,
+    // Threads States
+    threadsWhoCanReply,
+    setThreadsWhoCanReply
   };
 }

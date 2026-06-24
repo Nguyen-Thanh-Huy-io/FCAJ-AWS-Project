@@ -28,80 +28,48 @@ class YouTubeAnalyticsService {
     return client;
   }
 
-  _getMockChannelInfo() {
+  _getEmptyChannelInfo(account = null) {
     return {
-      channelId: 'mock-youtube-channel-id',
-      username: '@publicast_mock',
-      displayName: 'Mock PubliCast YouTube Channel',
-      profilePictureUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60',
+      channelId: account?.platformAccountId || 'mock-youtube-channel-id',
+      username: account?.username || '@youtube_channel',
+      displayName: account?.displayName || 'YouTube Channel',
+      profilePictureUrl: account?.profilePictureUrl || '',
       statistics: {
-        viewCount: '150000',
-        subscriberCount: '12400',
-        videoCount: '48',
+        viewCount: '0',
+        subscriberCount: '0',
+        videoCount: '0',
         hiddenSubscriberCount: false
       },
       snippet: {
-        title: 'Mock PubliCast YouTube Channel',
-        description: 'This is a mock YouTube channel for testing',
-        customUrl: '@publicast_mock',
-        publishedAt: '2026-01-01T00:00:00Z',
+        title: account?.displayName || 'YouTube Channel',
+        description: 'No data available',
+        customUrl: account?.username || '',
+        publishedAt: new Date().toISOString(),
         thumbnails: {
-          default: { url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60' }
+          default: { url: account?.profilePictureUrl || '' }
         }
       },
       analytics: {
-        demographics: [
-          ['age13-17', 'female', 4.5],
-          ['age13-17', 'male', 5.2],
-          ['age18-24', 'female', 18.3],
-          ['age18-24', 'male', 22.1],
-          ['age25-34', 'female', 15.6],
-          ['age25-34', 'male', 19.4],
-          ['age35-44', 'female', 6.2],
-          ['age35-44', 'male', 8.7]
-        ],
-        trafficSource: [
-          ['insightTrafficSourceTypeSUBSCRIBED', 5500, 16500],
-          ['insightTrafficSourceTypeSEARCH', 3200, 9600],
-          ['insightTrafficSourceTypeRELATED', 2400, 7200],
-          ['insightTrafficSourceTypeDIRECT', 1100, 3300]
-        ],
-        geographic: [
-          ['VN', 6200],
-          ['US', 3100],
-          ['IN', 1800],
-          ['JP', 900]
-        ],
-        growth: this._getMockGrowthData()
+        demographics: [],
+        trafficSource: [],
+        geographic: [],
+        growth: []
       },
       uploadsPlaylistId: 'mock-uploads-playlist-id'
     };
   }
 
   _getMockGrowthData() {
-    const { start, end } = this._resolveDates(null, null);
-    const dailyMap = {};
-    const startMs = new Date(start + 'T00:00:00Z').getTime();
-    const endMs = new Date(end + 'T00:00:00Z').getTime();
-    
-    for (let t = startMs; t <= endMs; t += 24 * 60 * 60 * 1000) {
-      const d = new Date(t).toISOString().split('T')[0];
-      dailyMap[d] = {
-        date: d,
-        views: 100 + Math.floor(Math.random() * 500),
-        subscribersGained: 5 + Math.floor(Math.random() * 20),
-        subscribersLost: Math.floor(Math.random() * 4),
-        totalContent: Math.random() > 0.8 ? 1 : 0
-      };
-    }
-    return Object.keys(dailyMap).sort().map(d => dailyMap[d]);
+    return [];
   }
 
-  async getChannelInfo(auth, startDate, endDate) {
+  async getChannelInfo(auth, startDate, endDate, account = null) {
     const accessToken = auth?.credentials?.access_token;
     if (accessToken && accessToken.startsWith('mock-')) {
-      return this._getMockChannelInfo();
-    }    try {
+      return this._getEmptyChannelInfo(account);
+    }
+
+    const fetchRealData = async () => {
       const response = await youtubeGateway.getChannelList(auth, true);
 
       if (!response.data.items || response.data.items.length === 0) {
@@ -121,9 +89,29 @@ class YouTubeAnalyticsService {
         analytics: analyticsData,
         uploadsPlaylistId: channel.contentDetails.relatedPlaylists.uploads
       };
+    };
+
+    // Helper: Wrap promise with a timeout rejection
+    const withTimeout = (promise, ms = 3000) => {
+      let timeoutId;
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error('Google API request timeout (3000ms) exceeded'));
+        }, ms);
+      });
+      return Promise.race([promise, timeoutPromise]).finally(() => {
+        clearTimeout(timeoutId);
+      });
+    };
+
+    try {
+      return await withTimeout(fetchRealData(), 3000);
     } catch (error) {
-      console.warn(`[YouTube Analytics] API call failed (${error.message}). Falling back to mock data...`);
-      return this._getMockChannelInfo();
+      if (error.message === 'No YouTube channel found for this account') {
+        throw error;
+      }
+      console.warn(`[YouTube Analytics] API call failed or timed out (${error.message}). Falling back to empty data...`);
+      return this._getEmptyChannelInfo(account);
     }
   }
 
@@ -131,29 +119,10 @@ class YouTubeAnalyticsService {
     const accessToken = auth?.credentials?.access_token;
     if (accessToken && accessToken.startsWith('mock-')) {
       return {
-        demographics: [
-          ['age13-17', 'female', 4.5],
-          ['age13-17', 'male', 5.2],
-          ['age18-24', 'female', 18.3],
-          ['age18-24', 'male', 22.1],
-          ['age25-34', 'female', 15.6],
-          ['age25-34', 'male', 19.4],
-          ['age35-44', 'female', 6.2],
-          ['age35-44', 'male', 8.7]
-        ],
-        trafficSource: [
-          ['insightTrafficSourceTypeSUBSCRIBED', 5500, 16500],
-          ['insightTrafficSourceTypeSEARCH', 3200, 9600],
-          ['insightTrafficSourceTypeRELATED', 2400, 7200],
-          ['insightTrafficSourceTypeDIRECT', 1100, 3300]
-        ],
-        geographic: [
-          ['VN', 6200],
-          ['US', 3100],
-          ['IN', 1800],
-          ['JP', 900]
-        ],
-        growth: this._getMockGrowthData()
+        demographics: [],
+        trafficSource: [],
+        geographic: [],
+        growth: []
       };
     }
 
@@ -184,38 +153,8 @@ class YouTubeAnalyticsService {
       const growthData = this._formatGrowthData(growthRes?.data?.rows || [], start, end, videosPerDay);
 
       let demographics = demoRes?.data?.rows || [];
-      if (demographics.length === 0) {
-        demographics = [
-          ['age13-17', 'female', 4.5],
-          ['age13-17', 'male', 5.2],
-          ['age18-24', 'female', 18.3],
-          ['age18-24', 'male', 22.1],
-          ['age25-34', 'female', 15.6],
-          ['age25-34', 'male', 19.4],
-          ['age35-44', 'female', 6.2],
-          ['age35-44', 'male', 8.7]
-        ];
-      }
-
       let trafficSource = trafficRes?.data?.rows || [];
-      if (trafficSource.length === 0) {
-        trafficSource = [
-          ['insightTrafficSourceTypeSUBSCRIBED', 5500, 16500],
-          ['insightTrafficSourceTypeSEARCH', 3200, 9600],
-          ['insightTrafficSourceTypeRELATED', 2400, 7200],
-          ['insightTrafficSourceTypeDIRECT', 1100, 3300]
-        ];
-      }
-
       let geographic = geoRes?.data?.rows || [];
-      if (geographic.length === 0) {
-        geographic = [
-          ['VN', 6200],
-          ['US', 3100],
-          ['IN', 1800],
-          ['JP', 900]
-        ];
-      }
  
       return {
         demographics,
@@ -374,7 +313,7 @@ class YouTubeAnalyticsService {
 
     const client = this._createAuthenticatedClient(account);
 
-    const channelData = await this.getChannelInfo(client, startDate, endDate);
+    const channelData = await this.getChannelInfo(client, startDate, endDate, account);
     
     return socialAccountRepository.upsertYouTubeAccount(account.brandId, channelData, {
       access_token: client.credentials.access_token,
@@ -389,15 +328,28 @@ class YouTubeAnalyticsService {
 
     const auth = this._createAuthenticatedClient(socialAccount[0]);
 
-    const response = await youtubeGateway.getChannelList(auth, false, channelId);
+    let channel;
+    try {
+      const response = await youtubeGateway.getChannelList(auth, false, channelId);
+      if (!response.data.items || response.data.items.length === 0) {
+        throw new Error('Channel not found');
+      }
+      channel = response.data.items[0];
+    } catch (err) {
+      console.warn(`[YouTubeCompetitor] Failed to fetch channel info for ${channelId}: ${err.message}. Using mock fallback.`);
+      // Mock fallback data
+      return competitorRepository.createCompetitor(brandId, PLATFORMS.YOUTUBE, {
+        competitorHandle: channelId,
+        competitorDisplayName: `YouTube Channel (${channelId})`,
+        competitorAvatarUrl: "",
+        followersCount: 0
+      });
+    }
 
-    if (!response.data.items || response.data.items.length === 0) throw new Error('Channel not found');
-
-    const channel = response.data.items[0];
     return competitorRepository.createCompetitor(brandId, PLATFORMS.YOUTUBE, {
       competitorHandle: channel.snippet.customUrl || channel.id,
       competitorDisplayName: channel.snippet.title,
-      competitorAvatarUrl: channel.snippet.thumbnails.default.url,
+      competitorAvatarUrl: channel.snippet.thumbnails.medium?.url || channel.snippet.thumbnails.default.url,
       followersCount: parseInt(channel.statistics.subscriberCount) || 0
     });
   }

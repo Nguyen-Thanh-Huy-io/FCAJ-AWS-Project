@@ -1,0 +1,46 @@
+const express = require('express');
+const hashtagController = require('../../controllers/workspace/hashtag.controller');
+const { verifyAuth } = require('../../middlewares/auth.middleware');
+
+const router = express.Router();
+
+// Universal auth
+router.use(verifyAuth);
+
+/**
+ * GET /api/hashtags
+ * Retrieve all sets and tracked hashtags for a brand
+ */
+router.get('/', hashtagController.getHashtagData);
+
+/**
+ * POST /api/hashtags/sets
+ * Create a new hashtag set
+ */
+router.post('/sets', hashtagController.createHashtagSet);
+
+/**
+ * PUT /api/hashtags/sets/:id
+ * Update an existing hashtag set
+ */
+router.put('/sets/:id', hashtagController.updateHashtagSet);
+
+/**
+ * DELETE /api/hashtags/sets/:id
+ * Delete a hashtag set
+ */
+router.delete('/sets/:id', hashtagController.deleteHashtagSet);
+
+/**
+ * POST /api/hashtags/track
+ * Track a new hashtag
+ */
+router.post('/track', hashtagController.trackHashtag);
+
+/**
+ * DELETE /api/hashtags/track/:id
+ * Untrack a hashtag
+ */
+router.delete('/track/:id', hashtagController.untrackHashtag);
+
+module.exports = router;

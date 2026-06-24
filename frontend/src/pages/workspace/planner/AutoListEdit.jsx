@@ -3,8 +3,9 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
   AlertTriangle, Youtube, PlayCircle, Instagram, 
-  Facebook, Linkedin, Loader2, Calendar, Plus 
+  Facebook, Linkedin, Loader2, Calendar, Plus
 } from "lucide-react";
+import { PlatformIcon } from "../../../components/shared/PlatformIcon";
 import { useBrand } from "../../../context/BrandContext";
 import socialService from "../../../services/social.service";
 import autoListService from "../../../services/auto-list.service";
@@ -27,6 +28,7 @@ const PLATFORM_ICONS = {
   INSTAGRAM: <Instagram size={18} className="text-[#E1306C]" />,
   FACEBOOK: <Facebook size={18} className="text-[#1877F2]" />,
   LINKEDIN: <Linkedin size={18} className="text-[#0A66C2]" />,
+  THREADS: <PlatformIcon platform="Threads" size={18} variant="flat" className="text-black" />,
 };
 
 export function AutoListEdit() {

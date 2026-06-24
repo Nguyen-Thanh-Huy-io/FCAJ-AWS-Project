@@ -108,7 +108,10 @@ model Brand {
   socialAccounts     SocialAccount[]
   adAccounts         AdAccount[]
   analytics          Analytics[]
-  competitorAnalysis CompetitorAnalysis[]
+  competitorAnalysis       CompetitorAnalysis[]
+  facebookOverviewMetrics  FacebookOverviewMetric[]
+  facebookPostMetrics      FacebookPostMetric[]
+  facebookStoryMetrics     FacebookStoryMetric[]
   unifiedInbox       UnifiedInbox[]
   reports            Report[]
   smartLinks         SmartLink[]
@@ -122,6 +125,7 @@ model Brand {
   subscriptionAddons SubscriptionAddon[]
   supportTickets     SupportTicket[]
   trackedVideos      TrackedVideo[]
+  discordGuildSnapshots DiscordGuildSnapshot[]
 
   @@index([ownerId])
   @@map("brands")
@@ -230,10 +234,23 @@ model Plan {
 
   planLimit     PlanLimit      @relation(fields: [planLimitId], references: [id], onDelete: Cascade)
   subscriptions Subscription[]
+  products      Product[]      @relation("PlanProducts")
 
   @@unique([name, billingCycle])
   @@map("plans")
 }
+
+model Product {
+  id        String   @id // Uses semantic slug (e.g. 'youtube_analytics')
+  name      String   @unique
+  category  String
+  createdAt DateTime @default(now())
+
+  plans     Plan[]   @relation("PlanProducts")
+
+  @@map("products")
+}
+
 
 model PlanLimit {
   id                    String        @id @default(uuid())
@@ -357,6 +374,13 @@ model SocialAccount {
   tikTokAccount    TikTokAccount?
   linkedInAccount  LinkedInAccount?
   youtubeChannel   YouTubeChannel?
+  telegramAccount  TelegramAccount?
+  discordAccount   DiscordAccount?
+
+  // Facebook dedicated metrics
+  facebookOverviewMetrics FacebookOverviewMetric[] @relation("FacebookOverviewMetricAccount")
+  facebookPostMetrics     FacebookPostMetric[]     @relation("FacebookPostMetricAccount")
+  facebookStoryMetrics    FacebookStoryMetric[]    @relation("FacebookStoryMetricAccount")
 
   @@unique([brandId, platform, platformAccountId])
   @@index([brandId])
@@ -450,6 +474,49 @@ model LinkedInAccount {
   socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
 
   @@map("linkedin_accounts")
+}
+
+model TelegramAccount {
+  id              String  @id @default(uuid())
+  socialAccountId String  @unique
+  chatType        String  @default("channel") // "channel" or "group"
+  memberCount     Int     @default(0)
+
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@map("telegram_accounts")
+}
+
+model DiscordAccount {
+  id              String  @id @default(uuid())
+  socialAccountId String  @unique
+  guildId         String? // Discord Guild/Server ID (for tracking)
+  guildName       String  @default("Discord Server")
+  channelName     String  @default("general")
+  webhookUrl      String? @db.Text // Nullable: pending server (channel not yet selected)
+  isPending       Boolean @default(false) // true = server connected but no channel chosen yet
+  memberCount     Int     @default(0)
+  onlineCount     Int     @default(0)
+  lastSyncAt      DateTime?
+
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@map("discord_accounts")
+}
+
+model DiscordGuildSnapshot {
+  id          String   @id @default(uuid())
+  guildId     String   // Discord Guild ID
+  brandId     String
+  memberCount Int      @default(0)
+  onlineCount Int      @default(0)
+  snapshotAt  DateTime @default(now())
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, brandId, snapshotAt])
+  @@index([brandId, guildId])
+  @@map("discord_guild_snapshots")
 }
 
 model AdAccount {
@@ -725,16 +792,184 @@ model CompetitorAnalysis {
   competitorHandle      String
   competitorDisplayName String?
   competitorAvatarUrl   String?
+  competitorProfileUrl  String?      // URL trang profile
   followersCount        Int?
+  followersGrowth       Float?       // % tăng trưởng followers trong kỳ
   avgEngagementRate     Float?
+  avgReach              Float?       // Reach trung bình mỗi post
+  avgLikes              Float?       // Likes trung bình mỗi post
+  avgComments           Float?       // Comments trung bình mỗi post
+  avgShares             Float?       // Shares trung bình mỗi post
   postsPerWeek          Float?
+  topPostType           String?      // Loại post phổ biến nhất (IMAGE/VIDEO/REEL...)
+  recentPostsJson       String?      @db.LongText // JSON: snapshot các post gần nhất
+  topContentJson        String?      @db.LongText // JSON: top performing content
+  audienceOverlapPct    Float?       // % trùng lặp audience với brand
   lastFetchedAt         DateTime?
   addedAt               DateTime
 
   brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
 
+  @@unique([brandId, platform, competitorHandle])
   @@index([brandId])
   @@map("competitor_analysis")
+}
+
+// ============================================
+// FACEBOOK ANALYTICS (Dedicated)
+// ============================================
+
+/// Số liệu tổng quan Facebook theo khoảng thời gian.
+/// Tab Overview: followers, clicks, reach, impressions (organic vs promoted).
+model FacebookOverviewMetric {
+  id                   String   @id @default(uuid())
+  brandId              String
+  socialAccountId      String
+  dateFrom             DateTime
+  dateTo               DateTime
+  granularity          String   @default("DAY") // DAY | WEEK | MONTH
+
+  // Followers
+  followersTotal       Int      @default(0)
+  followersGain        Int      @default(0)
+  followersLost        Int      @default(0)
+  followersNetChange   Int      @default(0)
+
+  // Reach & Impressions (chia organic/promoted)
+  reach                Int      @default(0)
+  impressions          Int      @default(0)
+  organicReach         Int      @default(0)
+  paidReach            Int      @default(0)
+  organicImpressions   Int      @default(0)
+  paidImpressions      Int      @default(0)
+
+  // Clicks
+  pageClicks           Int      @default(0)  // Tổng click trên page
+  linkClicks           Int      @default(0)  // Click vào link trong post
+  otherClicks          Int      @default(0)  // Click profile, phone, direction...
+
+  // Engagement
+  engagements          Int      @default(0)
+  likes                Int      @default(0)
+  comments             Int      @default(0)
+  shares               Int      @default(0)
+  reactions            Int      @default(0) // Tổng reactions (all types)
+
+  // Page Views
+  pageViews            Int      @default(0)
+  uniquePageViews      Int      @default(0)
+
+  // Video
+  videoViews           Int      @default(0)
+  organicVideoViews    Int      @default(0)
+  paidVideoViews       Int      @default(0)
+
+  // Dữ liệu breakdown theo ngày (JSON array)
+  dailyBreakdownJson   String?  @db.LongText
+
+  fetchedAt            DateTime @default(now())
+  createdAt            DateTime @default(now())
+
+  brand         Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount @relation("FacebookOverviewMetricAccount", fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@index([brandId])
+  @@index([socialAccountId])
+  @@map("facebook_overview_metrics")
+}
+
+/// Analytics từng bài post Facebook.
+/// Tab Posts: Types panel (Group/Count + Views donut chart), List of Posts.
+model FacebookPostMetric {
+  id                   String           @id @default(uuid())
+  brandId              String
+  socialAccountId      String
+  platformPostId       String           // Facebook post ID
+  postType             FacebookPostType // Group trong Types panel
+  publishedAt          DateTime?
+
+  // Reach & Impressions (Organic vs Promoted - cho donut chart)
+  reach                Int      @default(0)
+  organicReach         Int      @default(0)
+  promotedReach        Int      @default(0)
+  impressions          Int      @default(0)
+  organicImpressions   Int      @default(0)
+  promotedImpressions  Int      @default(0)
+
+  // Views (dành cho Video/Reel)
+  videoViews           Int      @default(0)
+  organicVideoViews    Int      @default(0)
+  promotedVideoViews   Int      @default(0)
+  avgWatchTimeSeconds  Float?   // Thời gian xem trung bình
+  watchRate            Float?   // % người xem đến cuối video
+
+  // Interactions
+  likes                Int      @default(0)
+  comments             Int      @default(0)
+  shares               Int      @default(0)
+  saves                Int      @default(0)
+  reactions            Int      @default(0) // Tổng all reaction types
+  linkClicks           Int      @default(0)
+  otherClicks          Int      @default(0)
+  negativeActions      Int      @default(0) // Ẩn bài, hủy theo dõi, báo spam
+
+  // Engagement Rate tổng hợp
+  engagementRate       Float    @default(0)
+
+  // Snapshot để hiển thị danh sách
+  captionSnippet       String?  @db.Text
+  thumbnailUrl         String?
+
+  fetchedAt            DateTime @default(now())
+  createdAt            DateTime @default(now())
+
+  brand         Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount @relation("FacebookPostMetricAccount", fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([socialAccountId, platformPostId])
+  @@index([brandId])
+  @@index([socialAccountId])
+  @@map("facebook_post_metrics")
+}
+
+/// Analytics từng Facebook Story.
+/// Tab Stories: danh sách stories + metrics reach/exits/replies/completion.
+model FacebookStoryMetric {
+  id                   String   @id @default(uuid())
+  brandId              String
+  socialAccountId      String
+  platformStoryId      String   // Facebook story ID
+  publishedAt          DateTime?
+  expiresAt            DateTime?
+
+  // Media
+  mediaType            String   @default("IMAGE") // IMAGE | VIDEO
+  thumbnailUrl         String?
+  mediaUrl             String?
+
+  // Reach & Impressions
+  reach                Int      @default(0)
+  impressions          Int      @default(0)
+
+  // Story-specific metrics
+  exits                Int      @default(0)   // Người dùng thoát khỏi story
+  replies              Int      @default(0)   // Replies qua Direct Message
+  tapsForward          Int      @default(0)   // Tap xem story tiếp theo
+  tapsBack             Int      @default(0)   // Tap xem lại story trước
+  linkClicks           Int      @default(0)   // Swipe-up / link sticker clicks
+  completionRate       Float?                 // % người xem đến hết story
+  exitRate             Float?                 // % exits / impressions
+
+  fetchedAt            DateTime @default(now())
+  createdAt            DateTime @default(now())
+
+  brand         Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount @relation("FacebookStoryMetricAccount", fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([socialAccountId, platformStoryId])
+  @@index([brandId])
+  @@index([socialAccountId])
+  @@map("facebook_story_metrics")
 }
 
 // ============================================
@@ -873,6 +1108,7 @@ model SmartLink {
   backgroundType  String
   backgroundValue String
   buttonStyle     String
+  socialLinks     String?  @db.LongText
   totalClicks     Int      @default(0)
   uniqueVisitors  Int      @default(0)
   isPublished     Boolean  @default(false)
@@ -881,6 +1117,7 @@ model SmartLink {
 
   brand Brand      @relation(fields: [brandId], references: [id], onDelete: Cascade)
   links LinkItem[]
+  dailyMetrics SmartLinkDailyMetric[]
 
   @@index([brandId])
   @@map("smart_links")
@@ -892,6 +1129,7 @@ model LinkItem {
   title          String
   url            String
   iconUrl        String?
+  linkStyle      String?  @db.Text
   emoji          String?
   position       Int
   isActive       Boolean   @default(true)
@@ -902,9 +1140,42 @@ model LinkItem {
   createdAt      DateTime  @default(now())
 
   smartLink SmartLink @relation(fields: [smartLinkId], references: [id], onDelete: Cascade)
+  dailyMetrics LinkItemDailyMetric[]
 
   @@index([smartLinkId])
   @@map("link_items")
+}
+
+model SmartLinkDailyMetric {
+  id             String   @id @default(uuid())
+  smartLinkId    String
+  date           DateTime @db.Date
+  pageViews      Int      @default(0)
+  uniqueVisitors Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  smartLink SmartLink @relation(fields: [smartLinkId], references: [id], onDelete: Cascade)
+
+  @@unique([smartLinkId, date])
+  @@index([smartLinkId, date])
+  @@map("smart_link_daily_metrics")
+}
+
+model LinkItemDailyMetric {
+  id          String   @id @default(uuid())
+  linkItemId  String
+  smartLinkId String
+  date        DateTime @db.Date
+  clicks      Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  linkItem LinkItem @relation(fields: [linkItemId], references: [id], onDelete: Cascade)
+
+  @@unique([linkItemId, date])
+  @@index([smartLinkId, date])
+  @@map("link_item_daily_metrics")
 }
 
 model HashtagTracker {
@@ -1113,6 +1384,8 @@ enum PlatformType {
   THREADS
   BLUESKY
   GOOGLE_BUSINESS
+  TELEGRAM
+  DISCORD
 }
 
 enum AdPlatformType {
@@ -1131,6 +1404,26 @@ enum PostType {
   THREAD
   PIN
   TIKTOK_CAROUSEL
+  // Facebook-specific post types
+  LINK        // Bài đăng chỉ có link preview (không có media)
+  TEXT        // Bài đăng thuần text, không media
+  LIVE_VIDEO  // Video phát trực tiếp (đã kết thúc, lưu lại)
+  ALBUM       // Album ảnh nhiều trang (legacy Facebook)
+}
+
+/// Phân loại nội dung Facebook dùng riêng cho analytics.
+/// Map 1-1 với cột "Group" trong Types panel (ảnh tham chiếu).
+/// Khác với PostType (dùng để tạo bài) — đây là để phân tích sau khi publish.
+enum FacebookPostType {
+  IMAGE       // Ảnh đơn
+  VIDEO       // Video thường
+  REEL        // Facebook Reel (short-form video)
+  LINK        // Post có link/URL preview
+  TEXT        // Post thuần text, không media
+  CAROUSEL    // Nhiều ảnh/video dạng slideshow
+  ALBUM       // Album ảnh truyền thống
+  LIVE_VIDEO  // Video Live đã được lưu lại
+  STORY       // Facebook Story (khi thống kê cùng batch với posts)
 }
 
 enum PostStatus {
@@ -1198,3 +1491,21 @@ enum AuthProvider {
   FACEBOOK
   INSTAGRAM
 }
+
+model PlatformLimit {
+  id                 String       @id @default(uuid())
+  platform           PlatformType // e.g. YOUTUBE, FACEBOOK, INSTAGRAM, TIKTOK, LINKEDIN, DISCORD, TELEGRAM
+  subType            String       // e.g. "POST", "REEL", "STORY", "VIDEO", "SHORTS"
+  maxCaptionLength   Int          @default(2000)
+  maxFileSizeMb      Int          @default(100) // 100MB
+  allowedMediaTypes  String       @default("ALL") // "ALL", "IMAGE", "VIDEO", "NONE"
+  allowedFormats     String       @default("mp4,mov,png,jpg,jpeg")
+  minVideoDuration   Int?         // in seconds
+  maxVideoDuration   Int?         // in seconds
+  aspectRatios       String?      // e.g. "9:16,16:9"
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@unique([platform, subType])
+}
+

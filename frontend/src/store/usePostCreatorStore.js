@@ -10,11 +10,14 @@ export const usePostCreatorStore = create((set) => ({
   videoFileUrl: "",
   isUploadingVideo: false,
   uploadedVideoPath: "",
+  // State phục vụ Facebook Album
+  albumMedia: [], // Mảng chứa các đối tượng { file, previewUrl, path, caption }
 
   setVideoFile: (val) => set({ videoFile: val }),
   setVideoFileUrl: (val) => set({ videoFileUrl: val }),
   setIsUploadingVideo: (val) => set({ isUploadingVideo: val }),
   setUploadedVideoPath: (val) => set({ uploadedVideoPath: val }),
+  setAlbumMedia: (val) => set((state) => ({ albumMedia: typeof val === 'function' ? val(state.albumMedia) : val })),
 
   openPostCreator: (options = {}) => set({
     editingPost: options.post || null,
@@ -25,6 +28,7 @@ export const usePostCreatorStore = create((set) => ({
     videoFileUrl: options.defaultVideoUrl || "",
     uploadedVideoPath: options.defaultVideoPath || "",
     isUploadingVideo: options.isUploadingVideo || false,
+    albumMedia: options.post?.options?.albumMedia || [],
     isOpen: true
   }),
 
@@ -37,6 +41,8 @@ export const usePostCreatorStore = create((set) => ({
     videoFileUrl: "",
     uploadedVideoPath: "",
     isUploadingVideo: false,
+    albumMedia: [],
     isOpen: false
   })
 }));
+

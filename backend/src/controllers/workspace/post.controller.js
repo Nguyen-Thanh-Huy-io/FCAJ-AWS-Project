@@ -20,6 +20,19 @@ class PostController {
   });
 
   /**
+   * GET /api/posts/platform-limits
+   * Fetch all limits configuration from DB
+   */
+  getPlatformLimits = asyncHandler(async (req, res) => {
+    const prisma = require('../../config/prisma');
+    const limits = await prisma.platformLimit.findMany();
+    res.status(200).json({
+      message: 'Platform limits retrieved successfully',
+      data: limits
+    });
+  });
+
+  /**
    * POST /api/posts
    * Create a new post
    */
@@ -71,13 +84,13 @@ class PostController {
    * DELETE /api/posts/bulk
    */
   bulkDelete = asyncHandler(async (req, res) => {
-    const { brandId } = req.body;
+    const { brandId, deleteFromSocials } = req.body;
     if (!brandId) return res.status(400).json({ message: 'brandId is required' });
     
     const targetIds = this._getBulkIds(req.body);
     if (!targetIds) return res.status(400).json({ message: 'ids array is required' });
 
-    const count = await postService.bulkDelete(targetIds, brandId);
+    const count = await postService.bulkDelete(targetIds, brandId, deleteFromSocials === true || deleteFromSocials === 'true');
     res.status(200).json({ message: 'Posts deleted successfully', count });
   });
 

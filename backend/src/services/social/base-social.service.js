@@ -1,6 +1,5 @@
 /**
  * Lớp cơ sở trừu tượng (Abstract Base Class) định nghĩa giao diện chung cho các Social Platform Services.
- * Tuân thủ nguyên lý Liskov Substitution Principle (LSP) và Open/Closed Principle (OCP).
  */
 class BaseSocialService {
   async getChannelInfo(auth, startDate, endDate) {
@@ -45,6 +44,14 @@ class BaseSocialService {
 
   async replyToComment(brandId, parentCommentId, text) {
     throw new Error("Method 'replyToComment()' must be implemented.");
+  }
+
+  async updatePublishedPost(brandId, platformPostId, postData) {
+    throw new Error("Method 'updatePublishedPost()' must be implemented.");
+  }
+
+  async deletePost(brandId, platformPostId) {
+    throw new Error("Method 'deletePost()' must be implemented.");
   }
 }
 

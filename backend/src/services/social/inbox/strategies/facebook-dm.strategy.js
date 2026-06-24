@@ -2,7 +2,8 @@ const BaseSyncStrategy = require('./base.strategy');
 const facebookGateway = require('../../facebook/facebook.gateway');
 const socialAccountRepository = require('../../../../repositories/social/social-account.repository');
 const inboxRepository = require('../../../../repositories/social/inbox.repository');
-const { PLATFORMS, INBOX_STATUS, INBOX_TYPES, API_VERSIONS } = require('../../../../utils/constants');
+const { PLATFORMS, INBOX_STATUS, INBOX_TYPES, API_VERSIONS, FACEBOOK_API } = require('../../../../utils/constants');
+
 
 class FacebookDMSyncStrategy extends BaseSyncStrategy {
   supports(platform) {
@@ -110,7 +111,8 @@ class FacebookDMSyncStrategy extends BaseSyncStrategy {
 
   async _processConversation(conv, account, inbox, messages) {
     const sender = conv.participants?.data?.find(p => p.id !== account.platformAccountId) || { name: 'Social User', id: 'unknown' };
-    const senderAvatar = `https://graph.facebook.com/${API_VERSIONS.FACEBOOK}/${sender.id}/picture?type=small`;
+    const senderAvatar = FACEBOOK_API.avatarUrl(API_VERSIONS.FACEBOOK, sender.id);
+
 
     let statusUpdate = {};
     if (messages && messages.length > 0) {

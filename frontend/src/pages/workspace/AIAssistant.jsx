@@ -1,268 +1,963 @@
-import { useState } from "react";
-import { Send, Paperclip } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Send, Paperclip, X, Sparkles, Settings, RefreshCw, Layers, Check, Copy, Bookmark, BookOpen, UserCheck, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
+import apiService from "../../services/api";
+import { useBrand } from "../../context/BrandContext";
+import { usePostCreator } from "../../context/PostCreatorContext";
+import { useSearchParams } from "react-router-dom";
 
 const quickPrompts = [
-  { emoji: "✨", text: "Write a caption for my product launch" },
-  { emoji: "🔁", text: "Repurpose my YouTube script to Instagram" },
-  { emoji: "#", text: "Suggest hashtags for fitness content" },
-  { emoji: "🎯", text: "Write 5 hook variations for TikTok" },
-  { emoji: "📊", text: "Analyze my top-performing post style" },
-  { emoji: "🌐", text: "Translate this caption to Vietnamese" },
+  { emoji: "✨", text: "Viết caption giới thiệu sản phẩm mới ra mắt thu hút khách hàng trẻ" },
+  { emoji: "🔁", text: "Chuyển thể kịch bản video ngắn thành bài viết LinkedIn chuyên nghiệp" },
+  { emoji: "#", text: "Gợi ý bộ hashtag thịnh hành cho thương hiệu công nghệ & giáo dục" },
+  { emoji: "🎯", text: "Tạo 5 tiêu đề (hook) gây tò mò cho video đăng trên TikTok" },
+  { emoji: "💡", text: "Viết bài chia sẻ kiến thức bổ ích theo dạng cẩm nang học tập" },
+  { emoji: "🌐", text: "Dịch bài viết này sang phong cách trẻ trung năng động hơn" },
 ];
 
-const initialMessages = [
-  {
-    role: "ai",
-    content: "Hi! I'm StreamHub AI, powered by Claude. I can help you write captions, suggest hashtags, repurpose content across platforms, and more. What would you like to create today?",
-    timestamp: "2:30 PM",
-  },
-  {
-    role: "user",
-    content: "Write a caption for a product launch post for a new fitness app.",
-    timestamp: "2:31 PM",
-  },
-  {
-    role: "ai",
-    content: `Here are 3 caption options for your fitness app launch:\n\n**Option 1 (Energetic):**\nThe wait is OVER. 🔥 Introducing [App Name] — your all-in-one fitness companion that adapts to YOUR goals, YOUR schedule, and YOUR lifestyle. Download it today. Link in bio.\n\n**Option 2 (Benefit-focused):**\nWhat if your fitness app actually understood you? [App Name] is here — personalized workouts, real-time coaching, and progress tracking that finally makes sense. Free download now open.\n\n**Option 3 (Community):**\nWe built something for you. 🙌 [App Name] — because fitness is better when it's personal. Join 10,000+ members already crushing their goals. Link in bio!`,
-    timestamp: "2:31 PM",
-  },
-];
+/**
+ * Custom component for each AI message bubble.
+ * Encapsulates local state for active platform tabs and quick actions.
+ */
+function AiMessageBubble({ msg, activeBrand, autoLists, openPostCreator }) {
+  const availablePlatforms = Object.keys(msg.adjustments || {});
+  const displayPlatforms = availablePlatforms.length > 0 
+    ? availablePlatforms.map(p => p.charAt(0).toUpperCase() + p.slice(1))
+    : ["Instagram", "Facebook", "TikTok", "LinkedIn"];
 
-const platforms = ["Instagram", "Facebook", "TikTok", "LinkedIn"];
-const tones = ["Professional", "Casual", "Funny", "Inspirational", "Urgent", "Educational"];
+  const [activeTab, setActiveTab] = useState(
+    displayPlatforms[0]?.toLowerCase() || "instagram"
+  );
+  const [isQuickPosting, setIsQuickPosting] = useState(false);
+  const [selectedAutoListId, setSelectedAutoListId] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const getCaptionForPlatform = (platform) => {
+    return msg.adjustments?.[platform.toLowerCase()] || msg.content;
+  };
+
+  const currentCaption = getCaptionForPlatform(activeTab);
+  const currentHashtags = msg.hashtags || [];
+
+  const handleCopyText = (text) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast.success("Đã sao chép nội dung vào bộ nhớ tạm!");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleInsertIntoPost = () => {
+    openPostCreator({
+      template: {
+        caption: `${currentCaption}\n\n${currentHashtags.join(" ")}`,
+        platforms: [activeTab.toUpperCase()]
+      }
+    });
+    toast.success("Đã nạp nội dung vào màn hình soạn thảo!");
+  };
+
+  const handleQuickPostAction = async (status, isLibrary = false, toAutoList = false) => {
+    if (!activeBrand?.id) return;
+    setIsQuickPosting(true);
+    try {
+      const payload = {
+        caption: currentCaption,
+        hashtags: currentHashtags,
+        targetPlatforms: [activeTab.toUpperCase()],
+        autoListId: toAutoList ? selectedAutoListId : undefined,
+        status: status,
+        isLibrary: isLibrary
+      };
+
+      await apiService.post(`/ai/quick-post?brandId=${activeBrand.id}`, payload);
+      
+      if (isLibrary) {
+        toast.success("Đã lưu bài viết vào Thư viện mẫu thành công!");
+      } else if (toAutoList) {
+        toast.success("Đã lưu và thêm vào hàng đợi AutoList thành công!");
+      } else if (status === "PENDING_APPROVAL") {
+        toast.success("Đã gửi bài viết yêu cầu phê duyệt!");
+      } else {
+        toast.success("Đã lưu nháp bài đăng thành công!");
+      }
+    } catch (err) {
+      toast.error(err.message || "Không thể thực hiện hành động này");
+    } finally {
+      setIsQuickPosting(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col w-full max-w-[90%] bg-white rounded-2xl border border-gray-200/80 shadow-sm p-4 text-xs font-medium text-gray-800">
+      {/* Platform Switcher */}
+      <div className="flex flex-wrap gap-1 mb-3 border-b border-gray-100 pb-2">
+        {displayPlatforms.map((p) => (
+          <button 
+            key={p} 
+            onClick={() => setActiveTab(p.toLowerCase())} 
+            className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+              activeTab === p.toLowerCase() 
+                ? "bg-indigo-50 text-indigo-700 border border-indigo-200/50 shadow-sm" 
+                : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+      </div>
+
+      {/* Main Text Content */}
+      <div className="relative min-h-[60px] bg-gray-50/50 rounded-xl p-3 border border-gray-100 group">
+        <div className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap pr-7">
+          {currentCaption}
+        </div>
+        <button
+          onClick={() => handleCopyText(currentCaption)}
+          className="absolute top-2 right-2 p-1.5 rounded-lg bg-white border border-gray-200 text-gray-400 hover:text-gray-800 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity duration-150 cursor-pointer"
+          title="Sao chép"
+        >
+          {copied ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
+        </button>
+      </div>
+
+      {/* Hashtag List */}
+      {currentHashtags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-2.5">
+          {currentHashtags.map((tag) => (
+            <span key={tag} className="text-[10px] font-bold text-indigo-600 bg-indigo-50/40 px-2 py-0.5 rounded-md border border-indigo-100/30">
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Action Buttons Panel */}
+      <div className="mt-4 pt-3 border-t border-gray-100 flex flex-col gap-2.5">
+        <div className="flex flex-wrap gap-2">
+          <button 
+            onClick={handleInsertIntoPost}
+            className="px-3.5 py-1.5 rounded-lg bg-gray-900 hover:bg-gray-800 text-white font-bold text-[10px] transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shadow-gray-200"
+          >
+            <Sparkles size={11} /> Đưa vào Post Creator
+          </button>
+          <button 
+            onClick={() => handleQuickPostAction("DRAFT", false)}
+            disabled={isQuickPosting}
+            className="px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 text-gray-600 font-bold text-[10px] transition-all cursor-pointer"
+          >
+            Lưu Nháp
+          </button>
+          <button 
+            onClick={() => handleQuickPostAction("PENDING_APPROVAL", false)}
+            disabled={isQuickPosting}
+            className="px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 text-gray-600 font-bold text-[10px] transition-all cursor-pointer"
+          >
+            Gửi duyệt
+          </button>
+          <button 
+            onClick={() => handleQuickPostAction("DRAFT", true)}
+            disabled={isQuickPosting}
+            className="px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 text-gray-600 font-bold text-[10px] transition-all flex items-center gap-1 cursor-pointer"
+          >
+            <Bookmark size={11} /> Lưu Thư viện mẫu
+          </button>
+        </div>
+
+        {/* AutoLists Selector */}
+        {autoLists.length > 0 && (
+          <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl border border-gray-100 w-full md:max-w-md">
+            <Layers size={12} className="text-gray-400 shrink-0" />
+            <select 
+              value={selectedAutoListId}
+              onChange={(e) => setSelectedAutoListId(e.target.value)}
+              className="bg-transparent text-[10px] text-gray-600 font-bold border-none outline-none flex-1"
+            >
+              <option value="">Thêm vào hàng đợi AutoList...</option>
+              {autoLists.map((q) => (
+                <option key={q.id} value={q.id}>{q.name}</option>
+              ))}
+            </select>
+            <button 
+              onClick={() => handleQuickPostAction("SCHEDULED", false, true)}
+              disabled={!selectedAutoListId || isQuickPosting}
+              className="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold text-[9px] transition-all shrink-0 cursor-pointer shadow-sm shadow-indigo-100"
+            >
+              Thêm vào hàng đợi
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="text-[9px] text-gray-400 mt-2 font-medium">
+        Bài viết hiển thị: {currentCaption.length} ký tự
+      </div>
+    </div>
+  );
+}
 
 export function AIAssistant() {
-  const [messages, setMessages] = useState(initialMessages);
+  const { activeBrand } = useBrand();
+  const { openPostCreator } = usePostCreator();
+
+  // Tab View State: "chat" or "settings" Managed via URL Query Parameter
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentTab = searchParams.get("tab") || "chat";
+
+  const setCurrentTab = (newTab) => {
+    setSearchParams(
+      (prev) => {
+        prev.set("tab", newTab);
+        return prev;
+      },
+      { replace: true }
+    );
+  };
+
+  // Chat & API States
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [tone, setTone] = useState("Casual");
+  const [tone, setTone] = useState("PROFESSIONAL");
   const [showToneMenu, setShowToneMenu] = useState(false);
-  const [activeTab, setActiveTab] = useState("Instagram");
-  const [credits] = useState(847);
   const [isTyping, setIsTyping] = useState(false);
 
-  const sendMessage = () => {
-    if (!input.trim()) return;
-    const userMsg = { role: "user", content: input, timestamp: "now" };
+  // Selected Options for Generation (Supports multi-select platforms)
+  const [selectedPlatforms, setSelectedPlatforms] = useState(["facebook", "instagram"]);
+  const [selectedFormat, setSelectedFormat] = useState("Caption");
+
+  // Dynamic Config & Labels fetched from Backend
+  const [supportedTones, setSupportedTones] = useState([]);
+  const [toneLabels, setToneLabels] = useState({});
+  const [supportedLanguages, setSupportedLanguages] = useState([]);
+  const [supportedFormats, setSupportedFormats] = useState([
+    { value: "Caption", label: "Caption ngắn", emoji: "📝", description: "Caption ngắn gọn kèm hashtag thu hút" },
+    { value: "Article", label: "Bài viết dài", emoji: "📰", description: "Bài viết chia sẻ kiến thức chi tiết" },
+    { value: "Story", label: "Kịch bản Story/Reels", emoji: "⚡", description: "Nội dung ngắn, kịch tính cho Reels/Story" },
+    { value: "Hook", label: "Tiêu đề giật tít", emoji: "🎯", description: "Các câu tiêu đề gây tò mò, thu hút click" }
+  ]);
+
+  // Dynamic Prompt Customization
+  const [language, setLanguage] = useState("vi");
+  const [genre, setGenre] = useState("");
+  const [situation, setSituation] = useState("");
+
+  // Settings States
+  const [brandVoiceContext, setBrandVoiceContext] = useState("");
+  const [targetAudience, setTargetAudience] = useState("");
+  const [targetPlatforms, setTargetPlatforms] = useState("");
+  const [defaultTone, setDefaultTone] = useState("PROFESSIONAL");
+  const [defaultLanguage, setDefaultLanguage] = useState("vi");
+
+  // Credits States
+  const [creditsLimit, setCreditsLimit] = useState(1000);
+  const [creditsUsed, setCreditsUsed] = useState(0);
+
+  // AutoLists & Action States
+  const [autoLists, setAutoLists] = useState([]);
+  const [isSavingVoice, setIsSavingVoice] = useState(false);
+
+  // Multimodal State
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const fileInputRef = useRef(null);
+  const messagesEndRef = useRef(null);
+
+  // Platform Multi-Select Dropdown State & Ref
+  const [showPlatformDropdown, setShowPlatformDropdown] = useState(false);
+  const platformDropdownRef = useRef(null);
+
+  // Close platform dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (platformDropdownRef.current && !platformDropdownRef.current.contains(event.target)) {
+        setShowPlatformDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Load configuration metadata on mount
+  useEffect(() => {
+    loadConfig();
+  }, []);
+
+  // Load brand specific settings & AutoLists when active brand changes
+  useEffect(() => {
+    if (activeBrand?.id) {
+      loadSettings();
+      loadAutoLists();
+    }
+  }, [activeBrand?.id]);
+
+  // Scroll to bottom of chat
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isTyping]);
+
+  const loadConfig = async () => {
+    try {
+      const res = await apiService.get("/ai/config");
+      const config = res.data;
+      setSupportedTones(config.supportedTones || []);
+      setSupportedLanguages(config.supportedLanguages || []);
+      if (config.supportedFormats && config.supportedFormats.length > 0) {
+        setSupportedFormats(config.supportedFormats);
+      }
+      
+      // Map configuration payload into local UI labels format
+      const labels = {};
+      (config.supportedTones || []).forEach(t => {
+        labels[t.value] = `${t.label} ${t.emoji}`;
+      });
+      setToneLabels(labels);
+    } catch (err) {
+      console.error("Failed to load AI configuration:", err);
+    }
+  };
+
+  const loadSettings = async () => {
+    try {
+      const res = await apiService.get(`/ai/settings?brandId=${activeBrand.id}`);
+      const data = res.data;
+      setBrandVoiceContext(data.brandVoiceContext || "");
+      setTargetAudience(data.targetAudience || "");
+      setTargetPlatforms(data.targetPlatforms || "");
+      setDefaultTone(data.defaultTone || "PROFESSIONAL");
+      setDefaultLanguage(data.defaultLanguage || "vi");
+      setLanguage(data.defaultLanguage || "vi");
+      setCreditsLimit(data.creditsLimit || 1000);
+      setCreditsUsed(data.creditsUsed || 0);
+
+      // Initialize active tone to default settings
+      setTone(data.defaultTone || "PROFESSIONAL");
+
+      // Initialize active platforms list from target platforms settings
+      if (data.targetPlatforms) {
+        const plats = data.targetPlatforms
+          .split(/[,,;]/)
+          .map(p => p.trim().toLowerCase())
+          .filter(Boolean);
+        if (plats.length > 0) {
+          setSelectedPlatforms(plats);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load AI settings:", err);
+      toast.error("Không thể tải cấu hình AI của thương hiệu");
+    }
+  };
+
+  const loadAutoLists = async () => {
+    try {
+      const res = await apiService.get(`/auto-lists?brandId=${activeBrand.id}`);
+      setAutoLists(res.data?.data || []);
+    } catch (err) {
+      console.error("Failed to load auto-lists:", err);
+    }
+  };
+
+  const handleSaveVoice = async () => {
+    if (!activeBrand?.id) return;
+    setIsSavingVoice(true);
+    try {
+      await apiService.put(`/ai/settings?brandId=${activeBrand.id}`, {
+        brandVoiceContext,
+        targetAudience,
+        targetPlatforms,
+        defaultTone: tone,
+        defaultLanguage
+      });
+      toast.success("Đã lưu cấu hình giọng điệu thương hiệu thành công!");
+    } catch (err) {
+      toast.error("Không thể lưu cấu hình thương hiệu");
+    } finally {
+      setIsSavingVoice(false);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Vui lòng chọn tệp hình ảnh hợp lệ (PNG, JPG, WEBP)");
+      return;
+    }
+
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!input.trim() && !imagePreview) return;
+    if (!activeBrand?.id) {
+      toast.error("Vui lòng chọn một thương hiệu trước.");
+      return;
+    }
+
+    const currentPrompt = input;
+    const currentImage = imagePreview;
+
+    // Add user message locally
+    const userMsg = {
+      role: "user",
+      content: currentPrompt,
+      image: currentImage,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
+    handleRemoveImage();
     setIsTyping(true);
-    setTimeout(() => {
-      setIsTyping(false);
+
+    try {
+      // Combine selected format with custom style input for context
+      const styleToUse = selectedFormat + (genre ? ` (${genre})` : "");
+
+      // Send comma-separated list of selected platforms
+      const platformsString = selectedPlatforms.join(",");
+
+      const res = await apiService.post(`/ai/generate?brandId=${activeBrand.id}`, {
+        prompt: currentPrompt,
+        tone: tone,
+        platform: platformsString,
+        image: currentImage || undefined,
+        language,
+        genre: styleToUse,
+        situation
+      }, {
+        timeout: 60000 // Tăng timeout lên 60 giây cho các cuộc gọi AI dài
+      });
+
+      const aiMsg = {
+        role: "ai",
+        content: res.data.caption,
+        hashtags: res.data.suggestedHashtags || [],
+        adjustments: res.data.platformSpecificAdjustments || {},
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+
+      setMessages((prev) => [...prev, aiMsg]);
+      setCreditsUsed(res.data.creditsUsed);
+      setCreditsLimit(res.data.creditsLimit);
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || "Gặp lỗi trong quá trình tạo nội dung AI.");
       setMessages((prev) => [
         ...prev,
         {
           role: "ai",
-          content: `Great question! Based on your ${tone.toLowerCase()} tone preference, here's what I'd suggest:\n\nI'd tailor this content specifically for your audience. Let me generate a detailed response for you — this would include platform-specific optimizations, character limit considerations, and engagement hooks designed for maximum reach.\n\n*Note: This is a demo. Connect your Claude API key for full AI capabilities.*`,
-          timestamp: "now",
-        },
+          content: `❌ Lỗi: ${err.message || "Không thể kết nối đến máy chủ AI."}`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
       ]);
-    }, 1500);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
+  if (!activeBrand) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-120px)] bg-gray-50">
+        <Sparkles size={48} className="text-gray-300 animate-pulse mb-4" />
+        <p className="text-gray-500 font-medium text-sm">Vui lòng chọn một Thương hiệu để sử dụng Trợ lý AI</p>
+      </div>
+    );
+  }
+
+  const remainingCredits = Math.max(0, creditsLimit - creditsUsed);
+
   return (
-    <div className="p-6 h-full" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+    <div className="p-6 h-full bg-[#FAFAFA] flex flex-col" style={{ fontFamily: "'Outfit', sans-serif" }}>
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex items-center justify-between mb-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
         <div>
-          <h1 style={{ fontSize: 15, fontWeight: 500, color: "#0A0A0A" }}>AI Assistant</h1>
-          <p style={{ fontSize: 12, color: "#6B7280" }}>Generate captions, suggest hashtags, repurpose content across platforms.</p>
+          <h1 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <Sparkles size={20} className="text-indigo-600 animate-pulse" />
+            Trợ lý Sáng tạo Nội dung AI
+          </h1>
+          <p className="text-xs text-gray-500 mt-0.5">Tối ưu bài viết đa nền tảng, thiết lập Brand Voice thông minh.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button className="px-3 py-2 rounded-lg" style={{ fontSize: 12, border: "0.5px solid #E5E7EB", color: "#6B7280" }}>Clear chat</button>
-          <div className="flex flex-col items-end gap-1">
-            <span style={{ fontSize: 10, color: "#9CA3AF" }}>{credits} / 1000 credits</span>
-            <div className="w-28 h-1.5 rounded-full bg-[#E5E7EB]">
-              <div className="h-full bg-[#0A0A0A] rounded-full" style={{ width: `${(credits / 1000) * 100}%` }} />
-            </div>
-          </div>
+        
+        {/* Navigation Tabs */}
+        <div className="flex bg-gray-100 p-1 rounded-xl gap-1.5 border border-gray-200/50">
+          <button 
+            onClick={() => setCurrentTab("chat")}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              currentTab === "chat" 
+                ? "bg-white text-gray-900 shadow-sm" 
+                : "text-gray-500 hover:text-gray-800"
+            }`}
+          >
+            Trò chuyện & Sáng tạo
+          </button>
+          <button 
+            onClick={() => setCurrentTab("settings")}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              currentTab === "settings" 
+                ? "bg-white text-gray-900 shadow-sm" 
+                : "text-gray-500 hover:text-gray-800"
+            }`}
+          >
+            Cài đặt Brand Voice
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-5 gap-6 h-[calc(100vh-200px)]">
-        {/* Left – Chat (60%) */}
-        <div className="col-span-3 flex flex-col">
-          <div className="bg-white rounded-xl flex flex-col flex-1" style={{ border: "0.5px solid #E5E7EB" }}>
-            {/* Header */}
-            <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: "0.5px solid #E5E7EB" }}>
-              <div className="w-7 h-7 rounded-full bg-[#0A0A0A] flex items-center justify-center">
-                <span style={{ fontSize: 12 }}>✨</span>
+      {/* Main Tab Render Workspace */}
+      {currentTab === "chat" ? (
+        <div className="grid grid-cols-5 gap-6 flex-1 overflow-hidden" style={{ minHeight: 0 }}>
+          {/* Left Chat Screen (col-span-4) */}
+          <div className="col-span-4 flex flex-col h-full bg-white rounded-2xl border border-gray-200/80 shadow-sm overflow-hidden">
+            {/* Active AI Agent Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-100">
+                  <Sparkles size={14} />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-gray-900">PubliCast Content Engine</div>
+                  <div className="text-[10px] text-gray-500 flex items-center gap-1">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                    Mô hình hoạt động: {toneLabels[defaultTone] || defaultTone} (Gemini 2.5 Flash / GPT-4o Mini)
+                  </div>
+                </div>
               </div>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 500, color: "#0A0A0A" }}>StreamHub AI</div>
-                <div style={{ fontSize: 10, color: "#9CA3AF" }}>Powered by Claude</div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => setMessages([])}
+                  className="px-2.5 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 text-[10px] font-bold text-gray-600 transition-colors cursor-pointer"
+                >
+                  Làm sạch đoạn chat
+                </button>
+                <div className="relative">
+                  <button 
+                    onClick={() => setShowToneMenu(!showToneMenu)}
+                    className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {toneLabels[tone] || tone}
+                    <span className="text-[9px] text-gray-400">▼</span>
+                  </button>
+                  {showToneMenu && (
+                    <div className="absolute right-0 mt-1 w-44 bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-20 animate-in fade-in slide-in-from-top-1 duration-150">
+                      {supportedTones.map((t) => (
+                        <button 
+                          key={t.value} 
+                          onClick={() => { setTone(t.value); setShowToneMenu(false); }} 
+                          className="block w-full text-left px-3.5 py-2 hover:bg-gray-50 text-xs text-gray-700 font-semibold transition-colors cursor-pointer"
+                        >
+                          {t.label} {t.emoji}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className="max-w-[85%]"
-                    style={{
-                      backgroundColor: msg.role === "user" ? "#0A0A0A" : "#fff",
-                      color: msg.role === "user" ? "#fff" : "#0A0A0A",
-                      borderRadius: 12,
-                      padding: "10px 14px",
-                      border: msg.role === "ai" ? "0.5px solid #E5E7EB" : "none",
-                      fontSize: 13,
-                      lineHeight: 1.6,
-                      whiteSpace: "pre-wrap",
-                    }}
+            {/* Messages Log */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-transparent to-gray-50/20">
+              {messages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center p-6 text-center">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 mb-4">
+                    <Sparkles size={24} />
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-800">Trợ lý Content sẵn sàng phục vụ</h3>
+                  <p className="text-xs text-gray-500 max-w-sm mt-1 mb-6">Bạn có thể đính kèm hình ảnh để phân tích, chọn văn phong và ngôn ngữ riêng. Hãy dùng gợi ý nhanh bên dưới để tạo bài viết ngay lập tức.</p>
+                  <div className="grid grid-cols-2 gap-3 max-w-lg w-full">
+                    {quickPrompts.map((p) => (
+                      <button
+                        key={p.text}
+                        onClick={() => setInput(p.text)}
+                        className="text-left p-3 rounded-xl border border-gray-100 bg-white hover:border-indigo-300 hover:shadow-md hover:shadow-indigo-50/25 transition-all text-xs font-semibold text-gray-700 flex items-start gap-2.5 cursor-pointer"
+                      >
+                        <span className="text-sm leading-none">{p.emoji}</span>
+                        <span>{p.text}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                messages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                    {msg.role === "user" ? (
+                      <div className="flex flex-col max-w-[80%] items-end">
+                        <div className="rounded-2xl px-4 py-2.5 text-xs bg-gray-900 text-white font-semibold leading-relaxed shadow-sm whitespace-pre-wrap">
+                          {msg.image && (
+                            <div className="mb-2.5 max-w-xs rounded-lg overflow-hidden border border-gray-800/10">
+                              <img src={msg.image} alt="Tệp đính kèm" className="w-full h-auto object-cover max-h-40" />
+                            </div>
+                          )}
+                          {msg.content}
+                        </div>
+                        <span className="text-[9px] text-gray-400 mt-1 px-1">{msg.timestamp}</span>
+                      </div>
+                    ) : (
+                      <AiMessageBubble 
+                        msg={msg} 
+                        activeBrand={activeBrand} 
+                        autoLists={autoLists} 
+                        openPostCreator={openPostCreator} 
+                      />
+                    )}
+                  </div>
+                ))
+              )}
+              
+              {isTyping && (
+                <div className="flex justify-start">
+                  <div className="px-4 py-3 rounded-2xl border border-gray-200 bg-white shadow-sm flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '200ms' }} />
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce" style={{ animationDelay: '400ms' }} />
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Image Preview inside input Area */}
+            {imagePreview && (
+              <div className="px-4 py-2 bg-gray-50 border-t border-gray-100 flex items-center gap-3">
+                <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-gray-200 bg-white shadow-sm">
+                  <img src={imagePreview} alt="Xem trước" className="w-full h-full object-cover" />
+                  <button 
+                    onClick={handleRemoveImage}
+                    className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black transition-colors"
                   >
-                    {msg.content}
-                    {msg.role === "ai" && (
-                      <div className="flex gap-2 mt-3">
-                        <button className="px-2 py-1 rounded bg-[#0A0A0A] text-white text-xs">Use this caption</button>
-                        <button className="px-2 py-1 rounded text-xs" style={{ border: "0.5px solid #E5E7EB", color: "#6B7280" }}>Try another</button>
-                        <button className="px-2 py-1 rounded text-xs" style={{ border: "0.5px solid #E5E7EB", color: "#6B7280" }}>Copy</button>
+                    <X size={9} />
+                  </button>
+                </div>
+                <span className="text-[10px] text-gray-500 font-medium">Đã đính kèm ảnh phân tích visual</span>
+              </div>
+            )}
+
+            {/* Chat Input Area */}
+            <div className="p-4 border-t border-gray-100 bg-white">
+              {/* Platform & Format Selectors Checkbox list */}
+              <div className="flex flex-wrap gap-x-5 gap-y-2.5 mb-3.5 pb-3 border-b border-gray-100/50">
+                {/* Multi-Select Platforms Dropdown */}
+                <div className="flex items-center gap-2" ref={platformDropdownRef}>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Nền tảng:</span>
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowPlatformDropdown(!showPlatformDropdown)}
+                      className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm min-w-[130px] justify-between"
+                    >
+                      <span className="max-w-[150px] truncate text-[10px] font-bold">
+                        {selectedPlatforms.length === 0
+                          ? "Chọn nền tảng..."
+                          : selectedPlatforms.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(", ")}
+                      </span>
+                      <span className="text-[9px] text-gray-400">▼</span>
+                    </button>
+
+                    {showPlatformDropdown && (
+                      <div className="absolute left-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-20 animate-in fade-in slide-in-from-top-1 duration-150">
+                        {["facebook", "instagram", "linkedin", "tiktok"].map((plat) => {
+                          const isSelected = selectedPlatforms.includes(plat);
+                          return (
+                            <label
+                              key={plat}
+                              className="flex items-center gap-2.5 px-3.5 py-2 hover:bg-gray-50 text-[11px] text-gray-700 font-bold cursor-pointer transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => {
+                                  setSelectedPlatforms((prev) => {
+                                    if (isSelected) {
+                                      if (prev.length <= 1) return prev; // Keep at least one selected
+                                      return prev.filter((p) => p !== plat);
+                                    } else {
+                                      return [...prev, plat];
+                                    }
+                                  });
+                                }}
+                                className="w-3.5 h-3.5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                              />
+                              <span>{plat.charAt(0).toUpperCase() + plat.slice(1)}</span>
+                            </label>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
                 </div>
-              ))}
-              {isTyping && (
-                <div className="flex justify-start">
-                  <div className="px-4 py-3 rounded-xl" style={{ border: "0.5px solid #E5E7EB", backgroundColor: "#fff" }}>
-                    <div className="flex gap-1">
-                      {[0, 1, 2].map((i) => (
-                        <div
-                          key={i}
-                          className="w-2 h-2 rounded-full bg-[#9CA3AF]"
-                          style={{ animation: `bounce 1s ${i * 0.2}s infinite` }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
 
-              {/* Quick prompts (empty state) */}
-              {messages.length === 0 && (
-                <div className="grid grid-cols-2 gap-3">
-                  {quickPrompts.map((p) => (
-                    <button
-                      key={p.text}
-                      onClick={() => setInput(p.text)}
-                      className="text-left p-3 rounded-lg hover:bg-[#F8F8F7] transition-colors"
-                      style={{ border: "0.5px solid #E5E7EB", fontSize: 12, color: "#0A0A0A" }}
-                    >
-                      <span className="mr-2">{p.emoji}</span>{p.text}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Input */}
-            <div className="p-3" style={{ borderTop: "0.5px solid #E5E7EB" }}>
-              <div className="flex items-end gap-2">
-                <div className="flex-1 relative">
-                  <textarea
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                    placeholder="Ask AI to write, improve, or transform your content..."
-                    className="w-full resize-none rounded-lg px-3 py-2.5 outline-none"
-                    style={{ fontSize: 13, border: "0.5px solid #E5E7EB", minHeight: 40, maxHeight: 120, color: "#0A0A0A" }}
-                    rows={1}
-                  />
-                  <div className="absolute bottom-2 left-2 flex gap-2">
-                    <button><Paperclip size={13} color="#9CA3AF" /></button>
-                    <div className="relative">
-                      <button onClick={() => setShowToneMenu(!showToneMenu)} style={{ fontSize: 11, color: "#9CA3AF" }}>
-                        🎨 {tone} ▾
+                {/* Formats Selector dropdown */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Dạng bài:</span>
+                  <div className="flex gap-1.5">
+                    {supportedFormats.map((fmt) => (
+                      <button
+                        key={fmt.value}
+                        onClick={() => setSelectedFormat(fmt.value)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer border ${
+                          selectedFormat === fmt.value
+                            ? "bg-purple-600 text-white border-purple-600 shadow-sm"
+                            : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                        }`}
+                        title={fmt.description}
+                      >
+                        {fmt.emoji} {fmt.label}
                       </button>
-                      {showToneMenu && (
-                        <div className="absolute bottom-6 left-0 bg-white rounded-lg shadow-sm z-10" style={{ border: "0.5px solid #E5E7EB", minWidth: 140 }}>
-                          {tones.map((t) => (
-                            <button key={t} onClick={() => { setTone(t); setShowToneMenu(false); }} className="block w-full text-left px-3 py-2 hover:bg-[#F8F8F7]" style={{ fontSize: 12, color: "#0A0A0A" }}>{t}</button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    ))}
                   </div>
                 </div>
+              </div>
+
+              {/* Dynamic Controls */}
+              <div className="flex items-center gap-2.5 mb-2.5 px-0.5 text-gray-500">
+                <div className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100">
+                  <span className="text-[9px] font-bold text-gray-400">Ngôn ngữ:</span>
+                  <select
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    className="bg-transparent text-[10px] text-gray-700 font-bold border-none outline-none cursor-pointer"
+                  >
+                    <option value="vi">Tiếng Việt 🇻🇳</option>
+                    <option value="en">English 🇬🇧</option>
+                  </select>
+                </div>
+
+                <div className="flex-1 flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">
+                  <span className="text-[9px] font-bold text-gray-400 whitespace-nowrap">Văn phong thêm:</span>
+                  <input
+                    type="text"
+                    value={genre}
+                    onChange={(e) => setGenre(e.target.value)}
+                    placeholder="Kể chuyện, Thơ, Thuyết phục..."
+                    className="bg-transparent text-[10px] text-gray-700 font-bold border-none outline-none w-full placeholder-gray-400/80"
+                  />
+                </div>
+
+                <div className="flex-1 flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">
+                  <span className="text-[9px] font-bold text-gray-400 whitespace-nowrap">Bối cảnh:</span>
+                  <input
+                    type="text"
+                    value={situation}
+                    onChange={(e) => setSituation(e.target.value)}
+                    placeholder="Black Friday, Giáng sinh..."
+                    className="bg-transparent text-[10px] text-gray-700 font-bold border-none outline-none w-full placeholder-gray-400/80"
+                  />
+                </div>
+              </div>
+
+              {/* Message Box Input */}
+              <div className="flex items-end gap-3 bg-gray-50 border border-gray-200 rounded-2xl p-2 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/10 transition-all">
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  accept="image/*" 
+                  className="hidden" 
+                />
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 rounded-xl hover:bg-gray-200/60 text-gray-500 transition-colors cursor-pointer"
+                  title="Đính kèm ảnh phân tích visual"
+                >
+                  <Paperclip size={16} />
+                </button>
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => { 
+                    if (e.key === "Enter" && !e.shiftKey) { 
+                      e.preventDefault(); 
+                      sendMessage(); 
+                    } 
+                  }}
+                  placeholder="Hỏi trợ lý viết bài đăng mạng xã hội, sửa caption hoặc dịch bài viết..."
+                  className="flex-1 bg-transparent resize-none border-none outline-none py-1.5 text-xs text-gray-800 placeholder-gray-400 font-semibold"
+                  rows={1}
+                  style={{ maxHeight: 120, minHeight: 24 }}
+                />
                 <button
                   onClick={sendMessage}
-                  className="w-9 h-9 rounded-lg bg-[#0A0A0A] flex items-center justify-center hover:bg-[#1E1E1E] transition-colors"
-                  disabled={!input.trim()}
+                  disabled={(!input.trim() && !imagePreview) || isTyping}
+                  className="w-8 h-8 rounded-xl bg-gray-950 hover:bg-gray-800 disabled:bg-gray-200 disabled:text-gray-400 flex items-center justify-center text-white shadow-sm transition-all cursor-pointer"
                 >
-                  <Send size={14} color="#fff" />
+                  <Send size={11} />
                 </button>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Right – Context & Output (40%) */}
-        <div className="col-span-2 space-y-4 overflow-y-auto">
-          {/* Context */}
-          <div className="bg-white rounded-xl p-4" style={{ border: "0.5px solid #E5E7EB" }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: "#0A0A0A", marginBottom: 12 }}>Tell AI about your brand</div>
-            <textarea
-              placeholder="Our brand is..."
-              className="w-full resize-none rounded-lg px-3 py-2 outline-none mb-3"
-              style={{ fontSize: 12, border: "0.5px solid #E5E7EB", height: 60, color: "#0A0A0A" }}
-            />
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {["25-34 women", "fitness enthusiasts", "professionals"].map((tag) => (
-                <span key={tag} className="px-2 py-0.5 rounded" style={{ fontSize: 11, backgroundColor: "#F3F4F6", color: "#6B7280" }}>{tag} ×</span>
-              ))}
+          {/* Right Status Sidebar (col-span-1) */}
+          <div className="col-span-1 flex flex-col gap-5 overflow-y-auto pr-1">
+            {/* Usage Credits Tracker */}
+            <div className="bg-white rounded-2xl p-5 border border-gray-200/80 shadow-sm flex flex-col gap-4">
+              <div>
+                <h3 className="text-xs font-bold text-gray-800">Credits Sử dụng</h3>
+                <p className="text-[10px] text-gray-400 mt-0.5">Thời hạn: Hàng tháng</p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-between items-end text-[10px] font-bold">
+                  <span className="text-gray-500">Đã tiêu thụ</span>
+                  <span className="text-gray-800">{creditsUsed} / {creditsLimit}</span>
+                </div>
+                <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full transition-all duration-500" 
+                    style={{ width: `${Math.min(100, (creditsUsed / creditsLimit) * 100)}%` }} 
+                  />
+                </div>
+                <span className="text-[9px] text-gray-400 font-semibold">Tự động làm mới khi gia hạn gói cước.</span>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {["Instagram", "TikTok", "LinkedIn"].map((p) => (
-                <button key={p} className="px-2 py-1 rounded-md" style={{ fontSize: 11, backgroundColor: "#0A0A0A", color: "#fff" }}>{p}</button>
-              ))}
-              {["Facebook", "YouTube"].map((p) => (
-                <button key={p} className="px-2 py-1 rounded-md" style={{ fontSize: 11, border: "0.5px solid #E5E7EB", color: "#9CA3AF" }}>{p}</button>
-              ))}
-            </div>
-            <button style={{ fontSize: 11, color: "#6B7280", border: "0.5px solid #E5E7EB", borderRadius: 6, padding: "4px 12px" }}>Save voice</button>
-          </div>
 
-          {/* Generated Content */}
-          <div className="bg-white rounded-xl p-4" style={{ border: "0.5px solid #E5E7EB" }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: "#0A0A0A", marginBottom: 12 }}>Latest output</div>
-            <div className="flex gap-1.5 mb-3">
-              {platforms.map((p) => (
-                <button key={p} onClick={() => setActiveTab(p)} className="px-2.5 py-1 rounded-md" style={{ fontSize: 11, backgroundColor: activeTab === p ? "#0A0A0A" : "#F3F4F6", color: activeTab === p ? "#fff" : "#6B7280" }}>{p}</button>
-              ))}
-            </div>
-            <textarea
-              defaultValue={`The wait is OVER. 🔥 Introducing [App Name] — your all-in-one fitness companion that adapts to YOUR goals. Download now. Link in bio.`}
-              className="w-full resize-none rounded-lg px-3 py-2 outline-none mb-2"
-              style={{ fontSize: 12, border: "0.5px solid #E5E7EB", height: 80, color: "#0A0A0A" }}
-            />
-            <div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 12 }}>138 / 2,200 chars · Instagram</div>
-            <div className="flex gap-2">
-              <button className="px-3 py-1.5 rounded-lg bg-[#0A0A0A] text-white" style={{ fontSize: 11 }}>Insert into post</button>
-              <button className="px-3 py-1.5 rounded-lg" style={{ fontSize: 11, border: "0.5px solid #E5E7EB", color: "#6B7280" }}>Save to drafts</button>
-              <button className="px-3 py-1.5 rounded-lg" style={{ fontSize: 11, border: "0.5px solid #E5E7EB", color: "#6B7280" }}>Copy</button>
-            </div>
-          </div>
+            {/* Brand Voice Overview card */}
+            <div className="bg-white rounded-2xl p-5 border border-gray-200/80 shadow-sm flex flex-col gap-4">
+              <div>
+                <h3 className="text-xs font-bold text-gray-800">Giọng điệu Thương hiệu</h3>
+                <p className="text-[10px] text-gray-400 mt-0.5">Dựa trên cấu hình hiện tại</p>
+              </div>
 
-          {/* Hashtag Suggestions */}
-          <div className="bg-white rounded-xl p-4" style={{ border: "0.5px solid #E5E7EB" }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: "#0A0A0A", marginBottom: 12 }}>Hashtag Suggestions</div>
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {["#fitnessapp", "#workoutmotivation", "#fitlife", "#gymlife", "#healthylifestyle", "#personaltrainer", "#fitnesschallenge"].map((tag) => (
-                <span key={tag} className="px-2 py-1 rounded-full cursor-pointer" style={{ fontSize: 11, backgroundColor: "#0A0A0A", color: "#fff" }}>
-                  {tag}
-                </span>
-              ))}
-              {["#trending 🔥", "#viral 🔥"].map((tag) => (
-                <span key={tag} className="px-2 py-1 rounded-full cursor-pointer" style={{ fontSize: 11, backgroundColor: "#0A0A0A", color: "#fff" }}>
-                  {tag}
-                </span>
-              ))}
+              <div className="flex flex-col gap-2.5">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Khách hàng mục tiêu</span>
+                  <span className="text-xs font-semibold text-gray-700 truncate">{targetAudience || "(Chưa thiết lập)"}</span>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Nền tảng mục tiêu</span>
+                  <span className="text-xs font-semibold text-gray-700 truncate">{targetPlatforms || "(Chưa thiết lập)"}</span>
+                </div>
+
+                <div className="flex flex-col gap-1 pb-1">
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Giọng điệu chính</span>
+                  <span className="text-xs font-semibold text-gray-700">{toneLabels[defaultTone] || defaultTone}</span>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setCurrentTab("settings")}
+                className="w-full py-2 rounded-xl bg-gray-50 border border-gray-200 text-gray-700 font-bold text-[10px] hover:bg-gray-100 transition-all flex items-center justify-center gap-1 cursor-pointer"
+              >
+                Cập nhật ở Cài đặt <ChevronRight size={10} />
+              </button>
             </div>
-            <button style={{ fontSize: 11, color: "#6B7280" }}>Refresh suggestions</button>
           </div>
         </div>
-      </div>
+      ) : (
+        /* Tab 2: Brand Voice Settings */
+        <div className="flex-1 bg-white rounded-2xl border border-gray-200/80 shadow-sm p-6 overflow-y-auto max-w-4xl mx-auto w-full">
+          <div className="flex items-center gap-2 mb-6 border-b border-gray-100 pb-4">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <Settings size={20} />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-gray-900">Thiết lập cấu hình Trợ lý AI</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Dạy AI về thông tin dự án, tệp khách hàng và định dạng ngôn ngữ mặc định.</p>
+            </div>
+          </div>
 
-      <style>{`@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }`}</style>
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-2">
+              <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                Ngữ cảnh Thương hiệu (Brand Context)
+                <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={brandVoiceContext}
+                onChange={(e) => setBrandVoiceContext(e.target.value)}
+                placeholder="Ví dụ: PubliCast là một giải pháp SaaS giúp tự động hóa quản lý mạng xã hội, tối ưu hóa các chiến dịch SEO và Marketing đa nền tảng..."
+                className="w-full resize-none rounded-xl px-4 py-3 text-xs border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-gray-700 font-medium placeholder-gray-400"
+                style={{ height: 110 }}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-5">
+              <div className="flex flex-col gap-2">
+                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Khách hàng mục tiêu (Target Audience)</label>
+                <input
+                  type="text"
+                  value={targetAudience}
+                  onChange={(e) => setTargetAudience(e.target.value)}
+                  placeholder="Ví dụ: Marketers, chủ doanh nghiệp SME, Gen Z..."
+                  className="w-full rounded-xl px-4 py-2.5 text-xs border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-gray-700 font-medium placeholder-gray-400"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Nền tảng truyền thông mục tiêu</label>
+                <input
+                  type="text"
+                  value={targetPlatforms}
+                  onChange={(e) => setTargetPlatforms(e.target.value)}
+                  placeholder="Ví dụ: Facebook, Instagram, LinkedIn, TikTok..."
+                  className="w-full rounded-xl px-4 py-2.5 text-xs border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-gray-700 font-medium placeholder-gray-400"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-5 border-t border-gray-100 pt-5 mt-2">
+              <div className="flex flex-col gap-2">
+                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Ngôn ngữ phản hồi mặc định</label>
+                <select 
+                  value={defaultLanguage}
+                  onChange={(e) => setDefaultLanguage(e.target.value)}
+                  className="w-full rounded-xl px-4 py-2.5 text-xs border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-gray-700 font-bold bg-white"
+                >
+                  <option value="vi">Tiếng Việt (vi)</option>
+                  <option value="en">English (en)</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Giọng điệu mặc định (Default Tone)</label>
+                <select 
+                  value={defaultTone}
+                  onChange={(e) => setDefaultTone(e.target.value)}
+                  className="w-full rounded-xl px-4 py-2.5 text-xs border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 outline-none text-gray-700 font-bold bg-white"
+                >
+                  {supportedTones.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label} {t.emoji}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 mt-6 border-t border-gray-100 pt-5">
+              <button 
+                onClick={() => setCurrentTab("chat")}
+                className="px-5 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 font-bold text-xs transition-colors cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button 
+                onClick={handleSaveVoice}
+                disabled={isSavingVoice}
+                className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-bold text-xs shadow-md shadow-indigo-100 transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                {isSavingVoice && <RefreshCw size={12} className="animate-spin" />}
+                Lưu cấu hình thương hiệu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes bounce { 
+          0%, 100% { transform: translateY(0); } 
+          50% { transform: translateY(-4px); } 
+        }
+      `}</style>
     </div>
   );
 }

@@ -77,6 +77,34 @@ class InboxController {
     const result = await inboxService.updateItemMetadata(id, { tags, internalNotes });
     res.json({ message: 'Metadata updated successfully', data: result });
   });
+
+  /**
+   * PATCH /api/inbox/replies/:replyId
+   */
+  updateReply = asyncHandler(async (req, res) => {
+    const { replyId } = req.params;
+    const { brandId, text } = req.body;
+    if (!brandId || !text) {
+      return res.status(400).json({ message: 'brandId and text are required' });
+    }
+
+    const result = await inboxService.updateReply(brandId, replyId, text);
+    res.json({ message: 'Reply updated successfully', data: result });
+  });
+
+  /**
+   * DELETE /api/inbox/replies/:replyId
+   */
+  deleteReply = asyncHandler(async (req, res) => {
+    const { replyId } = req.params;
+    const { brandId } = req.body;
+    if (!brandId) {
+      return res.status(400).json({ message: 'brandId is required' });
+    }
+
+    await inboxService.deleteReply(brandId, replyId);
+    res.json({ message: 'Reply deleted successfully' });
+  });
 }
 
 module.exports = new InboxController();

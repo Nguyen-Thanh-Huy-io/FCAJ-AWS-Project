@@ -2,9 +2,11 @@ import { Link, useLocation } from "react-router-dom";
 import {
   Youtube, Instagram, Facebook, Linkedin,
   TrendingUp, List, Hash, Settings, Search,
-  PlayCircle, FileText, Megaphone, Plus, ClipboardCheck
+  PlayCircle, FileText, Megaphone, Plus, ClipboardCheck, MessageSquare
 } from "lucide-react";
 import { useConnections } from "../context/ConnectionsContext";
+import { useBrand } from "../context/BrandContext";
+import { PlatformIcon } from "../components/shared/PlatformIcon";
 
 const PLATFORMS = [
   { name: "Summary", icon: <List size={18} />, path: "/dashboard", color: "#6B7280" },
@@ -13,6 +15,8 @@ const PLATFORMS = [
   { name: "Instagram", icon: <Instagram size={18} />, path: "/dashboard/instagram", color: "#E1306C", brand: "T" },
   { name: "TikTok", icon: <PlayCircle size={18} />, path: "/dashboard/tiktok", color: "#000000", brand: "T" },
   { name: "LinkedIn", icon: <Linkedin size={18} />, path: "/dashboard/linkedin", color: "#0A66C2", brand: "T" },
+  { name: "Discord", icon: <MessageSquare size={18} />, path: "/dashboard/discord", color: "#5865F2", brand: "T" },
+  { name: "Threads", icon: <PlatformIcon platform="Threads" size={18} variant="flat" />, path: "/dashboard/threads", color: "#000000", brand: "T" },
   { name: "More connection", icon: <Plus size={18} />, isAction: true, color: "#3B82F6" },
 ];
 
@@ -29,8 +33,16 @@ export function SidebarWorkspace() {
   const location = useLocation();
   const currentPath = location.pathname;
   const { openConnections } = useConnections();
+  const { activeBrand } = useBrand();
 
   const isManageMode = currentPath.startsWith("/manage") || currentPath.startsWith("/hashtags") || currentPath.startsWith("/settings");
+
+  const planName = activeBrand?.currentPlan?.name || "FREE";
+  const isPro = planName.toUpperCase() === "PRO";
+  const currentPeriodEnd = activeBrand?.subscription?.currentPeriodEnd;
+  const nextBillDate = currentPeriodEnd 
+    ? new Date(currentPeriodEnd).toLocaleDateString("vi-VN", { year: 'numeric', month: 'numeric', day: 'numeric' })
+    : "Không giới hạn";
 
   return (
     <aside
@@ -140,10 +152,12 @@ export function SidebarWorkspace() {
       <div className="p-4 border-t border-gray-50">
          <div className="bg-gray-50 rounded-xl p-3">
             <div className="flex items-center gap-2 mb-1">
-               <div className="w-2 h-2 rounded-full bg-green-500" />
-               <span className="text-[10px] font-bold text-gray-600 uppercase">Pro Plan</span>
+               <div className={`w-2 h-2 rounded-full ${isPro ? "bg-green-500" : "bg-gray-400"}`} />
+               <span className="text-[10px] font-bold text-gray-600 uppercase">Gói {planName}</span>
             </div>
-            <div className="text-[10px] text-gray-400 font-medium">Next bill: June 12, 2026</div>
+            <div className="text-[10px] text-gray-400 font-medium">
+              {isPro ? `Kỳ tiếp theo: ${nextBillDate}` : "Hạn dùng: Không giới hạn"}
+            </div>
          </div>
       </div>
     </aside>
