@@ -3,15 +3,15 @@ const socialAccountRepository = require('../../../repositories/social/social-acc
 const { PLATFORMS, DEFAULT_CONFIG } = require('../../../utils/constants');
 
 class LinkedInAnalyticsService {
-  _getMockChannelInfo(accessToken) {
+  _getEmptyChannelInfo(accessToken, account = null) {
     return {
-      pageId: 'mock-linkedin-id-123',
-      username: 'publicast_linkedin_mock',
-      displayName: 'Mock LinkedIn User',
-      profilePictureUrl: 'https://images.unsplash.com/photo-1579389083078-4e7018379f7e?w=100&auto=format&fit=crop&q=60',
-      followersCount: 1250,
-      connectionsCount: 450,
-      industry: 'Information Technology & Services'
+      pageId: account?.platformAccountId || 'mock-linkedin-id-123',
+      username: account?.username || 'linkedin_user',
+      displayName: account?.displayName || 'LinkedIn Account',
+      profilePictureUrl: account?.profilePictureUrl || '',
+      followersCount: 0,
+      connectionsCount: 0,
+      industry: account?.industry || 'Technology'
     };
   }
 
@@ -19,37 +19,21 @@ class LinkedInAnalyticsService {
     const { start, end } = this._resolveDates(startDate, endDate);
     const dailyMap = this._initializeDailyMap(start, end);
     
-    let currentVal = currentFollowers || 1250;
-    const dates = Object.keys(dailyMap).sort();
-    
-    dates.forEach((dateStr, idx) => {
-      const dayData = dailyMap[dateStr];
-      const acquired = 2 + Math.floor(Math.random() * 8);
-      const lost = Math.floor(Math.random() * 2);
-      dayData.acquired = acquired;
-      dayData.lost = lost;
-      dayData.views = 150 + Math.floor(Math.random() * 600) + idx * 2;
-      dayData.likes = 10 + Math.floor(Math.random() * 40);
-      dayData.comments = 2 + Math.floor(Math.random() * 10);
-      dayData.shares = 1 + Math.floor(Math.random() * 5);
-      dayData.totalContent = Math.random() > 0.8 ? 1 : 0;
-    });
-
     const feedStats = {
-      totalVideosInPeriod: Object.values(dailyMap).reduce((sum, d) => sum + d.totalContent, 0),
-      totalViews: Object.values(dailyMap).reduce((sum, d) => sum + d.views, 0),
-      totalLikes: Object.values(dailyMap).reduce((sum, d) => sum + d.likes, 0),
-      totalComments: Object.values(dailyMap).reduce((sum, d) => sum + d.comments, 0),
-      totalShares: Object.values(dailyMap).reduce((sum, d) => sum + d.shares, 0)
+      totalVideosInPeriod: 0,
+      totalViews: 0,
+      totalLikes: 0,
+      totalComments: 0,
+      totalShares: 0
     };
 
     const sortedDates = Object.keys(dailyMap).sort().map(d => dailyMap[d]);
-    return this._calculateTotalsAndFormatResponse(sortedDates, currentVal, feedStats);
+    return this._calculateTotalsAndFormatResponse(sortedDates, 0, feedStats);
   }
 
-  async getChannelInfo(auth, startDate, endDate) {
+  async getChannelInfo(auth, startDate, endDate, account = null) {
     if (auth.accessToken && auth.accessToken.startsWith('mock-')) {
-      const channelInfo = this._getMockChannelInfo(auth.accessToken);
+      const channelInfo = this._getEmptyChannelInfo(auth.accessToken, account);
       const analyticsData = this._getMockAnalyticsReport(startDate, endDate, channelInfo.followersCount);
       return {
         ...channelInfo,
@@ -112,7 +96,7 @@ class LinkedInAnalyticsService {
     }
 
     if (account.accessToken && account.accessToken.startsWith('mock-')) {
-      const channelInfo = this._getMockChannelInfo(account.accessToken);
+      const channelInfo = this._getEmptyChannelInfo(account.accessToken, account);
       const analyticsData = this._getMockAnalyticsReport(startDate, endDate, channelInfo.followersCount);
       const accountData = {
         ...channelInfo,

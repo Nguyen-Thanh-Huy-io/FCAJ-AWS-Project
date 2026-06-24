@@ -196,7 +196,7 @@ describe('Reports API and Strategy Patterns Tests', () => {
       prisma.report.delete.mockResolvedValue(mockReport);
 
       // Create a dummy file in the directory to verify unlinking
-      const reportsDir = path.join(__dirname, '../../../uploads/reports');
+      const reportsDir = path.join(__dirname, '../../uploads/reports');
       if (!fs.existsSync(reportsDir)) {
         fs.mkdirSync(reportsDir, { recursive: true });
       }
@@ -210,7 +210,7 @@ describe('Reports API and Strategy Patterns Tests', () => {
         .expect(200);
 
       expect(res.body.message).toContain('xóa thành công');
-      expect(prisma.report.delete).toHaveBeenCalledWith('report-to-delete');
+      expect(prisma.report.delete).toHaveBeenCalledWith({ where: { id: 'report-to-delete' } });
       // Verify physical file was deleted
       expect(fs.existsSync(dummyFilePath)).toBe(false);
     });
@@ -218,6 +218,32 @@ describe('Reports API and Strategy Patterns Tests', () => {
     it('should return 400 if brandId is missing', async () => {
       const res = await request(app)
         .delete('/api/reports/report-id')
+        .expect(400);
+
+      expect(res.body.message).toContain('brandId là bắt buộc');
+    });
+  });
+
+  describe('GET /api/reports/preview-data', () => {
+    it('should return aggregated preview analytics data', async () => {
+      const mockBrand = { id: 'brand-123', name: 'Cool Brand', logoUrl: 'logo.png' };
+      prisma.brand.findUnique.mockResolvedValue(mockBrand);
+      prisma.socialAccount.findMany.mockResolvedValue([]);
+      prisma.post.count.mockResolvedValue(0);
+      prisma.post.findMany.mockResolvedValue([]);
+
+      const res = await request(app)
+        .get('/api/reports/preview-data?brandId=brand-123&platforms=Facebook,YouTube')
+        .expect(200);
+
+      expect(res.body.data).toBeDefined();
+      expect(res.body.data.overview).toBeDefined();
+      expect(res.body.data.overview.reach).toBe(0); // Real data yields 0 when no channels connected
+    });
+
+    it('should return 400 if brandId is missing', async () => {
+      const res = await request(app)
+        .get('/api/reports/preview-data')
         .expect(400);
 
       expect(res.body.message).toContain('brandId là bắt buộc');

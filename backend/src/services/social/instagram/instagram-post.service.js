@@ -7,6 +7,23 @@ const postCache = new Map();
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 class InstagramPostService {
+  _withTimeout(promise, ms, fallback) {
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error(`Timeout of ${ms}ms exceeded`));
+      }, ms);
+    });
+    return Promise.race([promise, timeoutPromise])
+      .catch(err => {
+        console.warn(`[InstagramPostService] API call failed or timed out: ${err.message}. Using fallback.`);
+        return fallback;
+      })
+      .finally(() => {
+        clearTimeout(timeoutId);
+      });
+  }
+
   async getPublishedPosts(brandId, pageToken = null, limit = 10) {
     const cacheKey = `${brandId}_${pageToken || 'first'}_${limit}`;
     const cached = postCache.get(cacheKey);
@@ -19,7 +36,15 @@ class InstagramPostService {
         return { data: [], nextPageToken: null, prevPageToken: null };
       }
 
-      const { data: feed, nextPageToken, prevPageToken } = await instagramGateway.getInstagramMediaFeed(igAccountId, accessToken, pageToken, limit);
+      const feedResult = await this._withTimeout(
+        instagramGateway.getInstagramMediaFeed(igAccountId, accessToken, pageToken, limit),
+        4000,
+        { data: [], nextPageToken: null, prevPageToken: null }
+      );
+
+      const feed = feedResult.data || [];
+      const nextPageToken = feedResult.nextPageToken || null;
+      const prevPageToken = feedResult.prevPageToken || null;
 
       const postsWithInsights = await Promise.all(
         feed.map(post => this._enrichPostWithInsights(post, accessToken))
@@ -66,7 +91,11 @@ class InstagramPostService {
 
   async _enrichPostWithInsights(post, accessToken) {
     try {
-      const insights = await instagramGateway.getInstagramMediaInsights(post.id, accessToken);
+      const insights = await this._withTimeout(
+        instagramGateway.getInstagramMediaInsights(post.id, accessToken),
+        1500,
+        []
+      );
       const metrics = this._parseInsightsMetrics(insights);
 
       const reactions = post.like_count || 0;

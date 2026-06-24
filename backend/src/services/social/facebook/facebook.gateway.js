@@ -275,6 +275,126 @@ class FacebookGateway {
     return res.json();
   }
 
+  async createAlbum(pageId, pageAccessToken, name, message) {
+    console.log('[FacebookGateway] Creating album:', { pageId, name, messageLength: message?.length });
+    const formData = new FormData();
+    if (name) formData.append('name', name);
+    if (message) formData.append('message', message);
+    formData.append('access_token', pageAccessToken);
+
+    const url = `${this.graphBaseUrl}/${pageId}/albums`;
+    const res = await fetch(url, { method: 'POST', body: formData });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      console.error('[FacebookGateway] Failed to create album:', errData);
+      throw new Error(errData.error?.message || 'Failed to create Facebook album');
+    }
+    const data = await res.json();
+    console.log('[FacebookGateway] Created album response:', data);
+    return data;
+  }
+
+  async uploadPhotoToAlbum(albumId, pageAccessToken, mediaUrl, caption) {
+    console.log('[FacebookGateway] Uploading photo to album:', { albumId, mediaUrl, caption });
+    const { buffer, filename } = await this._getMediaBuffer(mediaUrl);
+    const formData = new FormData();
+    const blob = new Blob([buffer]);
+    formData.append('source', blob, filename);
+    if (caption) formData.append('message', caption);
+    formData.append('access_token', pageAccessToken);
+
+    const url = `${this.graphBaseUrl}/${albumId}/photos`;
+    const res = await fetch(url, { method: 'POST', body: formData });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      console.error('[FacebookGateway] Failed to upload photo to album:', errData);
+      throw new Error(errData.error?.message || 'Failed to upload photo to Facebook album');
+    }
+    const data = await res.json();
+    console.log('[FacebookGateway] Uploaded photo response:', data);
+    return data;
+  }
+
+  async uploadUnpublishedPhoto(pageId, pageAccessToken, mediaUrl, caption) {
+    console.log('[FacebookGateway] Uploading unpublished photo:', { pageId, mediaUrl, caption });
+    const { buffer, filename } = await this._getMediaBuffer(mediaUrl);
+    const formData = new FormData();
+    const blob = new Blob([buffer]);
+    formData.append('source', blob, filename);
+    if (caption) formData.append('message', caption);
+    formData.append('published', 'false');
+    formData.append('access_token', pageAccessToken);
+
+    const url = `${this.graphBaseUrl}/${pageId}/photos`;
+    const res = await fetch(url, { method: 'POST', body: formData });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      console.error('[FacebookGateway] Failed to upload unpublished photo:', errData);
+      throw new Error(errData.error?.message || 'Failed to upload unpublished photo to Facebook');
+    }
+    const data = await res.json();
+    console.log('[FacebookGateway] Uploaded unpublished photo response:', data);
+    return data;
+  }
+
+  async publishMultiPhotoPost(pageId, pageAccessToken, photoIds, message) {
+    console.log('[FacebookGateway] Publishing multi-photo post to feed:', { pageId, photoIds, messageLength: message?.length });
+    const formData = new FormData();
+    if (message) formData.append('message', message);
+    
+    const attachedMedia = photoIds.map(id => ({ media_fbid: id }));
+    formData.append('attached_media', JSON.stringify(attachedMedia));
+    formData.append('access_token', pageAccessToken);
+
+    const url = `${this.graphBaseUrl}/${pageId}/feed`;
+    const res = await fetch(url, { method: 'POST', body: formData });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      console.error('[FacebookGateway] Failed to publish multi-photo post:', errData);
+      throw new Error(errData.error?.message || 'Failed to publish multi-photo post to Facebook');
+    }
+    const data = await res.json();
+    console.log('[FacebookGateway] Published multi-photo post response:', data);
+    return data;
+  }
+
+  async publishAlbum(pageId, pageAccessToken, mediaUrls, caption, mediaCaptions = []) {
+    console.log('[FacebookGateway] Publishing album start:', { pageId, mediaUrlsCount: mediaUrls.length, caption });
+    if (!Array.isArray(mediaUrls) || mediaUrls.length < 2) {
+      throw new Error('Facebook album requires at least 2 images');
+    }
+
+    try {
+      const albumName = (caption || 'New Album').slice(0, 50);
+      const album = await this.createAlbum(pageId, pageAccessToken, albumName, caption);
+      const albumId = album.id;
+
+      const photos = [];
+      for (let i = 0; i < mediaUrls.length; i += 1) {
+        const photoCaption = mediaCaptions[i] || caption || '';
+        console.log(`[FacebookGateway] Uploading photo ${i + 1}/${mediaUrls.length}`);
+        const result = await this.uploadPhotoToAlbum(albumId, pageAccessToken, mediaUrls[i], photoCaption);
+        photos.push(result);
+      }
+
+      console.log('[FacebookGateway] Successfully published all photos to album:', albumId);
+      return { id: albumId, photos };
+    } catch (albumError) {
+      console.warn('[FacebookGateway] Traditional album creation failed, trying multi-photo post fallback. Error:', albumError.message);
+      
+      const photoIds = [];
+      for (let i = 0; i < mediaUrls.length; i += 1) {
+        const photoCaption = mediaCaptions[i] || caption || '';
+        console.log(`[FacebookGateway] [Fallback] Uploading photo ${i + 1}/${mediaUrls.length} as unpublished`);
+        const result = await this.uploadUnpublishedPhoto(pageId, pageAccessToken, mediaUrls[i], photoCaption);
+        photoIds.push(result.id);
+      }
+      
+      const feedResult = await this.publishMultiPhotoPost(pageId, pageAccessToken, photoIds, caption);
+      return { id: feedResult.id, fallback: true, photoIds };
+    }
+  }
+
   async publishVideo(pageId, pageAccessToken, mediaUrl, title, description) {
     const { buffer, filename } = await this._getMediaBuffer(mediaUrl);
 

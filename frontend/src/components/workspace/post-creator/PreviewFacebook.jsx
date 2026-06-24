@@ -5,6 +5,8 @@ import {
 } from "lucide-react";
 import { PreviewShell } from "./PreviewShell";
 
+import { PreviewFacebookAlbum } from "./PreviewFacebookAlbum";
+
 export function PreviewFacebook({ 
   caption, 
   videoFileUrl, 
@@ -12,9 +14,22 @@ export function PreviewFacebook({
   pageName = "PubliCast Fanpage",
   facebookType = "post",
   facebookTitle = "",
-  imageTransform = null
+  imageTransform = null,
+  albumMedia = []
 }) {
   const displayCaption = caption || "What's on your mind?";
+
+  // 0. ALBUM PREVIEW DESIGN
+  if (facebookType === "album") {
+    return (
+      <PreviewFacebookAlbum
+        caption={caption}
+        albumMedia={albumMedia}
+        previewDevice={previewDevice}
+        pageName={pageName}
+      />
+    );
+  }
 
   // 1. REEL PREVIEW DESIGN
   if (facebookType === "reel") {

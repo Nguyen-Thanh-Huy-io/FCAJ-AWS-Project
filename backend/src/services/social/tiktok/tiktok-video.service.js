@@ -82,7 +82,8 @@ class TikTokVideoService {
       comments: v.comment_count || 0,
       shares: v.share_count || 0,
       duration: v.duration || 0,
-      status: POST_STATUS.PUBLISHED
+      status: POST_STATUS.PUBLISHED,
+      shareUrl: v.share_url || `https://www.tiktok.com/embed/${v.id}`
     }));
   }
 }

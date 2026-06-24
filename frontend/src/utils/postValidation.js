@@ -21,7 +21,8 @@ export function validatePostForm({
   videoWidth,
   videoHeight,
   uploadedVideoPath,
-  platformLimits = []
+  platformLimits = [],
+  mediaCount = 0
 }) {
   const errors = [];
   if (isLibrary) {
@@ -67,7 +68,8 @@ export function validatePostForm({
           isVideo: isVid,
           videoDuration: videoDuration || 0,
           videoWidth: videoWidth || 0,
-          videoHeight: videoHeight || 0
+          videoHeight: videoHeight || 0,
+          mediaCount
         };
 
         const alwaysRules = config.validationRules?._always || [];

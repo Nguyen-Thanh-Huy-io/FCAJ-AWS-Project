@@ -15,6 +15,12 @@ router.use(verifyAuth);
 router.get('/', checkPermission('VIEW_ANALYTICS'), reportController.getReports);
 
 /**
+ * GET /api/reports/preview-data?brandId=...&dateRange=...&platforms=...
+ * Get aggregated data for previewing template reports
+ */
+router.get('/preview-data', checkPermission('VIEW_ANALYTICS'), reportController.getPreviewData);
+
+/**
  * POST /api/reports?brandId=...
  * Generate a new report
  */

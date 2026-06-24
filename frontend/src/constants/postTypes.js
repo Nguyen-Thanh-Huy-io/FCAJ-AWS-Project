@@ -7,6 +7,7 @@ export const POST_TYPE = {
   REEL: 'REEL',
   STORY: 'STORY',
   IMAGE: 'IMAGE',
+  CAROUSEL: 'CAROUSEL',
 };
 
 /**

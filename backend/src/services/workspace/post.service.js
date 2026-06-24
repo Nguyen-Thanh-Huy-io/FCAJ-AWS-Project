@@ -83,8 +83,10 @@ class PostService {
       sizeMb: postData.options?.videoSizeMb || null
     };
 
+    console.log('[PostService] Validating post data:', { postData: { title: postData.title, targetPlatforms: postData.targetPlatforms, options: postData.options }, mediaInfo });
     const validationResult = await validationFacade.validatePost(postData, mediaInfo);
     if (!validationResult.isValid) {
+      console.error('[PostService] Validation failed:', validationResult.errors);
       const error = new Error(`Validation failed: ${validationResult.errors.join('; ')}`);
       error.statusCode = 400;
       throw error;
@@ -103,7 +105,9 @@ class PostService {
       }
     }
 
+    console.log('[PostService] Final payload to database:', data);
     const post = await postRepository.create(data);
+    console.log('[PostService] Post successfully created in DB with ID:', post.id);
 
     // If the post status is PENDING_APPROVAL, initiate the approval workflow request
     if (post.status === POST_STATUS.PENDING_APPROVAL) {
@@ -169,8 +173,10 @@ class PostService {
       sizeMb: mergedPostData.options.videoSizeMb || null
     };
 
+    console.log('[PostService] Validating merged post data for update:', { mergedPostData: { title: mergedPostData.title, targetPlatforms: mergedPostData.targetPlatforms, options: mergedPostData.options }, mediaInfo });
     const validationResult = await validationFacade.validatePost(mergedPostData, mediaInfo);
     if (!validationResult.isValid) {
+      console.error('[PostService] Validation failed for update:', validationResult.errors);
       const error = new Error(`Validation failed: ${validationResult.errors.join('; ')}`);
       error.statusCode = 400;
       throw error;

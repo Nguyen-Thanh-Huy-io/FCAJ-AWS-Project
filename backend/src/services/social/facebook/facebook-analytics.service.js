@@ -3,17 +3,17 @@ const socialAccountRepository = require('../../../repositories/social/social-acc
 const { PLATFORMS, DEFAULT_CONFIG, ANALYTICS, SOCIAL_TECHNICAL } = require('../../../utils/constants');
 
 class FacebookAnalyticsService {
-  _getMockChannelInfo(pageId) {
+  _getEmptyChannelInfo(pageId, account = null) {
     return {
-      pageId: pageId || 'fb-page-mock',
-      username: 'publicast_fb_mock',
-      displayName: 'Mock PubliCast Facebook Page',
-      profilePictureUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60',
-      category: 'Software Company',
-      likesCount: 12500,
-      followersCount: 13200,
-      about: 'Mock Facebook Page for PubliCast Team Testing',
-      website: 'https://publicast.com'
+      pageId: pageId || account?.platformAccountId || 'fb-page-mock',
+      username: account?.username || 'facebook_page',
+      displayName: account?.displayName || 'Facebook Page',
+      profilePictureUrl: account?.profilePictureUrl || '',
+      category: 'Social Page',
+      likesCount: 0,
+      followersCount: 0,
+      about: 'No data available',
+      website: ''
     };
   }
 
@@ -21,40 +21,27 @@ class FacebookAnalyticsService {
     const { start, end } = this._resolveDates(startDate, endDate);
     const dailyMap = this._initializeDailyMap(start, end);
     
-    let currentVal = currentFollowersCount || 13200;
-    const dates = Object.keys(dailyMap).sort();
-    
-    dates.forEach((dateStr, idx) => {
-      const dayData = dailyMap[dateStr];
-      const acquired = 10 + Math.floor(Math.random() * 40);
-      const lost = Math.floor(Math.random() * 8);
-      dayData.acquired = acquired;
-      dayData.lost = lost;
-      dayData.views = 200 + Math.floor(Math.random() * 800) + idx * 5;
-      dayData.pageVisits = Math.round(dayData.views * 0.4);
-      dayData.totalClicks = 20 + Math.floor(Math.random() * 100);
-      dayData.reactions = 15 + Math.floor(Math.random() * 60);
-      dayData.comments = 5 + Math.floor(Math.random() * 20);
-      dayData.shares = 2 + Math.floor(Math.random() * 10);
-      dayData.totalContent = Math.random() > 0.7 ? 1 : 0;
-    });
-
     const feedStats = {
-      totalPostsInPeriod: Object.values(dailyMap).reduce((sum, d) => sum + d.totalContent, 0),
-      totalReactions: Object.values(dailyMap).reduce((sum, d) => sum + d.reactions, 0),
-      totalComments: Object.values(dailyMap).reduce((sum, d) => sum + d.comments, 0),
-      totalShares: Object.values(dailyMap).reduce((sum, d) => sum + d.shares, 0),
-      albumCount: 2,
-      imageCount: 5
+      totalPostsInPeriod: 0,
+      totalReactions: 0,
+      totalComments: 0,
+      totalShares: 0,
+      albumCount: 0,
+      imageCount: 0
     };
 
     const sortedDates = Object.keys(dailyMap).sort().map(d => dailyMap[d]);
-    return this._calculateTotalsAndFormatResponse(sortedDates, currentVal, feedStats, []);
+    return this._calculateTotalsAndFormatResponse(sortedDates, 0, feedStats, []);
   }
 
   async getChannelInfo(auth, startDate, endDate, socialAccountId = null) {
+    let account = null;
+    if (socialAccountId) {
+      account = await socialAccountRepository.findById(socialAccountId);
+    }
+
     if (auth.pageAccessToken && auth.pageAccessToken.startsWith('mock-')) {
-      const pageData = this._getMockChannelInfo(auth.pageId);
+      const pageData = this._getEmptyChannelInfo(auth.pageId, account);
       const analyticsData = this._getMockAnalyticsReport(startDate, endDate, pageData.followersCount);
       return {
         ...pageData,
@@ -62,7 +49,7 @@ class FacebookAnalyticsService {
       };
     }
 
-    try {
+    const fetchRealData = async () => {
       const pageData = await facebookGateway.getPageDetails(auth.pageId, auth.pageAccessToken);
       const followersToUse = pageData.followersCount > 0 ? pageData.followersCount : pageData.likesCount;
       const analyticsData = await this.getAnalyticsReport(auth.pageId, auth.pageAccessToken, startDate, endDate, followersToUse, socialAccountId);
@@ -71,9 +58,31 @@ class FacebookAnalyticsService {
         ...pageData,
         analytics: analyticsData
       };
+    };
+
+    // Helper: Wrap promise with a timeout rejection
+    const withTimeout = (promise, ms = 3000) => {
+      let timeoutId;
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error('Facebook API request timeout (3000ms) exceeded'));
+        }, ms);
+      });
+      return Promise.race([promise, timeoutPromise]).finally(() => {
+        clearTimeout(timeoutId);
+      });
+    };
+
+    try {
+      return await withTimeout(fetchRealData(), 3000);
     } catch (error) {
-      console.error(`[Facebook Analytics] Real API call failed:`, error);
-      throw new Error(`Facebook API Error: ${error.message}`);
+      console.warn(`[Facebook Analytics] Real API call failed or timed out (${error.message}). Falling back to empty data...`);
+      const pageData = this._getEmptyChannelInfo(auth.pageId, account);
+      const analyticsData = this._getMockAnalyticsReport(startDate, endDate, pageData.followersCount);
+      return {
+        ...pageData,
+        analytics: analyticsData
+      };
     }
   }
 
@@ -346,23 +355,11 @@ class FacebookAnalyticsService {
   _generateMockFallback(dailyMap) {
     Object.keys(dailyMap).forEach(dateStr => {
       const dayData = dailyMap[dateStr];
-      const actions = dayData.reactions + dayData.comments + dayData.shares;
-      if (actions > 0) {
-        dayData.views = Math.round(actions * 15 + 20);
-        dayData.pageVisits = Math.round(dayData.views * 0.6);
-        dayData.totalClicks = Math.round(actions * 0.3 + 2);
-        dayData.acquired = Math.round(actions * 0.1);
-      } else {
-        let hash = 0;
-        for (let i = 0; i < dateStr.length; i++) {
-          hash = dateStr.charCodeAt(i) + ((hash << 5) - hash);
-        }
-        const pseudoRandom = Math.abs(hash) % 12;
-        dayData.views = pseudoRandom + 5;
-        dayData.pageVisits = Math.round(dayData.views * 0.5);
-        dayData.totalClicks = Math.round(pseudoRandom * 0.2);
-        dayData.acquired = pseudoRandom > 9 ? 1 : 0;
-      }
+      dayData.views = 0;
+      dayData.pageVisits = 0;
+      dayData.totalClicks = 0;
+      dayData.acquired = 0;
+      dayData.lost = 0;
     });
   }
 

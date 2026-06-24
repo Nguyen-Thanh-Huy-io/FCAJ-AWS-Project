@@ -62,6 +62,20 @@ class ReportController {
     await reportService.deleteReport(id, brandId);
     res.json({ message: 'Báo cáo đã được xóa thành công.' });
   });
+
+  /**
+   * Get live preview analytics data for interactive templates
+   */
+  getPreviewData = asyncHandler(async (req, res) => {
+    const { brandId, dateRange, platforms } = req.query;
+    if (!brandId) {
+      return res.status(400).json({ message: 'brandId là bắt buộc.' });
+    }
+
+    const platformList = platforms ? platforms.split(',') : ['Facebook', 'YouTube'];
+    const data = await reportService.getPreviewData(brandId, dateRange || '30 ngày qua', platformList);
+    res.json({ data });
+  });
 }
 
 module.exports = new ReportController();

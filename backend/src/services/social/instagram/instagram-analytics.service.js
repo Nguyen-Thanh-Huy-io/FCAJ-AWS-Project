@@ -3,17 +3,17 @@ const socialAccountRepository = require('../../../repositories/social/social-acc
 const { PLATFORMS, DEFAULT_CONFIG, ANALYTICS, SOCIAL_TECHNICAL } = require('../../../utils/constants');
 
 class InstagramAnalyticsService {
-  _getMockChannelInfo(igAccountId) {
+  _getEmptyChannelInfo(igAccountId, account = null) {
     return {
-      igAccountId: igAccountId || 'ig-account-mock',
-      username: 'publicast_ig_mock',
-      displayName: 'Mock PubliCast Instagram Account',
-      profilePictureUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60',
-      followersCount: 8500,
-      followingCount: 120,
-      mediaCount: 42,
-      biography: 'Mock Instagram Business Account for PubliCast Team Testing',
-      website: 'https://publicast.com'
+      igAccountId: igAccountId || account?.platformAccountId || 'ig-account-mock',
+      username: account?.username || 'instagram_user',
+      displayName: account?.displayName || 'Instagram Account',
+      profilePictureUrl: account?.profilePictureUrl || '',
+      followersCount: 0,
+      followingCount: 0,
+      mediaCount: 0,
+      biography: 'No data available',
+      website: ''
     };
   }
 
@@ -21,40 +21,27 @@ class InstagramAnalyticsService {
     const { start, end } = this._resolveDates(startDate, endDate);
     const dailyMap = this._initializeDailyMap(start, end);
     
-    let currentVal = currentFollowersCount || 8500;
-    const dates = Object.keys(dailyMap).sort();
-    
-    dates.forEach((dateStr, idx) => {
-      const dayData = dailyMap[dateStr];
-      const acquired = 5 + Math.floor(Math.random() * 25);
-      const lost = Math.floor(Math.random() * 4);
-      dayData.acquired = acquired;
-      dayData.lost = lost;
-      dayData.views = 150 + Math.floor(Math.random() * 500) + idx * 3;
-      dayData.pageVisits = Math.round(dayData.views * 0.35);
-      dayData.totalClicks = 10 + Math.floor(Math.random() * 50);
-      dayData.reactions = 10 + Math.floor(Math.random() * 40);
-      dayData.comments = 2 + Math.floor(Math.random() * 15);
-      dayData.shares = 1 + Math.floor(Math.random() * 5);
-      dayData.totalContent = Math.random() > 0.85 ? 1 : 0;
-    });
-
     const feedStats = {
-      totalPostsInPeriod: Object.values(dailyMap).reduce((sum, d) => sum + d.totalContent, 0),
-      totalReactions: Object.values(dailyMap).reduce((sum, d) => sum + d.reactions, 0),
-      totalComments: Object.values(dailyMap).reduce((sum, d) => sum + d.comments, 0),
-      totalShares: Object.values(dailyMap).reduce((sum, d) => sum + d.shares, 0),
-      albumCount: 1,
-      imageCount: 3
+      totalPostsInPeriod: 0,
+      totalReactions: 0,
+      totalComments: 0,
+      totalShares: 0,
+      albumCount: 0,
+      imageCount: 0
     };
 
     const sortedDates = Object.keys(dailyMap).sort().map(d => dailyMap[d]);
-    return this._calculateTotalsAndFormatResponse(sortedDates, currentVal, feedStats);
+    return this._calculateTotalsAndFormatResponse(sortedDates, 0, feedStats);
   }
 
   async getChannelInfo(auth, startDate, endDate, socialAccountId = null) {
+    let account = null;
+    if (socialAccountId) {
+      account = await socialAccountRepository.findById(socialAccountId);
+    }
+
     if (auth.pageAccessToken && auth.pageAccessToken.startsWith('mock-')) {
-      const igData = this._getMockChannelInfo(auth.pageId);
+      const igData = this._getEmptyChannelInfo(auth.pageId, account);
       const analyticsData = this._getMockAnalyticsReport(startDate, endDate, igData.followersCount);
       return {
         ...igData,
@@ -62,7 +49,7 @@ class InstagramAnalyticsService {
       };
     }
 
-    try {
+    const fetchRealData = async () => {
       const igData = await instagramGateway.getInstagramAccountForPage(auth.pageId, auth.pageAccessToken);
       if (!igData) {
         throw new Error('No Instagram account is linked to this Facebook page.');
@@ -74,9 +61,31 @@ class InstagramAnalyticsService {
         ...igData,
         analytics: analyticsData
       };
+    };
+
+    // Helper: Wrap promise with a timeout rejection
+    const withTimeout = (promise, ms = 3000) => {
+      let timeoutId;
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error('Instagram API request timeout (3000ms) exceeded'));
+        }, ms);
+      });
+      return Promise.race([promise, timeoutPromise]).finally(() => {
+        clearTimeout(timeoutId);
+      });
+    };
+
+    try {
+      return await withTimeout(fetchRealData(), 3000);
     } catch (error) {
-      console.error(`[Instagram Analytics] Real API call failed:`, error);
-      throw new Error(`Instagram API Error: ${error.message}`);
+      console.warn(`[Instagram Analytics] Real API call failed or timed out (${error.message}). Falling back to empty data...`);
+      const igData = this._getEmptyChannelInfo(auth.pageId, account);
+      const analyticsData = this._getMockAnalyticsReport(startDate, endDate, igData.followersCount);
+      return {
+        ...igData,
+        analytics: analyticsData
+      };
     }
   }
 

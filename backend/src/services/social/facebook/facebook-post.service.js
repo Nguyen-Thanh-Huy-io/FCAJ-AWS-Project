@@ -8,6 +8,23 @@ const postCache = new Map();
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 class FacebookPostService {
+  _withTimeout(promise, ms, fallback) {
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error(`Timeout of ${ms}ms exceeded`));
+      }, ms);
+    });
+    return Promise.race([promise, timeoutPromise])
+      .catch(err => {
+        console.warn(`[FacebookPostService] API call failed or timed out: ${err.message}. Using fallback.`);
+        return fallback;
+      })
+      .finally(() => {
+        clearTimeout(timeoutId);
+      });
+  }
+
   async getPublishedPosts(brandId, pageToken = null, limit = 10) {
     const cacheKey = `${brandId}_${pageToken || 'first'}_${limit}`;
     const cached = postCache.get(cacheKey);
@@ -20,7 +37,15 @@ class FacebookPostService {
         return { data: [], nextPageToken: null, prevPageToken: null };
       }
 
-      const { data: feed, nextPageToken, prevPageToken } = await facebookGateway.getPageFeed(pageId, pageAccessToken, pageToken, limit);
+      const feedResult = await this._withTimeout(
+        facebookGateway.getPageFeed(pageId, pageAccessToken, pageToken, limit),
+        4000,
+        { data: [], nextPageToken: null, prevPageToken: null }
+      );
+
+      const feed = feedResult.data || [];
+      const nextPageToken = feedResult.nextPageToken || null;
+      const prevPageToken = feedResult.prevPageToken || null;
 
       const postsWithInsights = await Promise.all(
         feed.map(post => this._enrichPostWithInsights(post, pageAccessToken))
@@ -43,11 +68,11 @@ class FacebookPostService {
   }
   async publishPost(brandId, postData) {
     const { pageId, pageAccessToken } = await this._getAccountCredentials(brandId);
-    const { type, mediaUrls } = postData;
+    const { type, mediaUrls = [] } = postData;
     const mediaUrl = mediaUrls && mediaUrls.length > 0 ? mediaUrls[0] : null;
 
     const strategy = FacebookPublishStrategyFactory.getStrategy(type, mediaUrl);
-    const result = await strategy.publish(pageId, pageAccessToken, { ...postData, mediaUrl });
+    const result = await strategy.publish(pageId, pageAccessToken, { ...postData, mediaUrl, mediaUrls });
 
     return { platformVideoId: result.id, publishedAt: new Date() };
   }
@@ -88,14 +113,17 @@ class FacebookPostService {
 
   async _enrichPostWithInsights(post, pageAccessToken) {
     try {
-      const insights = await facebookGateway.getPostInsights(post.id, pageAccessToken);
+      const insights = await this._withTimeout(
+        facebookGateway.getPostInsights(post.id, pageAccessToken),
+        1500,
+        []
+      );
       const metrics = this._parseInsightsMetrics(insights);
       const counts = this._extractPostCounts(post);
 
-      const totalInteractions = counts.reactions + counts.comments + counts.shares;
-      const reach = metrics.reach || (totalInteractions > 0 ? Math.round(totalInteractions * 12 + 10) : 0);
-      const views = metrics.views || (reach > 0 ? Math.round(reach * 1.4) : 0);
-      const clicks = metrics.clicks || (counts.reactions > 0 ? Math.round(counts.reactions * 0.25) : 0);
+      const reach = metrics.reach || 0;
+      const views = metrics.views || 0;
+      const clicks = metrics.clicks || 0;
 
       const postType = this._determinePostType(post);
       const engagement = reach ? parseFloat((((counts.reactions + counts.comments + counts.shares + clicks) / reach) * 100).toFixed(2)) : 0;
@@ -113,7 +141,7 @@ class FacebookPostService {
         comments: counts.comments,
         shares: counts.shares,
         clicks,
-        linkClicks: metrics.linkClicks || Math.round(clicks * 0.5),
+        linkClicks: metrics.linkClicks || 0,
         videoViews: postType === POST_TYPES.VIDEO ? Math.round(views * 0.4) : 0,
         videoTimeWatched: postType === POST_TYPES.VIDEO ? '0:45' : '0:00',
         engagement,
@@ -160,10 +188,6 @@ class FacebookPostService {
 
   _formatFallbackPost(post) {
     const counts = this._extractPostCounts(post);
-    const totalInteractions = counts.reactions + counts.comments + counts.shares;
-    const simulatedReach = totalInteractions > 0 ? Math.round(totalInteractions * 12 + 10) : 0;
-    const simulatedViews = simulatedReach > 0 ? Math.round(simulatedReach * 1.4) : 0;
-    const simulatedClicks = counts.reactions > 0 ? Math.round(counts.reactions * 0.25) : 0;
     const postType = this._determinePostType(post);
 
     return {
@@ -173,16 +197,16 @@ class FacebookPostService {
       mediaUrl: post.full_picture || '',
       date: post.created_time,
       status: POST_STATUS.PUBLISHED,
-      reach: simulatedReach,
-      views: simulatedViews,
+      reach: 0,
+      views: 0,
       reactions: counts.reactions,
       comments: counts.comments,
       shares: counts.shares,
-      clicks: simulatedClicks,
-      linkClicks: Math.round(simulatedClicks * 0.5),
-      videoViews: postType === POST_TYPES.VIDEO ? Math.round(simulatedViews * 0.4) : 0,
-      videoTimeWatched: postType === POST_TYPES.VIDEO ? '0:45' : '0:00',
-      engagement: simulatedReach ? parseFloat((((totalInteractions + simulatedClicks) / simulatedReach) * 100).toFixed(2)) : 0,
+      clicks: 0,
+      linkClicks: 0,
+      videoViews: 0,
+      videoTimeWatched: '0:00',
+      engagement: 0,
       spent: 0
     };
   }

@@ -8,15 +8,23 @@ export const PLATFORM_CONFIGS = {
     defaultType: 'post',
     supportedTypes: [
       { id: 'post', label: 'Feed Post' },
+      { id: 'album', label: 'Album' },
       { id: 'reel', label: 'Reel' },
       { id: 'story', label: 'Story' }
     ],
     getPostType: (subType, hasMedia, isVideo) => {
+      if (subType === 'album') return POST_TYPE.CAROUSEL;
       if (subType === 'story') return POST_TYPE.STORY;
       if (subType === 'reel') return POST_TYPE.REEL;
       return (hasMedia && isVideo) ? POST_TYPE.VIDEO : POST_TYPE.IMAGE;
     },
     validationRules: {
+      album: [
+        {
+          check: ({ mediaCount }) => !mediaCount || mediaCount < 2,
+          message: () => "Facebook Album -> Add at least 2 images."
+        }
+      ],
       reel: [
         {
           check: ({ hasMedia }) => !hasMedia,

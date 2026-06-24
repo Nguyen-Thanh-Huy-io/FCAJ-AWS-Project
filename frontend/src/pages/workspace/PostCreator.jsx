@@ -23,6 +23,7 @@ import { GoogleDrivePickerModal } from "../../components/workspace/post-creator/
 import { MediaUploadModal } from "../../components/workspace/post-creator/MediaUploadModal";
 import { ImageEditorModal } from "../../components/workspace/post-creator/ImageEditorModal";
 import { AltTextModal } from "../../components/workspace/post-creator/AltTextModal";
+import { FacebookAlbumComposer } from "../../components/workspace/post-creator/FacebookAlbumComposer";
 import { HashtagPickerPopover } from "../../components/workspace/post-creator/HashtagPickerPopover";
 import { PLATFORM_CONFIGS } from "../../constants/platformRegistry";
 import { Instagram } from "lucide-react";
@@ -158,7 +159,9 @@ export function PostCreatorPage() {
     selectedDiscordChannels,
     setSelectedDiscordChannels,
     discordOpen,
-    setDiscordOpen
+    setDiscordOpen,
+    albumMedia,
+    setAlbumMedia
   } = usePostCreatorForm();
 
   const discordAccounts = activeBrand?.socialAccounts?.filter(sa => sa.platform === 'DISCORD' && sa.isConnected) || [];
@@ -335,6 +338,7 @@ export function PostCreatorPage() {
   const [uploadModalTab, setUploadModalTab] = useState("computer");
   const [showImageMenu, setShowImageMenu] = useState(false);
   const [showImageEditor, setShowImageEditor] = useState(false);
+  const [editingAlbumPhoto, setEditingAlbumPhoto] = useState(null); // Lưu { id, previewUrl, path, caption } đang chỉnh sửa
   const [imageTransform, setImageTransform] = useState({ rotation: 0, flipH: false, flipV: false, filter: 'none' });
   const [showAltTextModal, setShowAltTextModal] = useState(false);
   
@@ -689,67 +693,84 @@ export function PostCreatorPage() {
                      </div>
                    )}
 
-                  {/* Thumbnail Image display */}
-                  {isImageFile && videoFileUrl && (
-                    <div className="px-6 pb-4 bg-white flex flex-wrap gap-3 animate-in fade-in duration-300">
-                      <div className="relative">
-                        {/* Image Container with aspect ratio and rounded borders */}
-                        <div className="w-16 h-16 rounded-2xl overflow-hidden border border-gray-100 shadow-md">
-                          <img src={videoFileUrl} alt="Preview" style={getImageStyle(imageTransform)} className={`w-full h-full object-cover ${getImageFilterClass(imageTransform?.filter)}`} />
-                        </div>
-                        
-                        {/* Three dots button */}
-                        <button 
-                          type="button"
-                          onClick={() => setShowImageMenu(!showImageMenu)}
-                          className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center cursor-pointer transition-all shadow-md z-10"
-                        >
-                          <MoreHorizontal size={12} />
-                        </button>
-
-                        {/* Dropdown Menu (Floats on top, opening upwards to prevent clipping) */}
-                        {showImageMenu && (
-                          <div className="absolute bottom-full left-0 mb-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50 text-left text-xs text-gray-700 animate-in fade-in slide-in-from-bottom-1">
-                            <button 
-                              type="button" 
-                              onClick={() => { setShowImageMenu(false); setShowImageEditor(true); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700 whitespace-nowrap"
-                            >
-                              <Edit size={14} className="text-gray-500" />
-                              Edit image
-                            </button>
-                            <button 
-                              type="button" 
-                              onClick={() => { setShowImageMenu(false); toast.info("Edit with Adobe Express clicked"); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700 whitespace-nowrap"
-                            >
-                              <span className="w-4 h-4 rounded-md bg-gradient-to-tr from-[#FF0000] via-[#FF0080] to-[#7F00FF] flex items-center justify-center text-[9px] font-black text-white shrink-0 select-none">A</span>
-                              Edit with Adobe Express
-                            </button>
-                            <button 
-                              type="button" 
-                              onClick={() => { setShowImageMenu(false); setShowAltTextModal(true); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700 whitespace-nowrap"
-                            >
-                              <Type size={14} className="text-gray-500" />
-                              Add alt text
-                            </button>
-                            <div className="h-px bg-gray-100 my-1" />
-                            <button 
-                              type="button" 
-                              onClick={() => {
-                                handleRemoveVideo();
-                                setShowImageMenu(false);
-                              }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-red-50 text-red-600 transition-all cursor-pointer font-bold whitespace-nowrap"
-                            >
-                              <Trash2 size={14} />
-                              Remove
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                  {/* Facebook Album Composer Section */}
+                  {activePlatform === 'facebook' && facebookType === 'album' ? (
+                    <div className="px-6 pb-6 border-t border-gray-50 pt-6">
+                      <FacebookAlbumComposer
+                        brandId={activeBrand?.id}
+                        albumMedia={albumMedia}
+                        setAlbumMedia={setAlbumMedia}
+                        onEditPhoto={(photo) => {
+                          setEditingAlbumPhoto(photo);
+                          setShowImageEditor(true);
+                        }}
+                      />
                     </div>
+                  ) : (
+                    <>
+                      {/* Thumbnail Image display */}
+                      {isImageFile && videoFileUrl && (
+                        <div className="px-6 pb-4 bg-white flex flex-wrap gap-3 animate-in fade-in duration-300">
+                          <div className="relative">
+                            {/* Image Container with aspect ratio and rounded borders */}
+                            <div className="w-16 h-16 rounded-2xl overflow-hidden border border-gray-100 shadow-md">
+                              <img src={videoFileUrl} alt="Preview" style={getImageStyle(imageTransform)} className={`w-full h-full object-cover ${getImageFilterClass(imageTransform?.filter)}`} />
+                            </div>
+                            
+                            {/* Three dots button */}
+                            <button 
+                              type="button"
+                              onClick={() => setShowImageMenu(!showImageMenu)}
+                              className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center cursor-pointer transition-all shadow-md z-10"
+                            >
+                              <MoreHorizontal size={12} />
+                            </button>
+
+                            {/* Dropdown Menu (Floats on top, opening upwards to prevent clipping) */}
+                            {showImageMenu && (
+                              <div className="absolute bottom-full left-0 mb-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50 text-left text-xs text-gray-700 animate-in fade-in slide-in-from-bottom-1">
+                                <button 
+                                  type="button" 
+                                  onClick={() => { setShowImageMenu(false); setShowImageEditor(true); }}
+                                  className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700 whitespace-nowrap"
+                                >
+                                  <Edit size={14} className="text-gray-500" />
+                                  Edit image
+                                </button>
+                                <button 
+                                  type="button" 
+                                  onClick={() => { setShowImageMenu(false); toast.info("Edit with Adobe Express clicked"); }}
+                                  className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700 whitespace-nowrap"
+                                >
+                                  <span className="w-4 h-4 rounded-md bg-gradient-to-tr from-[#FF0000] via-[#FF0080] to-[#7F00FF] flex items-center justify-center text-[9px] font-black text-white shrink-0 select-none">A</span>
+                                  Edit with Adobe Express
+                                </button>
+                                <button 
+                                  type="button" 
+                                  onClick={() => { setShowImageMenu(false); setShowAltTextModal(true); }}
+                                  className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700 whitespace-nowrap"
+                                >
+                                  <Type size={14} className="text-gray-500" />
+                                  Add alt text
+                                </button>
+                                <div className="h-px bg-gray-100 my-1" />
+                                <button 
+                                  type="button" 
+                                  onClick={() => {
+                                    handleRemoveVideo();
+                                    setShowImageMenu(false);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-red-50 text-red-600 transition-all cursor-pointer font-bold whitespace-nowrap"
+                                >
+                                  <Trash2 size={14} />
+                                  Remove
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                   <div className="px-6 py-4 flex items-center justify-between bg-white border-t border-gray-50">
                      <div className="flex items-center gap-5">
@@ -1530,10 +1551,11 @@ export function PostCreatorPage() {
                       youtubeFirstComment={youtubeFirstComment}
                       globalFirstComment={globalFirstComment}
                       previewDevice={previewDevice}
-                       facebookType={facebookType}
-                       facebookTitle={facebookTitle}
-                       instagramType={instagramType}
-                        imageTransform={imageTransform}
+                      facebookType={facebookType}
+                      facebookTitle={facebookTitle}
+                      instagramType={instagramType}
+                      imageTransform={imageTransform}
+                      albumMedia={albumMedia}
                     />
                  )}
               </div>
@@ -1597,20 +1619,41 @@ export function PostCreatorPage() {
         />
         <ImageEditorModal 
           isOpen={showImageEditor}
-          imageUrl={videoFileUrl}
+          imageUrl={editingAlbumPhoto ? (editingAlbumPhoto.previewUrl || editingAlbumPhoto.path) : videoFileUrl}
           currentTransform={imageTransform}
           brandId={activeBrand?.id}
-          onClose={() => setShowImageEditor(false)}
+          onClose={() => {
+            setShowImageEditor(false);
+            setEditingAlbumPhoto(null);
+          }}
           onSave={(file, path, fallbackTransform) => {
-            if (file && path) {
-              setVideoFile(file);
-              const previewUrl = URL.createObjectURL(file);
-              setVideoFileUrl(previewUrl);
-              setUploadedVideoPath(path);
-              setImageTransform({ rotation: 0, flipH: false, flipV: false, filter: 'none' }); // reset transform since it's baked into the new image file
-            } else if (fallbackTransform) {
-              setImageTransform(fallbackTransform);
+            if (editingAlbumPhoto) {
+              // Update image inside albumMedia
+              setAlbumMedia((prev) =>
+                prev.map((item) =>
+                  item.id === editingAlbumPhoto.id
+                    ? {
+                        ...item,
+                        previewUrl: file ? URL.createObjectURL(file) : path,
+                        path: path || item.path
+                      }
+                    : item
+                )
+              );
+              setEditingAlbumPhoto(null);
+            } else {
+              // Default behavior for single image
+              if (file && path) {
+                setVideoFile(file);
+                const previewUrl = URL.createObjectURL(file);
+                setVideoFileUrl(previewUrl);
+                setUploadedVideoPath(path);
+                setImageTransform({ rotation: 0, flipH: false, flipV: false, filter: 'none' }); // reset transform since it's baked into the new image file
+              } else if (fallbackTransform) {
+                setImageTransform(fallbackTransform);
+              }
             }
+            setShowImageEditor(false);
             toast.success("Image edited successfully");
           }}
         />

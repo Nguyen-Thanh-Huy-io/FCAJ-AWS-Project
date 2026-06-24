@@ -13,6 +13,31 @@ class ReportService {
    * @returns {{dateFrom: Date, dateTo: Date}}
    */
   parseDateRange(dateRangeStr) {
+    // Check if it is a custom date range: "YYYY-MM-DD - YYYY-MM-DD" or "DD/MM/YYYY - DD/MM/YYYY"
+    if (dateRangeStr && dateRangeStr.includes(' - ')) {
+      const parts = dateRangeStr.split(' - ');
+      if (parts.length === 2) {
+        let from, to;
+        if (parts[0].includes('/')) {
+          // DD/MM/YYYY
+          const [d1, m1, y1] = parts[0].split('/');
+          const [d2, m2, y2] = parts[1].split('/');
+          from = new Date(y1, m1 - 1, d1);
+          to = new Date(y2, m2 - 1, d2);
+        } else {
+          // YYYY-MM-DD
+          from = new Date(parts[0]);
+          to = new Date(parts[1]);
+        }
+
+        if (!isNaN(from.getTime()) && !isNaN(to.getTime())) {
+          from.setHours(0, 0, 0, 0);
+          to.setHours(23, 59, 59, 999);
+          return { dateFrom: from, dateTo: to };
+        }
+      }
+    }
+
     const dateTo = new Date();
     let dateFrom = new Date();
 
@@ -202,6 +227,17 @@ class ReportService {
     // Delete record from DB
     await reportRepository.delete(id);
     return true;
+  }
+
+  /**
+   * Fetch live preview analytics data
+   * @param {string} brandId
+   * @param {string} dateRange
+   * @param {string[]} platforms
+   */
+  async getPreviewData(brandId, dateRange, platforms) {
+    const { dateFrom, dateTo } = this.parseDateRange(dateRange);
+    return await analyticsFacade.getAggregatedData(brandId, dateFrom, dateTo, platforms);
   }
 }
 

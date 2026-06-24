@@ -40,7 +40,9 @@ export function usePostCreatorForm() {
     isUploadingVideo, 
     setIsUploadingVideo,
     uploadedVideoPath, 
-    setUploadedVideoPath
+    setUploadedVideoPath,
+    albumMedia,
+    setAlbumMedia
   } = usePostCreator();
   
   const [caption, setCaption] = useState("");
@@ -196,8 +198,8 @@ export function usePostCreatorForm() {
     });
   };
 
-  // Validation function
   const getValidationErrors = () => {
+    const isAlbum = selectedPlatforms.includes('facebook') && activePlatform === 'facebook' && facebookType === 'album';
     return validatePostForm({
       isLibrary,
       selectedPublishId,
@@ -212,7 +214,8 @@ export function usePostCreatorForm() {
       videoWidth,
       videoHeight,
       uploadedVideoPath,
-      platformLimits
+      platformLimits,
+      mediaCount: isAlbum ? albumMedia.length : 0
     });
   };
 
@@ -332,12 +335,6 @@ export function usePostCreatorForm() {
   };
 
   useEffect(() => {
-    if (isOpen && activeBrand) {
-      fetchPlaylists();
-    }
-  }, [isOpen, activeBrand]);
-
-  useEffect(() => {
     if (isOpen) {
       if (editingPost) {
         setCaption(editingPost.caption || "");
@@ -385,7 +382,9 @@ export function usePostCreatorForm() {
         setSelectedDiscordChannels(opts.selectedDiscordChannels || []);
         
         // Setup media
-        if (editingPost.mediaUrls?.[0]) {
+        if (opts.facebookType === 'album' && opts.albumMedia) {
+          setAlbumMedia(opts.albumMedia);
+        } else if (editingPost.mediaUrls?.[0]) {
           const path = editingPost.mediaUrls[0];
           setUploadedVideoPath(path);
           setVideoFileUrl(buildMediaUrl(path));
@@ -438,7 +437,9 @@ export function usePostCreatorForm() {
         setSelectedDiscordChannels(opts.selectedDiscordChannels || []);
         
         // Setup media
-        if (templatePost.mediaUrls?.[0]) {
+        if (opts.facebookType === 'album' && opts.albumMedia) {
+          setAlbumMedia(opts.albumMedia);
+        } else if (templatePost.mediaUrls?.[0]) {
           const path = templatePost.mediaUrls[0];
           setUploadedVideoPath(path);
           setVideoFileUrl(buildMediaUrl(path));
@@ -489,6 +490,7 @@ export function usePostCreatorForm() {
         setFacebookType(FACEBOOK_TYPE.POST);
         setFacebookTitle("");
         setAltText("");
+        setAlbumMedia([]);
 
         // Reset Instagram
         setInstagramType(INSTAGRAM_TYPE.POST);
@@ -541,7 +543,9 @@ export function usePostCreatorForm() {
     setTiktokCommercialContent(opts.tiktokCommercialContent || false);
     
     // Setup media
-    if (template.mediaUrls?.[0]) {
+    if (opts.facebookType === 'album' && opts.albumMedia) {
+      setAlbumMedia(opts.albumMedia);
+    } else if (template.mediaUrls?.[0]) {
       const path = template.mediaUrls[0];
       setUploadedVideoPath(path);
       setVideoFileUrl(buildMediaUrl(path));
@@ -576,13 +580,22 @@ export function usePostCreatorForm() {
       else if (activePlatform === PLATFORMS.INSTAGRAM) activeSubType = instagramType;
       else if (activePlatform === PLATFORMS.TIKTOK) activeSubType = 'video';
 
-      const hasMedia = !!(uploadedVideoPath || videoFile);
-      const isVid = isVideoPath(videoFileUrl, videoFile);
+      const isAlbum = activePlatform === PLATFORMS.FACEBOOK && facebookType === 'album';
+      const hasMedia = isAlbum ? albumMedia.length > 0 : !!(uploadedVideoPath || videoFile);
+      const isVid = !isAlbum && isVideoPath(videoFileUrl, videoFile);
 
       const platformConfig = PLATFORM_CONFIGS[activePlatform];
       const postType = platformConfig 
         ? platformConfig.getPostType(activeSubType, hasMedia, isVid)
         : POST_TYPE.VIDEO;
+
+      // Chuẩn bị danh sách URLs và captions cho Album
+      const postMediaUrls = isAlbum 
+        ? albumMedia.map(item => item.path).filter(Boolean)
+        : (uploadedVideoPath ? [uploadedVideoPath] : []);
+      const mediaCaptions = isAlbum
+        ? albumMedia.map(item => item.caption || "")
+        : [];
 
       const payload = {
         brandId: activeBrand.id,
@@ -594,7 +607,7 @@ export function usePostCreatorForm() {
         altText,
         targetPlatforms: selectedPlatforms.map(p => p.toUpperCase()),
         scheduledAt: selectedPublishId === 'now' ? null : (scheduledDate ? new Date(scheduledDate).toISOString() : null),
-        mediaUrls: uploadedVideoPath ? [uploadedVideoPath] : [],
+        mediaUrls: postMediaUrls,
         reviewerIds: selectedReviewerIds,
         approvalPolicy: approvalPolicy,
         requesterNote: requesterNote || "Vui lòng phê duyệt bài viết này.",
@@ -616,7 +629,9 @@ export function usePostCreatorForm() {
           tiktokAllowStitch,
           tiktokAiGenerated,
           tiktokCommercialContent,
-          selectedDiscordChannels
+          selectedDiscordChannels,
+          albumMedia,
+          mediaCaptions
         }
       };
 
@@ -784,6 +799,8 @@ export function usePostCreatorForm() {
     selectedDiscordChannels,
     setSelectedDiscordChannels,
     discordOpen,
-    setDiscordOpen
+    setDiscordOpen,
+    albumMedia,
+    setAlbumMedia
   };
 }
