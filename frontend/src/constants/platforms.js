@@ -10,6 +10,7 @@ export const PLATFORMS = {
   LINKEDIN: 'linkedin',
   TELEGRAM: 'telegram',
   DISCORD: 'discord',
+  THREADS: 'threads',
 };
 
 /** Tên hiển thị */
@@ -21,6 +22,7 @@ export const PLATFORM_LABELS = {
   [PLATFORMS.LINKEDIN]: 'LinkedIn',
   [PLATFORMS.TELEGRAM]: 'Telegram',
   [PLATFORMS.DISCORD]: 'Discord',
+  [PLATFORMS.THREADS]: 'Threads',
 };
 
 /** Default tab khi vào Platform Dashboard */
@@ -32,6 +34,7 @@ export const PLATFORM_DEFAULT_TAB = {
   [PLATFORMS.LINKEDIN]: 'overview',
   [PLATFORMS.TELEGRAM]: 'overview',
   [PLATFORMS.DISCORD]: 'overview',
+  [PLATFORMS.THREADS]: 'community',
 };
 
 /** Platform gửi lên backend (uppercase) */
@@ -43,6 +46,7 @@ export const PLATFORM_API_KEY = {
   [PLATFORMS.LINKEDIN]: 'LINKEDIN',
   [PLATFORMS.TELEGRAM]: 'TELEGRAM',
   [PLATFORMS.DISCORD]: 'DISCORD',
+  [PLATFORMS.THREADS]: 'THREADS',
   X: 'TWITTER_X', // special case
 };
 

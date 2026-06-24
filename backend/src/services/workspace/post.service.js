@@ -278,11 +278,16 @@ class PostService {
       for (const post of posts) {
         if (post.status === POST_STATUS.PUBLISHED && post.platformPostId) {
           const targetPlatforms = post.targetPlatforms ? post.targetPlatforms.split(',').map(p => p.trim().toUpperCase()) : [];
+          console.log(`[Post Service] Attempting social deletion for post: ${post.id}, targetPlatforms: ${targetPlatforms.join(', ')}, platformPostId: ${post.platformPostId}`);
           for (const platform of targetPlatforms) {
             try {
               const service = socialPlatformFactory.getService(platform);
               if (service.deletePost) {
+                console.log(`[Post Service] Found deletePost for ${platform}. Invoking service.deletePost...`);
                 await service.deletePost(brandId, post.platformPostId);
+                console.log(`[Post Service] Successfully deleted post on ${platform}`);
+              } else {
+                console.log(`[Post Service] Platform ${platform} service does not implement deletePost`);
               }
             } catch (err) {
               console.error(`[Post Service] Failed to delete post on ${platform}:`, err.message);
@@ -294,7 +299,7 @@ class PostService {
 
     const autolistIds = [...new Set(posts.map(p => p.autoListId).filter(Boolean))];
 
-    const result = await postRepository.updateMany({ id: { in: ids }, brandId }, { isDeleted: true, deletedAt: new Date() });
+    const result = await postRepository.deleteMany({ id: { in: ids }, brandId });
     eventEmitter.emit(EVENTS.POST.BULK_DELETED, { autolistIds });
     return result.count;
   }

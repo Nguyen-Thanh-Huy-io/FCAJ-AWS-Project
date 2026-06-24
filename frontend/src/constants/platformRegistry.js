@@ -229,5 +229,24 @@ export const PLATFORM_CONFIGS = {
         }
       ]
     }
+  },
+  [PLATFORMS.THREADS]: {
+    id: PLATFORMS.THREADS,
+    name: 'Threads',
+    defaultType: 'post',
+    supportedTypes: [
+      { id: 'post', label: 'Threads Post' }
+    ],
+    getPostType: (subType, hasMedia, isVideo) => {
+      return (hasMedia && isVideo) ? POST_TYPE.VIDEO : POST_TYPE.IMAGE;
+    },
+    validationRules: {
+      _always: [
+        {
+          check: ({ caption }) => caption && caption.length > 500,
+          message: ({ caption }) => `Bài đăng Threads phải có độ dài dưới 500 ký tự. (Hiện tại: ${caption ? caption.length : 0})`
+        }
+      ]
+    }
   }
 };

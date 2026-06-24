@@ -11,6 +11,7 @@ const telegramController = require('../../controllers/social/telegram.controller
 const discordController = require('../../controllers/social/discord.controller');
 const discordOAuthController = require('../../controllers/social/discord-oauth.controller');
 const discordStatsController = require('../../controllers/social/discord-stats.controller');
+const threadsController = require('../../controllers/social/threads.controller');
 const { verifyAuth } = require('../../middlewares/auth.middleware');
 const { requireFeature } = require('../../middlewares/feature-gate.middleware');
 const { PRODUCT_IDS } = require('../../utils/constants');
@@ -30,6 +31,8 @@ router.get('/tiktok/webhook', oauthController.handleTikTokWebhook);
 router.post('/tiktok/webhook', oauthController.handleTikTokWebhook);
 router.get('/linkedin/url', verifyAuth, oauthController.getLinkedInAuthUrl);
 router.get('/linkedin/callback', oauthController.linkedinCallback);
+router.get('/threads/url', verifyAuth, oauthController.getThreadsAuthUrl);
+router.get('/threads/callback', oauthController.threadsCallback);
 router.get('/discord/url', verifyAuth, discordOAuthController.getDiscordAuthUrl);
 router.get('/discord/callback', discordOAuthController.discordCallback);
 router.get('/discord/channels', verifyAuth, discordOAuthController.getGuildChannels);
@@ -52,6 +55,7 @@ router.delete('/facebook/competitors/:id', verifyAuth, facebookController.delete
 router.post('/instagram/disconnect', verifyAuth, socialConnectionController.disconnectInstagramAccount);
 router.post('/tiktok/disconnect', verifyAuth, socialConnectionController.disconnectTikTokAccount);
 router.post('/linkedin/disconnect', verifyAuth, socialConnectionController.disconnectLinkedInAccount);
+router.post('/threads/disconnect', verifyAuth, socialConnectionController.disconnectThreadsAccount);
 router.post('/telegram/connect', verifyAuth, telegramController.connectTelegram);
 router.post('/telegram/disconnect', verifyAuth, socialConnectionController.disconnectTelegramAccount);
 router.post('/discord/connect', verifyAuth, discordController.connectDiscord);
@@ -59,6 +63,7 @@ router.post('/discord/disconnect', verifyAuth, socialConnectionController.discon
 router.post('/reassign', verifyAuth, socialConnectionController.reassignSocialAccount);
 router.get('/tiktok/published-videos', verifyAuth, tiktokController.getTikTokPublishedVideos);
 router.get('/instagram/published-posts', verifyAuth, instagramController.getInstagramPublishedPosts);
+router.get('/threads/published-posts', verifyAuth, threadsController.getThreadsPublishedPosts);
 
 // Real-time Metrics
 router.get('/metrics', verifyAuth, socialAnalyticsController.getMetrics);

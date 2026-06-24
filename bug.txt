@@ -1,4 +1,0 @@
-Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
-academia-BsDTfcVI.js:38 [pdf-viewer-detect][isBrowserPdfViewerPage] final: false
-logger.js:43 [PubliCast] [ERROR] Error: timeout of 10000ms exceeded
-(anonymous) @ logger.js:43

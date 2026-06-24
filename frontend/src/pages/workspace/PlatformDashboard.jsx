@@ -5,6 +5,7 @@ import {
   Info, Download, Loader2, Diamond, X, BarChart2, ArrowLeft
 } from "lucide-react";
 import { toast } from "sonner";
+import { PlatformIcon } from "../../components/shared/PlatformIcon";
 import {
   Dialog,
   DialogContent,
@@ -26,6 +27,7 @@ import { FacebookDashboard } from "./dashboard/FacebookDashboard";
 import { TikTokDashboard } from "./dashboard/TikTokDashboard";
 import { DiscordDashboard } from "./dashboard/DiscordDashboard";
 import { InstagramAccountTab } from "./dashboard/InstagramAccountTab";
+import { ThreadsPostsTab } from "./dashboard/ThreadsPostsTab";
 import { usePlatformDashboard } from "../../hooks/usePlatformDashboard";
 import { DateRangeFilter } from "../../components/app/DateRangeFilter";
 import { useConnections } from "../../context/ConnectionsContext";
@@ -38,6 +40,7 @@ const PLATFORM_CONFIG = {
   tiktok: { name: "TikTok", color: "#000000", icon: <PlayCircle size={20} /> },
   linkedin: { name: "LinkedIn", color: "#0A66C2", icon: <Linkedin size={20} /> },
   discord: { name: "Discord", color: "#5865F2", icon: <BarChart2 size={20} /> },
+  threads: { name: "Threads", color: "#000000", icon: <PlatformIcon platform="Threads" size={20} variant="flat" className="text-black" /> },
 };
 
 const YT_TABS = [
@@ -68,6 +71,12 @@ const DISCORD_TABS = [
 const IG_TABS = [
   { id: "community", label: "COMMUNITY" },
   { id: "account", label: "ACCOUNT" },
+  { id: "competitors", label: "COMPETITORS" },
+];
+
+const THREADS_TABS = [
+  { id: "community", label: "COMMUNITY" },
+  { id: "posts", label: "POSTS" },
   { id: "competitors", label: "COMPETITORS" },
 ];
 
@@ -134,7 +143,7 @@ export function PlatformDashboardPage() {
   const navigate = useNavigate();
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
-  const tabs = platform === "instagram" ? IG_TABS : platform === "facebook" ? FB_TABS : platform === "tiktok" ? TT_TABS : platform === "discord" ? DISCORD_TABS : YT_TABS;
+  const tabs = platform === "instagram" ? IG_TABS : platform === "facebook" ? FB_TABS : platform === "tiktok" ? TT_TABS : platform === "discord" ? DISCORD_TABS : platform === "threads" ? THREADS_TABS : YT_TABS;
 
 
   useEffect(() => {
@@ -423,6 +432,109 @@ export function PlatformDashboardPage() {
             {activeTab === "account" && (
               <InstagramAccountTab
                 metrics={metrics}
+                realData={realData}
+                publishedVideos={publishedVideos}
+                isPublishedLoading={isPublishedLoading}
+                pageSize={pageSize}
+                setPageSize={setPageSize}
+                fetchPublishedVideos={fetchPublishedVideos}
+                prevPageToken={prevPageToken}
+                nextPageToken={nextPageToken}
+              />
+            )}
+
+            {activeTab === "competitors" && (
+              <CompetitorsTab
+                competitors={competitors}
+                isLoading={isCompetitorLoading}
+                onAddCompetitor={handleAddCompetitor}
+                onDeleteCompetitor={handleDeleteCompetitor}
+                searchQuery={competitorQuery}
+                setSearchQuery={setCompetitorQuery}
+                searchResults={searchResults}
+                isSearching={isSearching}
+                isModalOpen={isCompetitorModalOpen}
+                setIsModalOpen={setIsCompetitorModalOpen}
+              />
+            )}
+          </>
+        ) : platform === "threads" ? (
+          <>
+            {activeTab === "community" && (
+              <div className="space-y-6">
+                {(() => {
+                  const threadsGrowthConfig = [
+                    {
+                      key: "followers",
+                      label: "Followers",
+                      color: "bg-[#8E9BEE] text-white",
+                      chartColor: "#8E9BEE",
+                      type: "area",
+                      value: metrics?.followersCount || 12500
+                    },
+                    {
+                      key: "views",
+                      label: "Views",
+                      color: "bg-[#A7F3D0] text-gray-900",
+                      chartColor: "#A7F3D0",
+                      type: "line",
+                      value: stats?.views || 32000
+                    },
+                    {
+                      key: "likes",
+                      label: "Likes",
+                      color: "bg-[#E6A34A] text-white",
+                      chartColor: "#E6A34A",
+                      type: "bar",
+                      value: stats?.likes || 2400
+                    }
+                  ];
+
+                  const threadsBalanceConfig = [
+                    {
+                      key: "gained",
+                      dataKey: "new",
+                      label: "Gained",
+                      color: "bg-[#8E9BEE] text-white",
+                      chartColor: "#8E9BEE",
+                      type: "area",
+                      value: totalPeriodGained || 500
+                    },
+                    {
+                      key: "lost",
+                      label: "Lost",
+                      color: "bg-[#F7A6E0] text-white",
+                      chartColor: "#F7A6E0",
+                      type: "area",
+                      value: 120
+                    }
+                  ];
+
+                  return (
+                    <>
+                      <GenericDashboardTab
+                        title="Threads Growth"
+                        description="Growth metrics for Followers, Views, and Likes"
+                        data={communityGrowthData}
+                        metricConfig={threadsGrowthConfig}
+                        watermark="threads"
+                      />
+                      <div className="h-6" />
+                      <GenericDashboardTab
+                        title="Balance of Followers"
+                        description="Biến động số lượng người theo dõi mới và hủy theo dõi"
+                        data={communityGrowthData}
+                        metricConfig={threadsBalanceConfig}
+                        watermark="threads"
+                      />
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+
+            {activeTab === "posts" && (
+              <ThreadsPostsTab
                 realData={realData}
                 publishedVideos={publishedVideos}
                 isPublishedLoading={isPublishedLoading}

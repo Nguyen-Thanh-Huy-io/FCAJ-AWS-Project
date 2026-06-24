@@ -31,7 +31,7 @@ class InstagramAnalyticsService {
     };
 
     const sortedDates = Object.keys(dailyMap).sort().map(d => dailyMap[d]);
-    return this._calculateTotalsAndFormatResponse(sortedDates, 0, feedStats);
+    return this._calculateTotalsAndFormatResponse(sortedDates, currentFollowersCount, feedStats);
   }
 
   async getChannelInfo(auth, startDate, endDate, socialAccountId = null) {

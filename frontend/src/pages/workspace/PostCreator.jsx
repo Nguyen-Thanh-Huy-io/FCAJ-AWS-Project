@@ -29,6 +29,7 @@ import { PLATFORM_CONFIGS } from "../../constants/platformRegistry";
 import { Instagram } from "lucide-react";
 import { toast } from "sonner";
 import { useBrandPermission } from "../../hooks/useBrandPermission";
+import { PlatformIcon } from "../../components/shared/PlatformIcon";
 
 const PUBLISH_OPTIONS = [
   { id: "draft", label: "SAVE AS DRAFT", sub: "Save and publish at a later time" },
@@ -161,8 +162,12 @@ export function PostCreatorPage() {
     discordOpen,
     setDiscordOpen,
     albumMedia,
-    setAlbumMedia
+    setAlbumMedia,
+    threadsWhoCanReply,
+    setThreadsWhoCanReply
   } = usePostCreatorForm();
+
+  const [threadsOpen, setThreadsOpen] = useState(false);
 
   const discordAccounts = activeBrand?.socialAccounts?.filter(sa => sa.platform === 'DISCORD' && sa.isConnected) || [];
 
@@ -175,7 +180,8 @@ export function PostCreatorPage() {
       tiktok: "TIKTOK",
       linkedin: "LINKEDIN",
       telegram: "TELEGRAM",
-      discord: "DISCORD"
+      discord: "DISCORD",
+      threads: "THREADS"
     };
     const targetPlatform = mapping[platformId];
     if (!targetPlatform) return false;
@@ -657,6 +663,30 @@ export function PostCreatorPage() {
                              </button>
                              
                              {selectedPlatforms.includes('discord') && activePlatform === 'discord' && renderTypeDropdown()}
+                           </div>
+                         )}
+
+                         {/* Threads Item */}
+                         {shouldShowPlatform("threads") && (
+                           <div className="flex items-center gap-1.5 relative">
+                             <button 
+                               type="button"
+                               onClick={() => handlePlatformClick("threads", true)}
+                               className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
+                                 selectedPlatforms.includes('threads')
+                                   ? activePlatform === 'threads'
+                                     ? 'bg-black text-white ring-2 ring-offset-2 ring-black'
+                                     : 'bg-black/70 text-white hover:bg-black/85 border border-black'
+                                   : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                               }`}
+                             >
+                               <PlatformIcon platform="Threads" size={14} variant="flat" className={activePlatform === 'threads' ? 'text-white' : 'text-gray-400'} />
+                               {selectedPlatforms.includes('threads') && (
+                                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-white" />
+                               )}
+                             </button>
+                             
+                             {selectedPlatforms.includes('threads') && activePlatform === 'threads' && renderTypeDropdown()}
                            </div>
                          )}
 
@@ -1340,6 +1370,45 @@ export function PostCreatorPage() {
                               ))}
                             </div>
                           )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Threads Presets Accordion */}
+                  {selectedPlatforms.includes('threads') && (
+                    <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm transition-all duration-300">
+                      <div 
+                        onClick={() => setThreadsOpen(!threadsOpen)}
+                        className="p-5 flex items-center justify-between hover:bg-gray-50/50 transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <PlatformIcon platform="Threads" size={18} variant="flat" className="text-black" />
+                          <span className="text-[12px] font-bold text-gray-700">Threads presets</span>
+                        </div>
+                        <ChevronDown size={16} className={`text-gray-400 transition-transform duration-300 ${threadsOpen ? 'rotate-180 text-black' : ''}`} />
+                      </div>
+
+                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${threadsOpen ? 'max-h-[300px] border-t border-gray-50 p-6' : 'max-h-0'}`}>
+                        <div className="space-y-4 text-left">
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-500 uppercase mb-2">Who can reply to this post?</label>
+                            <div className="relative">
+                              <select
+                                value={threadsWhoCanReply}
+                                onChange={(e) => setThreadsWhoCanReply(e.target.value)}
+                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-xs font-semibold focus:border-black outline-none appearance-none cursor-pointer"
+                              >
+                                <option value="everyone">Everyone</option>
+                                <option value="accounts_you_follow">Profiles you follow</option>
+                                <option value="mentioned_only">Mentioned profiles only</option>
+                              </select>
+                              <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                            </div>
+                            <p className="text-[10px] text-gray-400 mt-2 font-medium leading-normal">
+                              Limit who can reply to your Threads post directly from here.
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>

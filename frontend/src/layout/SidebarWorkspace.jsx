@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useConnections } from "../context/ConnectionsContext";
 import { useBrand } from "../context/BrandContext";
+import { PlatformIcon } from "../components/shared/PlatformIcon";
 
 const PLATFORMS = [
   { name: "Summary", icon: <List size={18} />, path: "/dashboard", color: "#6B7280" },
@@ -15,6 +16,7 @@ const PLATFORMS = [
   { name: "TikTok", icon: <PlayCircle size={18} />, path: "/dashboard/tiktok", color: "#000000", brand: "T" },
   { name: "LinkedIn", icon: <Linkedin size={18} />, path: "/dashboard/linkedin", color: "#0A66C2", brand: "T" },
   { name: "Discord", icon: <MessageSquare size={18} />, path: "/dashboard/discord", color: "#5865F2", brand: "T" },
+  { name: "Threads", icon: <PlatformIcon platform="Threads" size={18} variant="flat" />, path: "/dashboard/threads", color: "#000000", brand: "T" },
   { name: "More connection", icon: <Plus size={18} />, isAction: true, color: "#3B82F6" },
 ];
 

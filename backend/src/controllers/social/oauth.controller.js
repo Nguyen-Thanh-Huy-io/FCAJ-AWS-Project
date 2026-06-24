@@ -232,6 +232,33 @@ class OAuthController {
       return this._handleCallbackError(error, frontendUrl, res);
     }
   });
+
+  getThreadsAuthUrl = asyncHandler(async (req, res) => {
+    const { brandId } = req.query;
+    if (!brandId) return res.status(400).json({ message: 'brandId is required' });
+
+    const threadsGateway = require('../../services/social/threads/threads.gateway');
+    const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/threads/callback`;
+    const url = threadsGateway.getAuthUrl(brandId, redirectUri);
+    res.json({ url });
+  });
+
+  threadsCallback = asyncHandler(async (req, res) => {
+    const { code, state } = req.query;
+    const brandId = state;
+    const frontendUrl = DEFAULT_CONFIG.FRONTEND_URL;
+    const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/threads/callback`;
+
+    if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
+
+    try {
+      const threadsService = require('../../services/social/threads');
+      await threadsService.connectChannel(brandId, code, redirectUri);
+      return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=threads_connected`);
+    } catch (error) {
+      return this._handleCallbackError(error, frontendUrl, res);
+    }
+  });
 }
 
 module.exports = new OAuthController();

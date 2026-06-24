@@ -35,6 +35,7 @@ export function WeeklyCalendarView() {
     TIKTOK: true,
     INSTAGRAM: true,
     LINKEDIN: true,
+    THREADS: true,
     X: true,
     TWITTER: true
   });

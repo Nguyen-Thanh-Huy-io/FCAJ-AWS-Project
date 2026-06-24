@@ -97,6 +97,9 @@ export function usePostCreatorForm() {
   const [youtubeFirstComment, setYoutubeFirstComment] = useState("");
   const [globalFirstComment, setGlobalFirstComment] = useState("");
 
+  // Threads States
+  const [threadsWhoCanReply, setThreadsWhoCanReply] = useState("everyone");
+
   // Video metadata states for format validation
   const [videoDuration, setVideoDuration] = useState(0);
   const [videoWidth, setVideoWidth] = useState(0);
@@ -364,6 +367,7 @@ export function usePostCreatorForm() {
         setYoutubeTags(opts.tags || "");
         setYoutubeFirstComment(opts.firstComment || "");
         setGlobalFirstComment(opts.firstComment || "");
+        setThreadsWhoCanReply(opts.threadsWhoCanReply || "everyone");
 
         // Setup Facebook
         setFacebookType(opts.facebookType || "post");
@@ -419,6 +423,7 @@ export function usePostCreatorForm() {
         setYoutubeTags(opts.tags || "");
         setYoutubeFirstComment(opts.firstComment || "");
         setGlobalFirstComment(opts.firstComment || "");
+        setThreadsWhoCanReply(opts.threadsWhoCanReply || "everyone");
 
         // Setup Facebook
         setFacebookType(opts.facebookType || "post");
@@ -462,7 +467,8 @@ export function usePostCreatorForm() {
               TIKTOK: "tiktok",
               LINKEDIN: "linkedin",
               TELEGRAM: "telegram",
-              DISCORD: "discord"
+              DISCORD: "discord",
+              THREADS: "threads"
             };
             return mapping[sa.platform];
           })
@@ -526,6 +532,7 @@ export function usePostCreatorForm() {
     setYoutubeTags(opts.tags || "");
     setYoutubeFirstComment(opts.firstComment || "");
     setGlobalFirstComment(opts.firstComment || "");
+    setThreadsWhoCanReply(opts.threadsWhoCanReply || "everyone");
 
     // Setup Facebook
     setFacebookType(opts.facebookType || "post");
@@ -631,7 +638,8 @@ export function usePostCreatorForm() {
           tiktokCommercialContent,
           selectedDiscordChannels,
           albumMedia,
-          mediaCaptions
+          mediaCaptions,
+          threadsWhoCanReply
         }
       };
 
@@ -801,6 +809,9 @@ export function usePostCreatorForm() {
     discordOpen,
     setDiscordOpen,
     albumMedia,
-    setAlbumMedia
+    setAlbumMedia,
+    // Threads States
+    threadsWhoCanReply,
+    setThreadsWhoCanReply
   };
 }

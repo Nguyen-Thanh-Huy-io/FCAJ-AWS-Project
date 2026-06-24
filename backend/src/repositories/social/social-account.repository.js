@@ -404,7 +404,7 @@ class SocialAccountRepository {
     });
   }
 
-  async upsertInstagramAccount(brandId, accountData, tokens) {
+  async upsertInstagramAccount(brandId, accountData, tokens, platform = PLATFORMS.INSTAGRAM) {
     const { igAccountId, username, displayName, profilePictureUrl, followersCount = 0, followingCount = 0, mediaCount = 0, biography = '', website = '', accountType = 'BUSINESS', businessCategoryName = '' } = accountData;
 
     const finalUsername = username || displayName || 'instagram_user';
@@ -413,7 +413,7 @@ class SocialAccountRepository {
       where: {
         brandId_platform_platformAccountId: {
           brandId,
-          platform: PLATFORMS.INSTAGRAM,
+          platform: platform,
           platformAccountId: igAccountId
         }
       },
@@ -457,7 +457,7 @@ class SocialAccountRepository {
       },
       create: {
         brandId,
-        platform: PLATFORMS.INSTAGRAM,
+        platform: platform,
         platformAccountId: igAccountId,
         username: finalUsername,
         displayName,

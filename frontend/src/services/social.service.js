@@ -152,6 +152,22 @@ class SocialService {
     return response.data;
   }
 
+  async getThreadsAuthUrl(brandId) {
+    const response = await apiService.get(`/social/threads/url?brandId=${brandId}`);
+    return response.data;
+  }
+
+  async disconnectThreadsAccount(brandId) {
+    const response = await apiService.post('/social/threads/disconnect', { brandId });
+    return response.data;
+  }
+
+  async getThreadsPublishedPosts(brandId, pageToken = null, limit = 10) {
+    const url = `/social/threads/published-posts?brandId=${brandId}${pageToken ? `&pageToken=${pageToken}` : ''}${limit ? `&limit=${limit}` : ''}`;
+    const response = await apiService.get(url);
+    return response.data;
+  }
+
   async connectTelegramAccount(brandId, botToken, chatId) {
     const response = await apiService.post('/social/telegram/connect', { brandId, botToken, chatId });
     return response.data;

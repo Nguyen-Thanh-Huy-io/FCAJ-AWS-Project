@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import postService from '../../../../services/post.service';
 import { buildMediaUrl } from '@/utils/url';
 import { AccessGuard } from '../../../../components/shared/AccessGuard';
+import { PlatformIcon } from '../../../../components/shared/PlatformIcon';
 
 const PLATFORM_DETAILS = {
   INSTAGRAM: {
@@ -59,6 +60,11 @@ const PLATFORM_DETAILS = {
         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
       </svg>
     )
+  },
+  THREADS: {
+    label: 'Threads',
+    color: '#000000',
+    icon: (size = 10) => <PlatformIcon platform="Threads" size={size} variant="flat" className="text-white" />
   }
 };
 

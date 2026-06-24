@@ -34,7 +34,7 @@ const autoLists = [
   },
 ];
 
-const platformColors = { YT: "#FF0000", IG: "#E1306C", TK: "#000000", LI: "#0A66C2", X: "#0A0A0A" };
+const platformColors = { YT: "#FF0000", IG: "#E1306C", TK: "#000000", LI: "#0A66C2", X: "#0A0A0A", TH: "#000000" };
 const days = ["M", "T", "W", "T", "F", "S", "S"];
 
 export function AutoLists() {

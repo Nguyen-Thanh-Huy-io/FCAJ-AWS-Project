@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import socialService from "../../services/social.service";
 import { toast } from "sonner";
+import { PlatformIcon } from "./PlatformIcon";
 
 export const NETWORKS = [
   // ... (keep the same array but I'll need it inside the component or export it)
@@ -31,6 +32,18 @@ export function ConnectionsGrid({ className = "", brand, onDisconnect }) {
     const provider = params.get("provider");
     const guildId = params.get("guildId");
     const guildName = params.get("guildName");
+    const success = params.get("success");
+
+    if (success === "threads_connected") {
+      toast.success("Threads connected successfully!");
+      // Dọn dẹp URL và reload / gọi callback để đồng bộ
+      const url = new URL(window.location.href);
+      url.searchParams.delete("success");
+      window.history.replaceState({}, document.title, url.pathname + url.search);
+      if (onDisconnect) onDisconnect();
+      else window.location.reload();
+      return;
+    }
 
     if (provider === "discord" && guildId) {
       setSelectedGuild({ id: guildId, name: decodeURIComponent(guildName || "Discord Server") });
@@ -308,6 +321,33 @@ export function ConnectionsGrid({ className = "", brand, onDisconnect }) {
     }
   };
 
+  const handleConnectThreads = async () => {
+    if (!brand) {
+      toast.error("Please select a brand first");
+      return;
+    }
+    const status = getStatus("threads");
+    if (status.connected) {
+      try {
+        await socialService.disconnectThreadsAccount(brand.id);
+        toast.success("Threads account disconnected");
+        if (onDisconnect) onDisconnect();
+        else window.location.reload();
+      } catch (error) {
+        toast.error(error.message || "Failed to disconnect Threads");
+      }
+      return;
+    }
+    try {
+      const response = await socialService.getThreadsAuthUrl(brand.id);
+      if (response.url) {
+        window.location.href = response.url;
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to start Threads connection");
+    }
+  };
+
   const getStatus = (platformId) => {
     if (!brand || !brand.socialAccounts) return { connected: false };
     // Map internal IDs to PlatformType enum in Backend
@@ -319,7 +359,8 @@ export function ConnectionsGrid({ className = "", brand, onDisconnect }) {
       "linkedin": "LINKEDIN",
       "x": "TWITTER_X",
       "telegram": "TELEGRAM",
-      "discord": "DISCORD"
+      "discord": "DISCORD",
+      "threads": "THREADS"
     };
     const platform = mapping[platformId];
     if (platformId === "discord") {
@@ -355,8 +396,8 @@ export function ConnectionsGrid({ className = "", brand, onDisconnect }) {
       btnText: "Connect an Instagram professional account", btnBg: "bg-[#FF0069]", ...getStatus("instagram")
     },
     { 
-      id: "threads", name: "Threads", icon: <Music2 size={16} className="text-black" />, 
-      btnText: "Connect a Threads account", btnBg: "bg-black", connected: false
+      id: "threads", name: "Threads", icon: <PlatformIcon platform="Threads" size={16} variant="flat" />, 
+      btnText: "Connect a Threads account", btnBg: "bg-black", ...getStatus("threads")
     },
     { 
       id: "x", name: "X", icon: <X size={16} className="text-black" />, 
@@ -451,6 +492,7 @@ export function ConnectionsGrid({ className = "", brand, onDisconnect }) {
                     if (net.id === "tiktok_personal") handleConnectTikTok();
                     if (net.id === "instagram") handleConnectInstagram();
                     if (net.id === "linkedin") handleConnectLinkedIn();
+                    if (net.id === "threads") handleConnectThreads();
                     if (net.id === "telegram") handleConnectTelegram();
                     if (net.id === "discord") handleConnectDiscord();
                   }}

@@ -5,6 +5,7 @@ import { PreviewInstagram } from "./PreviewInstagram";
 import { PreviewLinkedIn } from "./PreviewLinkedIn";
 import { PreviewTelegram } from "./PreviewTelegram";
 import { PreviewDiscord } from "./PreviewDiscord";
+import { PreviewThreads } from "./PreviewThreads";
 
 export const PreviewStrategies = {
   youtube: PreviewYouTube,
@@ -13,5 +14,6 @@ export const PreviewStrategies = {
   instagram: PreviewInstagram,
   linkedin: PreviewLinkedIn,
   telegram: PreviewTelegram,
-  discord: PreviewDiscord
+  discord: PreviewDiscord,
+  threads: PreviewThreads
 };

@@ -169,6 +169,11 @@ export function usePlatformDashboard(platform) {
         setPublishedVideos(res.videos || []);
         setNextPageToken(res.nextPageToken || null);
         setPrevPageToken(res.prevPageToken || null);
+      } else if (platform === "threads") {
+        const res = await socialService.getThreadsPublishedPosts(activeBrand.id, pageToken, limit);
+        setPublishedVideos(res.data || []);
+        setNextPageToken(res.nextPageToken || null);
+        setPrevPageToken(res.prevPageToken || null);
       } else {
         const res = await socialService.getPublishedVideos(activeBrand.id, pageToken, limit);
         setPublishedVideos(res.videos || []);
@@ -227,12 +232,15 @@ export function usePlatformDashboard(platform) {
       const ttTabs = ["community", "posts"];
       const discordTabs = ["community", "channels", "posts"];
       const igTabs = ["community", "account", "competitors"];
+      const threadsTabs = ["community", "posts", "competitors"];
       
       let isValid = false;
       if (platform === "facebook") {
         isValid = fbTabs.includes(tabParam);
       } else if (platform === "instagram") {
         isValid = igTabs.includes(tabParam);
+      } else if (platform === "threads") {
+        isValid = threadsTabs.includes(tabParam);
       } else if (platform === "tiktok") {
         isValid = ttTabs.includes(tabParam);
       } else if (platform === "discord") {
@@ -289,7 +297,7 @@ export function usePlatformDashboard(platform) {
     if (
       activeTab === "published" || 
       activeTab === "posts_list" || 
-      (activeTab === "posts" && platform === "tiktok") ||
+      (activeTab === "posts" && (platform === "tiktok" || platform === "threads")) ||
       (activeTab === "community" && platform === "youtube")
     ) {
       fetchPublishedVideos(null, pageSize);
@@ -521,12 +529,13 @@ export function usePlatformDashboard(platform) {
         videos: 0
       };
     }
-    if (platform === "instagram") {
+    if (platform === "instagram" || platform === "threads") {
       if (!metrics.instagramAccount) return { subscribers: 0, views: 0, videos: 0 };
       const analytics = getAnalyticsData();
       return {
         subscribers: metrics.instagramAccount.followersCount,
         views: analytics.summary?.views || 0,
+        likes: analytics.summary?.likes || 0,
         videos: metrics.instagramAccount.mediaCount || 0
       };
     }

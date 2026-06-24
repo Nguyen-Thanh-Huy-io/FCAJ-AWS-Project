@@ -61,6 +61,14 @@ class SocialConnectionController {
     res.json({ success: true, message: 'Discord account disconnected successfully' });
   });
 
+  disconnectThreadsAccount = asyncHandler(async (req, res) => {
+    const { brandId } = req.body;
+    if (!brandId) return res.status(400).json({ message: 'brandId is required' });
+
+    await socialService.disconnectAccount(brandId, PLATFORMS.THREADS);
+    res.json({ success: true, message: 'Threads account disconnected successfully' });
+  });
+
   reassignSocialAccount = asyncHandler(async (req, res) => {
     const { platform, platformAccountId, targetBrandId } = req.body;
     if (!platform || !platformAccountId || !targetBrandId) {

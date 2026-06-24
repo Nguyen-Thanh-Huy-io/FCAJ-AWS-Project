@@ -6,6 +6,7 @@ import {
   ExternalLink, Eye, ChevronDown, Youtube, PlayCircle, Loader2, Facebook
 } from "lucide-react";
 import { usePostCreator } from "../../../context/PostCreatorContext";
+import { PlatformIcon } from "@/components/shared/PlatformIcon";
 import { useFilters } from "../../../hooks/useFilters";
 import { useDebounce } from "../../../hooks/useDebounce";
 import postService from "../../../services/post.service";
@@ -389,13 +390,7 @@ export function ListView() {
                           <div className="flex items-center gap-1.5 flex-wrap">
                              {post.platforms.map(plt => (
                                <div key={plt} className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100 shadow-sm">
-                                  {plt === "YOUTUBE" ? (
-                                    <Youtube size={12} className="text-[#FF0000]" />
-                                  ) : plt === "FACEBOOK" ? (
-                                    <Facebook size={12} className="text-[#1877F2] fill-[#1877F2]" />
-                                  ) : (
-                                    <PlayCircle size={12} className="text-[#010101]" />
-                                  )}
+                                  <PlatformIcon platform={plt} size={12} />
                                   <span className="text-[9px] font-black uppercase tracking-tighter text-gray-600">{plt}</span>
                                </div>
                              ))}
@@ -425,15 +420,30 @@ export function ListView() {
                           </div>
                        </td>
                        <td className="px-6 py-5 text-right relative">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveMenuId(activeMenuId === post.id ? null : post.id);
-                            }}
-                            className="p-2 text-gray-300 hover:text-black hover:bg-white rounded-lg transition-all shadow-none hover:shadow-sm border border-transparent hover:border-gray-100 cursor-pointer"
-                          >
-                             <MoreHorizontal size={16} />
-                          </button>
+                         <div className="flex items-center justify-end gap-1">
+                           <AccessGuard feature="DELETE_POSTS">
+                             <button
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 handleDeletePost(post.id);
+                               }}
+                               className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all border border-transparent hover:border-red-100 cursor-pointer"
+                               title="Delete Post"
+                             >
+                               <Trash2 size={14} />
+                             </button>
+                           </AccessGuard>
+                           
+                           <button 
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               setActiveMenuId(activeMenuId === post.id ? null : post.id);
+                             }}
+                             className="p-2 text-gray-300 hover:text-black hover:bg-white rounded-lg transition-all shadow-none hover:shadow-sm border border-transparent hover:border-gray-100 cursor-pointer"
+                           >
+                              <MoreHorizontal size={16} />
+                           </button>
+                         </div>
 
                           {activeMenuId === post.id && (
                              <>
