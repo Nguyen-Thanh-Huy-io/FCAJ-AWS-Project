@@ -1,4 +1,5 @@
 const { Builder, By, until } = require('selenium-webdriver');
+const chrome = require('selenium-webdriver/chrome');
 const { createClient } = require('redis');
 const mysql = require('mysql2/promise');
 const fs = require('fs');
@@ -15,7 +16,25 @@ if (!fs.existsSync(SCREENSHOT_DIR)) {
   fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
 }
 
-// Hàm hỗ trợ chụp màn hình
+const { reportBugToJira } = require('./jira_helper');
+
+// Hàm hỗ trợ chụp màn hình và báo lỗi Jira
+async function handleTestFailure(driver, testCaseName, error) {
+  const fileName = `${testCaseName.toLowerCase()}_failed_${Date.now()}.png`;
+  const filePath = path.join(SCREENSHOT_DIR, fileName);
+  try {
+    const image = await driver.takeScreenshot();
+    fs.writeFileSync(filePath, image, 'base64');
+    console.log(`📸 Đã lưu ảnh chụp màn hình lỗi: ${fileName}`);
+  } catch (err) {
+    console.error(`❌ Không thể chụp ảnh màn hình lỗi:`, err.message);
+  }
+
+  const description = `Kịch bản kiểm thử tự động ${testCaseName} thất bại.\n\nChi tiết lỗi: ${error.message}\n\nStack Trace:\n${error.stack}`;
+  await reportBugToJira(testCaseName, description, fs.existsSync(filePath) ? filePath : null);
+}
+
+// Hàm hỗ trợ chụp màn hình đơn giản cho các bước trung gian
 async function takeScreenshot(driver, fileName) {
   try {
     const image = await driver.takeScreenshot();
@@ -70,7 +89,17 @@ async function runAuthSuite() {
 
     // 2. Khởi tạo Selenium Webdriver
     console.log("🌐 Đang khởi tạo Trình duyệt Chrome...");
-    driver = await new Builder().forBrowser('chrome').build();
+    const options = new chrome.Options();
+    if (process.env.CI) {
+      options.addArguments('--headless=new');
+      options.addArguments('--no-sandbox');
+      options.addArguments('--disable-dev-shm-usage');
+      options.addArguments('--disable-gpu');
+    }
+    driver = await new Builder()
+      .forBrowser('chrome')
+      .setChromeOptions(options)
+      .build();
     await driver.manage().window().maximize();
 
     // =========================================================================
@@ -170,7 +199,7 @@ async function runAuthSuite() {
     } catch (error) {
       console.error("❌ KẾT QUẢ: AUTH_001 THẤT BẠI (FAIL)!");
       console.error("Chi tiết lỗi:", error.message);
-      await takeScreenshot(driver, 'auth_001_failed.png');
+      await handleTestFailure(driver, 'AUTH_001', error);
     }
 
     // =========================================================================
@@ -226,7 +255,7 @@ async function runAuthSuite() {
     } catch (error) {
       console.error("❌ KẾT QUẢ: AUTH_002 THẤT BẠI (FAIL)!");
       console.error("Chi tiết lỗi:", error.message);
-      await takeScreenshot(driver, 'auth_002_failed.png');
+      await handleTestFailure(driver, 'AUTH_002', error);
     }
 
     // =========================================================================
@@ -279,7 +308,7 @@ async function runAuthSuite() {
     } catch (error) {
       console.error("❌ KẾT QUẢ: AUTH_003 THẤT BẠI (FAIL)!");
       console.error("Chi tiết lỗi:", error.message);
-      await takeScreenshot(driver, 'auth_003_failed.png');
+      await handleTestFailure(driver, 'AUTH_003', error);
     }
 
     // =========================================================================
@@ -319,7 +348,7 @@ async function runAuthSuite() {
     } catch (error) {
       console.error("❌ KẾT QUẢ: AUTH_004 THẤT BẠI (FAIL)!");
       console.error("Chi tiết lỗi:", error.message);
-      await takeScreenshot(driver, 'auth_004_failed.png');
+      await handleTestFailure(driver, 'AUTH_004', error);
     }
 
     // =========================================================================
@@ -360,7 +389,7 @@ async function runAuthSuite() {
     } catch (error) {
       console.error("❌ KẾT QUẢ: AUTH_005 THẤT BẠI (FAIL)!");
       console.error("Chi tiết lỗi:", error.message);
-      await takeScreenshot(driver, 'auth_005_failed.png');
+      await handleTestFailure(driver, 'AUTH_005', error);
     }
 
     // =========================================================================
@@ -431,7 +460,8 @@ async function runAuthSuite() {
         [unverifiedEmail]
       );
       const userInDb = rows[0];
-      console.log("📊 Trạng thái User chưa kích hoạt trong DB:", userInDb);
+      console.log("📊 Thông tin User tìm thấy trong DB:", userInDb);
+
       if (userInDb.isEmailVerified === 1 || userInDb.isEmailVerified === true) {
         throw new Error("DB_VERIFY_FAIL: Tài khoản chưa verify OTP nhưng DB đã đánh dấu isEmailVerified = true!");
       }
@@ -440,7 +470,7 @@ async function runAuthSuite() {
     } catch (error) {
       console.error("❌ KẾT QUẢ: AUTH_006 THẤT BẠI (FAIL)!");
       console.error("Chi tiết lỗi:", error.message);
-      await takeScreenshot(driver, 'auth_006_failed.png');
+      await handleTestFailure(driver, 'AUTH_006', error);
     }
 
   } catch (error) {
