@@ -43,6 +43,16 @@ jobs:
             backend/package.json
             frontend/package.json
 
+      - name: Create .env file
+        working-directory: backend
+        run: |
+          echo "${{ secrets.ENV_FILE }}" > .env
+          # Ghi đè cấu hình kết nối DB và Redis ảo trên GitHub Actions
+          echo "DATABASE_URL=mysql://root:root_password@localhost:3307/publicast" >> .env
+          echo "REDIS_HOST=localhost" >> .env
+          echo "REDIS_PORT=6379" >> .env
+          echo "PORT=3000" >> .env
+
       # Setup backend database schema and seed
       - name: Setup Backend Database
         working-directory: backend
