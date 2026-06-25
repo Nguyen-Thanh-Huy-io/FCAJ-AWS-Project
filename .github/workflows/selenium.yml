@@ -46,6 +46,8 @@ jobs:
       # Setup backend database schema and seed
       - name: Setup Backend Database
         working-directory: backend
+        env:
+          DATABASE_URL: mysql://root:root_password@localhost:3307/publicast
         run: |
           npm install
           npx prisma db push
