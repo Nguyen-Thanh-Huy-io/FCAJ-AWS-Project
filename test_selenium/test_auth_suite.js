@@ -34,6 +34,18 @@ async function handleTestFailure(driver, testCaseName, error) {
   await reportBugToJira(testCaseName, description, fs.existsSync(filePath) ? filePath : null);
 }
 
+// Hàm hỗ trợ chụp màn hình đơn giản cho các bước trung gian
+async function takeScreenshot(driver, fileName) {
+  try {
+    const image = await driver.takeScreenshot();
+    const filePath = path.join(SCREENSHOT_DIR, fileName);
+    fs.writeFileSync(filePath, image, 'base64');
+    console.log(`📸 Đã lưu ảnh chụp màn hình: ${fileName}`);
+  } catch (err) {
+    console.error(`❌ Không thể chụp ảnh màn hình ${fileName}:`, err.message);
+  }
+}
+
 // Hàm hỗ trợ reset session trình duyệt để tránh bị tự động redirect
 async function resetBrowserSession(driver) {
   try {
