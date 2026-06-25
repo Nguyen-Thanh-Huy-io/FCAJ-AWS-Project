@@ -61,9 +61,9 @@ jobs:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           USE_MEMORY_REDIS: false
-          JWT_SECRET: test_secret_key
-          ACCESS_TOKEN_SECRET: test_access_token_secret
-          REFRESH_TOKEN_SECRET: test_refresh_token_secret
+          JWT_SECRET: test_secret_key_long_enough_32_chars
+          ACCESS_TOKEN_SECRET: test_access_token_secret_long_enough_32_chars
+          REFRESH_TOKEN_SECRET: test_refresh_token_secret_long_enough_32_chars
           FRONTEND_URL: http://localhost:5173
           CLOUDINARY_CLOUD_NAME: test_cloud_name
           CLOUDINARY_API_KEY: 123456789012345
