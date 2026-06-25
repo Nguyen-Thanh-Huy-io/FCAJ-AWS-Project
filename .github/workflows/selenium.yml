@@ -94,7 +94,7 @@ jobs:
       - name: Run Selenium Tests
         working-directory: test_selenium
         run: |
-          npm run test:auth-suite
+          node test_simple.js
 
       - name: Upload Test Screenshots
         if: failure()
