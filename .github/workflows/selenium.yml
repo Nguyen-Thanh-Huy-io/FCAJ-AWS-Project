@@ -45,43 +45,35 @@ jobs:
 
       - name: Create .env file
         working-directory: backend
+        env:
+          ENV_CONTENT: ${{ secrets.ENV_FILE }}
         run: |
-          echo "${{ secrets.ENV_FILE }}" > .env
-          # Ghi đè cấu hình kết nối DB và Redis ảo trên GitHub Actions
+          # Ghi nội dung từ secret vào file .env
+          echo "$ENV_CONTENT" > .env
+          
+          # Xóa các dòng có thể gây xung đột nếu đã có sẵn trong secret
+          sed -i '/DATABASE_URL/d' .env
+          sed -i '/REDIS_HOST/d' .env
+          sed -i '/REDIS_PORT/d' .env
+          sed -i '/PORT/d' .env
+          
+          # Ghi đè cấu hình cho môi trường CI
           echo "DATABASE_URL=mysql://root:root_password@localhost:3307/publicast" >> .env
           echo "REDIS_HOST=localhost" >> .env
           echo "REDIS_PORT=6379" >> .env
           echo "PORT=3000" >> .env
 
-      # Setup backend database schema and seed
       - name: Setup Backend Database
         working-directory: backend
-        env:
-          DATABASE_URL: mysql://root:root_password@localhost:3307/publicast
         run: |
           npm install
           npx prisma db push
-          # Nếu có db seed thì chạy ở đây, e.g. npx prisma db seed
 
       - name: Start Backend Server
         working-directory: backend
-        env:
-          PORT: 3000
-          DATABASE_URL: mysql://root:root_password@localhost:3307/publicast
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-          USE_MEMORY_REDIS: false
-          JWT_SECRET: test_secret_key_long_enough_32_chars
-          ACCESS_TOKEN_SECRET: test_access_token_secret_long_enough_32_chars
-          REFRESH_TOKEN_SECRET: test_refresh_token_secret_long_enough_32_chars
-          FRONTEND_URL: http://localhost:5173
-          CLOUDINARY_CLOUD_NAME: test_cloud_name
-          CLOUDINARY_API_KEY: 123456789012345
-          CLOUDINARY_API_SECRET: test_api_secret_key_12345
-          ENCRYPTION_KEY: 12345678901234567890123456789012
         run: |
+          # Chạy background server, tin tưởng file .env đã tạo ở bước trên
           npm run dev &
-        # & chạy backend trong background
 
       - name: Start Frontend App
         working-directory: frontend
@@ -89,7 +81,6 @@ jobs:
           npm install
           npm run dev &
 
-      # Install and run Selenium Webdriver environment
       - name: Install Chrome
         run: |
           sudo apt-get update
@@ -102,13 +93,6 @@ jobs:
 
       - name: Run Selenium Tests
         working-directory: test_selenium
-        env:
-          REDIS_URL: redis://127.0.0.1:6379
-          MYSQL_URL: mysql://root:root_password@127.0.0.1:3307/publicast
-          BASE_URL: http://localhost:5173
-          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
-          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
-          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
         run: |
           npm run test:auth-suite
 
