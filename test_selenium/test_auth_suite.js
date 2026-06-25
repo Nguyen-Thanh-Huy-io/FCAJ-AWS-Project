@@ -1,4 +1,5 @@
 const { Builder, By, until } = require('selenium-webdriver');
+const chrome = require('selenium-webdriver/chrome');
 const { createClient } = require('redis');
 const mysql = require('mysql2/promise');
 const fs = require('fs');
@@ -76,7 +77,17 @@ async function runAuthSuite() {
 
     // 2. Khởi tạo Selenium Webdriver
     console.log("🌐 Đang khởi tạo Trình duyệt Chrome...");
-    driver = await new Builder().forBrowser('chrome').build();
+    const options = new chrome.Options();
+    if (process.env.CI) {
+      options.addArguments('--headless=new');
+      options.addArguments('--no-sandbox');
+      options.addArguments('--disable-dev-shm-usage');
+      options.addArguments('--disable-gpu');
+    }
+    driver = await new Builder()
+      .forBrowser('chrome')
+      .setChromeOptions(options)
+      .build();
     await driver.manage().window().maximize();
 
     // =========================================================================
