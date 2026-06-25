@@ -161,11 +161,6 @@ async function runAuthSuite() {
       const userInDb = rows[0];
       console.log("📊 Thông tin User tìm thấy trong DB:", userInDb);
 
-      // CỐ Ý LÀM FAIL ĐỂ THỬ NGHIỆM JIRA:
-      if (true) {
-        throw new Error("DB_VERIFY_FAIL: Cố ý làm fail test case AUTH_001 để kiểm tra tích hợp Jira!");
-      }
-
       if (userInDb.isEmailVerified !== 1 && userInDb.isEmailVerified !== true) {
         throw new Error(`DB_VERIFY_FAIL: isEmailVerified phải là true (1) nhưng nhận được: ${userInDb.isEmailVerified}`);
       }
@@ -443,11 +438,6 @@ async function runAuthSuite() {
       );
       const userInDb = rows[0];
       console.log("📊 Thông tin User tìm thấy trong DB:", userInDb);
-
-      // CỐ Ý LÀM FAIL ĐỂ THỬ NGHIỆM JIRA:
-      if (true) {
-        throw new Error("DB_VERIFY_FAIL: Cố ý làm fail test case AUTH_001 để kiểm tra tích hợp Jira!");
-      }
 
       if (userInDb.isEmailVerified === 1 || userInDb.isEmailVerified === true) {
         throw new Error("DB_VERIFY_FAIL: Tài khoản chưa verify OTP nhưng DB đã đánh dấu isEmailVerified = true!");
