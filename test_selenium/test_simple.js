@@ -52,7 +52,7 @@ async function runSimpleTest() {
     const actualTitle = await driver.getTitle();
     console.log(`📄 Tiêu đề thực tế: "${actualTitle}"`);
 
-    const expectedTitle = "TIÊU ĐỀ LỖI GIẢ LẬP ĐỂ TEST JIRA";
+    const expectedTitle = "PubliCast";
     if (actualTitle !== expectedTitle) {
       throw new Error(`AssertionError: Tiêu đề trang web không khớp! Kỳ vọng: "${expectedTitle}", Thực tế: "${actualTitle}"`);
     }
