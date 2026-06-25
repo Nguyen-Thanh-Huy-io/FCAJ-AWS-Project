@@ -15,16 +15,22 @@ if (!fs.existsSync(SCREENSHOT_DIR)) {
   fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
 }
 
-// Hàm hỗ trợ chụp màn hình
-async function takeScreenshot(driver, fileName) {
+const { reportBugToJira } = require('./jira_helper');
+
+// Hàm hỗ trợ chụp màn hình và báo lỗi Jira
+async function handleTestFailure(driver, testCaseName, error) {
+  const fileName = `${testCaseName.toLowerCase()}_failed_${Date.now()}.png`;
+  const filePath = path.join(SCREENSHOT_DIR, fileName);
   try {
     const image = await driver.takeScreenshot();
-    const filePath = path.join(SCREENSHOT_DIR, fileName);
     fs.writeFileSync(filePath, image, 'base64');
-    console.log(`📸 Đã lưu ảnh chụp màn hình: ${fileName}`);
+    console.log(`📸 Đã lưu ảnh chụp màn hình lỗi: ${fileName}`);
   } catch (err) {
-    console.error(`❌ Không thể chụp ảnh màn hình ${fileName}:`, err.message);
+    console.error(`❌ Không thể chụp ảnh màn hình lỗi:`, err.message);
   }
+
+  const description = `Kịch bản kiểm thử tự động ${testCaseName} thất bại.\n\nChi tiết lỗi: ${error.message}\n\nStack Trace:\n${error.stack}`;
+  await reportBugToJira(testCaseName, description, fs.existsSync(filePath) ? filePath : null);
 }
 
 // Hàm hỗ trợ reset session trình duyệt để tránh bị tự động redirect
@@ -155,6 +161,11 @@ async function runAuthSuite() {
       const userInDb = rows[0];
       console.log("📊 Thông tin User tìm thấy trong DB:", userInDb);
 
+      // CỐ Ý LÀM FAIL ĐỂ THỬ NGHIỆM JIRA:
+      if (true) {
+        throw new Error("DB_VERIFY_FAIL: Cố ý làm fail test case AUTH_001 để kiểm tra tích hợp Jira!");
+      }
+
       if (userInDb.isEmailVerified !== 1 && userInDb.isEmailVerified !== true) {
         throw new Error(`DB_VERIFY_FAIL: isEmailVerified phải là true (1) nhưng nhận được: ${userInDb.isEmailVerified}`);
       }
@@ -170,7 +181,7 @@ async function runAuthSuite() {
     } catch (error) {
       console.error("❌ KẾT QUẢ: AUTH_001 THẤT BẠI (FAIL)!");
       console.error("Chi tiết lỗi:", error.message);
-      await takeScreenshot(driver, 'auth_001_failed.png');
+      await handleTestFailure(driver, 'AUTH_001', error);
     }
 
     // =========================================================================
@@ -226,7 +237,7 @@ async function runAuthSuite() {
     } catch (error) {
       console.error("❌ KẾT QUẢ: AUTH_002 THẤT BẠI (FAIL)!");
       console.error("Chi tiết lỗi:", error.message);
-      await takeScreenshot(driver, 'auth_002_failed.png');
+      await handleTestFailure(driver, 'AUTH_002', error);
     }
 
     // =========================================================================
@@ -279,7 +290,7 @@ async function runAuthSuite() {
     } catch (error) {
       console.error("❌ KẾT QUẢ: AUTH_003 THẤT BẠI (FAIL)!");
       console.error("Chi tiết lỗi:", error.message);
-      await takeScreenshot(driver, 'auth_003_failed.png');
+      await handleTestFailure(driver, 'AUTH_003', error);
     }
 
     // =========================================================================
@@ -319,7 +330,7 @@ async function runAuthSuite() {
     } catch (error) {
       console.error("❌ KẾT QUẢ: AUTH_004 THẤT BẠI (FAIL)!");
       console.error("Chi tiết lỗi:", error.message);
-      await takeScreenshot(driver, 'auth_004_failed.png');
+      await handleTestFailure(driver, 'AUTH_004', error);
     }
 
     // =========================================================================
@@ -360,7 +371,7 @@ async function runAuthSuite() {
     } catch (error) {
       console.error("❌ KẾT QUẢ: AUTH_005 THẤT BẠI (FAIL)!");
       console.error("Chi tiết lỗi:", error.message);
-      await takeScreenshot(driver, 'auth_005_failed.png');
+      await handleTestFailure(driver, 'AUTH_005', error);
     }
 
     // =========================================================================
@@ -431,7 +442,13 @@ async function runAuthSuite() {
         [unverifiedEmail]
       );
       const userInDb = rows[0];
-      console.log("📊 Trạng thái User chưa kích hoạt trong DB:", userInDb);
+      console.log("📊 Thông tin User tìm thấy trong DB:", userInDb);
+
+      // CỐ Ý LÀM FAIL ĐỂ THỬ NGHIỆM JIRA:
+      if (true) {
+        throw new Error("DB_VERIFY_FAIL: Cố ý làm fail test case AUTH_001 để kiểm tra tích hợp Jira!");
+      }
+
       if (userInDb.isEmailVerified === 1 || userInDb.isEmailVerified === true) {
         throw new Error("DB_VERIFY_FAIL: Tài khoản chưa verify OTP nhưng DB đã đánh dấu isEmailVerified = true!");
       }
@@ -440,7 +457,7 @@ async function runAuthSuite() {
     } catch (error) {
       console.error("❌ KẾT QUẢ: AUTH_006 THẤT BẠI (FAIL)!");
       console.error("Chi tiết lỗi:", error.message);
-      await takeScreenshot(driver, 'auth_006_failed.png');
+      await handleTestFailure(driver, 'AUTH_006', error);
     }
 
   } catch (error) {
