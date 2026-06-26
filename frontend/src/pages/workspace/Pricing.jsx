@@ -1,6 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Check, Minus, ChevronDown } from "lucide-react";
+import apiService from "../../services/api";
+import PaymentModal from "../../components/billing/PaymentModal";
+import { toast } from "sonner";
+import { useBrand } from "../../context/BrandContext";
 
 const PLANS = [
   {
@@ -17,7 +21,8 @@ const PLANS = [
   },
   {
     name: "Starter",
-    price: { monthly: 19, annual: 15 },
+    price: { monthly: 2000, annual: 1700 },
+    annualTotal: 20400,
     subtitle: "For solo creators",
     cta: "Upgrade to Starter",
     ctaDisabled: false,
@@ -29,7 +34,8 @@ const PLANS = [
   },
   {
     name: "Pro",
-    price: { monthly: 49, annual: 39 },
+    price: { monthly: 2000, annual: 1700 },
+    annualTotal: 20400,
     subtitle: "For growing teams",
     cta: "Upgrade to Pro",
     ctaDisabled: false,
@@ -41,9 +47,10 @@ const PLANS = [
   },
   {
     name: "Agency",
-    price: { monthly: null, annual: null },
+    price: { monthly: 2000, annual: 1700 },
+    annualTotal: 20400,
     subtitle: "For agencies & enterprises",
-    cta: "Contact Sales",
+    cta: "Upgrade to Agency",
     ctaDisabled: false,
     highlight: false,
     features: {
@@ -82,11 +89,68 @@ const FAQ = [
   { q: "Can I add more team members?", a: "Yes, additional seats can be purchased for $8/user/month on Pro." },
 ];
 
+// Plan names in DB are UPPERCASE (FREE, STARTER, PRO, AGENCY)
+const PLAN_TIER = { FREE: 0, STARTER: 1, PRO: 2, AGENCY: 3 };
+
 export function PricingPage() {
+  const { activeBrand } = useBrand();
+  const [currentPlan, setCurrentPlan] = useState(null);
   const [billingCycle, setBillingCycle] = useState("monthly");
   const [expandComparison, setExpandComparison] = useState(false);
   const [openFaq, setOpenFaq] = useState(null);
+  const [paymentData, setPaymentData] = useState(null);
+  const [loadingPlan, setLoadingPlan] = useState(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (activeBrand?.id) {
+      apiService.get(`/billing/subscriptions/current?brandId=${activeBrand.id}`)
+        .then(res => setCurrentPlan(res.data.data))
+        .catch(console.error);
+    }
+  }, [activeBrand?.id]);
+
+  // currentPlan.planName comes from DB as uppercase (e.g. "PRO", "STARTER")
+  const currentTierRank = PLAN_TIER[currentPlan?.planName?.toUpperCase()] ?? 0;
+
+  const handleUpgrade = async (plan) => {
+    const planTierRank = PLAN_TIER[plan.name.toUpperCase()] ?? 0;
+    const isCurrentPlan =
+      currentPlan?.planName?.toUpperCase() === plan.name.toUpperCase()
+      || (plan.name === 'Free' && (!currentPlan || currentPlan.planName?.toUpperCase() === 'FREE'));
+    const isLowerPlan = planTierRank < currentTierRank;
+    if (plan.ctaDisabled || isCurrentPlan || isLowerPlan) return;
+
+    if (currentPlan && currentPlan.planName !== 'FREE') {
+      const confirmUpgrade = window.confirm(`Bạn đang có gói ${currentPlan.planName} còn hạn. Bạn có chắc chắn muốn mua gói ${plan.name} không?`);
+      if (!confirmUpgrade) return;
+    }
+
+    try {
+      setLoadingPlan(plan.name);
+      
+      if (!activeBrand?.id) {
+        toast.error("Vui lòng chọn Brand trước khi nâng cấp.");
+        return;
+      }
+
+      // We should ideally fetch plan list from backend to get the exact UUID.
+      // Assuming for now that we pass the plan name or a known mapping.
+      // The backend initiates payment via planId, so we pass a placeholder or the name.
+      // In a full implementation, PLANS array would come from API.
+      const res = await apiService.post('/billing/subscriptions/initiate', {
+        planId: plan.name,  // backend looks up by name as fallback
+        brandId: activeBrand.id,
+        billingCycle: billingCycle === 'annual' ? 'ANNUAL' : 'MONTHLY'
+      });
+
+      setPaymentData(res.data.data);
+    } catch (err) {
+      toast.error(err.message || "Không thể khởi tạo thanh toán.");
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#F8F8F7]" style={{ padding: "32px 24px" }}>
@@ -122,21 +186,38 @@ export function PricingPage() {
           <span style={{ fontSize: 12, color: billingCycle === "annual" ? "#0A0A0A" : "#9CA3AF" }}>
             Annual
           </span>
-          <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 4, background: "#F0FDF4", color: "#16A34A", fontWeight: 500 }}>Save 20%</span>
+          <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 4, background: "#F0FDF4", color: "#16A34A", fontWeight: 500 }}>Save 17%</span>
         </div>
       </div>
 
       {/* Plan cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, maxWidth: 1000, margin: "0 auto 32px" }}>
-        {PLANS.map((plan) => (
+        {PLANS.map((plan) => {
+          const planTierRank = PLAN_TIER[plan.name.toUpperCase()] ?? 0;
+          const isCurrentPlan =
+            currentPlan?.planName?.toUpperCase() === plan.name.toUpperCase()
+            || (plan.name === 'Free' && (!currentPlan || currentPlan.planName?.toUpperCase() === 'FREE'));
+          const isLowerPlan = planTierRank < currentTierRank;
+          const isDisabled = plan.ctaDisabled || isCurrentPlan || isLowerPlan;
+
+          const ctaLabel = loadingPlan === plan.name
+            ? 'Đang xử lý...'
+            : isCurrentPlan
+              ? '✓ Current Plan'
+              : isLowerPlan
+                ? '✓ Included in your plan'
+                : plan.cta;
+          return (
           <div
             key={plan.name}
             style={{
-              background: "#FFF",
-              border: plan.highlight ? "1.5px solid #0A0A0A" : "0.5px solid #E5E7EB",
+              background: isLowerPlan ? "#FAFAFA" : "#FFF",
+              border: plan.highlight ? "1.5px solid #0A0A0A" : isLowerPlan ? "0.5px dashed #D1D5DB" : "0.5px solid #E5E7EB",
               borderRadius: 16,
               padding: 20,
-              position: "relative" }}
+              position: "relative",
+              opacity: isLowerPlan ? 0.65 : 1,
+              transition: "opacity 0.2s" }}
           >
             {plan.highlight && (
               <div
@@ -165,16 +246,23 @@ export function PricingPage() {
                   <span style={{ fontSize: 24, fontWeight: 500, color: "#0A0A0A" }}>Custom</span>
                 ) : (
                   <>
+                    {billingCycle === "annual" && plan.price.annual && plan.name !== "Free" && (
+                      <span style={{ fontSize: 14, color: "#9CA3AF", textDecoration: "line-through", marginRight: 6 }}>
+                        {plan.price.monthly.toLocaleString()}
+                      </span>
+                    )}
                     <span style={{ fontSize: 28, fontWeight: 500, color: "#0A0A0A" }}>
-                      ${billingCycle === "annual" && plan.price.annual ? plan.price.annual : plan.price.monthly}
+                      {billingCycle === "annual" && plan.price.annual ? plan.price.annual.toLocaleString() : plan.price.monthly.toLocaleString()} VND
                     </span>
                     <span style={{ fontSize: 13, color: "#9CA3AF" }}>/mo</span>
                   </>
                 )}
               </div>
-              {billingCycle === "annual" && plan.price.annual && (
-                <div style={{ fontSize: 10, color: "#9CA3AF" }}>Billed annually</div>
-              )}
+              {billingCycle === "annual" && plan.name !== "Free" ? (
+                <div style={{ fontSize: 10, color: "#16A34A", fontWeight: 500 }}>Billed {plan.annualTotal?.toLocaleString()} VND/year · Save 17%</div>
+              ) : plan.price.monthly > 0 ? (
+                <div style={{ fontSize: 10, color: "#9CA3AF" }}>Billed monthly</div>
+              ) : null}
             </div>
 
             <div style={{ height: 0.5, background: "#E5E7EB", marginBottom: 14 }} />
@@ -193,22 +281,25 @@ export function PricingPage() {
             </div>
 
             <button
-              onClick={() => !plan.ctaDisabled && navigate("/settings")}
+              disabled={loadingPlan === plan.name || isDisabled}
+              onClick={() => handleUpgrade(plan)}
               style={{
                 width: "100%",
                 padding: "9px 0",
                 borderRadius: 8,
-                background: plan.highlight ? "#0A0A0A" : plan.ctaDisabled ? "#F3F4F6" : "#FFF",
-                color: plan.highlight ? "#FFF" : plan.ctaDisabled ? "#9CA3AF" : "#0A0A0A",
+                background: plan.highlight ? "#0A0A0A" : isDisabled ? "#F3F4F6" : "#FFF",
+                color: plan.highlight ? "#FFF" : isDisabled ? "#9CA3AF" : "#0A0A0A",
                 fontSize: 12,
                 fontWeight: 500,
-                cursor: plan.ctaDisabled ? "default" : "pointer",
-                border: plan.highlight ? "none" : "0.5px solid #E5E7EB" }}
+                cursor: isDisabled ? "default" : "pointer",
+                border: plan.highlight ? "none" : "0.5px solid #E5E7EB",
+                opacity: loadingPlan === plan.name ? 0.7 : 1
+              }}
             >
-              {plan.cta}
+              {ctaLabel}
             </button>
           </div>
-        ))}
+        )})}
       </div>
 
       {/* Comparison table */}
@@ -287,6 +378,18 @@ export function PricingPage() {
           ))}
         </div>
       </div>
+
+      {paymentData && (
+        <PaymentModal 
+          paymentData={paymentData} 
+          onClose={() => setPaymentData(null)}
+          onSuccess={() => {
+            setPaymentData(null);
+            // Optionally refresh user session or redirect
+            window.location.reload();
+          }}
+        />
+      )}
     </div>
   );
 }

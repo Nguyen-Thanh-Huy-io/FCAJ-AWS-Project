@@ -62,16 +62,29 @@ import { RevenueDashboard } from "./pages/admin/RevenueDashboard";
 // Landing
 import { LandingPage } from "./pages/landing/LandingPage";
 
+import UpsellModal from "./components/billing/UpsellModal";
+
 const NO_LAYOUT_PATHS = ["/", "/login", "/signup", "/verify-otp", "/start", "/forgot-password", "/connect", "/invite", "/manage/workplace/new"];
 
 export default function App() {
-  const { isAuthenticated, loading } = useAuthStore();
+  const { isAuthenticated, loading, logout } = useAuthStore();
   const location = useLocation();
   const currentPath = location.pathname;
+  const navigate = useNavigate();
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [currentPath]);
+
+  // Auto-logout when both access token and refresh token have expired
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      logout();
+      navigate('/login', { replace: true });
+    };
+    window.addEventListener('SESSION_EXPIRED', handleSessionExpired);
+    return () => window.removeEventListener('SESSION_EXPIRED', handleSessionExpired);
+  }, [logout, navigate]);
 
   if (loading) {
     return (
@@ -171,6 +184,7 @@ export default function App() {
       <PostCreatorPage />
       <ConnectionsOverlay />
       <GlobalConfirmDialog />
+      <UpsellModal />
       {!isNoLayout && !isSuperadmin && !isStaff && <SupportChat />}
     </div>
   );

@@ -64,7 +64,6 @@ export const useAuthStore = create((set, get) => ({
       await authService.logout();
     } finally {
       set({ user: null, isAuthenticated: false });
-      localStorage.removeItem(STORAGE_KEYS.TOKEN);
       toast.info('Đã đăng xuất');
     }
   }

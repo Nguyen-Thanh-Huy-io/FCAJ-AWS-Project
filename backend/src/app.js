@@ -39,6 +39,10 @@ const approvalWorkflowRoutes = require('./routes/workspace/approval-workflow.rou
 const searchRoutes = require('./routes/core/search.routes');
 const notificationRoutes = require('./routes/core/notification.routes');
 
+// Routes - Billing Domain
+const subscriptionRoutes = require('./routes/billing/subscription.routes');
+const webhookRoutes = require('./routes/billing/webhook.routes');
+
 // BullMQ Dashboard
 const queueDashboard = require('./queues/dashboard');
 
@@ -130,6 +134,11 @@ app.use('/api/brands/:brandId/roles', roleRoutes);
 app.use('/api/brands/:brandId/workflows', approvalWorkflowRoutes);
 app.use('/api/permissions', permissionRoutes);
 app.use('/api/auto-lists', autoListRoutes);
+
+// ── Billing Routes ─────────────────────────────────────────────────────────
+app.use('/api/billing/subscriptions', subscriptionRoutes);
+app.use('/api/webhooks', webhookRoutes);  // SePay POSTs to /api/webhooks/sepay
+app.use('/api/payments', webhookRoutes);  // Alias for backward compatibility with user's SePay config
 
 // ── BullMQ Dashboard — protected in production ─────────────────────────────
 // WARNING: In production, add authentication middleware before this route.
