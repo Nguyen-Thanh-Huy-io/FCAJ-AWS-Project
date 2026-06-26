@@ -1,7 +1,7 @@
 const youtubeGateway = require('./youtube.gateway');
 const googleOAuthService = require('../google-oauth.service');
 const socialAccountRepository = require('../../../repositories/social/social-account.repository');
-const { PLATFORMS, POST_STATUS, YOUTUBE_PRIVACY, YOUTUBE_CATEGORIES, SEPARATORS } = require('../../../utils/constants');
+const { PLATFORMS, POST_STATUS, YOUTUBE_PRIVACY, YOUTUBE_CATEGORIES, SEPARATORS, POST_TYPES } = require('../../../utils/constants');
 const fs = require('fs');
 const path = require('path');
 

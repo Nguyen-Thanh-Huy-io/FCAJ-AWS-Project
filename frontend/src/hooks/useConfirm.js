@@ -1,4 +1,4 @@
-import { useConfirmStore } from '@/store/useConfirmStore';
+import { useConfirmStore } from '../store/useConfirmStore';
 
 /**
  * useConfirm

@@ -32,7 +32,7 @@ describe('Social Sync Cache Proxy Tests', () => {
     const result = await cacheProxy.syncChannelMetrics('sa_1', '2026-05-20', '2026-05-25');
 
     expect(socialAccountRepository.findById).toHaveBeenCalledWith('sa_1');
-    expect(mockRealService.syncChannelMetrics).toHaveBeenCalledWith('sa_1', '2026-05-20', '2026-05-25');
+    expect(mockRealService.syncChannelMetrics).toHaveBeenCalledWith('sa_1', '2026-05-20', '2026-05-25', false);
     expect(result).toEqual({ id: 'sa_1', mockSynced: true });
   });
 
@@ -74,7 +74,7 @@ describe('Social Sync Cache Proxy Tests', () => {
     const result = await cacheProxy.syncChannelMetrics('sa_1', '2026-05-20', '2026-05-25');
 
     expect(socialAccountRepository.findById).toHaveBeenCalledWith('sa_1');
-    expect(mockRealService.syncChannelMetrics).toHaveBeenCalledWith('sa_1', '2026-05-20', '2026-05-25');
+    expect(mockRealService.syncChannelMetrics).toHaveBeenCalledWith('sa_1', '2026-05-20', '2026-05-25', false);
     expect(result).toEqual({ id: 'sa_1', mockSynced: true });
   });
 
@@ -93,7 +93,7 @@ describe('Social Sync Cache Proxy Tests', () => {
     const result = await cacheProxy.syncChannelMetrics('sa_1', '2026-05-20', '2026-05-25', true);
 
     expect(socialAccountRepository.findById).toHaveBeenCalledWith('sa_1');
-    expect(mockRealService.syncChannelMetrics).toHaveBeenCalledWith('sa_1', '2026-05-20', '2026-05-25');
+    expect(mockRealService.syncChannelMetrics).toHaveBeenCalledWith('sa_1', '2026-05-20', '2026-05-25', true);
     expect(result).toEqual({ id: 'sa_1', mockSynced: true });
   });
 });
