@@ -46,6 +46,10 @@ const adAccountRoutes = require('./routes/workspace/ad-account.routes');
 const searchRoutes = require('./routes/core/search.routes');
 const notificationRoutes = require('./routes/core/notification.routes');
 
+// Routes - Billing Domain
+const subscriptionRoutes = require('./routes/billing/subscription.routes');
+const webhookRoutes = require('./routes/billing/webhook.routes');
+
 // BullMQ Dashboard
 const queueDashboard = require('./queues/dashboard');
 
@@ -144,6 +148,11 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/hashtags', hashtagRoutes);
 app.use('/api/ad-accounts', adAccountRoutes);
 
+
+// ── Billing Routes ─────────────────────────────────────────────────────────
+app.use('/api/billing/subscriptions', subscriptionRoutes);
+app.use('/api/webhooks', webhookRoutes);  // SePay POSTs to /api/webhooks/sepay
+app.use('/api/payments', webhookRoutes);  // Alias for backward compatibility with user's SePay config
 
 // ── BullMQ Dashboard — protected in production ─────────────────────────────
 // WARNING: In production, add authentication middleware before this route.
