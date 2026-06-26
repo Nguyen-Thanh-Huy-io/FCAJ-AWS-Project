@@ -1,12 +1,12 @@
 const fs = require('fs');
 const path = require('path');
-const { PLATFORMS, SEPARATORS, API_VERSIONS, MEDIA_EXTENSIONS } = require('../../../utils/constants');
+const { PLATFORMS, SEPARATORS, API_VERSIONS, MEDIA_EXTENSIONS, FACEBOOK_API } = require('../../../utils/constants');
 
 class FacebookGateway {
   constructor() {
     this.appId = process.env.FACEBOOK_APP_ID;
     this.appSecret = process.env.FACEBOOK_APP_SECRET;
-    this.graphBaseUrl = `https://graph.facebook.com/${API_VERSIONS.FACEBOOK}`;
+    this.graphBaseUrl = `${FACEBOOK_API.GRAPH_URL}/${API_VERSIONS.FACEBOOK}`;
   }
 
   async exchangeCodeForToken(code, redirectUri) {
@@ -30,6 +30,14 @@ class FacebookGateway {
       throw new Error(errData.error?.message || 'Failed to fetch user Facebook pages');
     }
     
+    const data = await res.json();
+    return data.data || [];
+  }
+
+  async getUserPermissions(userAccessToken) {
+    const url = `${this.graphBaseUrl}/me/permissions?access_token=${userAccessToken}`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
     const data = await res.json();
     return data.data || [];
   }
@@ -62,10 +70,12 @@ class FacebookGateway {
     const until = Math.floor(new Date(endDate).getTime() / 1000);
 
     const fullMetrics = [
-      'page_views_total',
-      'page_impressions_unique',
+      'page_media_view',
+      'page_total_media_view_unique',
       'page_daily_follows_unique',
-      'page_post_engagements'
+      'page_daily_unfollows_unique',
+      'page_post_engagements',
+      'page_total_actions'
     ];
 
     const tryFetch = async (metricList) => {
@@ -83,8 +93,10 @@ class FacebookGateway {
     if (result.error && result.error.code === 100) {
       const legacyMetrics = [
         'page_views_total',
-        'page_impressions_unique',
-        'page_post_engagements'
+        'page_post_engagements',
+        'page_total_actions',
+        'page_daily_follows_unique',
+        'page_daily_unfollows_unique'
       ];
       result = await tryFetch(legacyMetrics);
     }
@@ -118,11 +130,34 @@ class FacebookGateway {
     };
   }
 
-  async getPostInsights(postId, pageAccessToken) {
-    const metrics = 'post_impressions_unique,post_impressions,post_clicks_by_type';
-    const url = `${this.graphBaseUrl}/${postId}/insights?metric=${metrics}&access_token=${pageAccessToken}`;
-    
+  async getPageStories(pageId, pageAccessToken) {
+    const url = `${this.graphBaseUrl}/${pageId}/stories?fields=id,media_type,media_url,creation_time,status&access_token=${pageAccessToken}`;
     const res = await fetch(url);
+    if (!res.ok) {
+      return [];
+    }
+    const data = await res.json();
+    return data.data || [];
+  }
+
+  async getStoryInsights(storyId, pageAccessToken) {
+    const metrics = 'exits,replies,taps_forward,taps_back,impressions,reach';
+    const url = `${this.graphBaseUrl}/${storyId}/insights?metric=${metrics}&access_token=${pageAccessToken}`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.data || [];
+  }
+
+  async getPostInsights(postId, pageAccessToken) {
+    const newMetrics = 'post_total_media_view_unique,post_media_view,post_clicks_by_type';
+    let url = `${this.graphBaseUrl}/${postId}/insights?metric=${newMetrics}&access_token=${pageAccessToken}`;
+    let res = await fetch(url);
+    if (!res.ok) {
+      const legacyMetrics = 'post_impressions_unique,post_impressions,post_clicks_by_type';
+      url = `${this.graphBaseUrl}/${postId}/insights?metric=${legacyMetrics}&access_token=${pageAccessToken}`;
+      res = await fetch(url);
+    }
     if (!res.ok) return [];
 
     const data = await res.json();
@@ -240,6 +275,126 @@ class FacebookGateway {
     return res.json();
   }
 
+  async createAlbum(pageId, pageAccessToken, name, message) {
+    console.log('[FacebookGateway] Creating album:', { pageId, name, messageLength: message?.length });
+    const formData = new FormData();
+    if (name) formData.append('name', name);
+    if (message) formData.append('message', message);
+    formData.append('access_token', pageAccessToken);
+
+    const url = `${this.graphBaseUrl}/${pageId}/albums`;
+    const res = await fetch(url, { method: 'POST', body: formData });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      console.error('[FacebookGateway] Failed to create album:', errData);
+      throw new Error(errData.error?.message || 'Failed to create Facebook album');
+    }
+    const data = await res.json();
+    console.log('[FacebookGateway] Created album response:', data);
+    return data;
+  }
+
+  async uploadPhotoToAlbum(albumId, pageAccessToken, mediaUrl, caption) {
+    console.log('[FacebookGateway] Uploading photo to album:', { albumId, mediaUrl, caption });
+    const { buffer, filename } = await this._getMediaBuffer(mediaUrl);
+    const formData = new FormData();
+    const blob = new Blob([buffer]);
+    formData.append('source', blob, filename);
+    if (caption) formData.append('message', caption);
+    formData.append('access_token', pageAccessToken);
+
+    const url = `${this.graphBaseUrl}/${albumId}/photos`;
+    const res = await fetch(url, { method: 'POST', body: formData });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      console.error('[FacebookGateway] Failed to upload photo to album:', errData);
+      throw new Error(errData.error?.message || 'Failed to upload photo to Facebook album');
+    }
+    const data = await res.json();
+    console.log('[FacebookGateway] Uploaded photo response:', data);
+    return data;
+  }
+
+  async uploadUnpublishedPhoto(pageId, pageAccessToken, mediaUrl, caption) {
+    console.log('[FacebookGateway] Uploading unpublished photo:', { pageId, mediaUrl, caption });
+    const { buffer, filename } = await this._getMediaBuffer(mediaUrl);
+    const formData = new FormData();
+    const blob = new Blob([buffer]);
+    formData.append('source', blob, filename);
+    if (caption) formData.append('message', caption);
+    formData.append('published', 'false');
+    formData.append('access_token', pageAccessToken);
+
+    const url = `${this.graphBaseUrl}/${pageId}/photos`;
+    const res = await fetch(url, { method: 'POST', body: formData });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      console.error('[FacebookGateway] Failed to upload unpublished photo:', errData);
+      throw new Error(errData.error?.message || 'Failed to upload unpublished photo to Facebook');
+    }
+    const data = await res.json();
+    console.log('[FacebookGateway] Uploaded unpublished photo response:', data);
+    return data;
+  }
+
+  async publishMultiPhotoPost(pageId, pageAccessToken, photoIds, message) {
+    console.log('[FacebookGateway] Publishing multi-photo post to feed:', { pageId, photoIds, messageLength: message?.length });
+    const formData = new FormData();
+    if (message) formData.append('message', message);
+    
+    const attachedMedia = photoIds.map(id => ({ media_fbid: id }));
+    formData.append('attached_media', JSON.stringify(attachedMedia));
+    formData.append('access_token', pageAccessToken);
+
+    const url = `${this.graphBaseUrl}/${pageId}/feed`;
+    const res = await fetch(url, { method: 'POST', body: formData });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      console.error('[FacebookGateway] Failed to publish multi-photo post:', errData);
+      throw new Error(errData.error?.message || 'Failed to publish multi-photo post to Facebook');
+    }
+    const data = await res.json();
+    console.log('[FacebookGateway] Published multi-photo post response:', data);
+    return data;
+  }
+
+  async publishAlbum(pageId, pageAccessToken, mediaUrls, caption, mediaCaptions = []) {
+    console.log('[FacebookGateway] Publishing album start:', { pageId, mediaUrlsCount: mediaUrls.length, caption });
+    if (!Array.isArray(mediaUrls) || mediaUrls.length < 2) {
+      throw new Error('Facebook album requires at least 2 images');
+    }
+
+    try {
+      const albumName = (caption || 'New Album').slice(0, 50);
+      const album = await this.createAlbum(pageId, pageAccessToken, albumName, caption);
+      const albumId = album.id;
+
+      const photos = [];
+      for (let i = 0; i < mediaUrls.length; i += 1) {
+        const photoCaption = mediaCaptions[i] || caption || '';
+        console.log(`[FacebookGateway] Uploading photo ${i + 1}/${mediaUrls.length}`);
+        const result = await this.uploadPhotoToAlbum(albumId, pageAccessToken, mediaUrls[i], photoCaption);
+        photos.push(result);
+      }
+
+      console.log('[FacebookGateway] Successfully published all photos to album:', albumId);
+      return { id: albumId, photos };
+    } catch (albumError) {
+      console.warn('[FacebookGateway] Traditional album creation failed, trying multi-photo post fallback. Error:', albumError.message);
+      
+      const photoIds = [];
+      for (let i = 0; i < mediaUrls.length; i += 1) {
+        const photoCaption = mediaCaptions[i] || caption || '';
+        console.log(`[FacebookGateway] [Fallback] Uploading photo ${i + 1}/${mediaUrls.length} as unpublished`);
+        const result = await this.uploadUnpublishedPhoto(pageId, pageAccessToken, mediaUrls[i], photoCaption);
+        photoIds.push(result.id);
+      }
+      
+      const feedResult = await this.publishMultiPhotoPost(pageId, pageAccessToken, photoIds, caption);
+      return { id: feedResult.id, fallback: true, photoIds };
+    }
+  }
+
   async publishVideo(pageId, pageAccessToken, mediaUrl, title, description) {
     const { buffer, filename } = await this._getMediaBuffer(mediaUrl);
 
@@ -250,7 +405,7 @@ class FacebookGateway {
     if (description) formData.append('description', description);
     formData.append('access_token', pageAccessToken);
 
-    const url = `https://graph-video.facebook.com/${API_VERSIONS.FACEBOOK}/${pageId}/videos`;
+    const url = `${FACEBOOK_API.VIDEO_BASE_URL}/${API_VERSIONS.FACEBOOK}/${pageId}/videos`;
     const res = await fetch(url, { method: 'POST', body: formData });
 
     if (!res.ok) {
@@ -303,7 +458,7 @@ class FacebookGateway {
       formData.append('access_token', pageAccessToken);
 
       if (isVideo) {
-        const uploadUrl = `https://graph-video.facebook.com/${API_VERSIONS.FACEBOOK}/${pageId}/videos`;
+        const uploadUrl = `${FACEBOOK_API.VIDEO_BASE_URL}/${API_VERSIONS.FACEBOOK}/${pageId}/videos`;
         const uploadRes = await fetch(uploadUrl, { method: 'POST', body: formData });
         const { id: videoId } = await uploadRes.json();
 
@@ -323,6 +478,46 @@ class FacebookGateway {
       console.warn(`Facebook Story API failure: ${err.message}. Falling back to simulation.`);
       return { id: `fb_story_${Date.now()}` };
     }
+  }
+
+  async updatePostMessage(postId, message, pageAccessToken) {
+    const url = `${this.graphBaseUrl}/${postId}?message=${encodeURIComponent(message)}&access_token=${pageAccessToken}`;
+    const res = await fetch(url, { method: 'POST' });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error?.message || 'Failed to update Facebook post content');
+    }
+    return res.json();
+  }
+
+  async deletePost(postId, pageAccessToken) {
+    const url = `${this.graphBaseUrl}/${postId}?access_token=${pageAccessToken}`;
+    const res = await fetch(url, { method: 'DELETE' });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error?.message || 'Failed to delete Facebook post');
+    }
+    return res.json();
+  }
+
+  async updateComment(commentId, text, pageAccessToken) {
+    const url = `${this.graphBaseUrl}/${commentId}?message=${encodeURIComponent(text)}&access_token=${pageAccessToken}`;
+    const res = await fetch(url, { method: 'POST' });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error?.message || 'Failed to update Facebook comment');
+    }
+    return res.json();
+  }
+
+  async deleteComment(commentId, pageAccessToken) {
+    const url = `${this.graphBaseUrl}/${commentId}?access_token=${pageAccessToken}`;
+    const res = await fetch(url, { method: 'DELETE' });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error?.message || 'Failed to delete Facebook comment');
+    }
+    return res.json();
   }
 
   // ============= Private Helper Methods =============
@@ -370,6 +565,55 @@ class FacebookGateway {
       }
       return { buffer: fs.readFileSync(localPath), filename: path.basename(localPath) };
     }
+  }
+
+  /**
+   * Tìm kiếm Facebook Pages công khai theo query string.
+   * Dùng Graph API /search endpoint (cần App Access Token hoặc User Access Token).
+   * @param {string} appAccessToken - App-level access token (APP_ID|APP_SECRET)
+   * @param {string} query - Từ khóa tìm kiếm
+   * @returns {Array} Danh sách pages kết quả
+   */
+  async searchFacebookPages(appAccessToken, query) {
+    const url = `${this.graphBaseUrl}/search?q=${encodeURIComponent(query)}&type=page&fields=id,name,picture{url},fan_count,followers_count,category&access_token=${appAccessToken}&limit=10`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error?.message || 'Failed to search Facebook pages');
+    }
+    const data = await res.json();
+    return (data.data || []).map(p => ({
+      pageId: p.id,
+      title: p.name,
+      thumbnail: p.picture?.data?.url || null,
+      followersCount: p.followers_count || p.fan_count || 0,
+      category: p.category || null,
+    }));
+  }
+
+  /**
+   * Lấy thông tin public của một Facebook Page theo pageId.
+   * Dùng App Access Token để fetch — không cần user login page đó.
+   * @param {string} pageId
+   * @param {string} appAccessToken
+   * @returns {Object} Page info
+   */
+  async getPublicPageInfo(pageId, appAccessToken) {
+    const url = `${this.graphBaseUrl}/${pageId}?fields=id,name,picture{url},fan_count,followers_count,category,link&access_token=${appAccessToken}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error?.message || `Failed to fetch public page info for ${pageId}`);
+    }
+    const data = await res.json();
+    return {
+      pageId: data.id,
+      displayName: data.name,
+      avatarUrl: data.picture?.data?.url || null,
+      followersCount: data.followers_count || data.fan_count || 0,
+      category: data.category || null,
+      profileUrl: data.link || `https://www.facebook.com/${data.id}`,
+    };
   }
 }
 

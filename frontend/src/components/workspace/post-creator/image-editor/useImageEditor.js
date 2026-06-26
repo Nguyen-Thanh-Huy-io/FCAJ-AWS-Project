@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { getFullImageUrl, processCanvas } from "./utils";
 import apiService from "../../../../services/api";
 
-export function useImageEditor({ imageUrl, currentTransform, onSave, onClose }) {
+export function useImageEditor({ imageUrl, currentTransform, brandId, onSave, onClose }) {
   const [activeTab, setActiveTab] = useState('size');
   const [adjustMode, setAdjustMode] = useState('rotation');
   const [rotation, setRotation] = useState(currentTransform?.rotation || 0);
@@ -530,7 +530,7 @@ export function useImageEditor({ imageUrl, currentTransform, onSave, onClose }) 
             formData.append("video", file);
 
             try {
-              const res = await apiService.post("/posts/upload", formData, {
+              const res = await apiService.post(`/posts/upload?brandId=${brandId}`, formData, {
                 headers: {
                   "Content-Type": "multipart/form-data"
                 }

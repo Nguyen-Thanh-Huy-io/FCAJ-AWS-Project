@@ -1,0 +1,104 @@
+name: Selenium UI Automation Tests
+
+on:
+  push:
+    branches: [ main, master, feature/** ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  selenium-tests:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: publicast
+        ports:
+          - 3307:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package.json
+            frontend/package.json
+
+      - name: Create .env file
+        working-directory: backend
+        env:
+          ENV_CONTENT: ${{ secrets.ENV_FILE }}
+        run: |
+          # Ghi nội dung từ secret vào file .env
+          echo "$ENV_CONTENT" > .env
+          
+          # Xóa các dòng có thể gây xung đột nếu đã có sẵn trong secret
+          sed -i '/DATABASE_URL/d' .env
+          sed -i '/REDIS_HOST/d' .env
+          sed -i '/REDIS_PORT/d' .env
+          sed -i '/PORT/d' .env
+          
+          # Ghi đè cấu hình cho môi trường CI
+          echo "DATABASE_URL=mysql://root:root_password@localhost:3307/publicast" >> .env
+          echo "REDIS_HOST=localhost" >> .env
+          echo "REDIS_PORT=6379" >> .env
+          echo "PORT=3000" >> .env
+
+      - name: Setup Backend Database
+        working-directory: backend
+        run: |
+          npm install
+          npx prisma db push
+
+      - name: Start Backend Server
+        working-directory: backend
+        run: |
+          # Chạy background server, tin tưởng file .env đã tạo ở bước trên
+          npm run dev &
+
+      - name: Start Frontend App
+        working-directory: frontend
+        run: |
+          npm install
+          npm run dev &
+
+      - name: Install Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+
+      - name: Install Selenium Test Dependencies
+        working-directory: test_selenium
+        run: |
+          npm install
+
+      - name: Run Selenium Tests
+        working-directory: test_selenium
+        run: |
+          node test_simple.js
+
+      - name: Upload Test Screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selenium-screenshots
+          path: test_cases/auth/screenshots/

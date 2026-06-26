@@ -87,6 +87,29 @@ class SocialService {
     return response.data;
   }
 
+  // ── Facebook Competitors ──────────────────────────────────────────────────
+
+  async searchFacebookPages(brandId, query) {
+    const response = await apiService.get(`/social/facebook/search-pages?brandId=${brandId}&query=${encodeURIComponent(query)}`);
+    return response.data;
+  }
+
+  async addFacebookCompetitor(brandId, pageId) {
+    const response = await apiService.post('/social/facebook/competitors', { brandId, pageId });
+    return response.data;
+  }
+
+  async getFacebookCompetitors(brandId) {
+    const response = await apiService.get(`/social/facebook/competitors?brandId=${brandId}`);
+    return response.data;
+  }
+
+  async deleteFacebookCompetitor(id) {
+    const response = await apiService.delete(`/social/facebook/competitors/${id}`);
+    return response.data;
+  }
+
+
   async getTikTokAuthUrl(brandId) {
     const response = await apiService.get(`/social/tiktok/url?brandId=${brandId}`);
     return response.data;
@@ -100,6 +123,105 @@ class SocialService {
 
   async disconnectTikTokAccount(brandId) {
     const response = await apiService.post('/social/tiktok/disconnect', { brandId });
+    return response.data;
+  }
+
+  async getInstagramAuthUrl(brandId) {
+    const response = await apiService.get(`/social/instagram/url?brandId=${brandId}`);
+    return response.data;
+  }
+
+  async getInstagramPublishedPosts(brandId, pageToken = null, limit = 10) {
+    const url = `/social/instagram/published-posts?brandId=${brandId}${pageToken ? `&pageToken=${pageToken}` : ''}${limit ? `&limit=${limit}` : ''}`;
+    const response = await apiService.get(url);
+    return response.data;
+  }
+
+  async disconnectInstagramAccount(brandId) {
+    const response = await apiService.post('/social/instagram/disconnect', { brandId });
+    return response.data;
+  }
+
+  async getLinkedInAuthUrl(brandId) {
+    const response = await apiService.get(`/social/linkedin/url?brandId=${brandId}`);
+    return response.data;
+  }
+
+  async disconnectLinkedInAccount(brandId) {
+    const response = await apiService.post('/social/linkedin/disconnect', { brandId });
+    return response.data;
+  }
+
+  async getThreadsAuthUrl(brandId) {
+    const response = await apiService.get(`/social/threads/url?brandId=${brandId}`);
+    return response.data;
+  }
+
+  async disconnectThreadsAccount(brandId) {
+    const response = await apiService.post('/social/threads/disconnect', { brandId });
+    return response.data;
+  }
+
+  async getThreadsPublishedPosts(brandId, pageToken = null, limit = 10) {
+    const url = `/social/threads/published-posts?brandId=${brandId}${pageToken ? `&pageToken=${pageToken}` : ''}${limit ? `&limit=${limit}` : ''}`;
+    const response = await apiService.get(url);
+    return response.data;
+  }
+
+  async connectTelegramAccount(brandId, botToken, chatId) {
+    const response = await apiService.post('/social/telegram/connect', { brandId, botToken, chatId });
+    return response.data;
+  }
+
+  async disconnectTelegramAccount(brandId) {
+    const response = await apiService.post('/social/telegram/disconnect', { brandId });
+    return response.data;
+  }
+
+  async connectDiscordAccount(brandId, webhookUrl) {
+    const response = await apiService.post('/social/discord/connect', { brandId, webhookUrl });
+    return response.data;
+  }
+
+  async disconnectDiscordAccount(brandId) {
+    const response = await apiService.post('/social/discord/disconnect', { brandId });
+    return response.data;
+  }
+
+  async getDiscordAuthUrl(brandId) {
+    const response = await apiService.get(`/social/discord/url?brandId=${brandId}`);
+    return response.data;
+  }
+
+  async getDiscordChannels(guildId) {
+    const response = await apiService.get(`/social/discord/channels?guildId=${guildId}`);
+    return response.data;
+  }
+
+  async connectDiscordGuildChannel(brandId, guildId, channelId) {
+    const response = await apiService.post('/social/discord/connect-channel', { brandId, guildId, channelId });
+    return response.data;
+  }
+
+  async disconnectDiscordGuildChannel(brandId, accountId) {
+    const response = await apiService.post('/social/discord/disconnect-channel', { brandId, accountId });
+    return response.data;
+  }
+
+  async connectDiscordGuildServer(brandId, guildId, guildName) {
+    const response = await apiService.post('/social/discord/connect-server', { brandId, guildId, guildName });
+    return response.data;
+  }
+
+  async getDiscordStats(brandId, guildId, days = 30) {
+    const params = new URLSearchParams({ brandId, days });
+    if (guildId) params.append('guildId', guildId);
+    const response = await apiService.get(`/social/discord/stats?${params}`);
+    return response.data;
+  }
+
+  async triggerDiscordSnapshot(brandId, guildId) {
+    const response = await apiService.post('/social/discord/snapshot', { brandId, guildId });
     return response.data;
   }
 

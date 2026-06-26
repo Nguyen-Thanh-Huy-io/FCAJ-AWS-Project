@@ -15,6 +15,45 @@ class CompetitorRepository {
     });
   }
 
+  /**
+   * Upsert competitor: tạo mới nếu chưa tồn tại, cập nhật nếu đã có.
+   * Sử dụng unique constraint [brandId, platform, competitorHandle].
+   */
+  async upsertCompetitor(brandId, platform, competitorData) {
+    return prisma.competitorAnalysis.upsert({
+      where: {
+        brandId_platform_competitorHandle: {
+          brandId,
+          platform,
+          competitorHandle: competitorData.competitorHandle,
+        }
+      },
+      update: {
+        competitorDisplayName: competitorData.competitorDisplayName,
+        competitorAvatarUrl:   competitorData.competitorAvatarUrl,
+        competitorProfileUrl:  competitorData.competitorProfileUrl,
+        followersCount:        competitorData.followersCount,
+        followersGrowth:       competitorData.followersGrowth,
+        avgEngagementRate:     competitorData.avgEngagementRate,
+        avgReach:              competitorData.avgReach,
+        postsPerWeek:          competitorData.postsPerWeek,
+        topPostType:           competitorData.topPostType,
+        lastFetchedAt:         new Date(),
+      },
+      create: {
+        brandId,
+        platform,
+        competitorHandle:      competitorData.competitorHandle,
+        competitorDisplayName: competitorData.competitorDisplayName,
+        competitorAvatarUrl:   competitorData.competitorAvatarUrl,
+        competitorProfileUrl:  competitorData.competitorProfileUrl,
+        followersCount:        competitorData.followersCount,
+        addedAt:               new Date(),
+        lastFetchedAt:         new Date(),
+      }
+    });
+  }
+
   async getCompetitors(brandId, platform) {
     return prisma.competitorAnalysis.findMany({
       where: { brandId, platform },
@@ -30,3 +69,4 @@ class CompetitorRepository {
 }
 
 module.exports = new CompetitorRepository();
+

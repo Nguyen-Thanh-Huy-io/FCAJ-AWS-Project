@@ -10,10 +10,31 @@ class SocialService {
   async getAggregatedMetrics(brandId, startDate, endDate, force = false) {
     const accounts = await socialAccountRepository.findByBrandAndPlatform(brandId, null); // passing null to platform to get all platforms
 
+    const withTimeout = (promise, ms = 5000, fallback) => {
+      let timeoutId;
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(`Timeout of ${ms}ms exceeded syncing platform`));
+        }, ms);
+      });
+      return Promise.race([promise, timeoutPromise])
+        .catch(err => {
+          console.warn(`[SocialService] Sync failed or timed out: ${err.message}. Using fallback account.`);
+          return fallback;
+        })
+        .finally(() => {
+          clearTimeout(timeoutId);
+        });
+    };
+
     return await Promise.all(accounts.map(async (account) => {
       try {
         const service = socialPlatformFactory.getService(account.platform);
-        return await service.syncChannelMetrics(account.id, startDate, endDate, force);
+        return await withTimeout(
+          service.syncChannelMetrics(account.id, startDate, endDate, force),
+          5000,
+          account
+        );
       } catch (error) {
         console.error(`Failed to sync metrics for ${account.platform} (${account.id}):`, error.message);
         return account; 

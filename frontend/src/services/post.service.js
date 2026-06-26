@@ -17,9 +17,9 @@ class PostService {
     return response.data;
   }
 
-  async deletePosts(brandId, ids) {
+  async deletePosts(brandId, ids, deleteFromSocials = false) {
     const response = await apiService.delete('/posts/bulk', {
-      data: { brandId, ids }
+      data: { brandId, ids, deleteFromSocials }
     });
     return response.data;
   }
@@ -36,6 +36,11 @@ class PostService {
 
   async emptyTrash(brandId) {
     const response = await apiService.delete(`/posts/trash?brandId=${brandId}`);
+    return response.data;
+  }
+
+  async getPlatformLimits() {
+    const response = await apiService.get('/posts/platform-limits');
     return response.data;
   }
 }

@@ -10,11 +10,14 @@ const InboxPlatformFilter = require('./inbox/filters/platform.filter');
 const InboxTabFilter = require('./inbox/filters/tab.filter');
 const InboxStatusFilter = require('./inbox/filters/status.filter');
 const InboxTypeFilter = require('./inbox/filters/type.filter');
+const InboxSocialAccountFilter = require('./inbox/filters/social-account.filter');
 
 const YoutubeCommentSyncStrategy = require('./inbox/strategies/youtube-comment.strategy');
 const FacebookCommentSyncStrategy = require('./inbox/strategies/facebook-comment.strategy');
 const FacebookDMSyncStrategy = require('./inbox/strategies/facebook-dm.strategy');
 const InstagramDMSyncStrategy = require('./inbox/strategies/instagram-dm.strategy');
+const DiscordChannelMessageStrategy = require('./inbox/strategies/discord-channel.strategy');
+const DiscordDirectMessageStrategy = require('./inbox/strategies/discord-dm.strategy');
 
 class InboxService {
   constructor() {
@@ -23,14 +26,17 @@ class InboxService {
       new InboxPlatformFilter(),
       new InboxTabFilter(),
       new InboxStatusFilter(),
-      new InboxTypeFilter()
+      new InboxTypeFilter(),
+      new InboxSocialAccountFilter()
     ]);
 
     this.strategies = [
       new YoutubeCommentSyncStrategy(),
       new FacebookCommentSyncStrategy(),
       new FacebookDMSyncStrategy(),
-      new InstagramDMSyncStrategy()
+      new InstagramDMSyncStrategy(),
+      new DiscordChannelMessageStrategy(),
+      new DiscordDirectMessageStrategy()
     ];
   }
 
@@ -200,6 +206,32 @@ class InboxService {
     });
 
     return reply;
+  }
+
+  async updateReply(brandId, replyId, text) {
+    const reply = await inboxRepository.findById(replyId);
+    if (!reply) throw new Error('Reply not found');
+
+    const strategy = this.strategies.find(s => s.supportsReply(reply));
+    if (!strategy) {
+      throw new Error(`No strategy found to update reply for platform ${reply.platform}`);
+    }
+
+    await strategy.updateReply(brandId, reply.platformItemId, text);
+    return await inboxRepository.updateInboxItem(replyId, { content: text });
+  }
+
+  async deleteReply(brandId, replyId) {
+    const reply = await inboxRepository.findById(replyId);
+    if (!reply) throw new Error('Reply not found');
+
+    const strategy = this.strategies.find(s => s.supportsReply(reply));
+    if (!strategy) {
+      throw new Error(`No strategy found to delete reply for platform ${reply.platform}`);
+    }
+
+    await strategy.deleteReply(brandId, reply.platformItemId);
+    return await inboxRepository.deleteInboxItem(replyId);
   }
 
   async updateItemStatus(itemId, status) {

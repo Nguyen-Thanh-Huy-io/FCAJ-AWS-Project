@@ -1,10 +1,12 @@
 const postRepository = require('../../repositories/workspace/post.repository');
+const brandRepository = require('../../repositories/workspace/brand.repository');
 const socialPlatformFactory = require('../social/social-platform.factory');
-const { POST_STATUS, POST_TYPES, SEPARATORS, WORKSPACE_DEFAULTS } = require('../../utils/constants');
+const { POST_STATUS, POST_TYPES, SEPARATORS, WORKSPACE_DEFAULTS, PLATFORMS } = require('../../utils/constants');
 const { eventEmitter, EVENTS } = require('../../events/event-emitter');
 const { upsertPublishJob, removePublishJob } = require('../../queues/publish.queue');
 const authorizationFacade = require('../auth/authorization.facade');
 const approvalWorkflowService = require('./approval-workflow.service');
+const validationFacade = require('./post/validators/validation.facade');
 
 const QueryPipeline = require('../../core/query-pipeline/query.pipeline');
 const PostStatusFilter = require('./post/filters/status.filter');
@@ -55,6 +57,41 @@ class PostService {
    * Create a new post
    */
   async createPost(postData, userId, brandId) {
+    // Check monthly post limit
+    const brand = await brandRepository.findBrandWithSubscription(brandId);
+    if (brand && brand.subscription && brand.subscription.status === 'ACTIVE' && brand.subscription.plan?.planLimit) {
+      const maxPosts = brand.subscription.plan.planLimit.maxPostsPerMonth;
+      const currentCount = await postRepository.countActivePostsThisMonth(brandId);
+      if (currentCount >= maxPosts) {
+        const error = new Error(`Monthly post limit of ${maxPosts} reached. Please upgrade your plan.`);
+        error.statusCode = 403;
+        throw error;
+      }
+    }
+
+    // Platform limits validation
+    const hasMedia = postData.mediaUrls && postData.mediaUrls.length > 0;
+    const firstMediaUrl = hasMedia ? postData.mediaUrls[0] : null;
+    const format = firstMediaUrl ? firstMediaUrl.split('.').pop().split('?')[0].toLowerCase() : null;
+    const isVideo = hasMedia && ['mp4', 'mov', 'webm', 'avi', 'mkv'].includes(format);
+    
+    const mediaInfo = {
+      hasMedia,
+      isVideo,
+      format,
+      duration: postData.options?.videoDuration || null,
+      sizeMb: postData.options?.videoSizeMb || null
+    };
+
+    console.log('[PostService] Validating post data:', { postData: { title: postData.title, targetPlatforms: postData.targetPlatforms, options: postData.options }, mediaInfo });
+    const validationResult = await validationFacade.validatePost(postData, mediaInfo);
+    if (!validationResult.isValid) {
+      console.error('[PostService] Validation failed:', validationResult.errors);
+      const error = new Error(`Validation failed: ${validationResult.errors.join('; ')}`);
+      error.statusCode = 400;
+      throw error;
+    }
+
     const data = this._preparePostData(postData, userId, brandId);
     
     // Check if the user is trying to publish/schedule directly
@@ -68,7 +105,9 @@ class PostService {
       }
     }
 
+    console.log('[PostService] Final payload to database:', data);
     const post = await postRepository.create(data);
+    console.log('[PostService] Post successfully created in DB with ID:', post.id);
 
     // If the post status is PENDING_APPROVAL, initiate the approval workflow request
     if (post.status === POST_STATUS.PENDING_APPROVAL) {
@@ -97,7 +136,77 @@ class PostService {
   async updatePost(id, postData, brandId, userId) {
     const post = await postRepository.findById(id);
     if (!post || post.brandId !== brandId) throw new Error('Post not found or unauthorized');
-    if (post.status === POST_STATUS.PUBLISHED) throw new Error('Cannot update an already published post');
+
+    // Platform limits validation
+    const mergedPostData = {
+      caption: postData.caption !== undefined ? postData.caption : post.caption,
+      title: postData.title !== undefined ? postData.title : post.title,
+      targetPlatforms: postData.targetPlatforms !== undefined ? postData.targetPlatforms : (post.targetPlatforms ? post.targetPlatforms.split(',') : []),
+      options: {}
+    };
+
+    let postOptions = {};
+    if (post.metadata) {
+      try { postOptions = JSON.parse(post.metadata); } catch(e) {}
+    }
+    mergedPostData.options = {
+      ...postOptions,
+      ...postData.options
+    };
+
+    const hasMedia = postData.mediaUrls !== undefined 
+      ? (postData.mediaUrls && postData.mediaUrls.length > 0)
+      : (post.mediaUrls && post.mediaUrls.length > 0);
+    
+    const firstMediaUrl = postData.mediaUrls !== undefined
+      ? (hasMedia ? postData.mediaUrls[0] : null)
+      : (post.mediaUrls ? post.mediaUrls.split(',')[0] : null);
+      
+    const format = firstMediaUrl ? firstMediaUrl.split('.').pop().split('?')[0].toLowerCase() : null;
+    const isVideo = hasMedia && ['mp4', 'mov', 'webm', 'avi', 'mkv'].includes(format);
+    
+    const mediaInfo = {
+      hasMedia,
+      isVideo,
+      format,
+      duration: mergedPostData.options.videoDuration || null,
+      sizeMb: mergedPostData.options.videoSizeMb || null
+    };
+
+    console.log('[PostService] Validating merged post data for update:', { mergedPostData: { title: mergedPostData.title, targetPlatforms: mergedPostData.targetPlatforms, options: mergedPostData.options }, mediaInfo });
+    const validationResult = await validationFacade.validatePost(mergedPostData, mediaInfo);
+    if (!validationResult.isValid) {
+      console.error('[PostService] Validation failed for update:', validationResult.errors);
+      const error = new Error(`Validation failed: ${validationResult.errors.join('; ')}`);
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (post.status === POST_STATUS.PUBLISHED) {
+      const targetPlatforms = post.targetPlatforms ? post.targetPlatforms.split(',').map(p => p.trim().toUpperCase()) : [];
+      const hasFacebook = targetPlatforms.includes(PLATFORMS.FACEBOOK);
+      const hasDiscord = targetPlatforms.includes(PLATFORMS.DISCORD);
+      
+      if ((hasFacebook || hasDiscord) && post.platformPostId) {
+        const socialPlatformFactory = require('../social/social-platform.factory');
+        if (hasFacebook) {
+          try {
+            await socialPlatformFactory.getService(PLATFORMS.FACEBOOK).updatePublishedPost(brandId, post.platformPostId, postData);
+          } catch (err) {
+            console.error(`[Post Service] Failed to update post on Facebook:`, err.message);
+          }
+        }
+        if (hasDiscord) {
+          try {
+            await socialPlatformFactory.getService(PLATFORMS.DISCORD).updatePublishedPost(brandId, post.platformPostId, postData);
+          } catch (err) {
+            console.error(`[Post Service] Failed to update post on Discord:`, err.message);
+          }
+        }
+      } else {
+        throw new Error('Cannot update an already published post for this platform');
+      }
+    }
 
     const data = this._prepareUpdateData(postData);
 
@@ -139,7 +248,7 @@ class PostService {
       }
     }
 
-    const statusChangedToPublished = postData.status?.toUpperCase() === POST_STATUS.PUBLISHED;
+    const statusChangedToPublished = post.status !== POST_STATUS.PUBLISHED && postData.status?.toUpperCase() === POST_STATUS.PUBLISHED;
     eventEmitter.emit(EVENTS.POST.UPDATED, { post: updatedPost, options: postData.options, statusChangedToPublished });
 
     return this._formatPostResponse(updatedPost);
@@ -161,11 +270,36 @@ class PostService {
     return count;
   }
 
-  async bulkDelete(ids, brandId) {
+  async bulkDelete(ids, brandId, deleteFromSocials = false) {
     const posts = await postRepository.findManyByIdsAndBrand(ids, brandId);
+
+    if (deleteFromSocials) {
+      const socialPlatformFactory = require('../social/social-platform.factory');
+      for (const post of posts) {
+        if (post.status === POST_STATUS.PUBLISHED && post.platformPostId) {
+          const targetPlatforms = post.targetPlatforms ? post.targetPlatforms.split(',').map(p => p.trim().toUpperCase()) : [];
+          console.log(`[Post Service] Attempting social deletion for post: ${post.id}, targetPlatforms: ${targetPlatforms.join(', ')}, platformPostId: ${post.platformPostId}`);
+          for (const platform of targetPlatforms) {
+            try {
+              const service = socialPlatformFactory.getService(platform);
+              if (service.deletePost) {
+                console.log(`[Post Service] Found deletePost for ${platform}. Invoking service.deletePost...`);
+                await service.deletePost(brandId, post.platformPostId);
+                console.log(`[Post Service] Successfully deleted post on ${platform}`);
+              } else {
+                console.log(`[Post Service] Platform ${platform} service does not implement deletePost`);
+              }
+            } catch (err) {
+              console.error(`[Post Service] Failed to delete post on ${platform}:`, err.message);
+            }
+          }
+        }
+      }
+    }
+
     const autolistIds = [...new Set(posts.map(p => p.autoListId).filter(Boolean))];
 
-    const result = await postRepository.updateMany({ id: { in: ids }, brandId }, { isDeleted: true, deletedAt: new Date() });
+    const result = await postRepository.deleteMany({ id: { in: ids }, brandId });
     eventEmitter.emit(EVENTS.POST.BULK_DELETED, { autolistIds });
     return result.count;
   }

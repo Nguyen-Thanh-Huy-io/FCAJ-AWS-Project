@@ -15,6 +15,7 @@ import { VideoContextCard } from "../../components/inbox/VideoContextCard";
 import { ReplyComposer } from "../../components/inbox/ReplyComposer";
 
 export function InboxPage() {
+  const { activeBrand } = useBrand();
   const { filters, updateFilters, clearFilters, searchParamsString } = useFilters({
     tab: "Unresolved",
     platform: "YouTube",
@@ -27,6 +28,24 @@ export function InboxPage() {
   const [searchTerm, setSearchTerm] = useState(filters.search || "");
   const debouncedSearch = useDebounce(searchTerm, 300);
 
+  // Discord Guilds & Channels extraction from Brand context
+  const discordAccounts = activeBrand?.socialAccounts?.filter(sa => sa.platform === "DISCORD" && sa.isConnected) || [];
+  const serversMap = {};
+  discordAccounts.forEach(sa => {
+    const da = sa.discordAccount;
+    if (da && da.guildId) {
+      serversMap[da.guildId] = da.guildName || "Discord Server";
+    }
+  });
+  const serversList = Object.entries(serversMap).map(([id, name]) => ({ id, name }));
+  const selectedServerId = filters.guildId || "";
+  const channelsList = discordAccounts
+    .filter(sa => sa.discordAccount?.guildId === selectedServerId)
+    .map(sa => ({
+      id: sa.id,
+      name: sa.discordAccount?.channelName || "general"
+    }));
+
   const [inboxData, setInboxData] = useState({ data: [], meta: {} });
   const [loading, setLoading] = useState(false);
   const [activeConv, setActiveConv] = useState(null);
@@ -35,9 +54,10 @@ export function InboxPage() {
   const [threadLoading, setThreadLoading] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
-  const { activeBrand } = useBrand();
   const [isReplying, setIsReplying] = useState(false);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+  const [editingReplyId, setEditingReplyId] = useState(null);
+  const [editingText, setEditingText] = useState("");
 
   // Sync debounced search
   useEffect(() => {
@@ -147,6 +167,38 @@ export function InboxPage() {
     }
   };
 
+  const handleUpdateReply = async (replyId, newText) => {
+    if (!newText || !activeBrand) return;
+    try {
+      await apiService.patch(`/inbox/replies/${replyId}`, {
+        brandId: activeBrand.id,
+        text: newText
+      });
+      toast.success("Reply updated successfully");
+      setEditingReplyId(null);
+      setEditingText("");
+      await fetchThread();
+    } catch (e) {
+      toast.error("Failed to update reply: " + (e.response?.data?.message || e.message));
+    }
+  };
+
+  const handleDeleteReply = async (replyId) => {
+    if (!activeBrand) return;
+    const isConfirmed = window.confirm("Are you sure you want to delete this reply?");
+    if (!isConfirmed) return;
+
+    try {
+      await apiService.delete(`/inbox/replies/${replyId}`, {
+        data: { brandId: activeBrand.id }
+      });
+      toast.success("Reply deleted successfully");
+      await fetchThread();
+    } catch (e) {
+      toast.error("Failed to delete reply: " + (e.response?.data?.message || e.message));
+    }
+  };
+
   return (
     <div className="h-[calc(100vh-70px)] w-full flex overflow-hidden bg-[#F8F8F7] p-4 gap-4">
       {/* Sidebar (List) */}
@@ -174,7 +226,7 @@ export function InboxPage() {
                 <Facebook className="text-[#1877F2] fill-[#1877F2]" size={20} />
               </button>
               <button
-                onClick={() => updateFilters({ platform: "Instagram" })}
+                onClick={() => updateFilters({ platform: "Instagram", guildId: null, socialAccountId: null })}
                 className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
                   platformFilter.toLowerCase() === "instagram"
                     ? "bg-pink-50 border border-pink-100 shadow-sm"
@@ -183,6 +235,16 @@ export function InboxPage() {
               >
                 <Instagram className="text-[#E1306C]" size={20} />
               </button>
+              <button
+                onClick={() => updateFilters({ platform: "Discord", guildId: null, socialAccountId: null })}
+                className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${
+                  platformFilter.toLowerCase() === "discord"
+                    ? "bg-indigo-50 border border-indigo-100 shadow-sm"
+                    : "opacity-40 hover:opacity-80"
+                }`}
+              >
+                <MessageSquare className="text-[#5865F2] fill-[#5865F2]" size={20} />
+              </button>
             </div>
            <div className="flex items-center gap-2">
              <button onClick={handleSync} disabled={isSyncing} className="p-1.5 hover:bg-gray-100 rounded-full text-gray-400"><RefreshCw size={18} className={isSyncing ? "animate-spin" : ""} /></button>
@@ -190,7 +252,7 @@ export function InboxPage() {
            </div>
         </div>
 
-        <div className="p-4 flex gap-2">
+        <div className="p-4 pb-2 flex gap-2">
            <div className="relative flex-1 group">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
               <input type="text" placeholder="Search conversation..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-gray-50/50 border border-gray-200 rounded-xl py-2.5 pl-10 pr-4 text-xs focus:outline-none" />
@@ -238,6 +300,7 @@ export function InboxPage() {
                       <div className="flex items-center gap-1.5">
                         <Facebook className="text-[#1877F2] fill-[#1877F2]" size={14} />
                         <Instagram className="text-[#E1306C]" size={14} />
+                        <MessageSquare className="text-[#5865F2] fill-[#5865F2]" size={14} />
                         {filters.type === "DIRECT_MESSAGE" && <Check size={12} className="text-green-500 ml-1" />}
                       </div>
                     </button>
@@ -254,6 +317,7 @@ export function InboxPage() {
                         <Facebook className="text-[#1877F2] fill-[#1877F2]" size={14} />
                         <Youtube className="text-[#FF0000] fill-[#FF0000]" size={14} />
                         <Instagram className="text-[#E1306C]" size={14} />
+                        <MessageSquare className="text-[#5865F2] fill-[#5865F2]" size={14} />
                         {filters.type === "COMMENT" && <Check size={12} className="text-green-500 ml-1" />}
                       </div>
                     </button>
@@ -262,6 +326,34 @@ export function InboxPage() {
               )}
             </div>
         </div>
+
+        {/* Discord specific Server and Channel filters */}
+        {platformFilter.toLowerCase() === "discord" && (
+          <div className="px-4 pb-3 flex gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+            <select
+              value={selectedServerId}
+              onChange={(e) => updateFilters({ guildId: e.target.value || null, socialAccountId: null })}
+              className="flex-1 bg-gray-50 border border-gray-200 rounded-xl py-2 px-3 text-xs font-medium focus:outline-none cursor-pointer"
+            >
+              <option value="">All Servers</option>
+              {serversList.map(srv => (
+                <option key={srv.id} value={srv.id}>{srv.name}</option>
+              ))}
+            </select>
+
+            <select
+              value={filters.socialAccountId || ""}
+              onChange={(e) => updateFilters({ socialAccountId: e.target.value || null })}
+              disabled={!selectedServerId}
+              className="flex-1 bg-gray-50 border border-gray-200 rounded-xl py-2 px-3 text-xs font-medium focus:outline-none cursor-pointer disabled:opacity-50"
+            >
+              <option value="">All Channels</option>
+              {channelsList.map(chan => (
+                <option key={chan.id} value={chan.id}>#{chan.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="flex px-2 border-b border-gray-50">
            {["Unresolved", "Unread", "All"].map(t => (
@@ -345,16 +437,18 @@ export function InboxPage() {
                         </div>
                       )}
                       <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-white flex items-center justify-center shadow-sm z-20">
-                         {activeConv.platform?.toLowerCase() === "facebook" ? (
-                           <Facebook className="text-[#1877F2] fill-[#1877F2]" size={8} />
-                         ) : activeConv.platform?.toLowerCase() === "instagram" ? (
-                           <Instagram className="text-[#E1306C]" size={8} />
-                         ) : (
-                           <Youtube className="text-[#FF0000] fill-[#FF0000]" size={8} />
-                         )}
-                      </div>
-                   </div>
-                   <div>
+                          {activeConv.platform?.toLowerCase() === "facebook" ? (
+                            <Facebook className="text-[#1877F2] fill-[#1877F2]" size={8} />
+                          ) : activeConv.platform?.toLowerCase() === "instagram" ? (
+                            <Instagram className="text-[#E1306C]" size={8} />
+                          ) : activeConv.platform?.toLowerCase() === "discord" ? (
+                            <MessageSquare className="text-[#5865F2] fill-[#5865F2]" size={8} />
+                          ) : (
+                            <Youtube className="text-[#FF0000] fill-[#FF0000]" size={8} />
+                          )}
+                       </div>
+                    </div>
+                    <div>
                       <h4 className="text-[13px] font-bold text-[#0A0A0A]">{activeConv.user}</h4>
                       <div className="flex items-center gap-1"><MessageSquare className="text-gray-400" size={10} /><span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{activeConv.type === 'direct_message' ? 'PRIVATE MESSAGE' : 'COMMENT'}</span></div>
                    </div>
@@ -377,7 +471,7 @@ export function InboxPage() {
                     <VideoContextCard videoContext={videoContext} />
                     <div className="flex flex-col gap-8">
                       {thread.map((msg, i) => (
-                        <div key={i} className={`flex items-start gap-4 w-full ${msg.from === "me" ? "flex-row-reverse" : ""}`}>
+                        <div key={i} className={`flex items-start gap-4 w-full group/msg ${msg.from === "me" ? "flex-row-reverse" : ""}`}>
                            <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border-2 border-white shadow-sm bg-gray-50 flex items-center justify-center">
                               {msg.from === "me" ? (
                                 <div className="w-full h-full bg-[#FF4F9A] flex items-center justify-center text-white text-[11px] font-bold">{activeBrand?.name?.charAt(0) || "C"}</div>
@@ -385,8 +479,56 @@ export function InboxPage() {
                                 <SafeAvatar src={msg.avatar} name={msg.author} className="w-full h-full object-cover" />
                               )}
                            </div>
+                           
+                           {/* Hover edit/delete action controls */}
+                           {msg.from === "me" && editingReplyId !== msg.id && (
+                             <div className="opacity-0 group-hover/msg:opacity-100 transition-opacity flex gap-2 self-center mr-2">
+                               <button 
+                                 onClick={() => { 
+                                   setEditingReplyId(msg.id); 
+                                   setEditingText(msg.text); 
+                                 }} 
+                                 className="text-[10px] font-bold text-gray-400 hover:text-black transition-all bg-white border border-gray-100 px-2 py-1 rounded-lg shadow-sm cursor-pointer"
+                               >
+                                 ✏️ Edit
+                               </button>
+                               <button 
+                                 onClick={() => handleDeleteReply(msg.id)} 
+                                 className="text-[10px] font-bold text-red-400 hover:text-red-600 transition-all bg-white border border-gray-100 px-2 py-1 rounded-lg shadow-sm cursor-pointer"
+                               >
+                                 🗑️ Delete
+                               </button>
+                             </div>
+                           )}
+
                            <div className={`max-w-[70%] space-y-1.5 flex flex-col ${msg.from === "me" ? "items-end" : "items-start"}`}>
-                              <div className={`px-5 py-3 text-[13px] leading-relaxed shadow-sm ${msg.from === "me" ? "bg-[#FEF3C7] text-[#92400E] rounded-2xl rounded-tr-none border border-[#FDE68A] self-end" : "bg-[#EEF2FF] text-[#1E1B4B] rounded-2xl rounded-tl-none border border-[#E0E7FF] self-start"}`} dangerouslySetInnerHTML={{ __html: msg.text }} />
+                              {editingReplyId === msg.id ? (
+                                <div className="w-full flex flex-col gap-2 bg-[#FEF3C7] border border-[#FDE68A] p-3 rounded-2xl rounded-tr-none">
+                                  <textarea
+                                    value={editingText}
+                                    onChange={(e) => setEditingText(e.target.value)}
+                                    className="w-full bg-white border border-gray-200 rounded-xl p-2 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400"
+                                    rows={2}
+                                  />
+                                  <div className="flex justify-end gap-2">
+                                    <button 
+                                      onClick={() => setEditingReplyId(null)} 
+                                      className="px-2.5 py-1 bg-white border border-gray-200 rounded-lg text-[10px] font-bold text-gray-500 hover:bg-gray-50 cursor-pointer"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button 
+                                      onClick={() => handleUpdateReply(msg.id, editingText)} 
+                                      className="px-2.5 py-1 bg-[#0A0A0A] text-white rounded-lg text-[10px] font-bold hover:scale-105 transition-all cursor-pointer"
+                                    >
+                                      Save
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className={`px-5 py-3 text-[13px] leading-relaxed shadow-sm ${msg.from === "me" ? "bg-[#FEF3C7] text-[#92400E] rounded-2xl rounded-tr-none border border-[#FDE68A] self-end" : "bg-[#EEF2FF] text-[#1E1B4B] rounded-2xl rounded-tl-none border border-[#E0E7FF] self-start"}`} dangerouslySetInnerHTML={{ __html: msg.text }} />
+                              )}
+                              
                               <div className={`flex items-center gap-1.5 px-1 ${msg.from === "me" ? "flex-row-reverse" : ""}`}>
                                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{msg.from === "me" ? "Manager" : msg.author}</span>
                                  <span className="text-[14px] text-gray-200 leading-none">·</span>

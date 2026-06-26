@@ -7,6 +7,8 @@ import {
 import socialService from '../../../../services/social.service';
 import { toast } from 'sonner';
 import { useConfirm } from "@/hooks/useConfirm";
+import { useFeatureGate } from '../../../../hooks/useFeatureGate';
+import { PRODUCT_IDS } from '../../../../constants/products';
 
 // Custom icons mapping for category folders matching the screenshot design
 const FOLDERS = [
@@ -124,6 +126,8 @@ const INTEGRATIONS = [
 
 export function SidebarIntegrations({ activeBrand }) {
   const confirm = useConfirm();
+  const { hasAccess } = useFeatureGate();
+  const hasDriveAccess = hasAccess(PRODUCT_IDS.GOOGLE_DRIVE);
   const [activeTab, setActiveTab] = useState('drive');
   const [files, setFiles] = useState([]);
   const [connected, setConnected] = useState(false);
@@ -418,7 +422,28 @@ export function SidebarIntegrations({ activeBrand }) {
             </div>
 
             {/* If verifying connection, show loader */}
-            {isVerifyingConnection ? (
+            {!hasDriveAccess ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-6 animate-in fade-in duration-200">
+                <div className="w-20 h-20 mx-auto flex items-center justify-center bg-blue-50/50 rounded-full mb-4">
+                  <svg className="w-14 h-14" viewBox="0 0 24 24" fill="none">
+                    <path d="M19.43 12.98L12 21.36L4.57 12.98L6.87 9.17H17.13L19.43 12.98Z" fill="#4CAF50" />
+                    <path d="M15.43 2H8.57L5.13 7.82H18.87L15.43 2Z" fill="#FFC107" />
+                    <path d="M2.14 7.82L5.57 13.64L2.14 19.45L2.14 7.82Z" fill="#2196F3" />
+                  </svg>
+                </div>
+                <h4 className="text-xs font-black text-gray-800 uppercase mb-2">Connect Google Drive</h4>
+                <p className="text-[10px] text-gray-400 font-bold leading-relaxed mb-6 max-w-[200px]">
+                  Upgrade to a Premium plan and create your content using Google Drive!
+                </p>
+                <button 
+                  onClick={() => window.location.href = '/pricing'}
+                  className="flex items-center justify-center gap-1.5 px-6 py-2.5 bg-gradient-to-r from-purple-600 to-orange-500 hover:from-purple-700 hover:to-orange-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <span>Get premium</span>
+                  <span>💎</span>
+                </button>
+              </div>
+            ) : isVerifyingConnection ? (
               <div className="flex-1 flex flex-col items-center justify-center py-10 text-center p-6 animate-in fade-in duration-200">
                 <Loader2 className="animate-spin text-black mb-3" size={24} />
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Verifying Connection...</span>
@@ -741,7 +766,10 @@ export function SidebarIntegrations({ activeBrand }) {
               {activeStrategy.description}
             </p>
 
-            <button className="flex items-center justify-center gap-1.5 px-6 py-2.5 bg-[#FEF08A] hover:bg-[#FDE047] text-gray-900 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer hover:scale-[1.02] active:scale-[0.98]">
+            <button 
+              onClick={() => window.location.href = '/pricing'}
+              className="flex items-center justify-center gap-1.5 px-6 py-2.5 bg-[#FEF08A] hover:bg-[#FDE047] text-gray-900 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+            >
               <span>{activeStrategy.buttonText}</span>
               {activeStrategy.hasDiamond && <span className="text-[10px]">💎</span>}
             </button>

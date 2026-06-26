@@ -6,21 +6,11 @@ import { useFilters } from "../../hooks/useFilters";
 import { useBrand } from "../../context/BrandContext";
 import apiService from "../../services/api";
 import { toast } from "sonner";
+import { PlatformIcon } from "../../components/shared/PlatformIcon";
 
 const PLATFORM_COLORS = {
   YouTube: "#FF0000", Facebook: "#1877F2", TikTok: "#010101",
   Instagram: "#E1306C", Twitch: "#9146FF", LinkedIn: "#0A66C2", X: "#000000" };
-
-function PlatformIcon({ platform, size = 14 }) {
-  const labels = { YouTube: "YT", Facebook: "FB", TikTok: "TT", Instagram: "IG", Twitch: "TW", LinkedIn: "LI", X: "X" };
-  return (
-    <div className="flex items-center justify-center rounded shrink-0"
-      style={{ width: size, height: size, background: PLATFORM_COLORS[platform] || "#888", fontSize: size * 0.45, color: "#FFF", fontWeight: 700 }}
-    >
-      {labels[platform] || "?"}
-    </div>
-  );
-}
 
 const DAYS_HEADER = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MAY_CALENDAR = [

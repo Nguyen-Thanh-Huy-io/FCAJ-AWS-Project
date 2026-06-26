@@ -110,6 +110,26 @@ class YouTubeGateway {
     });
   }
 
+  async updateComment(auth, commentId, text) {
+    const youtube = google.youtube({ version: API_VERSIONS.YOUTUBE, auth });
+    return youtube.comments.update({
+      part: 'snippet',
+      requestBody: {
+        id: commentId,
+        snippet: {
+          textOriginal: text
+        }
+      }
+    });
+  }
+
+  async deleteComment(auth, commentId) {
+    const youtube = google.youtube({ version: API_VERSIONS.YOUTUBE, auth });
+    return youtube.comments.delete({
+      id: commentId
+    });
+  }
+
   /**
    * Truy vấn báo cáo số liệu phân tích từ YouTube Analytics
    */
@@ -196,6 +216,16 @@ class YouTubeGateway {
           }
         }
       }
+    });
+  }
+
+  /**
+   * Xóa video trên YouTube
+   */
+  async deleteVideo(auth, videoId) {
+    const youtube = google.youtube({ version: API_VERSIONS.YOUTUBE, auth });
+    return youtube.videos.delete({
+      id: videoId
     });
   }
 }

@@ -16,7 +16,12 @@ import { SidebarIntegrations } from "./components/SidebarIntegrations";
 import { ImportOverlay } from "./components/ImportOverlay";
 import { MonthlyGrid } from "./components/MonthlyGrid";
 
+import { useBrandPermission } from "../../../hooks/useBrandPermission";
+
 export function WeeklyCalendarView() {
+  const { hasPermission } = useBrandPermission();
+  const hasCreatePermission = hasPermission('CREATE_POSTS');
+
   const [searchTerm, setSearchTerm] = useState("");
   const { openPostCreator, isOpen } = usePostCreator();
   const { activeBrand } = useBrand();
@@ -30,6 +35,7 @@ export function WeeklyCalendarView() {
     TIKTOK: true,
     INSTAGRAM: true,
     LINKEDIN: true,
+    THREADS: true,
     X: true,
     TWITTER: true
   });
@@ -168,6 +174,10 @@ export function WeeklyCalendarView() {
   };
 
   const handleCellClick = (date, hour) => {
+    if (!hasCreatePermission) {
+      toast.error("You do not have permission to create posts");
+      return;
+    }
     // Open post creator at specific date and hour
     const scheduledDate = new Date(date);
     scheduledDate.setHours(hour, 0, 0, 0);

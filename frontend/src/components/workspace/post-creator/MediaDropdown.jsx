@@ -2,6 +2,18 @@ import * as React from "react";
 import { Image as ImageIcon, PlayCircle, Folder, ChevronRight } from "lucide-react";
 
 export function MediaDropdown({ onClose, onSelectImage, onSelectVideo, onSelectDrive, onSelectLibrary }) {
+  const containerRef = React.useRef(null);
+  const [positionClass, setPositionClass] = React.useState("bottom-full mb-2");
+
+  React.useEffect(() => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      if (rect.top < 0) {
+        setPositionClass("top-full mt-2");
+      }
+    }
+  }, []);
+
   const menuItems = [
     { id: 'image', label: 'Add image', icon: <ImageIcon size={16} className="text-gray-500" />, onClick: onSelectImage },
     { id: 'video', label: 'Add video', icon: <PlayCircle size={16} className="text-gray-500" />, onClick: onSelectVideo },
@@ -32,7 +44,10 @@ export function MediaDropdown({ onClose, onSelectImage, onSelectVideo, onSelectD
   ];
 
   return (
-    <div className="absolute bottom-full left-0 mb-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-bottom-2 text-left">
+    <div 
+      ref={containerRef}
+      className={`absolute left-0 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50 animate-in fade-in text-left ${positionClass}`}
+    >
       {menuItems.map((item, idx) => {
         if (item.isSeparator) {
           return <div key={idx} className="h-px bg-gray-100 my-1" />;

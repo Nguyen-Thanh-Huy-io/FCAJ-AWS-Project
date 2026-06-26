@@ -37,6 +37,14 @@ class BaseSyncStrategy {
   async reply(brandId, parentPlatformItemId, text) {
     throw new Error('Not implemented');
   }
+
+  async updateReply(brandId, platformItemId, text) {
+    throw new Error('Not implemented');
+  }
+
+  async deleteReply(brandId, platformItemId) {
+    throw new Error('Not implemented');
+  }
 }
 
 module.exports = BaseSyncStrategy;

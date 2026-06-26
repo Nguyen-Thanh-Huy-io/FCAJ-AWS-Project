@@ -8,59 +8,21 @@ const postCache = new Map();
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 class FacebookPostService {
-  _getMockPublishedPosts(limit) {
-    const mockCaptions = [
-      '🚀 Giới thiệu PubliCast - Nền tảng quản lý mạng xã hội thế hệ mới! Lên lịch, tự động hóa và phân tích chiến dịch của bạn dễ dàng hơn bao giờ hết.',
-      '🎨 5 nguyên tắc phối màu trong thiết kế UI/UX mà mọi Designer cần biết để tạo trải nghiệm người dùng tối ưu.',
-      '📈 Cách chúng tôi tăng trưởng 300% tương tác tự nhiên trên Facebook Page chỉ trong 30 ngày mà không cần chạy quảng cáo.',
-      '🎥 Reels hay Shorts? Nền tảng nào mang lại ROI tốt hơn cho doanh nghiệp của bạn trong năm 2026? Xem phân tích chi tiết.',
-      '💻 Hướng dẫn xây dựng kiến trúc Clean Architecture cho dự án Node.js để tối ưu khả năng mở rộng.'
-    ];
-    
-    const mockImages = [
-      'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&auto=format&fit=crop&q=60',
-      'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=600&auto=format&fit=crop&q=60',
-      'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=600&auto=format&fit=crop&q=60',
-      'https://images.unsplash.com/photo-1432888498266-38ffec3eaf0a?w=600&auto=format&fit=crop&q=60',
-      'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600&auto=format&fit=crop&q=60'
-    ];
-
-    const posts = [];
-    const count = Math.min(limit || 10, mockCaptions.length);
-    for (let i = 0; i < count; i++) {
-      const reactions = 50 + Math.floor(Math.random() * 450);
-      const comments = 10 + Math.floor(Math.random() * 80);
-      const shares = 5 + Math.floor(Math.random() * 30);
-      const clicks = 30 + Math.floor(Math.random() * 200);
-      const reach = Math.round((reactions + comments + shares) * 12 + 10);
-      const views = Math.round(reach * 1.4);
-
-      posts.push({
-        id: `mock-fb-post-${i}`,
-        message: mockCaptions[i],
-        type: i % 2 === 0 ? POST_TYPES.IMAGE : POST_TYPES.VIDEO,
-        mediaUrl: mockImages[i],
-        date: new Date(Date.now() - i * 2 * 24 * 60 * 60 * 1000).toISOString(),
-        status: POST_STATUS.PUBLISHED,
-        reach,
-        views,
-        reactions,
-        comments,
-        shares,
-        clicks,
-        linkClicks: Math.round(clicks * 0.5),
-        videoViews: i % 2 !== 0 ? Math.round(views * 0.4) : 0,
-        videoTimeWatched: i % 2 !== 0 ? '0:45' : '0:00',
-        engagement: reach ? parseFloat((((reactions + comments + shares + clicks) / reach) * 100).toFixed(2)) : 0,
-        spent: 0
+  _withTimeout(promise, ms, fallback) {
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error(`Timeout of ${ms}ms exceeded`));
+      }, ms);
+    });
+    return Promise.race([promise, timeoutPromise])
+      .catch(err => {
+        console.warn(`[FacebookPostService] API call failed or timed out: ${err.message}. Using fallback.`);
+        return fallback;
+      })
+      .finally(() => {
+        clearTimeout(timeoutId);
       });
-    }
-
-    return {
-      data: posts,
-      nextPageToken: null,
-      prevPageToken: null
-    };
   }
 
   async getPublishedPosts(brandId, pageToken = null, limit = 10) {
@@ -68,14 +30,22 @@ class FacebookPostService {
     const cached = postCache.get(cacheKey);
     if (cached && cached.expiry > Date.now()) return cached.data;
 
-    const { pageId, pageAccessToken } = await this._getAccountCredentials(brandId);
-    
-    if (pageAccessToken && pageAccessToken.startsWith('mock-')) {
-      const result = this._getMockPublishedPosts(limit);
-      postCache.set(cacheKey, { data: result, expiry: Date.now() + CACHE_TTL_MS });
-      return result;
-    }    try {
-      const { data: feed, nextPageToken, prevPageToken } = await facebookGateway.getPageFeed(pageId, pageAccessToken, pageToken, limit);
+    try {
+      const { pageId, pageAccessToken } = await this._getAccountCredentials(brandId);
+      
+      if (pageAccessToken && pageAccessToken.startsWith('mock-')) {
+        return { data: [], nextPageToken: null, prevPageToken: null };
+      }
+
+      const feedResult = await this._withTimeout(
+        facebookGateway.getPageFeed(pageId, pageAccessToken, pageToken, limit),
+        4000,
+        { data: [], nextPageToken: null, prevPageToken: null }
+      );
+
+      const feed = feedResult.data || [];
+      const nextPageToken = feedResult.nextPageToken || null;
+      const prevPageToken = feedResult.prevPageToken || null;
 
       const postsWithInsights = await Promise.all(
         feed.map(post => this._enrichPostWithInsights(post, pageAccessToken))
@@ -90,21 +60,42 @@ class FacebookPostService {
       postCache.set(cacheKey, { data: result, expiry: Date.now() + CACHE_TTL_MS });
       return result;
     } catch (error) {
-      console.warn(`[Facebook Posts] API call failed (${error.message}). Falling back to mock posts...`);
-      const result = this._getMockPublishedPosts(limit);
-      postCache.set(cacheKey, { data: result, expiry: Date.now() + CACHE_TTL_MS });
-      return result;
+      if (error.message.includes('Facebook account not connected')) {
+        return { data: [], nextPageToken: null, prevPageToken: null };
+      }
+      throw error;
     }
   }
   async publishPost(brandId, postData) {
     const { pageId, pageAccessToken } = await this._getAccountCredentials(brandId);
-    const { type, mediaUrls } = postData;
+    const { type, mediaUrls = [] } = postData;
     const mediaUrl = mediaUrls && mediaUrls.length > 0 ? mediaUrls[0] : null;
 
     const strategy = FacebookPublishStrategyFactory.getStrategy(type, mediaUrl);
-    const result = await strategy.publish(pageId, pageAccessToken, { ...postData, mediaUrl });
+    const result = await strategy.publish(pageId, pageAccessToken, { ...postData, mediaUrl, mediaUrls });
 
     return { platformVideoId: result.id, publishedAt: new Date() };
+  }
+
+  async updatePost(brandId, platformPostId, postData) {
+    const { pageAccessToken } = await this._getAccountCredentials(brandId);
+    
+    if (pageAccessToken && pageAccessToken.startsWith('mock-')) {
+      return { success: true, mock: true };
+    }
+
+    const { caption } = postData;
+    return await facebookGateway.updatePostMessage(platformPostId, caption || '', pageAccessToken);
+  }
+
+  async deletePost(brandId, platformPostId) {
+    const { pageAccessToken } = await this._getAccountCredentials(brandId);
+
+    if (pageAccessToken && pageAccessToken.startsWith('mock-')) {
+      return { success: true, mock: true };
+    }
+
+    return await facebookGateway.deletePost(platformPostId, pageAccessToken);
   }
 
   // ============= Private Helper Methods =============
@@ -122,14 +113,17 @@ class FacebookPostService {
 
   async _enrichPostWithInsights(post, pageAccessToken) {
     try {
-      const insights = await facebookGateway.getPostInsights(post.id, pageAccessToken);
+      const insights = await this._withTimeout(
+        facebookGateway.getPostInsights(post.id, pageAccessToken),
+        1500,
+        []
+      );
       const metrics = this._parseInsightsMetrics(insights);
       const counts = this._extractPostCounts(post);
 
-      const totalInteractions = counts.reactions + counts.comments + counts.shares;
-      const reach = metrics.reach || (totalInteractions > 0 ? Math.round(totalInteractions * 12 + 10) : 0);
-      const views = metrics.views || (reach > 0 ? Math.round(reach * 1.4) : 0);
-      const clicks = metrics.clicks || (counts.reactions > 0 ? Math.round(counts.reactions * 0.25) : 0);
+      const reach = metrics.reach || 0;
+      const views = metrics.views || 0;
+      const clicks = metrics.clicks || 0;
 
       const postType = this._determinePostType(post);
       const engagement = reach ? parseFloat((((counts.reactions + counts.comments + counts.shares + clicks) / reach) * 100).toFixed(2)) : 0;
@@ -147,7 +141,7 @@ class FacebookPostService {
         comments: counts.comments,
         shares: counts.shares,
         clicks,
-        linkClicks: metrics.linkClicks || Math.round(clicks * 0.5),
+        linkClicks: metrics.linkClicks || 0,
         videoViews: postType === POST_TYPES.VIDEO ? Math.round(views * 0.4) : 0,
         videoTimeWatched: postType === POST_TYPES.VIDEO ? '0:45' : '0:00',
         engagement,
@@ -162,9 +156,11 @@ class FacebookPostService {
   _parseInsightsMetrics(insights) {
     const result = { reach: 0, views: 0, clicks: 0, linkClicks: 0 };
     for (const item of insights) {
-      if (item.name === 'post_impressions_unique') result.reach = item.values?.[0]?.value || 0;
-      else if (item.name === 'post_impressions') result.views = item.values?.[0]?.value || 0;
-      else if (item.name === 'post_clicks_by_type') {
+      if (item.name === 'post_total_media_view_unique' || item.name === 'post_impressions_unique') {
+        result.reach = item.values?.[0]?.value || 0;
+      } else if (item.name === 'post_media_view' || item.name === 'post_impressions') {
+        result.views = item.values?.[0]?.value || 0;
+      } else if (item.name === 'post_clicks_by_type') {
         const types = item.values?.[0]?.value || {};
         result.clicks = Object.values(types).reduce((sum, val) => sum + val, 0);
         result.linkClicks = types['link clicks'] || 0;
@@ -192,10 +188,6 @@ class FacebookPostService {
 
   _formatFallbackPost(post) {
     const counts = this._extractPostCounts(post);
-    const totalInteractions = counts.reactions + counts.comments + counts.shares;
-    const simulatedReach = totalInteractions > 0 ? Math.round(totalInteractions * 12 + 10) : 0;
-    const simulatedViews = simulatedReach > 0 ? Math.round(simulatedReach * 1.4) : 0;
-    const simulatedClicks = counts.reactions > 0 ? Math.round(counts.reactions * 0.25) : 0;
     const postType = this._determinePostType(post);
 
     return {
@@ -205,16 +197,16 @@ class FacebookPostService {
       mediaUrl: post.full_picture || '',
       date: post.created_time,
       status: POST_STATUS.PUBLISHED,
-      reach: simulatedReach,
-      views: simulatedViews,
+      reach: 0,
+      views: 0,
       reactions: counts.reactions,
       comments: counts.comments,
       shares: counts.shares,
-      clicks: simulatedClicks,
-      linkClicks: Math.round(simulatedClicks * 0.5),
-      videoViews: postType === POST_TYPES.VIDEO ? Math.round(simulatedViews * 0.4) : 0,
-      videoTimeWatched: postType === POST_TYPES.VIDEO ? '0:45' : '0:00',
-      engagement: simulatedReach ? parseFloat((((totalInteractions + simulatedClicks) / simulatedReach) * 100).toFixed(2)) : 0,
+      clicks: 0,
+      linkClicks: 0,
+      videoViews: 0,
+      videoTimeWatched: '0:00',
+      engagement: 0,
       spent: 0
     };
   }

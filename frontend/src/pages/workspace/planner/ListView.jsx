@@ -6,6 +6,7 @@ import {
   ExternalLink, Eye, ChevronDown, Youtube, PlayCircle, Loader2, Facebook
 } from "lucide-react";
 import { usePostCreator } from "../../../context/PostCreatorContext";
+import { PlatformIcon } from "@/components/shared/PlatformIcon";
 import { useFilters } from "../../../hooks/useFilters";
 import { useDebounce } from "../../../hooks/useDebounce";
 import postService from "../../../services/post.service";
@@ -13,6 +14,8 @@ import { useBrand } from "../../../context/BrandContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useConfirm } from "@/hooks/useConfirm";
+import { useBrandPermission } from "../../../hooks/useBrandPermission";
+import { AccessGuard } from "../../../components/shared/AccessGuard";
 
 const STATUS_STYLE = {
   published: "bg-green-50 text-green-700 border-green-100",
@@ -26,6 +29,9 @@ const STATUS_STYLE = {
 
 export function ListView() {
   const confirm = useConfirm();
+  const { hasPermission } = useBrandPermission();
+  const hasCreatePermission = hasPermission("CREATE_POSTS");
+
   const [selected, setSelected] = useState([]);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -77,17 +83,46 @@ export function ListView() {
 
   const handleBulkDelete = async () => {
     if (!activeBrand || selected.length === 0) return;
-    const isConfirmed = await confirm({
-      title: "Delete Posts?",
-      description: `Are you sure you want to delete ${selected.length} posts?`,
-      confirmText: "Delete",
-      cancelText: "Cancel",
-      variant: "destructive"
-    });
-    if (!isConfirmed) return;
-    
+
+    const selectedPosts = posts.filter(p => selected.includes(p.id));
+    const hasPublished = selectedPosts.some(p => p.status?.toLowerCase() === "published");
+
+    let deleteFromSocials = false;
+    let proceed = false;
+
+    if (hasPublished) {
+      const wantDeleteSocial = await confirm({
+        title: "Xóa bài viết?",
+        description: "Một số bài viết đã được đăng. Bạn có muốn xóa bài viết này trên các nền tảng mạng xã hội liên kết không?",
+        confirmText: "Xóa trên tất cả nền tảng",
+        secondaryText: "Chỉ xóa trên hệ thống",
+        cancelText: "Hủy",
+        variant: "destructive"
+      });
+      if (wantDeleteSocial === true) {
+        deleteFromSocials = true;
+        proceed = true;
+      } else if (wantDeleteSocial === false) {
+        deleteFromSocials = false;
+        proceed = true;
+      }
+    } else {
+      const isConfirmed = await confirm({
+        title: "Xóa bài viết?",
+        description: `Bạn có chắc chắn muốn xóa ${selected.length} bài viết?`,
+        confirmText: "Xóa",
+        cancelText: "Hủy",
+        variant: "destructive"
+      });
+      if (isConfirmed) {
+        proceed = true;
+      }
+    }
+
+    if (!proceed) return;
+
     try {
-      await postService.deletePosts(activeBrand.id, selected);
+      await postService.deletePosts(activeBrand.id, selected, deleteFromSocials);
       toast.success("Posts deleted successfully");
       setSelected([]);
       fetchPosts();
@@ -110,17 +145,46 @@ export function ListView() {
 
   const handleDeletePost = async (id) => {
     if (!activeBrand) return;
-    const isConfirmed = await confirm({
-      title: "Delete Post?",
-      description: "Are you sure you want to delete this post?",
-      confirmText: "Delete",
-      cancelText: "Cancel",
-      variant: "destructive"
-    });
-    if (!isConfirmed) return;
-    
+
+    const postToDelete = posts.find(p => p.id === id);
+    const isPublished = postToDelete?.status?.toLowerCase() === "published";
+
+    let deleteFromSocials = false;
+    let proceed = false;
+
+    if (isPublished) {
+      const wantDeleteSocial = await confirm({
+        title: "Xóa bài viết?",
+        description: "Bài viết này đã được đăng. Bạn có muốn xóa bài viết trên các nền tảng mạng xã hội liên kết không?",
+        confirmText: "Xóa trên tất cả nền tảng",
+        secondaryText: "Chỉ xóa trên hệ thống",
+        cancelText: "Hủy",
+        variant: "destructive"
+      });
+      if (wantDeleteSocial === true) {
+        deleteFromSocials = true;
+        proceed = true;
+      } else if (wantDeleteSocial === false) {
+        deleteFromSocials = false;
+        proceed = true;
+      }
+    } else {
+      const isConfirmed = await confirm({
+        title: "Xóa bài viết?",
+        description: "Bạn có chắc chắn muốn xóa bài viết này?",
+        confirmText: "Xóa",
+        cancelText: "Hủy",
+        variant: "destructive"
+      });
+      if (isConfirmed) {
+        proceed = true;
+      }
+    }
+
+    if (!proceed) return;
+
     try {
-      await postService.deletePosts(activeBrand.id, [id]);
+      await postService.deletePosts(activeBrand.id, [id], deleteFromSocials);
       toast.success("Post deleted successfully");
       fetchPosts();
     } catch (e) {
@@ -164,32 +228,38 @@ export function ListView() {
             </div>
          </div>
 
-         <div className="flex items-center gap-3">
-            {selected.length > 0 && (
-               <div className="flex items-center gap-2 animate-in slide-in-from-right-4 duration-300">
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest mr-2">{selected.length} selected</span>
-                  <button 
-                    onClick={handleBulkApprove}
-                    className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-[11px] font-bold text-green-600 hover:bg-green-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-                  >
-                    <CheckCircle size={14} /> Approve
-                  </button>
-                  <button 
-                    onClick={handleBulkDelete}
-                    className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-[11px] font-bold text-red-600 hover:bg-red-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-                  >
-                    <Trash2 size={14} /> Delete
-                  </button>
-               </div>
-            )}
-            <div className="w-px h-6 bg-gray-200 mx-2" />
-            <button 
-              onClick={() => openPostCreator()}
-              className="flex items-center gap-2 px-5 py-2.5 bg-[#0A0A0A] text-white rounded-xl text-[12px] font-bold hover:scale-105 active:scale-95 transition-all shadow-lg cursor-pointer"
-            >
-               <Plus size={16} /> Create post
-            </button>
-         </div>
+          <div className="flex items-center gap-3">
+             {selected.length > 0 && (
+                <div className="flex items-center gap-2 animate-in slide-in-from-right-4 duration-300">
+                   <span className="text-xs font-bold text-gray-400 uppercase tracking-widest mr-2">{selected.length} selected</span>
+                   <AccessGuard feature="APPROVE_POSTS">
+                      <button 
+                        onClick={handleBulkApprove}
+                        className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-[11px] font-bold text-green-600 hover:bg-green-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                      >
+                        <CheckCircle size={14} /> Approve
+                      </button>
+                    </AccessGuard>
+                   <AccessGuard feature="DELETE_POSTS">
+                      <button 
+                        onClick={handleBulkDelete}
+                        className="px-4 py-2 bg-white border border-gray-200 rounded-xl text-[11px] font-bold text-red-600 hover:bg-red-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                      >
+                        <Trash2 size={14} /> Delete
+                      </button>
+                    </AccessGuard>
+                </div>
+             )}
+             <div className="w-px h-6 bg-gray-200 mx-2" />
+             <AccessGuard feature="CREATE_POSTS">
+               <button 
+                 onClick={openPostCreator}
+                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[12px] font-bold bg-[#0A0A0A] text-white hover:scale-105 active:scale-95 cursor-pointer transition-all shadow-lg"
+               >
+                  <Plus size={16} /> Create post
+               </button>
+             </AccessGuard>
+          </div>
       </div>
 
       {/* Table Container */}
@@ -320,13 +390,7 @@ export function ListView() {
                           <div className="flex items-center gap-1.5 flex-wrap">
                              {post.platforms.map(plt => (
                                <div key={plt} className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100 shadow-sm">
-                                  {plt === "YOUTUBE" ? (
-                                    <Youtube size={12} className="text-[#FF0000]" />
-                                  ) : plt === "FACEBOOK" ? (
-                                    <Facebook size={12} className="text-[#1877F2] fill-[#1877F2]" />
-                                  ) : (
-                                    <PlayCircle size={12} className="text-[#010101]" />
-                                  )}
+                                  <PlatformIcon platform={plt} size={12} />
                                   <span className="text-[9px] font-black uppercase tracking-tighter text-gray-600">{plt}</span>
                                </div>
                              ))}
@@ -356,42 +420,59 @@ export function ListView() {
                           </div>
                        </td>
                        <td className="px-6 py-5 text-right relative">
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveMenuId(activeMenuId === post.id ? null : post.id);
-                            }}
-                            className="p-2 text-gray-300 hover:text-black hover:bg-white rounded-lg transition-all shadow-none hover:shadow-sm border border-transparent hover:border-gray-100 cursor-pointer"
-                          >
-                             <MoreHorizontal size={16} />
-                          </button>
+                         <div className="flex items-center justify-end gap-1">
+                           <AccessGuard feature="DELETE_POSTS">
+                             <button
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 handleDeletePost(post.id);
+                               }}
+                               className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all border border-transparent hover:border-red-100 cursor-pointer"
+                               title="Delete Post"
+                             >
+                               <Trash2 size={14} />
+                             </button>
+                           </AccessGuard>
+                           
+                           <button 
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               setActiveMenuId(activeMenuId === post.id ? null : post.id);
+                             }}
+                             className="p-2 text-gray-300 hover:text-black hover:bg-white rounded-lg transition-all shadow-none hover:shadow-sm border border-transparent hover:border-gray-100 cursor-pointer"
+                           >
+                              <MoreHorizontal size={16} />
+                           </button>
+                         </div>
 
                           {activeMenuId === post.id && (
-                            <>
-                              <div className="fixed inset-0 z-40" onClick={() => setActiveMenuId(null)} />
-                              <div className="absolute right-6 top-12 w-36 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-1 text-left overflow-hidden">
-                                 <button 
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     openPostCreator({ post });
-                                     setActiveMenuId(null);
-                                   }}
-                                   className="w-full px-4 py-2 text-[11px] font-bold text-gray-700 hover:bg-gray-50 transition-all flex items-center gap-2 cursor-pointer"
-                                 >
-                                    <span>✏️</span> Edit Post
-                                 </button>
-                                 <button 
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     handleDeletePost(post.id);
-                                   }}
-                                   className="w-full px-4 py-2 text-[11px] font-bold text-red-600 hover:bg-red-50/50 transition-all flex items-center gap-2 cursor-pointer border-t border-gray-50"
-                                 >
-                                    <span>🗑️</span> Delete Post
-                                 </button>
-                              </div>
-                            </>
-                          )}
+                             <>
+                               <div className="fixed inset-0 z-40" onClick={() => setActiveMenuId(null)} />
+                               <div className="absolute right-6 top-12 w-36 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-1 text-left overflow-hidden">
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openPostCreator({ post });
+                                      setActiveMenuId(null);
+                                    }}
+                                    className="w-full px-4 py-2 text-[11px] font-bold text-gray-700 hover:bg-gray-50 transition-all flex items-center gap-2 cursor-pointer"
+                                  >
+                                     <span>✏️</span> {hasCreatePermission ? 'Edit Post' : 'View Post'}
+                                  </button>
+                                  <AccessGuard feature="DELETE_POSTS">
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeletePost(post.id);
+                                      }}
+                                      className="w-full px-4 py-2 text-[11px] font-bold text-red-600 hover:bg-red-50/50 transition-all flex items-center gap-2 cursor-pointer border-t border-gray-50"
+                                    >
+                                       <span>🗑️</span> Delete Post
+                                    </button>
+                                  </AccessGuard>
+                               </div>
+                             </>
+                           )}
                        </td>
                     </tr>
                   ))}

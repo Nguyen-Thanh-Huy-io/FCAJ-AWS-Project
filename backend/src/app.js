@@ -18,6 +18,7 @@ const pricingRoutes = require('./routes/admin/pricing.routes');
 const auditLogRoutes = require('./routes/admin/audit-log.routes');
 const revenueRoutes = require('./routes/admin/revenue.routes');
 const productRoutes = require('./routes/admin/product.routes');
+const platformLimitRoutes = require('./routes/admin/platform-limit.routes');
 
 // Routes - Social Domain
 const socialRoutes = require('./routes/social/social.routes');
@@ -32,8 +33,14 @@ const teamRoutes = require('./routes/workspace/team.routes');
 const brandRoutes = require('./routes/workspace/brand.routes');
 const autoListRoutes = require('./routes/workspace/auto-list.routes');
 const roleRoutes = require('./routes/workspace/role.routes');
+const smartLinkRoutes = require('./routes/workspace/smart-link.routes');
 const permissionRoutes = require('./routes/workspace/permission.routes');
 const approvalWorkflowRoutes = require('./routes/workspace/approval-workflow.routes');
+const aiRoutes = require('./routes/workspace/ai.routes');
+const reportRoutes = require('./routes/workspace/report.routes');
+const hashtagRoutes = require('./routes/workspace/hashtag.routes');
+const adAccountRoutes = require('./routes/workspace/ad-account.routes');
+
 
 // Routes - Core Domain
 const searchRoutes = require('./routes/core/search.routes');
@@ -75,7 +82,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning']
 }));
 
 // ── Body parsers — limit JSON to 10MB to prevent payload DoS ──────────────
@@ -128,12 +135,19 @@ app.use('/api/inbox', inboxRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin/revenue', revenueRoutes);
 app.use('/api/admin/products', productRoutes);
+app.use('/api/admin/platform-limits', platformLimitRoutes);
 app.use('/api/social', socialRoutes);
 app.use('/api/brands', brandRoutes);
 app.use('/api/brands/:brandId/roles', roleRoutes);
 app.use('/api/brands/:brandId/workflows', approvalWorkflowRoutes);
 app.use('/api/permissions', permissionRoutes);
 app.use('/api/auto-lists', autoListRoutes);
+app.use('/api/smart-links', smartLinkRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/hashtags', hashtagRoutes);
+app.use('/api/ad-accounts', adAccountRoutes);
+
 
 // ── Billing Routes ─────────────────────────────────────────────────────────
 app.use('/api/billing/subscriptions', subscriptionRoutes);

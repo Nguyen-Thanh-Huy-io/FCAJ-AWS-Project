@@ -5,8 +5,12 @@ import {
   FileText, Loader2, RotateCw, Copy, ChevronDown, 
   Calendar, Youtube, PlayCircle, Smartphone, Monitor, Info, MessageSquare,
   Languages, Settings, LayoutGrid, Film, PlusCircle, AlertCircle, Check,
-  MoreHorizontal, Edit, Type, Trash2, Diamond, Search
+  MoreHorizontal, Edit, Type, Trash2, Diamond, Search, Lock, Sparkles, ArrowRight,
+  Linkedin, Send
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useFeatureGate } from "../../hooks/useFeatureGate";
+import { PRODUCT_IDS, FEATURE_GATE_REGISTRY } from "../../constants/products";
 import postService from "../../services/post.service";
 import { usePostCreatorForm } from "../../hooks/usePostCreatorForm";
 import { ShortsIcon } from "../../components/workspace/post-creator/ShortsIcon";
@@ -19,8 +23,13 @@ import { GoogleDrivePickerModal } from "../../components/workspace/post-creator/
 import { MediaUploadModal } from "../../components/workspace/post-creator/MediaUploadModal";
 import { ImageEditorModal } from "../../components/workspace/post-creator/ImageEditorModal";
 import { AltTextModal } from "../../components/workspace/post-creator/AltTextModal";
+import { FacebookAlbumComposer } from "../../components/workspace/post-creator/FacebookAlbumComposer";
 import { HashtagPickerPopover } from "../../components/workspace/post-creator/HashtagPickerPopover";
+import { PLATFORM_CONFIGS } from "../../constants/platformRegistry";
+import { Instagram } from "lucide-react";
 import { toast } from "sonner";
+import { useBrandPermission } from "../../hooks/useBrandPermission";
+import { PlatformIcon } from "../../components/shared/PlatformIcon";
 
 const PUBLISH_OPTIONS = [
   { id: "draft", label: "SAVE AS DRAFT", sub: "Save and publish at a later time" },
@@ -37,8 +46,11 @@ export function PostCreatorPage() {
     setCaption,
     title,
     setTitle,
+    selectedPlatforms,
+    togglePlatform,
     activePlatform,
     setActivePlatform,
+    platformLimits,
     previewDevice,
     setPreviewDevice,
     showPublishMenu,
@@ -108,6 +120,13 @@ export function PostCreatorPage() {
     setShowFacebookTypeMenu,
     facebookTitle,
     setFacebookTitle,
+    // Instagram
+    instagramOpen,
+    setInstagramOpen,
+    instagramType,
+    setInstagramType,
+    showInstagramTypeMenu,
+    setShowInstagramTypeMenu,
     getValidationErrors,
     altText,
     setAltText,
@@ -137,8 +156,181 @@ export function PostCreatorPage() {
     setApprovalPolicy,
     requesterNote,
     setRequesterNote,
-    isLoadingReviewers
+    isLoadingReviewers,
+    selectedDiscordChannels,
+    setSelectedDiscordChannels,
+    discordOpen,
+    setDiscordOpen,
+    albumMedia,
+    setAlbumMedia,
+    threadsWhoCanReply,
+    setThreadsWhoCanReply
   } = usePostCreatorForm();
+
+  const [threadsOpen, setThreadsOpen] = useState(false);
+
+  const discordAccounts = activeBrand?.socialAccounts?.filter(sa => sa.platform === 'DISCORD' && sa.isConnected) || [];
+
+  const isPlatformConnected = (platformId) => {
+    if (!activeBrand || !activeBrand.socialAccounts) return false;
+    const mapping = {
+      facebook: "FACEBOOK",
+      instagram: "INSTAGRAM",
+      youtube: "YOUTUBE",
+      tiktok: "TIKTOK",
+      linkedin: "LINKEDIN",
+      telegram: "TELEGRAM",
+      discord: "DISCORD",
+      threads: "THREADS"
+    };
+    const targetPlatform = mapping[platformId];
+    if (!targetPlatform) return false;
+    return activeBrand.socialAccounts.some(
+      sa => sa.platform === targetPlatform && sa.isConnected
+    );
+  };
+
+  const shouldShowPlatform = (platformId) => {
+    return isPlatformConnected(platformId) || selectedPlatforms.includes(platformId);
+  };
+
+  const parseValidationError = (err) => {
+    const match = err.match(/^\[([A-Z_]+)(?:\s*-\s*[A-Z_]+)?\]\s*(.*)$/);
+    if (match) {
+      return {
+        platform: match[1].toLowerCase(),
+        message: match[2]
+      };
+    }
+    return {
+      platform: null,
+      message: err
+    };
+  };
+
+  const renderErrorIcon = (platform) => {
+    switch (platform) {
+      case 'facebook':
+        return (
+          <svg className="w-3.5 h-3.5 text-[#1877F2] fill-[#1877F2] shrink-0" viewBox="0 0 24 24">
+            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+          </svg>
+        );
+      case 'instagram':
+        return <Instagram size={14} className="text-[#DD2A7B] shrink-0" />;
+      case 'tiktok':
+        return (
+          <svg className="w-3.5 h-3.5 text-black fill-current shrink-0" viewBox="0 0 24 24">
+            <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.5-1.1-1.02-1.7-2.48-1.9-3.96-.03 2.49 0 4.99 0 7.48-.02 1.9-.38 3.82-1.39 5.43-1.46 2.42-4.13 3.84-6.93 3.55-3.05-.2-5.78-2.44-6.39-5.46-.73-3.27.97-6.9 4.13-7.91 1.09-.34 2.24-.39 3.37-.2v4.02c-1.22-.32-2.58-.09-3.55.74-.95.83-1.29 2.19-1.03 3.4.31 1.65 1.84 2.91 3.53 2.78 1.94-.04 3.42-1.8 3.25-3.73-.02-2.91 0-5.83 0-8.74.02-3.11-.02-6.22.02-9.33z"/>
+          </svg>
+        );
+      case 'youtube':
+        return <Youtube size={14} className="text-[#FF0000] fill-[#FF0000] shrink-0" />;
+      case 'linkedin':
+        return <Linkedin size={14} className="text-[#0077B5] fill-[#0077B5] shrink-0" />;
+      case 'telegram':
+        return <Send size={12} className="text-[#0088cc] fill-[#0088cc] shrink-0 rotate-45" />;
+      case 'discord':
+        return <MessageSquare size={14} className="text-[#5865F2] shrink-0" />;
+      default:
+        return <AlertCircle size={14} className="text-red-500 shrink-0" />;
+    }
+  };
+
+  const activeConfig = PLATFORM_CONFIGS[activePlatform];
+  const activeType = activePlatform === 'facebook' ? facebookType : activePlatform === 'instagram' ? instagramType : activePlatform === 'youtube' ? youtubeType : 'video';
+  const setType = activePlatform === 'facebook' ? setFacebookType : activePlatform === 'instagram' ? setInstagramType : activePlatform === 'youtube' ? setYoutubeType : () => {};
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+
+  const handlePlatformClick = (platformName, hasAccess, productId) => {
+    if (hasAccess !== undefined && !hasAccess) {
+      setBlockedProductId(productId);
+      return;
+    }
+    togglePlatform(platformName);
+  };
+
+  const renderTypeDropdown = () => {
+    if (!activeConfig?.supportedTypes || activeConfig.supportedTypes.length <= 1) return null;
+    return (
+      <div className="relative">
+        <button 
+          type="button"
+          onClick={() => setShowTypeDropdown(!showTypeDropdown)}
+          className="flex items-center gap-1 px-2.5 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all text-[10px] font-bold text-gray-700 uppercase cursor-pointer"
+        >
+          {activeType}
+          <ChevronDown size={12} className="text-gray-500" />
+        </button>
+
+        {showTypeDropdown && (
+          <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-1">
+            {activeConfig.supportedTypes.map((typeOption) => {
+              let icon = <LayoutGrid size={16} className="text-gray-600" />;
+              let subtitle = "Standard publication";
+              
+              if (typeOption.id === 'reel') {
+                icon = <Film size={16} className="text-gray-600" />;
+                subtitle = "Automatic posting";
+              } else if (typeOption.id === 'story') {
+                icon = <PlusCircle size={16} className="text-gray-600" />;
+                subtitle = "Automatic posting";
+              } else if (typeOption.id === 'short') {
+                icon = <ShortsIcon size={14} className="text-[#FF0000]" />;
+                subtitle = "Short-form vertical video";
+              } else if (typeOption.id === 'video') {
+                icon = <Youtube size={14} className="text-[#FF0000] fill-[#FF0000]" />;
+                subtitle = "Standard video";
+              } else if (typeOption.id === 'post') {
+                if (activePlatform === 'instagram') {
+                  subtitle = "Standard post on your feed";
+                } else {
+                  subtitle = "Standard publication";
+                }
+              }
+
+              return (
+                <button
+                  key={typeOption.id}
+                  type="button"
+                  onClick={() => {
+                    setType(typeOption.id);
+                    setShowTypeDropdown(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-all text-left cursor-pointer ${
+                    activeType === typeOption.id ? 'bg-gray-100/80' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-1 bg-gray-100 rounded text-gray-600">
+                      {icon}
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-gray-800 capitalize">{typeOption.label}</div>
+                      <div className="text-[10px] text-gray-400 font-medium">{subtitle}</div>
+                    </div>
+                  </div>
+                  {activeType === typeOption.id && <Check size={14} className="text-gray-800" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const navigate = useNavigate();
+  const { hasAccess } = useFeatureGate();
+  const [blockedProductId, setBlockedProductId] = useState(null);
+  const { hasPermission } = useBrandPermission();
+  const hasCreatePermission = hasPermission('CREATE_POSTS');
+
+  const hasFacebookAccess = true;
+  const hasTiktokAccess = true;
+  const hasYoutubeAccess = true;
+  const hasInstagramAccess = true;
+  const hasLinkedinAccess = true;
 
   const hasApprovePermission = 
     activeBrand?.isOwner || 
@@ -152,6 +344,7 @@ export function PostCreatorPage() {
   const [uploadModalTab, setUploadModalTab] = useState("computer");
   const [showImageMenu, setShowImageMenu] = useState(false);
   const [showImageEditor, setShowImageEditor] = useState(false);
+  const [editingAlbumPhoto, setEditingAlbumPhoto] = useState(null); // Lưu { id, previewUrl, path, caption } đang chỉnh sửa
   const [imageTransform, setImageTransform] = useState({ rotation: 0, flipH: false, flipV: false, filter: 'none' });
   const [showAltTextModal, setShowAltTextModal] = useState(false);
   
@@ -167,6 +360,7 @@ export function PostCreatorPage() {
       const res = await postService.getPosts(activeBrand.id, { isLibrary: true });
       setTemplates(res.data || []);
     } catch (e) {
+      console.error("Failed to load templates:", e);
       toast.error("Failed to load templates");
     } finally {
       setLoadingTemplates(false);
@@ -176,11 +370,34 @@ export function PostCreatorPage() {
   if (!isOpen) return null;
 
   const getPublishButtonLabelText = () => {
+    // Chế độ edit: luôn hiển thị "UPDATE" để phân biệt rõ với create
+    if (editingPost) return 'UPDATE';
     if (selectedPublishId === 'draft') return 'SAVE';
     if (selectedPublishId === 'review') return 'SEND';
     if (!hasApprovePermission) return 'SUBMIT';
     return selectedPublishId === 'now' ? 'PUBLISH' : 'SCHEDULE';
   };
+
+  // Lọc PUBLISH_OPTIONS phù hợp khi ở chế độ edit
+  const getEditPublishOptions = () => {
+    if (!editingPost) return PUBLISH_OPTIONS;
+    const postStatus = editingPost.status?.toLowerCase();
+    // Bài đã published: chỉ cho edit nội dung, không đổi chế độ
+    if (postStatus === 'published') return [];
+    // Bài scheduled: kiểm tra xem thời hạn đã tới chưa
+    if (postStatus === 'scheduled' && editingPost.scheduledAt) {
+      const scheduledTime = new Date(editingPost.scheduledAt);
+      const isPastDeadline = scheduledTime <= new Date();
+      if (isPastDeadline) {
+        // Thời hạn đã qua: chỉ cho lưu draft
+        return PUBLISH_OPTIONS.filter(o => o.id === 'draft');
+      }
+    }
+    // draft/review/schedule chưa tới hạn: cho phép đổi mode (trừ publish now nếu không có quyền)
+    return PUBLISH_OPTIONS.filter(o => o.id !== 'now' || hasApprovePermission);
+  };
+
+  const editablePublishOptions = getEditPublishOptions();
 
   const currentOption = PUBLISH_OPTIONS.find(o => o.id === selectedPublishId);
   const PreviewComponent = PreviewStrategies[activePlatform];
@@ -241,186 +458,243 @@ export function PostCreatorPage() {
         {/* Left Panel: Composer */}
         <div className="flex-1 flex flex-col p-8 overflow-y-auto bg-white border-r border-gray-100 scrollbar-thin">
            <div className="max-w-[700px] mx-auto w-full space-y-6">
+              {!hasCreatePermission && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl p-4 text-xs font-bold flex items-center gap-2">
+                  <Info size={16} className="text-amber-500" />
+                  <span>Chế độ Xem: Bạn không có quyền chỉnh sửa hoặc xuất bản bài viết này.</span>
+                </div>
+              )}
               {/* Platform Header */}
               <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                      <button className="text-gray-300 hover:text-[#010101] transition-colors cursor-pointer"><PlayCircle size={24} /></button>
                      
-                      {/* Platform Icons Toolbar */}
-                      <div className="flex items-center gap-3">
-                        {/* Facebook Item */}
-                        <div className="flex items-center gap-1.5">
-                          <button 
-                            type="button"
-                            onClick={() => setActivePlatform("facebook")}
-                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                              activePlatform === 'facebook' 
-                                ? 'bg-[#1877F2] text-white' 
-                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                            }`}
-                          >
-                            <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                            </svg>
-                          </button>
-                          
-                          {activePlatform === 'facebook' && (
-                            <div className="relative">
-                              <button 
-                                type="button"
-                                onClick={() => setShowFacebookTypeMenu(!showFacebookTypeMenu)}
-                                className="flex items-center gap-1 px-2.5 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all text-[10px] font-bold text-gray-700 uppercase cursor-pointer"
-                              >
-                                {facebookType}
-                                <ChevronDown size={12} className="text-gray-500" />
-                              </button>
+                       {/* Platform Icons Toolbar */}
+                       <div className="flex items-center gap-3">
+                         {/* Facebook Item */}
+                         {shouldShowPlatform("facebook") && (
+                           <div className="flex items-center gap-1.5 relative">
+                             <button 
+                               type="button"
+                               onClick={() => handlePlatformClick("facebook", hasFacebookAccess, PRODUCT_IDS.FACEBOOK_MANAGEMENT)}
+                               className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
+                                 selectedPlatforms.includes('facebook')
+                                   ? activePlatform === 'facebook'
+                                     ? 'bg-[#1877F2] text-white ring-2 ring-offset-2 ring-[#1877F2]'
+                                     : 'bg-[#1877F2]/70 text-white hover:bg-[#1877F2]/80 border border-[#1877F2]'
+                                   : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                               }`}
+                             >
+                               <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                 <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                               </svg>
+                               {selectedPlatforms.includes('facebook') && (
+                                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-white" />
+                               )}
+                               {!hasFacebookAccess && (
+                                 <span className="absolute -top-1.5 -right-1.5 bg-white border border-purple-100 text-purple-600 rounded-full p-0.5 shadow-sm">
+                                   <Lock size={7} strokeWidth={3} />
+                                 </span>
+                               )}
+                             </button>
+                             
+                             {selectedPlatforms.includes('facebook') && activePlatform === 'facebook' && renderTypeDropdown()}
+                           </div>
+                         )}
 
-                              {showFacebookTypeMenu && (
-                                <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setFacebookType("post");
-                                      setShowFacebookTypeMenu(false);
-                                    }}
-                                    className={`w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-all text-left cursor-pointer ${
-                                      facebookType === 'post' ? 'bg-gray-100/80' : ''
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <LayoutGrid size={16} className="text-gray-600" />
-                                      <div>
-                                        <div className="text-xs font-bold text-gray-800">Post</div>
-                                        <div className="text-[10px] text-gray-400 font-medium">Standard Facebook publication</div>
-                                      </div>
-                                    </div>
-                                    {facebookType === 'post' && <Check size={14} className="text-gray-800" />}
-                                  </button>
+                         {/* Instagram Item */}
+                         {shouldShowPlatform("instagram") && (
+                           <div className="flex items-center gap-1.5 relative">
+                             <button 
+                               type="button"
+                               onClick={() => handlePlatformClick("instagram", hasInstagramAccess, PRODUCT_IDS.INSTAGRAM_MANAGEMENT || 'instagram_management')}
+                               className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
+                                 selectedPlatforms.includes('instagram')
+                                   ? activePlatform === 'instagram'
+                                     ? 'bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF] text-white ring-2 ring-offset-2 ring-[#DD2A7B]'
+                                     : 'bg-gradient-to-tr from-[#F58529]/70 via-[#DD2A7B]/70 to-[#8134AF]/70 text-white hover:opacity-90 border border-[#DD2A7B]'
+                                   : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                               }`}
+                             >
+                               <Instagram size={14} />
+                               {selectedPlatforms.includes('instagram') && (
+                                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-white" />
+                               )}
+                               {!hasInstagramAccess && (
+                                 <span className="absolute -top-1.5 -right-1.5 bg-white border border-purple-100 text-purple-600 rounded-full p-0.5 shadow-sm">
+                                   <Lock size={7} strokeWidth={3} />
+                                 </span>
+                               )}
+                             </button>
+                             
+                             {selectedPlatforms.includes('instagram') && activePlatform === 'instagram' && renderTypeDropdown()}
+                           </div>
+                         )}
 
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setFacebookType("reel");
-                                      setShowFacebookTypeMenu(false);
-                                    }}
-                                    className={`w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-all text-left cursor-pointer ${
-                                      facebookType === 'reel' ? 'bg-gray-100/80' : ''
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <Film size={16} className="text-gray-600" />
-                                      <div>
-                                        <div className="text-xs font-bold text-gray-800">Reel</div>
-                                        <div className="text-[10px] text-gray-400 font-medium">Automatic posting</div>
-                                      </div>
-                                    </div>
-                                    {facebookType === 'reel' && <Check size={14} className="text-gray-800" />}
-                                  </button>
+                         {/* Tiktok Item */}
+                         {shouldShowPlatform("tiktok") && (
+                           <div className="relative">
+                             <button 
+                               type="button" 
+                               onClick={() => handlePlatformClick("tiktok", hasTiktokAccess, PRODUCT_IDS.TIKTOK_CREATIVE)}
+                               className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
+                                 selectedPlatforms.includes('tiktok')
+                                   ? activePlatform === 'tiktok'
+                                     ? 'bg-black text-white ring-2 ring-offset-2 ring-black'
+                                     : 'bg-black/70 text-white hover:bg-black/80 border border-black'
+                                   : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                               }`}
+                             >
+                               <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                 <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.5-1.1-1.02-1.7-2.48-1.9-3.96-.03 2.49 0 4.99 0 7.48-.02 1.9-.38 3.82-1.39 5.43-1.46 2.42-4.13 3.84-6.93 3.55-3.05-.2-5.78-2.44-6.39-5.46-.73-3.27.97-6.9 4.13-7.91 1.09-.34 2.24-.39 3.37-.2v4.02c-1.22-.32-2.58-.09-3.55.74-.95.83-1.29 2.19-1.03 3.4.31 1.65 1.84 2.91 3.53 2.78 1.94-.04 3.42-1.8 3.25-3.73-.02-2.91 0-5.83 0-8.74.02-3.11-.02-6.22.02-9.33z"/>
+                               </svg>
+                               {selectedPlatforms.includes('tiktok') && (
+                                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-white" />
+                               )}
+                               {!hasTiktokAccess && (
+                                 <span className="absolute -top-1.5 -right-1.5 bg-white border border-purple-100 text-purple-600 rounded-full p-0.5 shadow-sm">
+                                   <Lock size={7} strokeWidth={3} />
+                                 </span>
+                               )}
+                             </button>
+                           </div>
+                         )}
 
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setFacebookType("story");
-                                      setShowFacebookTypeMenu(false);
-                                    }}
-                                    className={`w-full flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-all text-left cursor-pointer ${
-                                      facebookType === 'story' ? 'bg-gray-100/80' : ''
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <PlusCircle size={16} className="text-gray-600" />
-                                      <div>
-                                        <div className="text-xs font-bold text-gray-800">Story</div>
-                                        <div className="text-[10px] text-gray-400 font-medium">Automatic posting</div>
-                                      </div>
-                                    </div>
-                                    {facebookType === 'story' && <Check size={14} className="text-gray-800" />}
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                         {/* Youtube Item */}
+                         {shouldShowPlatform("youtube") && (
+                           <div className="flex items-center gap-1.5 relative">
+                             <button 
+                               type="button"
+                               onClick={() => handlePlatformClick("youtube", hasYoutubeAccess, PRODUCT_IDS.YOUTUBE_ANALYTICS)}
+                               className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
+                                 selectedPlatforms.includes('youtube')
+                                   ? activePlatform === 'youtube'
+                                     ? 'bg-[#FF0000] text-white ring-2 ring-offset-2 ring-[#FF0000]'
+                                     : 'bg-[#FF0000]/70 text-white hover:bg-[#FF0000]/80 border border-[#FF0000]'
+                                   : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                               }`}
+                             >
+                               <Youtube size={14} className={activePlatform === 'youtube' ? 'fill-white' : ''} />
+                               {selectedPlatforms.includes('youtube') && (
+                                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-white" />
+                               )}
+                               {!hasYoutubeAccess && (
+                                 <span className="absolute -top-1.5 -right-1.5 bg-white border border-purple-100 text-purple-600 rounded-full p-0.5 shadow-sm">
+                                   <Lock size={7} strokeWidth={3} />
+                                 </span>
+                               )}
+                             </button>
+                             
+                             {selectedPlatforms.includes('youtube') && activePlatform === 'youtube' && renderTypeDropdown()}
+                           </div>
+                         )}
 
-                        {/* Tiktok Item */}
-                        <button 
-                          type="button" 
-                          onClick={() => setActivePlatform("tiktok")}
-                          className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                            activePlatform === 'tiktok' 
-                              ? 'bg-black text-white' 
-                              : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                          }`}
-                        >
-                          <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                            <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.5-1.1-1.02-1.7-2.48-1.9-3.96-.03 2.49 0 4.99 0 7.48-.02 1.9-.38 3.82-1.39 5.43-1.46 2.42-4.13 3.84-6.93 3.55-3.05-.2-5.78-2.44-6.39-5.46-.73-3.27.97-6.9 4.13-7.91 1.09-.34 2.24-.39 3.37-.2v4.02c-1.22-.32-2.58-.09-3.55.74-.95.83-1.29 2.19-1.03 3.4.31 1.65 1.84 2.91 3.53 2.78 1.94-.04 3.42-1.8 3.25-3.73-.02-2.91 0-5.83 0-8.74.02-3.11-.02-6.22.02-9.33z"/>
-                          </svg>
-                        </button>
+                         {/* LinkedIn Item */}
+                         {shouldShowPlatform("linkedin") && (
+                           <div className="flex items-center gap-1.5 relative">
+                             <button 
+                               type="button"
+                               onClick={() => handlePlatformClick("linkedin", hasLinkedinAccess, PRODUCT_IDS.LINKEDIN_MANAGEMENT || 'linkedin_management')}
+                               className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
+                                 selectedPlatforms.includes('linkedin')
+                                   ? activePlatform === 'linkedin'
+                                     ? 'bg-[#0077B5] text-white ring-2 ring-offset-2 ring-[#0077B5]'
+                                     : 'bg-[#0077B5]/70 text-white hover:bg-[#0077B5]/80 border border-[#0077B5]'
+                                   : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                               }`}
+                             >
+                               <Linkedin size={14} className={activePlatform === 'linkedin' ? 'fill-white text-white' : ''} />
+                               {selectedPlatforms.includes('linkedin') && (
+                                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-white" />
+                               )}
+                               {!hasLinkedinAccess && (
+                                 <span className="absolute -top-1.5 -right-1.5 bg-white border border-purple-100 text-purple-600 rounded-full p-0.5 shadow-sm">
+                                   <Lock size={7} strokeWidth={3} />
+                                 </span>
+                               )}
+                             </button>
+                             
+                             {selectedPlatforms.includes('linkedin') && activePlatform === 'linkedin' && renderTypeDropdown()}
+                           </div>
+                         )}
 
-                        {/* Youtube Item */}
-                        <div className="flex items-center gap-1.5">
-                          <button 
-                            type="button"
-                            onClick={() => setActivePlatform("youtube")}
-                            className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                              activePlatform === 'youtube' 
-                                ? 'bg-[#FF0000] text-white' 
-                                : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-                            }`}
-                          >
-                            <Youtube size={14} className={activePlatform === 'youtube' ? 'fill-white' : ''} />
-                          </button>
-                          
-                          {activePlatform === 'youtube' && (
-                            <div className="relative">
-                              <button 
-                                type="button"
-                                onClick={() => setShowTypeMenu(!showTypeMenu)}
-                                className="flex items-center gap-1 px-2.5 py-1 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all text-[10px] font-bold text-gray-700 uppercase cursor-pointer"
-                              >
-                                {youtubeType}
-                                <ChevronDown size={12} className="text-gray-500" />
-                              </button>
+                         {/* Telegram Item */}
+                         {shouldShowPlatform("telegram") && (
+                           <div className="flex items-center gap-1.5 relative">
+                             <button 
+                               type="button"
+                               onClick={() => handlePlatformClick("telegram", true)}
+                               className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
+                                 selectedPlatforms.includes('telegram')
+                                   ? activePlatform === 'telegram'
+                                     ? 'bg-[#0088cc] text-white ring-2 ring-offset-2 ring-[#0088cc]'
+                                     : 'bg-[#0088cc]/70 text-white hover:bg-[#0088cc]/80 border border-[#0088cc]'
+                                   : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                               }`}
+                             >
+                               <Send size={12} className={activePlatform === 'telegram' ? 'fill-white text-white' : 'text-gray-400'} />
+                               {selectedPlatforms.includes('telegram') && (
+                                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-white" />
+                               )}
+                             </button>
+                             
+                             {selectedPlatforms.includes('telegram') && activePlatform === 'telegram' && renderTypeDropdown()}
+                           </div>
+                         )}
 
-                              {showTypeMenu && (
-                                <div className="absolute top-full left-0 mt-1 w-60 bg-white rounded-2xl shadow-2xl border border-gray-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-1">
-                                  <button 
-                                    type="button"
-                                    onClick={() => { setYoutubeType('video'); setShowTypeMenu(false); }}
-                                    className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-all text-left cursor-pointer ${youtubeType === 'video' ? 'bg-gray-50' : ''}`}
-                                  >
-                                    <div className="p-1 bg-gray-100 rounded text-gray-600">
-                                      <Youtube size={14} className="text-[#FF0000] fill-[#FF0000]" />
-                                    </div>
-                                    <div>
-                                      <div className="text-xs font-bold text-gray-800">Video</div>
-                                      <div className="text-[10px] text-gray-400 font-medium">Standard YouTube video</div>
-                                    </div>
-                                  </button>
-                                  <button 
-                                    type="button"
-                                    onClick={() => { setYoutubeType('short'); setShowTypeMenu(false); }}
-                                    className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-all text-left cursor-pointer ${youtubeType === 'short' ? 'bg-gray-50' : ''}`}
-                                  >
-                                    <div className="p-1 bg-gray-100 rounded text-gray-600">
-                                      <ShortsIcon size={14} className="text-[#FF0000]" />
-                                    </div>
-                                    <div>
-                                      <div className="text-xs font-bold text-gray-800">Short</div>
-                                      <div className="text-[10px] text-gray-400 font-medium">Short-form vertical video</div>
-                                    </div>
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                         {/* Discord Item */}
+                         {shouldShowPlatform("discord") && (
+                           <div className="flex items-center gap-1.5 relative">
+                             <button 
+                               type="button"
+                               onClick={() => handlePlatformClick("discord", true)}
+                               className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
+                                 selectedPlatforms.includes('discord')
+                                   ? activePlatform === 'discord'
+                                     ? 'bg-[#5865F2] text-white ring-2 ring-offset-2 ring-[#5865F2]'
+                                     : 'bg-[#5865F2]/70 text-white hover:bg-[#5865F2]/80 border border-[#5865F2]'
+                                   : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                               }`}
+                             >
+                               <MessageSquare size={12} className={activePlatform === 'discord' ? 'fill-white text-white' : 'text-gray-400'} />
+                               {selectedPlatforms.includes('discord') && (
+                                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-white" />
+                               )}
+                             </button>
+                             
+                             {selectedPlatforms.includes('discord') && activePlatform === 'discord' && renderTypeDropdown()}
+                           </div>
+                         )}
 
-                        {/* Plus Add Button */}
-                        <button type="button" className="w-7 h-7 rounded-full bg-gray-50 border border-dashed border-gray-200 flex items-center justify-center text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-all cursor-pointer">
-                          <Plus size={14} />
-                        </button>
-                      </div>
+                         {/* Threads Item */}
+                         {shouldShowPlatform("threads") && (
+                           <div className="flex items-center gap-1.5 relative">
+                             <button 
+                               type="button"
+                               onClick={() => handlePlatformClick("threads", true)}
+                               className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
+                                 selectedPlatforms.includes('threads')
+                                   ? activePlatform === 'threads'
+                                     ? 'bg-black text-white ring-2 ring-offset-2 ring-black'
+                                     : 'bg-black/70 text-white hover:bg-black/85 border border-black'
+                                   : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                               }`}
+                             >
+                               <PlatformIcon platform="Threads" size={14} variant="flat" className={activePlatform === 'threads' ? 'text-white' : 'text-gray-400'} />
+                               {selectedPlatforms.includes('threads') && (
+                                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-white" />
+                               )}
+                             </button>
+                             
+                             {selectedPlatforms.includes('threads') && activePlatform === 'threads' && renderTypeDropdown()}
+                           </div>
+                         )}
+
+                         {/* Plus Add Button */}
+                         <button type="button" className="w-7 h-7 rounded-full bg-gray-50 border border-dashed border-gray-200 flex items-center justify-center text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-all cursor-pointer">
+                           <Plus size={14} />
+                         </button>
+                       </div>
                   </div>
                   <button className="flex items-center gap-2 px-3 py-1.5 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">
                      <FileText size={16} />
@@ -449,67 +723,84 @@ export function PostCreatorPage() {
                      </div>
                    )}
 
-                  {/* Thumbnail Image display */}
-                  {isImageFile && videoFileUrl && (
-                    <div className="px-6 pb-4 bg-white flex flex-wrap gap-3 animate-in fade-in duration-300">
-                      <div className="relative">
-                        {/* Image Container with aspect ratio and rounded borders */}
-                        <div className="w-16 h-16 rounded-2xl overflow-hidden border border-gray-100 shadow-md">
-                          <img src={videoFileUrl} alt="Preview" style={getImageStyle(imageTransform)} className={`w-full h-full object-cover ${getImageFilterClass(imageTransform?.filter)}`} />
-                        </div>
-                        
-                        {/* Three dots button */}
-                        <button 
-                          type="button"
-                          onClick={() => setShowImageMenu(!showImageMenu)}
-                          className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center cursor-pointer transition-all shadow-md z-10"
-                        >
-                          <MoreHorizontal size={12} />
-                        </button>
-
-                        {/* Dropdown Menu (Floats on top, opening upwards to prevent clipping) */}
-                        {showImageMenu && (
-                          <div className="absolute bottom-full left-0 mb-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50 text-left text-xs text-gray-700 animate-in fade-in slide-in-from-bottom-1">
-                            <button 
-                              type="button" 
-                              onClick={() => { setShowImageMenu(false); setShowImageEditor(true); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700 whitespace-nowrap"
-                            >
-                              <Edit size={14} className="text-gray-500" />
-                              Edit image
-                            </button>
-                            <button 
-                              type="button" 
-                              onClick={() => { setShowImageMenu(false); toast.info("Edit with Adobe Express clicked"); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700 whitespace-nowrap"
-                            >
-                              <span className="w-4 h-4 rounded-md bg-gradient-to-tr from-[#FF0000] via-[#FF0080] to-[#7F00FF] flex items-center justify-center text-[9px] font-black text-white shrink-0 select-none">A</span>
-                              Edit with Adobe Express
-                            </button>
-                            <button 
-                              type="button" 
-                              onClick={() => { setShowImageMenu(false); setShowAltTextModal(true); }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700 whitespace-nowrap"
-                            >
-                              <Type size={14} className="text-gray-500" />
-                              Add alt text
-                            </button>
-                            <div className="h-px bg-gray-100 my-1" />
-                            <button 
-                              type="button" 
-                              onClick={() => {
-                                handleRemoveVideo();
-                                setShowImageMenu(false);
-                              }}
-                              className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-red-50 text-red-600 transition-all cursor-pointer font-bold whitespace-nowrap"
-                            >
-                              <Trash2 size={14} />
-                              Remove
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                  {/* Facebook Album Composer Section */}
+                  {activePlatform === 'facebook' && facebookType === 'album' ? (
+                    <div className="px-6 pb-6 border-t border-gray-50 pt-6">
+                      <FacebookAlbumComposer
+                        brandId={activeBrand?.id}
+                        albumMedia={albumMedia}
+                        setAlbumMedia={setAlbumMedia}
+                        onEditPhoto={(photo) => {
+                          setEditingAlbumPhoto(photo);
+                          setShowImageEditor(true);
+                        }}
+                      />
                     </div>
+                  ) : (
+                    <>
+                      {/* Thumbnail Image display */}
+                      {isImageFile && videoFileUrl && (
+                        <div className="px-6 pb-4 bg-white flex flex-wrap gap-3 animate-in fade-in duration-300">
+                          <div className="relative">
+                            {/* Image Container with aspect ratio and rounded borders */}
+                            <div className="w-16 h-16 rounded-2xl overflow-hidden border border-gray-100 shadow-md">
+                              <img src={videoFileUrl} alt="Preview" style={getImageStyle(imageTransform)} className={`w-full h-full object-cover ${getImageFilterClass(imageTransform?.filter)}`} />
+                            </div>
+                            
+                            {/* Three dots button */}
+                            <button 
+                              type="button"
+                              onClick={() => setShowImageMenu(!showImageMenu)}
+                              className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-black/80 hover:bg-black text-white flex items-center justify-center cursor-pointer transition-all shadow-md z-10"
+                            >
+                              <MoreHorizontal size={12} />
+                            </button>
+
+                            {/* Dropdown Menu (Floats on top, opening upwards to prevent clipping) */}
+                            {showImageMenu && (
+                              <div className="absolute bottom-full left-0 mb-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50 text-left text-xs text-gray-700 animate-in fade-in slide-in-from-bottom-1">
+                                <button 
+                                  type="button" 
+                                  onClick={() => { setShowImageMenu(false); setShowImageEditor(true); }}
+                                  className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700 whitespace-nowrap"
+                                >
+                                  <Edit size={14} className="text-gray-500" />
+                                  Edit image
+                                </button>
+                                <button 
+                                  type="button" 
+                                  onClick={() => { setShowImageMenu(false); toast.info("Edit with Adobe Express clicked"); }}
+                                  className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700 whitespace-nowrap"
+                                >
+                                  <span className="w-4 h-4 rounded-md bg-gradient-to-tr from-[#FF0000] via-[#FF0080] to-[#7F00FF] flex items-center justify-center text-[9px] font-black text-white shrink-0 select-none">A</span>
+                                  Edit with Adobe Express
+                                </button>
+                                <button 
+                                  type="button" 
+                                  onClick={() => { setShowImageMenu(false); setShowAltTextModal(true); }}
+                                  className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-gray-50 transition-all cursor-pointer font-bold text-gray-700 whitespace-nowrap"
+                                >
+                                  <Type size={14} className="text-gray-500" />
+                                  Add alt text
+                                </button>
+                                <div className="h-px bg-gray-100 my-1" />
+                                <button 
+                                  type="button" 
+                                  onClick={() => {
+                                    handleRemoveVideo();
+                                    setShowImageMenu(false);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-4 py-2 hover:bg-red-50 text-red-600 transition-all cursor-pointer font-bold whitespace-nowrap"
+                                >
+                                  <Trash2 size={14} />
+                                  Remove
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                   <div className="px-6 py-4 flex items-center justify-between bg-white border-t border-gray-50">
                      <div className="flex items-center gap-5">
@@ -528,7 +819,13 @@ export function PostCreatorPage() {
                               onSelectImage={() => { setUploadModalTab("computer"); setShowUploadModal(true); }} 
                               onSelectVideo={() => { setUploadModalTab("computer"); setShowUploadModal(true); }} 
                               onSelectLibrary={() => { setUploadModalTab("library"); setShowUploadModal(true); }}
-                              onSelectDrive={() => setIsDriveModalOpen(true)}
+                              onSelectDrive={() => {
+                                if (!hasAccess(PRODUCT_IDS.GOOGLE_DRIVE)) {
+                                  setBlockedProductId(PRODUCT_IDS.GOOGLE_DRIVE);
+                                } else {
+                                  setIsDriveModalOpen(true);
+                                }
+                              }}
                             />
                           )}
                         </div>
@@ -617,19 +914,27 @@ export function PostCreatorPage() {
                               <p className="text-[10px] text-gray-500 leading-tight">Limited by the network with less character length support.</p>
                            </div>
                         </div>
-                         <div className={`w-5 h-5 rounded flex items-center justify-center ${activePlatform === 'youtube' ? 'bg-[#FF0000]' : activePlatform === 'tiktok' ? 'bg-black' : 'bg-[#1877F2]'}`}>
-                           {activePlatform === 'youtube' ? (
-                             <Youtube size={10} className="text-white fill-white" />
-                           ) : activePlatform === 'tiktok' ? (
-                              <svg className="w-2.5 h-2.5 text-white fill-white" viewBox="0 0 24 24">
-                                <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.5-1.1-1.02-1.7-2.48-1.9-3.96-.03 2.49 0 4.99 0 7.48-.02 1.9-.38 3.82-1.39 5.43-1.46 2.42-4.13 3.84-6.93 3.55-3.05-.2-5.78-2.44-6.39-5.46-.73-3.27.97-6.9 4.13-7.91 1.09-.34 2.24-.39 3.37-.2v4.02c-1.22-.32-2.58-.09-3.55.74-.95.83-1.29 2.19-1.03 3.4.31 1.65 1.84 2.91 3.53 2.78 1.94-.04 3.42-1.8 3.25-3.73-.02-2.91 0-5.83 0-8.74.02-3.11-.02-6.22.02-9.33z"/>
+                          <div className={`w-5 h-5 rounded flex items-center justify-center ${activePlatform === 'youtube' ? 'bg-[#FF0000]' : activePlatform === 'tiktok' ? 'bg-black' : activePlatform === 'instagram' ? 'bg-gradient-to-tr from-[#F58529] via-[#DD2A7B] to-[#8134AF]' : activePlatform === 'linkedin' ? 'bg-[#0077B5]' : activePlatform === 'telegram' ? 'bg-[#0088cc]' : activePlatform === 'discord' ? 'bg-[#5865F2]' : 'bg-[#1877F2]'}`}>
+                            {activePlatform === 'youtube' ? (
+                              <Youtube size={10} className="text-white fill-white" />
+                            ) : activePlatform === 'tiktok' ? (
+                               <svg className="w-2.5 h-2.5 text-white fill-white" viewBox="0 0 24 24">
+                                 <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.5-1.1-1.02-1.7-2.48-1.9-3.96-.03 2.49 0 4.99 0 7.48-.02 1.9-.38 3.82-1.39 5.43-1.46 2.42-4.13 3.84-6.93 3.55-3.05-.2-5.78-2.44-6.39-5.46-.73-3.27.97-6.9 4.13-7.91 1.09-.34 2.24-.39 3.37-.2v4.02c-1.22-.32-2.58-.09-3.55.74-.95.83-1.29 2.19-1.03 3.4.31 1.65 1.84 2.91 3.53 2.78 1.94-.04 3.42-1.8 3.25-3.73-.02-2.91 0-5.83 0-8.74.02-3.11-.02-6.22.02-9.33z"/>
+                               </svg>
+                            ) : activePlatform === 'instagram' ? (
+                               <Instagram size={10} className="text-white" />
+                            ) : activePlatform === 'linkedin' ? (
+                                <Linkedin size={10} className="text-white" />
+                            ) : activePlatform === 'telegram' ? (
+                                <Send size={9} className="text-white fill-white translate-x-[-0.5px]" />
+                            ) : activePlatform === 'discord' ? (
+                                <MessageSquare size={9} className="text-white fill-white translate-y-[0.5px]" />
+                            ) : (
+                              <svg className="w-3 h-3 text-white fill-white" viewBox="0 0 24 24">
+                                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                               </svg>
-                           ) : (
-                             <svg className="w-3 h-3 text-white fill-white" viewBox="0 0 24 24">
-                               <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                             </svg>
-                           )}
-                         </div>
+                            )}
+                          </div>
                      </div>
                   </div>
               </div>
@@ -666,7 +971,7 @@ export function PostCreatorPage() {
                  </div>
 
                  {/* YouTube Presets Accordion */}
-                  {activePlatform === 'youtube' && (
+                  {selectedPlatforms.includes('youtube') && (
                  <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm transition-all duration-300">
                     <div 
                       onClick={() => setYoutubeOpen(!youtubeOpen)}
@@ -823,7 +1128,7 @@ export function PostCreatorPage() {
                  )}
 
                  {/* Facebook Presets Accordion (Reel Title) */}
-                 {activePlatform === 'facebook' && facebookType === 'reel' && (
+                 {selectedPlatforms.includes('facebook') && facebookType === 'reel' && (
                   <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm transition-all duration-300">
                     <div 
                       onClick={() => setFacebookOpen(!facebookOpen)}
@@ -856,7 +1161,7 @@ export function PostCreatorPage() {
                  )}
 
                   {/* TikTok Presets Accordion */}
-                  {activePlatform === 'tiktok' && (
+                  {selectedPlatforms.includes('tiktok') && (
                     <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm transition-all duration-300">
                       <div 
                         onClick={() => setTiktokOpen(!tiktokOpen)}
@@ -992,6 +1297,122 @@ export function PostCreatorPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Instagram Presets Accordion */}
+                  {selectedPlatforms.includes('instagram') && (
+                    <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm transition-all duration-300">
+                      <div 
+                        onClick={() => setInstagramOpen(!instagramOpen)}
+                        className="p-5 flex items-center justify-between hover:bg-gray-50/50 transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Instagram size={18} className="text-[#DD2A7B]" />
+                          <span className="text-[12px] font-bold text-gray-700">Instagram presets</span>
+                        </div>
+                        <ChevronDown size={16} className={`text-gray-400 transition-transform duration-300 ${instagramOpen ? 'rotate-180 text-black' : ''}`} />
+                      </div>
+
+                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${instagramOpen ? 'max-h-[300px] border-t border-gray-50 p-6' : 'max-h-0'}`}>
+                        <div className="space-y-4 text-left">
+                          <p className="text-[11px] text-gray-400 font-medium leading-normal">
+                            Instagram content will be published as an Instagram {instagramType || 'post'}. 
+                            {instagramType === 'reel' && " Ensure your video has a vertical aspect ratio of 9:16."}
+                            {instagramType === 'story' && " Story links or interactive elements should be customized natively after publication."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Discord Presets Accordion */}
+                  {selectedPlatforms.includes('discord') && (
+                    <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm transition-all duration-300">
+                      <div 
+                        onClick={() => setDiscordOpen(!discordOpen)}
+                        className="p-5 flex items-center justify-between hover:bg-gray-50/50 transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <MessageSquare size={18} className="text-[#5865F2]" />
+                          <span className="text-[12px] font-bold text-gray-700">Discord presets</span>
+                        </div>
+                        <ChevronDown size={16} className={`text-gray-400 transition-transform duration-300 ${discordOpen ? 'rotate-180 text-black' : ''}`} />
+                      </div>
+
+                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${discordOpen ? 'max-h-[400px] border-t border-gray-50 p-6' : 'max-h-0'}`}>
+                        <div className="space-y-4 text-left">
+                          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">Chọn Kênh Đăng Bài</label>
+                          <p className="text-[11px] text-gray-400 font-medium leading-normal mb-3">
+                            Chọn máy chủ và kênh chat Discord bạn muốn xuất bản bài viết này:
+                          </p>
+                          {discordAccounts.length === 0 ? (
+                            <p className="text-xs text-amber-600 font-semibold">Chưa có kênh Discord nào được liên kết. Vui lòng liên kết kênh tại trang Quản lý kết nối.</p>
+                          ) : (
+                            <div className="space-y-2 border border-gray-150 rounded-2xl p-4 bg-gray-50/30 max-h-48 overflow-y-auto">
+                              {discordAccounts.map((acc) => (
+                                <label key={acc.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-xl cursor-pointer transition-colors">
+                                  <input 
+                                    type="checkbox" 
+                                    checked={selectedDiscordChannels.includes(acc.id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedDiscordChannels([...selectedDiscordChannels, acc.id]);
+                                      } else {
+                                        setSelectedDiscordChannels(selectedDiscordChannels.filter(id => id !== acc.id));
+                                      }
+                                    }}
+                                    className="rounded border-gray-300 text-[#5865F2] focus:ring-[#5865F2]"
+                                  />
+                                  <div className="text-xs">
+                                    <div className="font-bold text-gray-800">{acc.discordAccount?.guildName || 'Discord Server'}</div>
+                                    <div className="text-gray-400 font-semibold">#{acc.discordAccount?.channelName || acc.displayName}</div>
+                                  </div>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Threads Presets Accordion */}
+                  {selectedPlatforms.includes('threads') && (
+                    <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm transition-all duration-300">
+                      <div 
+                        onClick={() => setThreadsOpen(!threadsOpen)}
+                        className="p-5 flex items-center justify-between hover:bg-gray-50/50 transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <PlatformIcon platform="Threads" size={18} variant="flat" className="text-black" />
+                          <span className="text-[12px] font-bold text-gray-700">Threads presets</span>
+                        </div>
+                        <ChevronDown size={16} className={`text-gray-400 transition-transform duration-300 ${threadsOpen ? 'rotate-180 text-black' : ''}`} />
+                      </div>
+
+                      <div className={`transition-all duration-300 ease-in-out overflow-hidden ${threadsOpen ? 'max-h-[300px] border-t border-gray-50 p-6' : 'max-h-0'}`}>
+                        <div className="space-y-4 text-left">
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-500 uppercase mb-2">Who can reply to this post?</label>
+                            <div className="relative">
+                              <select
+                                value={threadsWhoCanReply}
+                                onChange={(e) => setThreadsWhoCanReply(e.target.value)}
+                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-xs font-semibold focus:border-black outline-none appearance-none cursor-pointer"
+                              >
+                                <option value="everyone">Everyone</option>
+                                <option value="accounts_you_follow">Profiles you follow</option>
+                                <option value="mentioned_only">Mentioned profiles only</option>
+                              </select>
+                              <ChevronDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                            </div>
+                            <p className="text-[10px] text-gray-400 mt-2 font-medium leading-normal">
+                              Limit who can reply to your Threads post directly from here.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
               </div>
 
               {/* Approval Workflow Settings */}
@@ -1059,22 +1480,11 @@ export function PostCreatorPage() {
                   </div>
                   <div className="border-t border-red-100/50 px-6 py-4 space-y-2 text-left">
                     {getValidationErrors().map((err, idx) => {
-                      const isFacebookErr = err.includes("Reel ->") || err.includes("story) ->");
-                      const isTiktokErr = err.includes("TikTok ->");
+                      const parsed = parseValidationError(err);
                       return (
                         <div key={idx} className="flex items-center gap-2.5 text-xs font-medium text-gray-700">
-                          {isFacebookErr ? (
-                            <svg className="w-3.5 h-3.5 text-[#1877F2] fill-[#1877F2] shrink-0" viewBox="0 0 24 24">
-                              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                            </svg>
-                          ) : isTiktokErr ? (
-                            <svg className="w-3.5 h-3.5 text-black fill-current shrink-0" viewBox="0 0 24 24">
-                              <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.5-1.1-1.02-1.7-2.48-1.9-3.96-.03 2.49 0 4.99 0 7.48-.02 1.9-.38 3.82-1.39 5.43-1.46 2.42-4.13 3.84-6.93 3.55-3.05-.2-5.78-2.44-6.39-5.46-.73-3.27.97-6.9 4.13-7.91 1.09-.34 2.24-.39 3.37-.2v4.02c-1.22-.32-2.58-.09-3.55.74-.95.83-1.29 2.19-1.03 3.4.31 1.65 1.84 2.91 3.53 2.78 1.94-.04 3.42-1.8 3.25-3.73-.02-2.91 0-5.83 0-8.74.02-3.11-.02-6.22.02-9.33z"/>
-                            </svg>
-                          ) : (
-                            <Info size={14} className="text-gray-400 shrink-0" />
-                          )}
-                          <span>{err}</span>
+                          {renderErrorIcon(parsed.platform)}
+                          <span>{parsed.message}</span>
                         </div>
                       );
                     })}
@@ -1101,35 +1511,65 @@ export function PostCreatorPage() {
                     
                      {isLibrary ? (
                         <button 
-                          onClick={handleCreatePost}
-                          disabled={isCreating}
-                          className="px-8 py-3 bg-[#0A0A0A] text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-black transition-all disabled:opacity-50 cursor-pointer"
+                          onClick={() => {
+                            if (!hasCreatePermission) return;
+                            handleCreatePost();
+                          }}
+                          disabled={isCreating || !hasCreatePermission}
+                          className={`px-8 py-3 rounded-2xl text-[11px] font-bold uppercase tracking-widest transition-all disabled:opacity-50 cursor-pointer ${
+                            hasCreatePermission
+                              ? "bg-[#0A0A0A] text-white hover:bg-black"
+                              : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                          }`}
                         >
                            {isCreating ? <Loader2 size={16} className="animate-spin" /> : "Save Template"}
                         </button>
                      ) : (
                        <div className="flex items-center">
                           <button 
-                            onClick={handleCreatePost}
-                            disabled={isCreating}
-                            className="px-8 py-3 bg-[#0A0A0A] text-white rounded-l-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-black transition-all disabled:opacity-50 cursor-pointer"
+                            onClick={() => {
+                              if (!hasCreatePermission) return;
+                              handleCreatePost();
+                            }}
+                            disabled={isCreating || !hasCreatePermission}
+                            className={`px-8 py-3 rounded-l-2xl text-[11px] font-bold uppercase tracking-widest transition-all disabled:opacity-50 cursor-pointer ${
+                              hasCreatePermission
+                                ? "bg-[#0A0A0A] text-white hover:bg-black"
+                                : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            }`}
                           >
                              {isCreating ? <Loader2 size={16} className="animate-spin" /> : getPublishButtonLabelText()}
                           </button>
                           <div className="relative">
-                             <button onClick={() => setShowPublishMenu(!showPublishMenu)} className="px-3 py-3 bg-[#2D1D35] text-white rounded-r-2xl border-l border-white/10 hover:bg-[#1E1B4B] transition-all cursor-pointer">
+                             <button 
+                               onClick={() => {
+                                 if (!hasCreatePermission) return;
+                                 setShowPublishMenu(!showPublishMenu);
+                               }} 
+                               disabled={!hasCreatePermission}
+                               className={`px-3 py-3 rounded-r-2xl border-l border-white/10 transition-all ${
+                                 hasCreatePermission
+                                   ? "bg-[#2D1D35] text-white hover:bg-[#1E1B4B] cursor-pointer"
+                                   : "bg-gray-300 text-gray-400 cursor-not-allowed"
+                               }`}
+                             >
                                 <ChevronDown size={18} />
                              </button>
-                             {showPublishMenu && (
+                             {showPublishMenu && hasCreatePermission && (
                                 <div className="absolute bottom-full right-0 mb-4 w-64 bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-gray-100 py-3 z-50 animate-in slide-in-from-bottom-2">
-                                   {PUBLISH_OPTIONS.map((opt) => (
-                                      <button key={opt.id} onClick={() => { setSelectedPublishId(opt.id); setShowPublishMenu(false); }} className={`w-full flex items-center justify-between px-6 py-3 hover:bg-gray-50 transition-all text-left cursor-pointer ${selectedPublishId === opt.id ? 'bg-gray-50' : ''}`}>
-                                         <div>
-                                            <div className="text-[10px] font-black text-gray-800 uppercase tracking-widest">{opt.label}</div>
-                                            <div className="text-[9px] text-gray-400 font-bold">{opt.sub}</div>
-                                         </div>
-                                      </button>
-                                   ))}
+                                   {editablePublishOptions.length === 0 ? (
+                                      <div className="px-6 py-3 text-[10px] text-gray-400 font-bold text-center">
+                                        Bài đã đăng — chỉ có thể chỉnh nội dung
+                                      </div>
+                                    ) : editablePublishOptions.map((opt) => (
+                                       <button key={opt.id} onClick={() => { setSelectedPublishId(opt.id); setShowPublishMenu(false); }} className={`w-full flex items-center justify-between px-6 py-3 hover:bg-gray-50 transition-all text-left cursor-pointer ${selectedPublishId === opt.id ? 'bg-gray-50' : ''}`}>
+                                          <div>
+                                             <div className="text-[10px] font-black text-gray-800 uppercase tracking-widest">{opt.label}</div>
+                                             <div className="text-[9px] text-gray-400 font-bold">{opt.sub}</div>
+                                          </div>
+                                          {selectedPublishId === opt.id && <Check size={14} className="text-gray-800 shrink-0" />}
+                                       </button>
+                                    ))}
                                 </div>
                              )}
                           </div>
@@ -1151,7 +1591,9 @@ export function PostCreatorPage() {
                     <svg className="w-5 h-5 text-black fill-current" viewBox="0 0 24 24">
                        <path d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.6-4.09-1.5-1.1-1.02-1.7-2.48-1.9-3.96-.03 2.49 0 4.99 0 7.48-.02 1.9-.38 3.82-1.39 5.43-1.46 2.42-4.13 3.84-6.93 3.55-3.05-.2-5.78-2.44-6.39-5.46-.73-3.27.97-6.9 4.13-7.91 1.09-.34 2.24-.39 3.37-.2v4.02c-1.22-.32-2.58-.09-3.55.74-.95.83-1.29 2.19-1.03 3.4.31 1.65 1.84 2.91 3.53 2.78 1.94-.04 3.42-1.8 3.25-3.73-.02-2.91 0-5.83 0-8.74.02-3.11-.02-6.22.02-9.33z"/>
                     </svg>
-                 ) : (
+                 ) : activePlatform === 'instagram' ? (
+                     <Instagram className="text-[#DD2A7B]" size={20} />
+                  ) : (
                     <svg className="w-5 h-5 text-[#1877F2] fill-[#1877F2]" viewBox="0 0 24 24">
                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                     </svg>
@@ -1178,9 +1620,11 @@ export function PostCreatorPage() {
                       youtubeFirstComment={youtubeFirstComment}
                       globalFirstComment={globalFirstComment}
                       previewDevice={previewDevice}
-                       facebookType={facebookType}
-                       facebookTitle={facebookTitle}
-                       imageTransform={imageTransform}
+                      facebookType={facebookType}
+                      facebookTitle={facebookTitle}
+                      instagramType={instagramType}
+                      imageTransform={imageTransform}
+                      albumMedia={albumMedia}
                     />
                  )}
               </div>
@@ -1189,6 +1633,8 @@ export function PostCreatorPage() {
                     ? 'YouTube descriptions and setup parameters are fully simulated and will be included in your post' 
                     : activePlatform === 'tiktok'
                     ? 'TikTok video presets and details are fully simulated and will be included in your post'
+                    : activePlatform === 'instagram'
+                    ? 'Instagram photos, Reels, and Stories are fully simulated and will be published on your account'
                     : 'Facebook status updates, photos, and videos are fully supported and will be published on your feed'}
                </p>
            </div>
@@ -1225,6 +1671,7 @@ export function PostCreatorPage() {
         <MediaUploadModal 
           isOpen={showUploadModal}
           initialTab={uploadModalTab}
+          brandId={activeBrand?.id}
           onClose={() => setShowUploadModal(false)}
           onAccept={(file, path) => {
             if (file) {
@@ -1241,19 +1688,41 @@ export function PostCreatorPage() {
         />
         <ImageEditorModal 
           isOpen={showImageEditor}
-          imageUrl={videoFileUrl}
+          imageUrl={editingAlbumPhoto ? (editingAlbumPhoto.previewUrl || editingAlbumPhoto.path) : videoFileUrl}
           currentTransform={imageTransform}
-          onClose={() => setShowImageEditor(false)}
+          brandId={activeBrand?.id}
+          onClose={() => {
+            setShowImageEditor(false);
+            setEditingAlbumPhoto(null);
+          }}
           onSave={(file, path, fallbackTransform) => {
-            if (file && path) {
-              setVideoFile(file);
-              const previewUrl = URL.createObjectURL(file);
-              setVideoFileUrl(previewUrl);
-              setUploadedVideoPath(path);
-              setImageTransform({ rotation: 0, flipH: false, flipV: false, filter: 'none' }); // reset transform since it's baked into the new image file
-            } else if (fallbackTransform) {
-              setImageTransform(fallbackTransform);
+            if (editingAlbumPhoto) {
+              // Update image inside albumMedia
+              setAlbumMedia((prev) =>
+                prev.map((item) =>
+                  item.id === editingAlbumPhoto.id
+                    ? {
+                        ...item,
+                        previewUrl: file ? URL.createObjectURL(file) : path,
+                        path: path || item.path
+                      }
+                    : item
+                )
+              );
+              setEditingAlbumPhoto(null);
+            } else {
+              // Default behavior for single image
+              if (file && path) {
+                setVideoFile(file);
+                const previewUrl = URL.createObjectURL(file);
+                setVideoFileUrl(previewUrl);
+                setUploadedVideoPath(path);
+                setImageTransform({ rotation: 0, flipH: false, flipV: false, filter: 'none' }); // reset transform since it's baked into the new image file
+              } else if (fallbackTransform) {
+                setImageTransform(fallbackTransform);
+              }
             }
+            setShowImageEditor(false);
             toast.success("Image edited successfully");
           }}
         />
@@ -1481,6 +1950,43 @@ export function PostCreatorPage() {
         )}
         </div>
       </div>
+      {blockedProductId && (
+        <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl text-center relative overflow-hidden animate-in zoom-in-95 duration-200 mx-4">
+            <button 
+              type="button"
+              onClick={() => setBlockedProductId(null)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-black transition-colors cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+            
+            <div className="w-14 h-14 bg-gradient-to-tr from-purple-600 to-orange-500 rounded-2xl flex items-center justify-center text-white mb-5 shadow-lg shadow-purple-200 mx-auto">
+              <Lock size={26} className="animate-pulse" />
+            </div>
+            
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              {FEATURE_GATE_REGISTRY[blockedProductId]?.title || "Feature Locked"}
+            </h3>
+            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
+              {FEATURE_GATE_REGISTRY[blockedProductId]?.description || "This channel/feature is not available on your current plan. Please upgrade."}
+            </p>
+            
+            <button 
+              type="button"
+              onClick={() => {
+                setBlockedProductId(null);
+                closePostCreator();
+                navigate('/pricing');
+              }}
+              className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-bold text-white transition-all bg-gradient-to-r from-purple-600 to-orange-500 hover:from-purple-700 hover:to-orange-600 shadow-md hover:shadow-lg active:scale-95 cursor-pointer"
+            >
+              Upgrade Plan
+              <ArrowRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

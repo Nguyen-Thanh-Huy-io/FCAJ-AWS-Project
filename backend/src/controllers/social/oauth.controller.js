@@ -2,8 +2,11 @@ const googleOAuthService = require('../../services/social/google-oauth.service')
 const youtubeService = require('../../services/social/youtube');
 const facebookService = require('../../services/social/facebook');
 const tiktokService = require('../../services/social/tiktok');
+const instagramService = require('../../services/social/instagram');
+const linkedinService = require('../../services/social/linkedin');
+const linkedinGateway = require('../../services/social/linkedin/linkedin.gateway');
 const tiktokGateway = require('../../services/social/tiktok/tiktok.gateway');
-const { SOCIAL_TECHNICAL } = require('../../utils/constants');
+const { SOCIAL_TECHNICAL, GOOGLE_SCOPES, FACEBOOK_SCOPES, FACEBOOK_API, DEFAULT_CONFIG, API_VERSIONS } = require('../../utils/constants');
 const asyncHandler = require('../../utils/async-handler');
 const logger = require('../../utils/logger');
 const redisClient = require('../../config/redis');
@@ -22,13 +25,13 @@ class OAuthController {
     if (!brandId) return res.status(400).json({ message: 'brandId is required' });
 
     const scopes = [
-      'https://www.googleapis.com/auth/youtube',
-      'https://www.googleapis.com/auth/youtube.readonly',
-      'https://www.googleapis.com/auth/youtube.force-ssl',
-      'https://www.googleapis.com/auth/yt-analytics.readonly',
-      'https://www.googleapis.com/auth/userinfo.email',
-      'https://www.googleapis.com/auth/userinfo.profile',
-      'https://www.googleapis.com/auth/drive.readonly'
+      GOOGLE_SCOPES.YOUTUBE,
+      GOOGLE_SCOPES.YOUTUBE_READONLY,
+      GOOGLE_SCOPES.YOUTUBE_FORCE_SSL,
+      GOOGLE_SCOPES.YT_ANALYTICS_READONLY,
+      GOOGLE_SCOPES.USERINFO_EMAIL,
+      GOOGLE_SCOPES.USERINFO_PROFILE,
+      GOOGLE_SCOPES.DRIVE_READONLY
     ];
     const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/google/callback`;
     const url = googleOAuthService.getAuthUrl(scopes, brandId, redirectUri);
@@ -48,13 +51,13 @@ class OAuthController {
       return res.redirect(`${frontendUrl}/manage/connections?${queryParams}`);
     }
     logger.error('Social OAuth Connection Error:', error);
-    return res.redirect(`${frontendUrl}/manage/connections?error=connection_failed`);
+    return res.redirect(`${frontendUrl}/manage/connections?error=connection_failed&message=${encodeURIComponent(error.message)}`);
   }
 
   googleCallback = asyncHandler(async (req, res) => {
     const { code, state } = req.query;
     const brandId = state;
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = DEFAULT_CONFIG.FRONTEND_URL;
     const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/google/callback`;
 
     if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
@@ -73,21 +76,76 @@ class OAuthController {
 
     const appId = process.env.FACEBOOK_APP_ID;
     const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/facebook/callback`;
-    const url = `https://www.facebook.com/v21.0/dialog/oauth?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${brandId}&scope=pages_show_list,pages_read_engagement,pages_read_user_content,read_insights,pages_manage_engagement`;
+    const state = `facebook:${brandId}`;
+    const url = FACEBOOK_API.dialogUrl(
+      API_VERSIONS.FACEBOOK,
+      appId,
+      redirectUri,
+      state,
+      FACEBOOK_SCOPES.FACEBOOK
+    );
     res.json({ url });
   });
 
   facebookCallback = asyncHandler(async (req, res) => {
     const { code, state } = req.query;
-    const brandId = state;
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    
+    let platform = 'facebook';
+    let brandId = state;
+
+    if (state && state.includes(':')) {
+      const parts = state.split(':');
+      platform = parts[0];
+      brandId = parts[1];
+    }
+
+    const frontendUrl = DEFAULT_CONFIG.FRONTEND_URL;
     const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/facebook/callback`;
 
     if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
 
     try {
-      await facebookService.connectChannel(brandId, code, redirectUri);
-      return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=facebook_connected`);
+      if (platform === 'instagram') {
+        await instagramService.connectChannel(brandId, code, redirectUri);
+        return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=instagram_connected`);
+      } else {
+        await facebookService.connectChannel(brandId, code, redirectUri);
+        return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=facebook_connected`);
+      }
+    } catch (error) {
+      return this._handleCallbackError(error, frontendUrl, res);
+    }
+  });
+
+  getInstagramAuthUrl = asyncHandler(async (req, res) => {
+    const { brandId } = req.query;
+    if (!brandId) return res.status(400).json({ message: 'brandId is required' });
+
+    const appId = process.env.FACEBOOK_APP_ID;
+    // Reuse facebook callback to prevent Whitelist Redirect URI block issues on FB App Console
+    const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/facebook/callback`;
+    const state = `instagram:${brandId}`;
+    const url = FACEBOOK_API.dialogUrl(
+      API_VERSIONS.FACEBOOK,
+      appId,
+      redirectUri,
+      state,
+      FACEBOOK_SCOPES.INSTAGRAM
+    );
+    res.json({ url });
+  });
+
+  instagramCallback = asyncHandler(async (req, res) => {
+    const { code, state } = req.query;
+    const brandId = state;
+    const frontendUrl = DEFAULT_CONFIG.FRONTEND_URL;
+    const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/instagram/callback`;
+
+    if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
+
+    try {
+      await instagramService.connectChannel(brandId, code, redirectUri);
+      return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=instagram_connected`);
     } catch (error) {
       return this._handleCallbackError(error, frontendUrl, res);
     }
@@ -115,7 +173,7 @@ class OAuthController {
   tiktokCallback = asyncHandler(async (req, res) => {
     const { code, state } = req.query;
     const brandId = state;
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = DEFAULT_CONFIG.FRONTEND_URL;
     const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/tiktok/callback`;
 
     if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
@@ -148,6 +206,58 @@ class OAuthController {
 
     logger.info('[TikTok Webhook] Event received', { type: req.body?.type || 'unknown' });
     res.status(200).json({ status: 'ok' });
+  });
+
+  getLinkedInAuthUrl = asyncHandler(async (req, res) => {
+    const { brandId } = req.query;
+    if (!brandId) return res.status(400).json({ message: 'brandId is required' });
+
+    const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/linkedin/callback`;
+    const url = linkedinGateway.getAuthUrl(brandId, redirectUri);
+    res.json({ url });
+  });
+
+  linkedinCallback = asyncHandler(async (req, res) => {
+    const { code, state } = req.query;
+    const brandId = state;
+    const frontendUrl = DEFAULT_CONFIG.FRONTEND_URL;
+    const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/linkedin/callback`;
+
+    if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
+
+    try {
+      await linkedinService.connectChannel(brandId, code, redirectUri);
+      return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=linkedin_connected`);
+    } catch (error) {
+      return this._handleCallbackError(error, frontendUrl, res);
+    }
+  });
+
+  getThreadsAuthUrl = asyncHandler(async (req, res) => {
+    const { brandId } = req.query;
+    if (!brandId) return res.status(400).json({ message: 'brandId is required' });
+
+    const threadsGateway = require('../../services/social/threads/threads.gateway');
+    const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/threads/callback`;
+    const url = threadsGateway.getAuthUrl(brandId, redirectUri);
+    res.json({ url });
+  });
+
+  threadsCallback = asyncHandler(async (req, res) => {
+    const { code, state } = req.query;
+    const brandId = state;
+    const frontendUrl = DEFAULT_CONFIG.FRONTEND_URL;
+    const redirectUri = `${this._getRedirectBaseUrl(req)}/api/social/threads/callback`;
+
+    if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
+
+    try {
+      const threadsService = require('../../services/social/threads');
+      await threadsService.connectChannel(brandId, code, redirectUri);
+      return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=threads_connected`);
+    } catch (error) {
+      return this._handleCallbackError(error, frontendUrl, res);
+    }
   });
 }
 

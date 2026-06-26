@@ -21,7 +21,15 @@ router.get('/', mediaLibraryController.getMediaFiles);
 /**
  * POST /api/media/upload
  */
-router.post('/upload', upload.single('file'), mediaLibraryController.uploadMedia);
+router.post('/upload', (req, res, next) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      console.error("[Multer Upload Error]", err);
+      return res.status(400).json({ message: err.message || 'File upload failed' });
+    }
+    next();
+  });
+}, mediaLibraryController.uploadMedia);
 
 /**
  * POST /api/media/save-direct

@@ -51,6 +51,25 @@ class RevenueRepository {
       }
     });
   }
+
+  /**
+   * Get all paid invoices with subscription plan details
+   */
+  async getPaidInvoices() {
+    return await prisma.invoice.findMany({
+      where: { status: 'PAID' },
+      include: {
+        subscription: {
+          include: {
+            plan: true
+          }
+        }
+      },
+      orderBy: {
+        paidAt: 'asc'
+      }
+    });
+  }
 }
 
 module.exports = new RevenueRepository();

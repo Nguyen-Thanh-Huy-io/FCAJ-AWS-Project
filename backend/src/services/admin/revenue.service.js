@@ -13,12 +13,17 @@ class RevenueService {
 
     const mrrData = this._calculateMRR(activeSubscriptions);
     const transactions = this._formatTransactions(recentInvoices);
-    const mrrTrend = this._generateMRRTrend(mrrData.totalMRR);
+    
+    // Tính toán mrrTrend và doanh thu theo gói cước thực tế từ DB
+    const paidInvoices = await revenueRepository.getPaidInvoices();
+    const mrrTrend = this._calculateMRRTrendFromInvoices(paidInvoices);
+    const revenueByPlan = this._calculateRevenueByPlan(paidInvoices);
 
     return {
       kpis: this._buildKPIs(mrrData, activeSubscriptions.length),
       mrrTrend,
-      transactions
+      transactions,
+      revenueByPlan
     };
   }
 
@@ -46,14 +51,52 @@ class RevenueService {
     }));
   }
 
-  _generateMRRTrend(totalMRR) {
-    return [
-      { month: "Jan", mrr: totalMRR * 0.85 },
-      { month: "Feb", mrr: totalMRR * 0.88 },
-      { month: "Mar", mrr: totalMRR * 0.92 },
-      { month: "Apr", mrr: totalMRR * 0.96 },
-      { month: "May", mrr: totalMRR }
-    ];
+  _calculateMRRTrendFromInvoices(paidInvoices) {
+    const months = [];
+    const now = new Date();
+    // Sinh ra danh sách 6 tháng gần nhất kết thúc bằng tháng hiện tại
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        label: d.toLocaleDateString('en-US', { month: 'short' }),
+        year: d.getFullYear(),
+        monthNum: d.getMonth(),
+        mrr: 0
+      });
+    }
+
+    paidInvoices.forEach(inv => {
+      const date = inv.paidAt || inv.createdAt;
+      const invDate = new Date(date);
+      const invYear = invDate.getFullYear();
+      const invMonth = invDate.getMonth();
+      const amount = parseFloat(inv.amount) || 0;
+
+      const match = months.find(m => m.year === invYear && m.monthNum === invMonth);
+      if (match) {
+        match.mrr += amount;
+      }
+    });
+
+    return months.map(m => ({
+      month: m.label,
+      mrr: m.mrr
+    }));
+  }
+
+  _calculateRevenueByPlan(paidInvoices) {
+    const planRevenue = {};
+
+    paidInvoices.forEach(inv => {
+      const planName = inv.subscription?.plan?.name || 'UNKNOWN';
+      const amount = parseFloat(inv.amount) || 0;
+      planRevenue[planName] = (planRevenue[planName] || 0) + amount;
+    });
+
+    return Object.keys(planRevenue).map(name => ({
+      plan: name,
+      revenue: planRevenue[name]
+    }));
   }
 
   _buildKPIs(mrrData, activeSubCount) {

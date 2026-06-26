@@ -19,8 +19,11 @@ class ApiService {
   constructor() {
     this.api = axios.create({
       baseURL,
-      timeout: 15000,
-      headers: { 'Content-Type': 'application/json' },
+      timeout: 15000, // 15 giây timeout
+      headers: {
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true', // Giữ lại của nhánh develop
+      },
       withCredentials: true, // Sends HttpOnly cookies (accessToken + refreshToken) automatically
     });
 
@@ -75,12 +78,17 @@ class ApiService {
             // Refresh also failed — session truly expired, redirect to login
             window.dispatchEvent(new CustomEvent('SESSION_EXPIRED'));
             const message = data?.message || error.message;
-            return Promise.reject(new Error(message));
+            const customError = new Error(message);
+            customError.status = error.response?.status;
+            return Promise.reject(customError);
           }
         }
 
+        // Xử lý lỗi thông thường (Gộp từ nhánh develop)
         const message = data?.message || data?.errors?.[0]?.msg || error.message;
-        return Promise.reject(new Error(message));
+        const customError = new Error(message);
+        customError.status = error.response?.status;
+        return Promise.reject(customError);
       }
     );
   }
