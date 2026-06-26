@@ -7,9 +7,9 @@ import {
   AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogAction,
-  AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
+import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog';
+import { Button } from '@/components/ui/button';
 
 /**
  * GlobalConfirmDialog
@@ -17,7 +17,18 @@ import {
  * Đồng bộ trạng thái từ useConfirmStore.
  */
 export function GlobalConfirmDialog() {
-  const { isOpen, title, description, confirmText, cancelText, variant, onConfirm, onCancel } = useConfirmStore();
+  const { 
+    isOpen, 
+    title, 
+    description, 
+    confirmText, 
+    cancelText, 
+    secondaryText, 
+    variant, 
+    onConfirm, 
+    onSecondary, 
+    onCancel 
+  } = useConfirmStore();
 
   return (
     <AlertDialog open={isOpen} onOpenChange={(open) => { if (!open) onCancel(); }}>
@@ -30,16 +41,30 @@ export function GlobalConfirmDialog() {
             </AlertDialogDescription>
           )}
         </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={onCancel}>
-            {cancelText}
-          </AlertDialogCancel>
-          <AlertDialogAction 
-            onClick={onConfirm}
-            variant={variant}
-          >
-            {confirmText}
-          </AlertDialogAction>
+        <AlertDialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 gap-2 sm:gap-0">
+          <AlertDialogPrimitive.Cancel asChild>
+            <Button variant="outline" onClick={onCancel}>
+              {cancelText}
+            </Button>
+          </AlertDialogPrimitive.Cancel>
+          {secondaryText && (
+            <AlertDialogPrimitive.Action asChild>
+              <Button
+                onClick={onSecondary}
+                variant="outline"
+              >
+                {secondaryText}
+              </Button>
+            </AlertDialogPrimitive.Action>
+          )}
+          <AlertDialogPrimitive.Action asChild>
+            <Button 
+              onClick={onConfirm}
+              variant={variant === 'destructive' ? 'destructive' : 'default'}
+            >
+              {confirmText}
+            </Button>
+          </AlertDialogPrimitive.Action>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

@@ -49,10 +49,15 @@ class RoleService {
       error.status = 403;
       throw error;
     }
-
-    // 3. Validate name and color
+    // 3. Validate name, color, and name length
     if (!name || !name.trim()) {
       const error = new Error('Tên vai trò không được để trống.');
+      error.status = 400;
+      throw error;
+    }
+
+    if (name.trim().length > 50) {
+      const error = new Error('Tên vai trò không được vượt quá 50 ký tự.');
       error.status = 400;
       throw error;
     }
@@ -62,7 +67,6 @@ class RoleService {
       error.status = 400;
       throw error;
     }
-
     // 4. Check for duplicate role name in the same brand
     const existingRole = await roleRepository.findByName(brandId, name.trim());
     if (existingRole) {
@@ -101,9 +105,15 @@ class RoleService {
       throw error;
     }
 
-    // 3. Validate name and color
+    // 3. Validate name, name length and color
     if (!name || !name.trim()) {
       const error = new Error('Tên vai trò không được để trống.');
+      error.status = 400;
+      throw error;
+    }
+
+    if (name.trim().length > 50) {
+      const error = new Error('Tên vai trò không được vượt quá 50 ký tự.');
       error.status = 400;
       throw error;
     }

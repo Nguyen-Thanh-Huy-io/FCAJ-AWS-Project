@@ -1,9 +1,10 @@
 import React from "react";
+import { PlatformIcon as CentralPlatformIcon } from "../../../components/shared/PlatformIcon";
 
 export const PLATFORM_COLORS = {
   YouTube: "#FF0000",
   Facebook: "#1877F2",
-  TikTok: "#010101",
+  TikTok: "#000000",
   Instagram: "#E1306C",
   Twitch: "#9146FF",
   LinkedIn: "#0A66C2",
@@ -11,28 +12,5 @@ export const PLATFORM_COLORS = {
 };
 
 export function PlatformIcon({ platform, size = 14 }) {
-  const labels = {
-    YouTube: "YT",
-    Facebook: "FB",
-    TikTok: "TT",
-    Instagram: "IG",
-    Twitch: "TW",
-    LinkedIn: "LI",
-    X: "X"
-  };
-  return (
-    <div
-      className="flex items-center justify-center rounded shrink-0"
-      style={{
-        width: size,
-        height: size,
-        background: PLATFORM_COLORS[platform] || "#888",
-        fontSize: size * 0.45,
-        color: "#FFF",
-        fontWeight: 700
-      }}
-    >
-      {labels[platform] || "?"}
-    </div>
-  );
+  return <CentralPlatformIcon platform={platform} size={size} />;
 }

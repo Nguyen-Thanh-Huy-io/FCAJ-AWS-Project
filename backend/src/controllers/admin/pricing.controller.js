@@ -44,7 +44,7 @@ class PricingController {
    * Create new plan
    */
   createPlan = asyncHandler(async (req, res) => {
-    const { name, priceAmount, currency, billingCycle, description, planLimitId } = req.body;
+    const { name, priceAmount, currency, billingCycle, description, planLimitId, products } = req.body;
 
     const plan = await pricingService.createPlan({
       name,
@@ -52,7 +52,8 @@ class PricingController {
       currency,
       billingCycle,
       description,
-      planLimitId
+      planLimitId,
+      products
     });
 
     res.status(201).json({
@@ -125,6 +126,18 @@ class PricingController {
     const data = await pricingService.getAllPlanLimits();
     res.status(200).json({
       message: 'Plan limits retrieved successfully',
+      data
+    });
+  });
+
+  /**
+   * GET /admin/pricing/products
+   * Get all products for selection
+   */
+  getProducts = asyncHandler(async (req, res) => {
+    const data = await pricingService.getAllProducts();
+    res.status(200).json({
+      message: 'Products retrieved successfully',
       data
     });
   });

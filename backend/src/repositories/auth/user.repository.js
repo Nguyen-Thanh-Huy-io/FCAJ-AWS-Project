@@ -175,6 +175,21 @@ class UserRepository {
 
     return { user: newUser, isNew: true };
   }
+
+  async createShellUser(email) {
+    const normalizedEmail = email.toLowerCase();
+    return await prisma.user.create({
+      data: {
+        email: normalizedEmail,
+        name: normalizedEmail.split('@')[0],
+        passwordHash: '',
+        role: 'USER',
+        isActive: false,
+        isEmailVerified: false
+      },
+      include: { accounts: true, customRole: true }
+    });
+  }
 }
 
 module.exports = new UserRepository();

@@ -167,6 +167,17 @@ export function TikTokPostsTab({
             <span className="text-sm font-bold text-[#0A0A0A] line-clamp-2 max-w-[300px]">
               {post.title || post.caption || "No content message"}
             </span>
+            {post.shareUrl && (
+              <a 
+                href={post.shareUrl} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-[10px] text-red-600 hover:text-red-800 font-bold mt-1 inline-flex items-center gap-1 hover:underline w-fit"
+              >
+                <span>Xem trên TikTok</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+              </a>
+            )}
           </div>
         </div>
       )

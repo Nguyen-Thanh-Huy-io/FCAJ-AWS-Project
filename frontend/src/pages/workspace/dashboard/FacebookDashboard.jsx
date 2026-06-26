@@ -1,10 +1,9 @@
 import React from "react";
-import { FacebookOverviewTab } from "./FacebookOverviewTab";
-import { FacebookFollowersTab } from "./FacebookFollowersTab";
-import { FacebookClicksTab } from "./FacebookClicksTab";
-import { FacebookPostsTab } from "./FacebookPostsTab";
-import { FacebookInteractionsTab } from "./FacebookInteractionsTab";
-import { FacebookPostsListTab } from "./FacebookPostsListTab";
+import { FacebookOverviewTab }     from "./FacebookOverviewTab";
+import { FacebookPostsTab }        from "./FacebookPostsTab";
+import { FacebookPostsListTab }    from "./FacebookPostsListTab";
+import { FacebookStoriesTab }      from "./FacebookStoriesTab";
+import { FacebookCompetitorsTab }  from "./FacebookCompetitorsTab";
 
 export function FacebookDashboard({
   metrics,
@@ -20,31 +19,30 @@ export function FacebookDashboard({
   fetchPublishedVideos,
   prevPageToken,
   nextPageToken,
+  // Competitors props
+  isCompetitorModalOpen,
+  setIsCompetitorModalOpen,
+  competitorQuery,
+  setCompetitorQuery,
+  handleSearchCompetitors,
+  isSearching,
+  searchResults,
+  handleAddCompetitor,
+  handleDeleteCompetitor,
+  isCompetitorLoading,
+  competitors,
 }) {
   return (
     <>
+      {/* ── OVERVIEW: Followers + Clicks (gộp) ─────────────────────── */}
       {activeTab === "overview" && (
         <FacebookOverviewTab realData={realData} />
       )}
 
-      {activeTab === "followers" && (
-        <FacebookFollowersTab realData={realData} />
-      )}
-
-      {activeTab === "clicks" && (
-        <FacebookClicksTab realData={realData} />
-      )}
-
+      {/* ── POSTS: Overview + Interactions + Types + List of posts ───── */}
       {activeTab === "posts" && (
-        <FacebookPostsTab realData={realData} />
-      )}
-
-      {activeTab === "interactions" && (
-        <FacebookInteractionsTab realData={realData} />
-      )}
-
-      {activeTab === "posts_list" && (
-        <FacebookPostsListTab
+        <FacebookPostsTab
+          realData={realData}
           publishedVideos={publishedVideos}
           isPublishedLoading={isPublishedLoading}
           pageSize={pageSize}
@@ -52,6 +50,31 @@ export function FacebookDashboard({
           fetchPublishedVideos={fetchPublishedVideos}
           prevPageToken={prevPageToken}
           nextPageToken={nextPageToken}
+        />
+      )}
+
+      {/* ── STORIES ──────────────────────────────────────────────────── */}
+      {activeTab === "stories" && (
+        <FacebookStoriesTab
+          realData={realData}
+          isLoading={isPublishedLoading}
+        />
+      )}
+
+      {/* ── COMPETITORS ──────────────────────────────────────────────── */}
+      {activeTab === "competitors" && (
+        <FacebookCompetitorsTab
+          isCompetitorModalOpen={isCompetitorModalOpen}
+          setIsCompetitorModalOpen={setIsCompetitorModalOpen}
+          competitorQuery={competitorQuery}
+          setCompetitorQuery={setCompetitorQuery}
+          handleSearchCompetitors={handleSearchCompetitors}
+          isSearching={isSearching}
+          searchResults={searchResults}
+          handleAddCompetitor={handleAddCompetitor}
+          handleDeleteCompetitor={handleDeleteCompetitor}
+          isCompetitorLoading={isCompetitorLoading}
+          competitors={competitors}
         />
       )}
     </>

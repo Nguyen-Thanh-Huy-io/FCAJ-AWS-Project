@@ -106,6 +106,12 @@ class InboxRepository {
       data: { lastSyncAt: new Date() }
     });
   }
+
+  async deleteInboxItem(id) {
+    return prisma.inboxItem.delete({
+      where: { id }
+    });
+  }
 }
 
 module.exports = new InboxRepository();

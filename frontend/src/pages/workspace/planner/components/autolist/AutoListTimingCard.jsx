@@ -44,6 +44,57 @@ export function AutoListTimingCard({
 }) {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Ho_Chi_Minh";
 
+  const [val, setVal] = React.useState(() => {
+    const mins = intervalMinutes || 30;
+    if (mins % 1440 === 0) return mins / 1440;
+    if (mins % 60 === 0) return mins / 60;
+    return mins;
+  });
+
+  const [unit, setUnit] = React.useState(() => {
+    const mins = intervalMinutes || 30;
+    if (mins % 1440 === 0) return 'd';
+    if (mins % 60 === 0) return 'h';
+    return 'm';
+  });
+
+  React.useEffect(() => {
+    if (intervalMinutes) {
+      if (intervalMinutes % 1440 === 0) {
+        setVal(intervalMinutes / 1440);
+        setUnit('d');
+      } else if (intervalMinutes % 60 === 0) {
+        setVal(intervalMinutes / 60);
+        setUnit('h');
+      } else {
+        setVal(intervalMinutes);
+        setUnit('m');
+      }
+    }
+  }, [intervalMinutes]);
+
+  const handleValChange = (e) => {
+    const rawVal = e.target.value;
+    const numericVal = parseInt(rawVal) || 0;
+    setVal(rawVal);
+    
+    let multiplier = 1;
+    if (unit === 'h') multiplier = 60;
+    if (unit === 'd') multiplier = 1440;
+    setIntervalMinutes(numericVal * multiplier);
+  };
+
+  const handleUnitChange = (e) => {
+    const newUnit = e.target.value;
+    setUnit(newUnit);
+    
+    const numericVal = parseInt(val) || 0;
+    let multiplier = 1;
+    if (newUnit === 'h') multiplier = 60;
+    if (newUnit === 'd') multiplier = 1440;
+    setIntervalMinutes(numericVal * multiplier);
+  };
+
   const handleTimeChange = (index, part, value) => {
     const slot = specificTimes[index] || { time: "09:00", days: [] };
     const { hour, minute, ampm } = parse24hTime(slot.time);
@@ -113,19 +164,35 @@ export function AutoListTimingCard({
         {scheduleType === 'INTERVAL' ? (
           <div className="space-y-6">
             <div className="space-y-2">
-              <span className="block text-[9px] font-black text-gray-400 uppercase tracking-widest">Publish Interval</span>
-              <div className="relative w-48">
-                <select 
-                  value={intervalMinutes}
-                  onChange={(e) => setIntervalMinutes(parseInt(e.target.value))}
-                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none shadow-sm appearance-none cursor-pointer"
-                >
-                  {INTERVAL_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" />
+              <span className="block text-[9px] font-black text-gray-400 uppercase tracking-widest">Thời gian giãn cách (Publish Interval)</span>
+              <div className="flex items-center gap-2 max-w-xs">
+                <input
+                  type="number"
+                  min="1"
+                  value={val}
+                  onChange={handleValChange}
+                  className="w-24 px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none shadow-sm transition-all"
+                  placeholder="Giá trị"
+                />
+                <div className="relative flex-1">
+                  <select 
+                    value={unit}
+                    onChange={handleUnitChange}
+                    className="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold focus:border-black outline-none shadow-sm appearance-none cursor-pointer pr-8"
+                  >
+                    <option value="m">Phút</option>
+                    <option value="h">Giờ</option>
+                    <option value="d">Ngày</option>
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" />
+                </div>
               </div>
+              <p className="text-[11px] text-gray-400 font-semibold mt-1">
+                ⚙️ Bài viết trong hàng đợi sẽ được đăng cách nhau mỗi{" "}
+                <span className="text-black font-bold">
+                  {val || 0} {unit === 'm' ? 'phút' : unit === 'h' ? 'giờ' : 'ngày'}
+                </span>
+              </p>
             </div>
 
             <div className="space-y-2">

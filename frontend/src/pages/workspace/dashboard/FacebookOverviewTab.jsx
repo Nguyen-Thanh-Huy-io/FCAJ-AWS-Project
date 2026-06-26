@@ -1,64 +1,157 @@
 import React from "react";
 import { GenericDashboardTab } from "./GenericDashboardTab";
 
-export function FacebookOverviewTab({ realData = {} }) {
-  const growthData = realData.growth || [];
-  const summary = realData.summary || {};
+function SectionLabel({ children }) {
+  return (
+    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">
+      {children}
+    </h3>
+  );
+}
 
-  // Config metrics for Growth tab
-  const metricConfig = [
+export function FacebookOverviewTab({ realData = {} }) {
+  const growthData    = realData.growth       || [];
+  const balanceData   = realData.balance      || [];
+  const postsData     = realData.postsPeriod  || [];
+  const summary       = realData.summary      || {};
+
+  // ── 1. GROWTH ─────────────────────────────────────────────────────────────
+  const growthConfig = [
     {
       key: "followers",
       label: "Followers",
       color: "bg-[#86EFAC] text-gray-900",
       chartColor: "#4ADE80",
       type: "area",
-      value: summary.followers || 0
+      value: summary.followers || 0,
     },
     {
       key: "views",
       label: "Views",
-      color: "bg-[#FBCFE8] text-gray-900",
-      chartColor: "#EC4899",
+      color: "bg-[#818CF8] text-white",
+      chartColor: "#818CF8",
       type: "line",
       value: summary.views || 0,
-      initialActive: false
     },
     {
       key: "pageVisits",
       label: "Page visits",
-      color: "bg-[#E9D5FF] text-gray-900",
-      chartColor: "#A855F7",
+      color: "bg-[#A7F3D0] text-gray-900",
+      chartColor: "#34D399",
       type: "line",
       value: summary.pageVisits || 0,
-      initialActive: false
+    },
+    {
+      key: "totalContent",
+      label: "Total contents",
+      color: "bg-[#FEF08A] text-gray-900",
+      chartColor: "#EAB308",
+      type: "bar",
+      yAxisId: "right",
+      value: summary.totalContent || 0,
+    },
+  ];
+
+  const growthSummary = [
+    { label: "Daily page views", value: summary.dailyPageViews ?? 0 },
+    { label: "Posts per week",   value: summary.postsPerWeek ?? 0 },
+  ];
+
+  // ── 2. BALANCE OF FOLLOWERS ───────────────────────────────────────────────
+  const totalAcquired = balanceData.reduce((s, d) => s + (d.acquired || 0), 0);
+  const totalLost     = balanceData.reduce((s, d) => s + (d.lost     || 0), 0);
+
+  const balanceConfig = [
+    {
+      key: "acquired",
+      label: "Acquired",
+      color: "bg-[#818CF8] text-white",
+      chartColor: "#818CF8",
+      type: "area",
+      value: totalAcquired,
+    },
+    {
+      key: "lost",
+      label: "Lost",
+      color: "bg-[#F472B6] text-white",
+      chartColor: "#F472B6",
+      type: "line",
+      value: totalLost,
     },
     {
       key: "totalContent",
       label: "Total content",
       color: "bg-[#FEF08A] text-gray-900",
-      chartColor: "#FEF08A",
+      chartColor: "#EAB308",
       type: "bar",
       yAxisId: "right",
-      value: summary.totalContent || 0
-    }
+      value: summary.totalContent || 0,
+    },
   ];
 
-  // Summary Grid configs
-  const summaryGrid = [
-    { label: "Average daily new followers", value: summary.averageDailyNewFollowers || 0 },
-    { label: "Daily page views", value: summary.dailyPageViews || 0 },
-    { label: "Daily posts", value: summary.dailyPosts || 0 },
-    { label: "Posts per week", value: summary.postsPerWeek || 0 }
+  const balanceSummary = [
+    { label: "Average daily new followers", value: summary.averageDailyNewFollowers ?? 0 },
+  ];
+
+  // ── 3. POSTS VIEWED IN PERIOD ─────────────────────────────────────────────
+  const totalViews     = postsData.reduce((s, d) => s + (d.views     || 0), 0);
+  const totalReactions = postsData.reduce((s, d) => s + (d.reactions || 0), 0);
+
+  const viewedConfig = [
+    {
+      key: "views",
+      label: "Views",
+      color: "bg-[#EC4899] text-white",
+      chartColor: "#EC4899",
+      type: "area",
+      value: totalViews,
+    },
+    {
+      key: "reactions",
+      label: "Reactions",
+      color: "bg-[#F59E0B] text-white",
+      chartColor: "#F59E0B",
+      type: "line",
+      value: totalReactions,
+    },
   ];
 
   return (
-    <GenericDashboardTab
-      title="Growth"
-      description="Thống kê sự tăng trưởng của trang qua thời gian"
-      data={growthData}
-      metricConfig={metricConfig}
-      summaryGrid={summaryGrid}
-    />
+    <div className="space-y-10">
+      {/* ── GROWTH ────────────────────────────────────────────────────── */}
+      <div>
+        <SectionLabel>Growth</SectionLabel>
+        <GenericDashboardTab
+          title="Growth"
+          description="Biến động của Followers, Views, Page Visits và Total Contents"
+          data={growthData}
+          metricConfig={growthConfig}
+          summaryGrid={growthSummary}
+        />
+      </div>
+
+      {/* ── BALANCE OF FOLLOWERS ───────────────────────────────────────── */}
+      <div>
+        <SectionLabel>Balance of Followers</SectionLabel>
+        <GenericDashboardTab
+          title="Balance of Followers"
+          description="Biến động của số lượng người theo dõi qua các ngày"
+          data={balanceData}
+          metricConfig={balanceConfig}
+          summaryGrid={balanceSummary}
+        />
+      </div>
+
+      {/* ── POSTS VIEWED IN PERIOD ─────────────────────────────────────── */}
+      <div>
+        <SectionLabel>Posts viewed in period</SectionLabel>
+        <GenericDashboardTab
+          title="Posts viewed in period"
+          description="Lượt hiển thị và lượng tương tác của các bài viết trong khoảng thời gian"
+          data={postsData}
+          metricConfig={viewedConfig}
+        />
+      </div>
+    </div>
   );
 }

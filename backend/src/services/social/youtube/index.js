@@ -76,6 +76,10 @@ class YouTubeService extends BaseSocialService {
   async publishPost(brandId, postData) {
     return youtubePublish.publishPost(brandId, postData);
   }
+
+  async deletePost(brandId, platformPostId) {
+    return youtubePublish.deletePost(brandId, platformPostId);
+  }
 }
 
 module.exports = new YouTubeService();

@@ -3,16 +3,16 @@ const socialAccountRepository = require('../../../repositories/social/social-acc
 const { PLATFORMS, DEFAULT_CONFIG } = require('../../../utils/constants');
 
 class TikTokAnalyticsService {
-  _getMockChannelInfo(accessToken) {
+  _getEmptyChannelInfo(accessToken, account = null) {
     return {
-      pageId: 'mock-tiktok-page-id',
-      username: 'publicast_tiktok_mock',
-      displayName: 'Mock PubliCast TikTok Account',
-      profilePictureUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&auto=format&fit=crop&q=60',
-      followersCount: 15400,
-      followingCount: 320,
-      likesCount: 89000,
-      videoCount: 52
+      pageId: account?.platformAccountId || 'mock-tiktok-page-id',
+      username: account?.username || 'tiktok_user',
+      displayName: account?.displayName || 'TikTok Account',
+      profilePictureUrl: account?.profilePictureUrl || '',
+      followersCount: 0,
+      followingCount: 0,
+      likesCount: 0,
+      videoCount: 0
     };
   }
 
@@ -20,37 +20,21 @@ class TikTokAnalyticsService {
     const { start, end } = this._resolveDates(startDate, endDate);
     const dailyMap = this._initializeDailyMap(start, end);
     
-    let currentVal = currentFollowers || 15400;
-    const dates = Object.keys(dailyMap).sort();
-    
-    dates.forEach((dateStr, idx) => {
-      const dayData = dailyMap[dateStr];
-      const acquired = 15 + Math.floor(Math.random() * 50);
-      const lost = Math.floor(Math.random() * 10);
-      dayData.acquired = acquired;
-      dayData.lost = lost;
-      dayData.views = 500 + Math.floor(Math.random() * 2000) + idx * 10;
-      dayData.likes = 40 + Math.floor(Math.random() * 150);
-      dayData.comments = 8 + Math.floor(Math.random() * 30);
-      dayData.shares = 5 + Math.floor(Math.random() * 20);
-      dayData.totalContent = Math.random() > 0.85 ? 1 : 0;
-    });
-
     const feedStats = {
-      totalVideosInPeriod: Object.values(dailyMap).reduce((sum, d) => sum + d.totalContent, 0),
-      totalViews: Object.values(dailyMap).reduce((sum, d) => sum + d.views, 0),
-      totalLikes: Object.values(dailyMap).reduce((sum, d) => sum + d.likes, 0),
-      totalComments: Object.values(dailyMap).reduce((sum, d) => sum + d.comments, 0),
-      totalShares: Object.values(dailyMap).reduce((sum, d) => sum + d.shares, 0)
+      totalVideosInPeriod: 0,
+      totalViews: 0,
+      totalLikes: 0,
+      totalComments: 0,
+      totalShares: 0
     };
 
     const sortedDates = Object.keys(dailyMap).sort().map(d => dailyMap[d]);
-    return this._calculateTotalsAndFormatResponse(sortedDates, currentVal, feedStats);
+    return this._calculateTotalsAndFormatResponse(sortedDates, 0, feedStats);
   }
 
-  async getChannelInfo(auth, startDate, endDate) {
+  async getChannelInfo(auth, startDate, endDate, account = null) {
     if (auth.accessToken && auth.accessToken.startsWith('mock-')) {
-      const channelInfo = this._getMockChannelInfo(auth.accessToken);
+      const channelInfo = this._getEmptyChannelInfo(auth.accessToken, account);
       const analyticsData = this._getMockAnalyticsReport(startDate, endDate, channelInfo.followersCount);
       return {
         ...channelInfo,
@@ -151,7 +135,7 @@ class TikTokAnalyticsService {
     }
 
     if (account.accessToken && account.accessToken.startsWith('mock-')) {
-      const channelInfo = this._getMockChannelInfo(account.accessToken);
+      const channelInfo = this._getEmptyChannelInfo(account.accessToken, account);
       const analyticsData = this._getMockAnalyticsReport(startDate, endDate, channelInfo.followersCount);
       const accountData = {
         ...channelInfo,
@@ -323,20 +307,13 @@ class TikTokAnalyticsService {
       }
     }
 
-    // Since TikTok doesn't provide historical follower counts easily, we will simulate 
-    // a small baseline traffic on days with no videos to avoid flat 0 lines.
     Object.keys(dailyMap).forEach(dateStr => {
       const day = dailyMap[dateStr];
       if (day.views === 0) {
-        // Pseudo-random baseline based on date string
-        let hash = 0;
-        for (let i = 0; i < dateStr.length; i++) hash = dateStr.charCodeAt(i) + ((hash << 5) - hash);
-        const rand = Math.abs(hash) % 20;
-        
-        day.views = rand + 10;
-        day.reach = Math.round(day.views * 0.8);
-        day.likes = Math.round(rand * 0.2);
-        day.acquired = rand > 15 ? 1 : 0;
+        day.views = 0;
+        day.reach = 0;
+        day.likes = 0;
+        day.acquired = 0;
       }
     });
 

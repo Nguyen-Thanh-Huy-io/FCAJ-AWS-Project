@@ -5,6 +5,8 @@ const MediaLibraryTypeFilter = require('./media-library/filters/type.filter');
 const MediaLibraryUsedFilter = require('./media-library/filters/used.filter');
 const MediaLibraryFolderFilter = require('./media-library/filters/folder.filter');
 const { cloudinary } = require('../../config/cloudinary');
+const fs = require('fs/promises');
+const path = require('path');
 
 const ALLOWED_SORT_FIELDS = ['createdAt', 'filename', 'sizeBytes'];
 const ALLOWED_SORT_ORDERS = ['asc', 'desc'];
@@ -40,7 +42,8 @@ class MediaLibraryService {
    * Upload and save media file info
    */
   async uploadFile(file, brandId, userId, folderId = null) {
-    const storageUrl = file.path;
+    const isLocal = process.env.UPLOAD_STORAGE === 'local';
+    const storageUrl = isLocal ? this._toPublicUploadUrl(file.path) : file.path;
 
     const media = await mediaLibraryRepository.create({
       brandId,
@@ -49,7 +52,7 @@ class MediaLibraryService {
       mimeType: file.mimetype,
       sizeBytes: file.size,
       storageUrl,
-      mediaId: file.filename, // This is the public_id in Cloudinary
+      mediaId: isLocal ? file.filename : file.filename, // Cloudinary public_id or local filename
       folderId: folderId || null,
       uploadedAt: new Date()
     });
@@ -69,12 +72,22 @@ class MediaLibraryService {
     // Delete from DB
     await mediaLibraryRepository.delete(id);
 
-    // Delete from Cloudinary
-    try {
-      const resourceType = this._getResourceType(media.mimeType);
-      await cloudinary.uploader.destroy(media.mediaId, { resource_type: resourceType });
-    } catch (err) {
-      console.error(`Cloudinary deletion failed for ${media.mediaId}:`, err.message);
+    if (this._isLocalUploadUrl(media.storageUrl)) {
+      try {
+        const localPath = this._fromPublicUploadUrl(media.storageUrl);
+        await fs.unlink(localPath);
+      } catch (err) {
+        if (err.code !== 'ENOENT') {
+          console.error(`Local media deletion failed for ${media.storageUrl}:`, err.message);
+        }
+      }
+    } else {
+      try {
+        const resourceType = this._getResourceType(media.mimeType);
+        await cloudinary.uploader.destroy(media.mediaId, { resource_type: resourceType });
+      } catch (err) {
+        console.error(`Cloudinary deletion failed for ${media.mediaId}:`, err.message);
+      }
     }
 
     return { success: true };
@@ -150,6 +163,20 @@ class MediaLibraryService {
       emoji: this._getEmoji(f.mimeType),
       duration: f.durationSeconds ? this._formatDuration(f.durationSeconds) : null
     };
+  }
+
+  _toPublicUploadUrl(filePath) {
+    const relativePath = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
+    return `/${relativePath}`;
+  }
+
+  _fromPublicUploadUrl(url) {
+    const cleanUrl = url.split('?')[0].replace(/^\/+/, '');
+    return path.join(process.cwd(), cleanUrl);
+  }
+
+  _isLocalUploadUrl(url) {
+    return typeof url === 'string' && url.startsWith('/uploads/');
   }
 
   _getShortType(mime) {

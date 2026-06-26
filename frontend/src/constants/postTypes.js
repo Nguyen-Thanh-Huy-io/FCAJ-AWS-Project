@@ -7,6 +7,7 @@ export const POST_TYPE = {
   REEL: 'REEL',
   STORY: 'STORY',
   IMAGE: 'IMAGE',
+  CAROUSEL: 'CAROUSEL',
 };
 
 /**
@@ -21,6 +22,15 @@ export const YOUTUBE_TYPE = {
  * FACEBOOK_TYPE — Sub-type UI dành riêng cho Facebook.
  */
 export const FACEBOOK_TYPE = {
+  POST: 'post',
+  REEL: 'reel',
+  STORY: 'story',
+};
+
+/**
+ * INSTAGRAM_TYPE — Sub-type UI dành riêng cho Instagram.
+ */
+export const INSTAGRAM_TYPE = {
   POST: 'post',
   REEL: 'reel',
   STORY: 'story',

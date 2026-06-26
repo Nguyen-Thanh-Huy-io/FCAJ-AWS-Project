@@ -136,7 +136,12 @@ export function usePlatformDashboard(platform) {
     if (!activeBrand) return;
     setIsCompetitorLoading(true);
     try {
-      const res = await socialService.getCompetitors(activeBrand.id);
+      let res;
+      if (platform === 'facebook') {
+        res = await socialService.getFacebookCompetitors(activeBrand.id);
+      } else {
+        res = await socialService.getCompetitors(activeBrand.id);
+      }
       setCompetitors(res.data || []);
     } catch (error) {
       console.error("Failed to fetch competitors:", error);
@@ -154,9 +159,19 @@ export function usePlatformDashboard(platform) {
         setPublishedVideos(res.data || []);
         setNextPageToken(res.nextPageToken || null);
         setPrevPageToken(res.prevPageToken || null);
+      } else if (platform === "instagram") {
+        const res = await socialService.getInstagramPublishedPosts(activeBrand.id, pageToken, limit);
+        setPublishedVideos(res.data || []);
+        setNextPageToken(res.nextPageToken || null);
+        setPrevPageToken(res.prevPageToken || null);
       } else if (platform === "tiktok") {
         const res = await socialService.getTikTokPublishedVideos(activeBrand.id, pageToken, limit);
         setPublishedVideos(res.videos || []);
+        setNextPageToken(res.nextPageToken || null);
+        setPrevPageToken(res.prevPageToken || null);
+      } else if (platform === "threads") {
+        const res = await socialService.getThreadsPublishedPosts(activeBrand.id, pageToken, limit);
+        setPublishedVideos(res.data || []);
         setNextPageToken(res.nextPageToken || null);
         setPrevPageToken(res.prevPageToken || null);
       } else {
@@ -173,7 +188,7 @@ export function usePlatformDashboard(platform) {
   };
 
   const handleVideoClick = async (video) => {
-    if (platform === "facebook") return; // Details modal not used for Facebook posts
+    if (platform === "facebook" || platform === "instagram") return; // Details modal not used for Facebook and Instagram posts
     setSelectedVideo(video);
     setIsVideoDetailModalOpen(true);
     setIsVideoDetailLoading(true);
@@ -213,14 +228,23 @@ export function usePlatformDashboard(platform) {
       setActiveTabState(getTabDefault(platform));
     } else {
       const ytTabs = ["community", "demographics", "published", "viewed", "competitors"];
-      const fbTabs = ["overview", "followers", "clicks", "posts", "interactions", "posts_list"];
+      const fbTabs = ["overview", "posts", "posts_list", "stories", "competitors"];
       const ttTabs = ["community", "posts"];
+      const discordTabs = ["community", "channels", "posts"];
+      const igTabs = ["community", "account", "competitors"];
+      const threadsTabs = ["community", "posts", "competitors"];
       
       let isValid = false;
       if (platform === "facebook") {
         isValid = fbTabs.includes(tabParam);
+      } else if (platform === "instagram") {
+        isValid = igTabs.includes(tabParam);
+      } else if (platform === "threads") {
+        isValid = threadsTabs.includes(tabParam);
       } else if (platform === "tiktok") {
         isValid = ttTabs.includes(tabParam);
+      } else if (platform === "discord") {
+        isValid = discordTabs.includes(tabParam);
       } else {
         isValid = ytTabs.includes(tabParam);
       }
@@ -269,11 +293,11 @@ export function usePlatformDashboard(platform) {
   useEffect(() => {
     if (!activeBrand) return;
     if (activeTab === "viewed" && platform !== "facebook") fetchTracked();
-    if (activeTab === "competitors" && platform !== "facebook") fetchCompetitors();
+    if (activeTab === "competitors") fetchCompetitors();
     if (
       activeTab === "published" || 
       activeTab === "posts_list" || 
-      (activeTab === "posts" && platform === "tiktok") ||
+      (activeTab === "posts" && (platform === "tiktok" || platform === "threads")) ||
       (activeTab === "community" && platform === "youtube")
     ) {
       fetchPublishedVideos(null, pageSize);
@@ -297,7 +321,12 @@ export function usePlatformDashboard(platform) {
     if (!competitorQuery) return;
     setIsSearching(true);
     try {
-      const res = await socialService.searchChannels(activeBrand.id, competitorQuery);
+      let res;
+      if (platform === 'facebook') {
+        res = await socialService.searchFacebookPages(activeBrand.id, competitorQuery);
+      } else {
+        res = await socialService.searchChannels(activeBrand.id, competitorQuery);
+      }
       setSearchChannels(res.data || []);
     } catch (e) {
       toast.error("Search failed");
@@ -306,9 +335,13 @@ export function usePlatformDashboard(platform) {
     }
   };
 
-  const handleAddCompetitor = async (channelId) => {
+  const handleAddCompetitor = async (pageOrChannelId) => {
     try {
-      await socialService.addCompetitor(activeBrand.id, channelId);
+      if (platform === 'facebook') {
+        await socialService.addFacebookCompetitor(activeBrand.id, pageOrChannelId);
+      } else {
+        await socialService.addCompetitor(activeBrand.id, pageOrChannelId);
+      }
       toast.success("Competitor added");
       setIsCompetitorModalOpen(false);
       setSearchChannels([]);
@@ -331,12 +364,23 @@ export function usePlatformDashboard(platform) {
 
   const getAnalyticsData = () => {
     if (!metrics?.analytics?.[0]?.socialAnalytics?.audienceDemographicsJson) {
+      if (platform === "instagram") {
+        return {
+          demographics: { gender: [], age: [], countries: [], trafficSource: [] },
+          balance: [],
+          growth: [],
+          clicks: [],
+          postsPeriod: [],
+          interactions: {},
+          summary: {}
+        };
+      }
       return EMPTY_ANALYTICS_DATA;
     }
     try {
       const raw = JSON.parse(metrics.analytics[0].socialAnalytics.audienceDemographicsJson);
       
-      if (platform === "facebook" || platform === "tiktok") {
+      if (platform === "facebook" || platform === "tiktok" || platform === "instagram") {
         return {
           demographics: { gender: [], age: [], countries: [], trafficSource: [] },
           balance: raw.balance || [],
@@ -350,7 +394,8 @@ export function usePlatformDashboard(platform) {
           clicks: raw.clicks || [],
           postsPeriod: raw.postsPeriod || [],
           interactions: raw.interactions || {},
-          summary: raw.summary || {}
+          summary: raw.summary || {},
+          stories: raw.stories || []
         };
       }
       
@@ -484,6 +529,16 @@ export function usePlatformDashboard(platform) {
         videos: 0
       };
     }
+    if (platform === "instagram" || platform === "threads") {
+      if (!metrics.instagramAccount) return { subscribers: 0, views: 0, videos: 0 };
+      const analytics = getAnalyticsData();
+      return {
+        subscribers: metrics.instagramAccount.followersCount,
+        views: analytics.summary?.views || 0,
+        likes: analytics.summary?.likes || 0,
+        videos: metrics.instagramAccount.mediaCount || 0
+      };
+    }
     if (platform === "tiktok") {
       if (!metrics.tikTokAccount) return { subscribers: 0, views: 0, videos: 0 };
       const analytics = getAnalyticsData();
@@ -522,6 +577,15 @@ export function usePlatformDashboard(platform) {
         const searchDate = format(day, "yyyy-MM-dd");
         const realDayData = realData.growth?.find(g => g.date === searchDate);
 
+        if (platform === "instagram") {
+          return {
+            name: dateString,
+            followers: realDayData ? (realDayData.followers || 0) : 0,
+            following: metrics?.instagramAccount?.followingCount || 0,
+            totalContent: realDayData ? (realDayData.totalContent || 0) : 0
+          };
+        }
+
         return {
           name: dateString,
           subscribers: realDayData ? realDayData.new : 0,
@@ -536,7 +600,7 @@ export function usePlatformDashboard(platform) {
       console.error("Error generating community growth data:", e);
       return [];
     }
-  }, [dateRange, realData.growth, platform]);
+  }, [dateRange, realData.growth, platform, metrics]);
 
   return {
     activeTab,

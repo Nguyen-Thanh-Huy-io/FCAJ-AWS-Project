@@ -1,7 +1,8 @@
 const youtubeGateway = require('./youtube.gateway');
 const googleOAuthService = require('../google-oauth.service');
 const socialAccountRepository = require('../../../repositories/social/social-account.repository');
-const { PLATFORMS, POST_STATUS, YOUTUBE_PRIVACY, YOUTUBE_CATEGORIES, SEPARATORS, POST_TYPES } = require('../../../utils/constants');
+
+const { PLATFORMS, POST_STATUS, YOUTUBE_PRIVACY, YOUTUBE_CATEGORIES, SEPARATORS, POST_TYPES, YOUTUBE_API } = require('../../../utils/constants');
 const fs = require('fs');
 const path = require('path');
 
@@ -11,7 +12,7 @@ class YouTubePublishService {
    */
   async publishPost(brandId, postData) {
     const { options = {} } = postData;
-    
+
     // 1. Chuẩn bị thông tin tài khoản và Auth
     const { account, auth } = await this._getAuthContext(brandId);
 
@@ -30,7 +31,7 @@ class YouTubePublishService {
 
     return {
       platformVideoId: videoId,
-      videoUrl: `https://www.youtube.com/watch?v=${videoId}`,
+      videoUrl: YOUTUBE_API.videoUrl(videoId),
       status: POST_STATUS.PUBLISHED,
       publishedAt: new Date(uploadRes.data.snippet.publishedAt)
     };
@@ -110,6 +111,14 @@ class YouTubePublishService {
         console.error(`[YouTube Post-Upload] First comment failed: ${err.message}`);
       }
     }
+  }
+
+  async deletePost(brandId, platformPostId) {
+    const { auth } = await this._getAuthContext(brandId);
+    if (platformPostId && platformPostId.startsWith('mock-')) {
+      return { success: true };
+    }
+    return await youtubeGateway.deleteVideo(auth, platformPostId);
   }
 }
 

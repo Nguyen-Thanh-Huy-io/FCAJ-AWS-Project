@@ -1,6 +1,11 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../../config/prisma');
 const teamRepository = require('../../repositories/workspace/team.repository');
+const brandRepository = require('../../repositories/workspace/brand.repository');
+const userRepository = require('../../repositories/auth/user.repository');
+const authorizationFacade = require('../auth/authorization.facade');
+const roleResolver = require('./role-resolver');
+const { TEAM_STATUS, PERMISSION_KEYS } = require('../../utils/constants');
 const QueryPipeline = require('../../core/query-pipeline/query.pipeline');
 const TeamSearchFilter = require('./team/filters/search.filter');
 const TeamRoleFilter = require('./team/filters/role.filter');
@@ -37,20 +42,20 @@ class TeamService {
    * Invite a new team member
    */
   async inviteMember({ email, role, brandId, invitedByUserId }) {
-    const brand = await prisma.brand.findFirst({
-      where: { id: brandId, deletedAt: null },
-      include: {
-        subscription: {
-          include: {
-            plan: {
-              include: {
-                planLimit: true
-              }
-            }
-          }
-        }
-      }
-    });
+    if (!email || typeof email !== 'string') {
+      const error = new Error('Email không được để trống.');
+      error.status = 400;
+      throw error;
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      const error = new Error('Định dạng email không hợp lệ.');
+      error.status = 400;
+      throw error;
+    }
+
+    const brand = await brandRepository.findBrandWithSubscription(brandId);
 
     if (!brand) {
       const error = new Error('Workspace/Brand không tồn tại.');
@@ -58,7 +63,7 @@ class TeamService {
       throw error;
     }
 
-    const isAuthorized = await this._checkBrandAccess(brandId, invitedByUserId);
+    const isAuthorized = await authorizationFacade.checkPermission(invitedByUserId, brandId, PERMISSION_KEYS.MANAGE_TEAM);
     if (!isAuthorized) {
       const error = new Error('Bạn không có quyền mời thành viên vào thương hiệu này.');
       error.status = 403;
@@ -66,9 +71,7 @@ class TeamService {
     }
 
     // Check plan limits
-    const currentSeatCount = await prisma.team.count({
-      where: { brandId }
-    });
+    const currentSeatCount = await teamRepository.countMembersByBrand(brandId);
     const maxSeats = brand.subscription?.plan?.planLimit?.maxTeamSeats || 5;
     if (currentSeatCount >= maxSeats) {
       const error = new Error(`Thương hiệu đã đạt giới hạn thành viên tối đa cho phép (${maxSeats} người). Vui lòng nâng cấp gói.`);
@@ -76,56 +79,21 @@ class TeamService {
       throw error;
     }
 
-    // Map role
-    let dbRole = 'USER';
-    let customRoleId = null;
-
-    // Check if role is custom role ID
-    const customRole = await prisma.customRole.findFirst({
-      where: { id: role, brandId }
-    });
-
-    if (customRole) {
-      customRoleId = customRole.id;
-      dbRole = 'USER'; // Default fallback role
-    } else {
-      if (role === 'Admin') dbRole = 'ADMIN';
-      else if (role === 'Analyst') dbRole = 'ANALYST';
-      else dbRole = 'USER';
-    }
+    // Map role using RoleResolver
+    const { dbRole, customRoleId } = await roleResolver.resolve(role, brandId);
 
     // Find or create shell user
-    let user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() }
-    });
+    let user = await userRepository.findByEmail(cleanEmail);
 
-    let isNewUser = false;
     if (!user) {
-      isNewUser = true;
-      user = await prisma.user.create({
-        data: {
-          email: email.toLowerCase(),
-          name: email.split('@')[0],
-          passwordHash: '',
-          role: 'USER',
-          isActive: false,
-          isEmailVerified: false
-        }
-      });
+      user = await userRepository.createShellUser(cleanEmail);
     }
 
     // Check if already in Team
-    const existingTeam = await prisma.team.findUnique({
-      where: {
-        brandId_userId: {
-          brandId,
-          userId: user.id
-        }
-      }
-    });
+    const existingTeam = await teamRepository.findByBrandAndUserId(brandId, user.id);
 
     if (existingTeam) {
-      if (existingTeam.status === 'ACTIVE') {
+      if (existingTeam.status === TEAM_STATUS.ACTIVE) {
         const error = new Error('Người dùng này đã là thành viên của thương hiệu.');
         error.status = 400;
         throw error;
@@ -135,26 +103,21 @@ class TeamService {
     // Create or update team record
     let team;
     if (existingTeam) {
-      team = await prisma.team.update({
-        where: { id: existingTeam.id },
-        data: {
-          role: dbRole,
-          customRoleId,
-          invitedByUserId,
-          invitedAt: new Date(),
-          status: 'PENDING'
-        }
+      team = await teamRepository.update(existingTeam.id, {
+        role: dbRole,
+        customRoleId,
+        invitedByUserId,
+        invitedAt: new Date(),
+        status: TEAM_STATUS.PENDING
       });
     } else {
-      team = await prisma.team.create({
-        data: {
-          brandId,
-          userId: user.id,
-          role: dbRole,
-          customRoleId,
-          invitedByUserId,
-          status: 'PENDING'
-        }
+      team = await teamRepository.create({
+        brandId,
+        userId: user.id,
+        role: dbRole,
+        customRoleId,
+        invitedByUserId,
+        status: TEAM_STATUS.PENDING
       });
     }
 
@@ -168,7 +131,7 @@ class TeamService {
     // Send invitation email
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     const inviteUrl = `${frontendUrl}/invite?token=${token}`;
-    const inviter = await prisma.user.findUnique({ where: { id: invitedByUserId } });
+    const inviter = await userRepository.findById(invitedByUserId);
 
     try {
       const emailService = require('../core/email.service');

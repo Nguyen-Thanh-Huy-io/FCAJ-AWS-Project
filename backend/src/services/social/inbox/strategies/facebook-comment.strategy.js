@@ -2,7 +2,8 @@ const BaseSyncStrategy = require('./base.strategy');
 const facebookGateway = require('../../facebook/facebook.gateway');
 const socialAccountRepository = require('../../../../repositories/social/social-account.repository');
 const inboxRepository = require('../../../../repositories/social/inbox.repository');
-const { PLATFORMS, INBOX_STATUS, INBOX_TYPES, API_VERSIONS, SYSTEM_LABELS } = require('../../../../utils/constants');
+const { PLATFORMS, INBOX_STATUS, INBOX_TYPES, API_VERSIONS, SYSTEM_LABELS, FACEBOOK_API } = require('../../../../utils/constants');
+
 
 class FacebookCommentSyncStrategy extends BaseSyncStrategy {
   supports(platform) {
@@ -73,7 +74,8 @@ class FacebookCommentSyncStrategy extends BaseSyncStrategy {
   async _processComment(comment, postId, account, inbox) {
     const authorId = comment.from?.id || SYSTEM_LABELS.UNKNOWN.toLowerCase();
     const authorName = comment.from?.name || 'Facebook User';
-    const authorAvatar = `https://graph.facebook.com/${API_VERSIONS.FACEBOOK}/${authorId}/picture?type=small`;
+    const authorAvatar = FACEBOOK_API.avatarUrl(API_VERSIONS.FACEBOOK, authorId);
+
 
     return await inboxRepository.upsertInboxItem(
       { platformItemId: comment.id },
@@ -106,7 +108,8 @@ class FacebookCommentSyncStrategy extends BaseSyncStrategy {
     for (const reply of replies) {
       const replyAuthorId = reply.from?.id || SYSTEM_LABELS.UNKNOWN.toLowerCase();
       const replyAuthorName = reply.from?.name || 'Facebook User';
-      const replyAuthorAvatar = `https://graph.facebook.com/${API_VERSIONS.FACEBOOK}/${replyAuthorId}/picture?type=small`;
+      const replyAuthorAvatar = FACEBOOK_API.avatarUrl(API_VERSIONS.FACEBOOK, replyAuthorId);
+
 
       await inboxRepository.upsertInboxItem(
         { platformItemId: reply.id },
@@ -134,6 +137,16 @@ class FacebookCommentSyncStrategy extends BaseSyncStrategy {
         }
       );
     }
+  }
+
+  async updateReply(brandId, platformItemId, text) {
+    const { pageAccessToken } = await this._getAccountAndToken(brandId);
+    return await facebookGateway.updateComment(platformItemId, text, pageAccessToken);
+  }
+
+  async deleteReply(brandId, platformItemId) {
+    const { pageAccessToken } = await this._getAccountAndToken(brandId);
+    return await facebookGateway.deleteComment(platformItemId, pageAccessToken);
   }
 }
 

@@ -14,6 +14,14 @@ const server = app.listen(PORT, async () => {
 
   // Initialize BullMQ publish worker
   require('./queues/publish.worker');
+
+  // Start Discord daily member snapshot (runs every 24h)
+  const discordStatsService = require('./services/social/discord/discord-stats.service');
+  // Run once at startup (with small delay to let DB settle)
+  setTimeout(() => discordStatsService.snapshotAllGuilds().catch(() => {}), 30_000);
+  // Then every 24 hours
+  setInterval(() => discordStatsService.snapshotAllGuilds().catch(() => {}), 24 * 60 * 60 * 1000);
+  logger.info('Discord daily snapshot scheduler started (every 24h)');
 });
 
 // ── Graceful Shutdown ───────────────────────────────────────────────────────
@@ -50,7 +58,7 @@ process.on('uncaughtException', (err) => {
 });
 
 process.on('unhandledRejection', (reason) => {
-  logger.error('Unhandled Promise Rejection — shutting down', { reason: String(reason) });
+  logger.error('Unhandled Promise Rejection — shutting down', reason instanceof Error ? { message: reason.message, stack: reason.stack } : reason);
   process.exit(1);
 });
 

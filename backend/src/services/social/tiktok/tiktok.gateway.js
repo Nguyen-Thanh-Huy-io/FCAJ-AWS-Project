@@ -1,13 +1,13 @@
 const fs = require('fs');
 const path = require('path');
-const { API_VERSIONS } = require('../../../utils/constants');
+const { API_VERSIONS, TIKTOK_API } = require('../../../utils/constants');
 
 class TikTokGateway {
   constructor() {
     this.clientKey = process.env.TIKTOK_CLIENT_KEY;
     this.clientSecret = process.env.TIKTOK_CLIENT_SECRET;
-    this.apiBaseUrl = 'https://open.tiktokapis.com';
-    this.authBaseUrl = 'https://www.tiktok.com/v2/auth/authorize';
+    this.apiBaseUrl = TIKTOK_API.BASE_URL;
+    this.authBaseUrl = TIKTOK_API.AUTH_URL;
     this.version = API_VERSIONS.TIKTOK;
   }
 
