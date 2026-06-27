@@ -159,8 +159,35 @@ describe('Post Creator Detailed E2E Suite', function () {
     }
   }
 
+  async function ensureLoggedIn() {
+    const currentUrl = await driver.getCurrentUrl();
+    const isLoggedIn = !currentUrl.includes('/login') && !currentUrl.includes('/register');
+    if (!isLoggedIn) {
+      console.log('⚠️  Session hết hạn, đang tự động re-login...');
+      const email = process.env.ADMIN_EMAIL || 'vothanhnha26@gmail.com';
+      const password = process.env.ADMIN_PASSWORD || 'nhacc123@';
+      await driver.get(`${BASE_URL}/login`);
+      const emailInput = await driver.wait(until.elementLocated(By.id('email')), 15000);
+      const passwordInput = await driver.findElement(By.id('password'));
+      const submitButton = await driver.findElement(By.xpath("//button[@type='submit']"));
+      await emailInput.clear();
+      await emailInput.sendKeys(email);
+      await passwordInput.clear();
+      await passwordInput.sendKeys(password);
+      await submitButton.click();
+      await driver.wait(async () => {
+        const url = await driver.getCurrentUrl();
+        return url.includes('/dashboard') || url.includes('/start') || url.includes('/manage/connections');
+      }, 15000);
+      console.log('✅ Re-login thành công.');
+    }
+  }
+
   async function navigateToPlannerAndPrepare() {
     const plannerUrl = `${BASE_URL}/planner/calendar`;
+    await driver.get(plannerUrl);
+    // Nếu bị redirect về login thì re-login trước
+    await ensureLoggedIn();
     await driver.get(plannerUrl);
     await driver.wait(until.elementLocated(By.css('[data-testid="planner-create-post-btn"]')), 15000);
     await driver.sleep(2000); // Chờ re-render
@@ -462,13 +489,7 @@ describe('Post Creator Detailed E2E Suite', function () {
     );
     await driver.sleep(1000);
 
-    // Chụp màn hình để debug
-    try {
-      const image = await driver.takeScreenshot();
-      const dbgPath = path.join(__dirname, 'dbg_TC_POST_09_before_submit.png');
-      fs.writeFileSync(dbgPath, image, 'base64');
-      console.log(`📸 Chụp ảnh trước khi submit TC09: ${dbgPath}`);
-    } catch(e) {}
+
 
     await safeClick(By.css('[data-testid="post-submit-btn"]'));
     await driver.sleep(4000);
@@ -489,6 +510,92 @@ describe('Post Creator Detailed E2E Suite', function () {
       expect(posts.length).to.be.greaterThan(0);
       expect(posts[0].scheduledAt).to.not.be.null;
       await connection.execute('DELETE FROM posts WHERE id = ?', [posts[0].id]);
+    } finally {
+      await connection.end();
+    }
+  });
+
+  it('TC_POST_10 – Verify uploading an image file from local machine renders preview on Facebook post', async function () {
+    await seedPlatforms(['FACEBOOK']);
+    await navigateToPlannerAndPrepare();
+    await safeClick(By.css('[data-testid="planner-create-post-btn"]'));
+    await driver.sleep(2000);
+
+    await ensurePlatformState('facebook', true);
+
+    // Gửi đường dẫn tuyệt đối của file ảnh thẳng vào thẻ input[type="file"]
+    const imageFilePath = path.resolve(__dirname, './test_assets/sample_image.png');
+    const fileInput = await driver.wait(
+      until.elementLocated(By.css('[data-testid="post-file-input"]')),
+      10000
+    );
+    await fileInput.sendKeys(imageFilePath);
+    await driver.sleep(2000); // Chờ React cập nhật state và render preview
+
+    // Kiểm tra ảnh preview xuất hiện trên giao diện (thẻ img trong composer)
+    const previewImg = await driver.wait(
+      until.elementLocated(By.css('[data-testid="post-image-preview"]')),
+      10000
+    );
+    expect(previewImg).to.exist;
+
+    await safeClick(By.xpath("//span[contains(text(), 'Close')]/.. | //button[contains(., 'Close')]"));
+  });
+
+  it('TC_POST_11 – Verify uploading a video file from local machine renders preview and saves to DB for YouTube post', async function () {
+    await seedPlatforms(['YOUTUBE']);
+    await navigateToPlannerAndPrepare();
+    await safeClick(By.css('[data-testid="planner-create-post-btn"]'));
+    await driver.sleep(2000);
+
+    await ensurePlatformState('youtube', true);
+
+    // Điền caption
+    const captionInput = await driver.wait(until.elementLocated(By.css('[data-testid="post-caption-input"]')), 10000);
+    const uniqueCaption = `Mocha E2E YouTube Upload Test - Created at ${Date.now()}`;
+    await captionInput.sendKeys(uniqueCaption);
+    await driver.sleep(300);
+
+    // Gửi đường dẫn tuyệt đối file video
+    const videoFilePath = path.resolve(__dirname, './test_assets/sample_video.mp4');
+    const fileInput = await driver.wait(
+      until.elementLocated(By.css('[data-testid="post-file-input"]')),
+      10000
+    );
+    await fileInput.sendKeys(videoFilePath);
+    await driver.sleep(2000); // Chờ React cập nhật state và render tên file
+
+    // Kiểm tra tên file video xuất hiện trên thanh xem trước (không cần upload lên server)
+    const videoPreviewName = await driver.wait(
+      until.elementLocated(By.xpath("//*[contains(text(), 'sample_video.mp4')]") ),
+      8000
+    );
+    expect(videoPreviewName).to.exist;
+
+    // Lưu bài đăng nháp (YouTube cho phép lưu draft khi có video đính kèm)
+    await safeClick(By.css('[data-testid="post-publish-menu-btn"]'));
+    await driver.sleep(800);
+    await safeClick(By.css('[data-testid="publish-option-draft"]'));
+    await driver.sleep(400);
+    await safeClick(By.css('[data-testid="post-submit-btn"]'));
+    await driver.sleep(4000);
+
+    // Kiểm tra hiển thị trên List UI
+    await driver.get(`${BASE_URL}/planner/list`);
+    await driver.sleep(2000);
+    const uiPostCard = await driver.wait(
+      until.elementLocated(By.xpath(`//*[contains(text(), '${uniqueCaption}')]`)),
+      12000
+    );
+    expect(uiPostCard).to.exist;
+
+    // Dọn dẹp DB
+    const connection = await mysql.createConnection(process.env.MYSQL_URL || 'mysql://root:root_password@localhost:3307/publicast');
+    try {
+      const [posts] = await connection.execute('SELECT id FROM posts WHERE caption = ?', [uniqueCaption]);
+      if (posts.length > 0) {
+        await connection.execute('DELETE FROM posts WHERE id = ?', [posts[0].id]);
+      }
     } finally {
       await connection.end();
     }

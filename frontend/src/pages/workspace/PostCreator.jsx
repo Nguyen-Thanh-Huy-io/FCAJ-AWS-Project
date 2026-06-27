@@ -704,7 +704,7 @@ export function PostCreatorPage() {
 
                {/* Text Area Card */}
               <div className="border border-gray-200 rounded-[24px] overflow-hidden focus-within:border-black transition-all shadow-sm bg-white relative">
-                  <input type="file" ref={fileInputRef} accept="video/*" onChange={handleVideoChange} className="hidden" />
+                  <input type="file" ref={fileInputRef} accept="video/*,image/*" onChange={handleVideoChange} className="hidden" data-testid="post-file-input" />
                   <textarea ref={textareaRef} 
                     value={caption}
                     onChange={(e) => setCaption(e.target.value)} data-testid="post-caption-input"
@@ -744,7 +744,7 @@ export function PostCreatorPage() {
                           <div className="relative">
                             {/* Image Container with aspect ratio and rounded borders */}
                             <div className="w-16 h-16 rounded-2xl overflow-hidden border border-gray-100 shadow-md">
-                              <img src={videoFileUrl} alt="Preview" style={getImageStyle(imageTransform)} className={`w-full h-full object-cover ${getImageFilterClass(imageTransform?.filter)}`} />
+                              <img src={videoFileUrl} alt="Preview" data-testid="post-image-preview" style={getImageStyle(imageTransform)} className={`w-full h-full object-cover ${getImageFilterClass(imageTransform?.filter)}`} />
                             </div>
                             
                             {/* Three dots button */}
