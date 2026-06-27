@@ -11,7 +11,7 @@ async function reportBugToJira(summary, description, screenshotPath = null) {
   const JIRA_BASE_URL = process.env.JIRA_BASE_URL; // e.g. https://your-domain.atlassian.net
   const JIRA_USER_EMAIL = process.env.JIRA_USER_EMAIL;
   const JIRA_API_TOKEN = process.env.JIRA_API_TOKEN;
-  const PROJECT_KEY = 'PB'; // Space key đã được cung cấp
+  const PROJECT_KEY = 'PC'; // Space key đã được thay đổi sang PC
 
   if (!JIRA_BASE_URL || !JIRA_USER_EMAIL || !JIRA_API_TOKEN) {
     console.log('⚠️ Không tìm thấy đầy đủ cấu hình Jira API (JIRA_BASE_URL, JIRA_USER_EMAIL, JIRA_API_TOKEN). Bỏ qua bước tạo Bug.');

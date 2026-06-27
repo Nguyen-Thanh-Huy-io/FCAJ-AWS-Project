@@ -8,11 +8,18 @@
     "test:login": "node test_local_login.js",
     "test:register": "node test_local_register.js",
     "test:auth-suite": "node test_auth_suite.js",
-    "test:notifications": "node test_notifications.js"
+    "test:notifications": "node test_notifications.js",
+    "test:brand": "mocha brand/*.spec.js"
   },
   "dependencies": {
+    "chai": "^5.1.1",
+    "dotenv": "^17.4.2",
+    "mocha": "^10.7.3",
     "mysql2": "^3.22.5",
     "redis": "^6.0.0",
     "selenium-webdriver": "^4.18.0"
+  },
+  "devDependencies": {
+    "nock": "^14.0.16"
   }
 }
