@@ -177,6 +177,7 @@ export function SettingsPage() {
           <button
             key={tab.id}
             onClick={() => navigate(`/settings?tab=${tab.id}`)}
+            data-testid={`settings-tab-${tab.id}`}
             className="py-4 text-sm font-bold tracking-tight transition-all relative"
             style={{ color: activeTab === tab.id ? "#0A0A0A" : "#9CA3AF" }}
           >
@@ -209,6 +210,7 @@ export function SettingsPage() {
                     <input 
                       value={fullName} 
                       onChange={(e) => setFullName(e.target.value)} 
+                      data-testid="profile-fullname-input"
                       className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none transition-all text-sm font-medium" 
                     />
                   </div>
@@ -258,6 +260,7 @@ export function SettingsPage() {
                   </div>
                   <div 
                     onClick={() => setReceiveSummary(!receiveSummary)}
+                    data-testid="toggle-monthly-summary"
                     className={`w-10 h-6 rounded-full flex items-center p-1 cursor-pointer transition-all ${receiveSummary ? 'bg-green-500' : 'bg-gray-300'}`}
                   >
                     <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-all ${receiveSummary ? 'translate-x-4' : 'translate-x-0'}`} />
@@ -279,6 +282,7 @@ export function SettingsPage() {
             <button 
               onClick={handleSave}
               disabled={isSaving || isLoading}
+              data-testid="profile-save-btn"
               className="px-10 py-3 bg-[#0A0A0A] text-white rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg flex items-center gap-2"
             >
               {isSaving && <Loader2 size={18} className="animate-spin" />}
@@ -323,6 +327,7 @@ export function SettingsPage() {
                       placeholder="Nhập mật khẩu hiện tại" 
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
+                      data-testid="profile-current-password-input"
                       className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none text-sm font-medium" 
                     />
                   </div>
@@ -340,6 +345,7 @@ export function SettingsPage() {
                     placeholder={accounts.some(acc => acc.provider === 'LOCAL') ? "Nhập mật khẩu mới" : "Tạo mật khẩu đăng nhập trực tiếp"} 
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
+                    data-testid="profile-new-password-input"
                     className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none text-sm font-medium" 
                   />
                 </div>
@@ -372,6 +378,7 @@ export function SettingsPage() {
               <button 
                 onClick={handleUpdatePassword}
                 disabled={isUpdatingPassword}
+                data-testid="profile-update-password-btn"
                 className="px-8 py-3 bg-[#0A0A0A] text-white rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg flex items-center gap-2"
               >
                 {isUpdatingPassword && <Loader2 size={16} className="animate-spin" />}
@@ -456,7 +463,7 @@ export function SettingsPage() {
              <div className="border border-gray-100 rounded-3xl overflow-hidden flex flex-col h-[500px] bg-gray-50/50 shadow-inner">
                 <div className="flex-1 overflow-y-auto p-6 space-y-4">
                    {chatMessages.map((msg, i) => (
-                     <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                     <div key={i} data-testid="chat-message" className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[75%] p-4 rounded-2xl text-sm ${msg.role === 'user' ? 'bg-[#0A0A0A] text-white rounded-tr-none' : 'bg-white text-gray-700 shadow-sm border border-gray-100 rounded-tl-none'}`}>
                            {msg.text}
                            <div className={`text-[9px] mt-1.5 ${msg.role === 'user' ? 'text-white/40' : 'text-gray-400'}`}>{msg.time}</div>
@@ -471,9 +478,14 @@ export function SettingsPage() {
                         onChange={(e) => setChatInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                         placeholder="Type your message..." 
+                        data-testid="support-chat-input"
                         className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-black outline-none text-sm transition-all" 
                       />
-                      <button onClick={handleSendMessage} className="p-2.5 bg-[#0A0A0A] text-white rounded-xl hover:bg-gray-800 transition-all">
+                      <button 
+                        onClick={handleSendMessage} 
+                        data-testid="support-chat-send-btn"
+                        className="p-2.5 bg-[#0A0A0A] text-white rounded-xl hover:bg-gray-800 transition-all"
+                      >
                          <Send size={18} />
                       </button>
                    </div>
@@ -488,7 +500,11 @@ export function SettingsPage() {
                 <CreditCard size={48} className="text-gray-200 mb-4" />
                 <h3 className="text-lg font-bold text-[#0A0A0A]">Billing portal</h3>
                 <p className="text-sm text-gray-500 mt-2 max-w-sm">Manage your current subscription, invoices and payment methods.</p>
-                <button onClick={() => navigate("/pricing")} className="mt-6 px-8 py-2.5 bg-[#0A0A0A] text-white rounded-xl text-sm font-bold hover:bg-gray-800 transition-all shadow-md flex items-center gap-2">
+                <button 
+                  onClick={() => navigate("/pricing")} 
+                  data-testid="billing-upgrade-btn"
+                  className="mt-6 px-8 py-2.5 bg-[#0A0A0A] text-white rounded-xl text-sm font-bold hover:bg-gray-800 transition-all shadow-md flex items-center gap-2"
+                >
                    View Plans & Upgrade <ExternalLink size={14} />
                 </button>
              </div>

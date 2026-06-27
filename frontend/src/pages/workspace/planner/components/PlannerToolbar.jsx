@@ -639,7 +639,7 @@ export function PlannerToolbar({
 
         <AccessGuard feature="CREATE_POSTS">
           <button 
-            onClick={onCreatePostClick}
+            onClick={onCreatePostClick} data-testid="planner-create-post-btn"
             className="flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold bg-[#0A0A0A] hover:bg-[#1A1A1A] text-white hover:scale-[1.02] active:scale-[0.98] cursor-pointer transition-all shadow-md"
           >
             <Plus size={16} />
