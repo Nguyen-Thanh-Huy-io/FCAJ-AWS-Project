@@ -85,7 +85,10 @@ export default function App() {
   useEffect(() => {
     const handleSessionExpired = () => {
       logout();
-      navigate('/login', { replace: true });
+      const publicPaths = ["/", "/login", "/signup", "/verify-otp", "/forgot-password", "/invite"];
+      if (!publicPaths.includes(window.location.pathname)) {
+        navigate('/login', { replace: true });
+      }
     };
     window.addEventListener('SESSION_EXPIRED', handleSessionExpired);
     return () => window.removeEventListener('SESSION_EXPIRED', handleSessionExpired);

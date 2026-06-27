@@ -68,7 +68,7 @@ jobs:
         run: |
           npm install
           npx prisma db push
-          npx prisma db seed
+          node prisma/seed.js
 
       - name: Start Backend Server
         working-directory: backend
@@ -80,6 +80,7 @@ jobs:
         working-directory: frontend
         run: |
           npm install
+          echo "VITE_API_BASE_URL=http://localhost:3000/api" > .env
           npm run dev &
 
       - name: Install Chrome
