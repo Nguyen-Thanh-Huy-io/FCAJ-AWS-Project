@@ -40,6 +40,17 @@ async function loginAs(driver, role) {
     } catch (_) {}
     console.error(`❌ [loginAs] Timeout waiting for redirection. Final URL: ${finalUrl}`);
     console.error(`❌ [loginAs] Visible body text: \n${bodyText.substring(0, 1000)}`);
+    
+    // Đọc console logs từ trình duyệt Chrome
+    try {
+      const logs = await driver.manage().logs().get('browser');
+      console.error('🌐 [loginAs] Chrome Browser Console Logs:');
+      logs.forEach((log) => {
+        console.error(`   [${log.level.name}] ${log.message}`);
+      });
+    } catch (logErr) {
+      console.error('⚠️ [loginAs] Cannot retrieve browser logs:', logErr.message);
+    }
     throw err;
   }
 }
