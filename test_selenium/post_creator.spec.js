@@ -13,7 +13,6 @@ const mockPlatforms = [
   { platform: 'INSTAGRAM', id: 'mock-ig-social-account-id', accountId: 'ig-123', name: 'Mock Instagram' },
   { platform: 'TIKTOK', id: 'mock-tt-social-account-id', accountId: 'tt-123', name: 'Mock TikTok' },
   { platform: 'YOUTUBE', id: 'mock-yt-social-account-id', accountId: 'yt-123', name: 'Mock YouTube' },
-  { platform: 'LINKEDIN', id: 'mock-li-social-account-id', accountId: 'li-123', name: 'Mock LinkedIn' },
   { platform: 'TELEGRAM', id: 'mock-tg-social-account-id', accountId: 'tg-123', name: 'Mock Telegram' },
   { platform: 'DISCORD', id: 'mock-dc-social-account-id', accountId: 'dc-123', name: 'Mock Discord' },
   { platform: 'THREADS', id: 'mock-th-social-account-id', accountId: 'th-123', name: 'Mock Threads' }
@@ -242,14 +241,14 @@ describe('Post Creator Detailed E2E Suite', function () {
   });
 
   it('TC_POST_02 – Verify multi-platform selection and active platform switcher', async function () {
-    await seedPlatforms(['FACEBOOK', 'INSTAGRAM', 'LINKEDIN']);
+    await seedPlatforms(['FACEBOOK', 'INSTAGRAM', 'YOUTUBE']);
     await navigateToPlannerAndPrepare();
     await safeClick(By.css('[data-testid="planner-create-post-btn"]'));
     await driver.sleep(2000);
 
     await ensurePlatformState('facebook', true);
     await ensurePlatformState('instagram', true);
-    await ensurePlatformState('linkedin', true);
+    await ensurePlatformState('youtube', true);
 
     // Bỏ chọn Facebook
     await ensurePlatformState('facebook', false);
@@ -276,7 +275,7 @@ describe('Post Creator Detailed E2E Suite', function () {
     await safeClick(By.xpath("//span[contains(text(), 'Close')]/.. | //button[contains(., 'Close')]"));
   });
 
-  it('TC_POST_04 – Verify creating Facebook post draft saves caption to database', async function () {
+  it('TC_POST_04 – Verify creating Facebook post draft saves caption to database and displays on List UI', async function () {
     await seedPlatforms(['FACEBOOK']);
     await navigateToPlannerAndPrepare();
     await safeClick(By.css('[data-testid="planner-create-post-btn"]'));
@@ -299,12 +298,22 @@ describe('Post Creator Detailed E2E Suite', function () {
     await safeClick(By.css('[data-testid="post-submit-btn"]'));
     await driver.sleep(4000);
 
+    // 1. Kiểm tra hiển thị trên List UI
+    await driver.get(`${BASE_URL}/planner/list`);
+    await driver.sleep(2000);
+    const uiPostCard = await driver.wait(
+      until.elementLocated(By.xpath(`//*[contains(text(), '${uniqueCaption}')]`)),
+      12000
+    );
+    expect(uiPostCard).to.exist;
+
+    // 2. Kiểm tra lưu vào DB
     const dbVerified = await verifyAndCleanupPost(uniqueCaption);
     expect(dbVerified).to.be.true;
   });
 
-  it('TC_POST_05 – Verify multi-platform post draft saves targetPlatforms correctly in DB', async function () {
-    await seedPlatforms(['FACEBOOK', 'INSTAGRAM', 'LINKEDIN']);
+  it('TC_POST_05 – Verify multi-platform post draft saves targetPlatforms correctly in DB and displays on List UI', async function () {
+    await seedPlatforms(['FACEBOOK', 'INSTAGRAM', 'THREADS']);
     await navigateToPlannerAndPrepare();
     await safeClick(By.css('[data-testid="planner-create-post-btn"]'));
     await driver.sleep(2500);
@@ -312,7 +321,7 @@ describe('Post Creator Detailed E2E Suite', function () {
     const captionInput = await driver.wait(until.elementLocated(By.css('[data-testid="post-caption-input"]')), 10000);
 
     await ensurePlatformState('instagram', true);
-    await ensurePlatformState('linkedin', true);
+    await ensurePlatformState('threads', true);
     await ensurePlatformState('facebook', true);
 
     const uniqueCaption = `Mocha E2E Multi-Platform Draft - Created at ${Date.now()}`;
@@ -328,37 +337,30 @@ describe('Post Creator Detailed E2E Suite', function () {
     await safeClick(By.css('[data-testid="post-submit-btn"]'));
     await driver.sleep(4000);
 
+    // 1. Kiểm tra hiển thị trên List UI
+    await driver.get(`${BASE_URL}/planner/list`);
+    await driver.sleep(2000);
+    const uiPostCard = await driver.wait(
+      until.elementLocated(By.xpath(`//*[contains(text(), '${uniqueCaption}')]`)),
+      12000
+    );
+    expect(uiPostCard).to.exist;
+
+    // 2. Kiểm tra lưu targetPlatforms vào DB
     const connection = await mysql.createConnection(process.env.MYSQL_URL || 'mysql://root:root_password@localhost:3307/publicast');
     try {
       const [posts] = await connection.execute('SELECT id, targetPlatforms FROM posts WHERE caption = ?', [uniqueCaption]);
       expect(posts.length).to.be.greaterThan(0);
       expect(posts[0].targetPlatforms.toLowerCase()).to.include('facebook');
       expect(posts[0].targetPlatforms.toLowerCase()).to.include('instagram');
-      expect(posts[0].targetPlatforms.toLowerCase()).to.include('linkedin');
+      expect(posts[0].targetPlatforms.toLowerCase()).to.include('threads');
       await connection.execute('DELETE FROM posts WHERE id = ?', [posts[0].id]);
     } finally {
       await connection.end();
     }
   });
 
-  it('TC_POST_06 – Verify character limits logic for LinkedIn (3000 chars limit)', async function () {
-    await seedPlatforms(['LINKEDIN']);
-    await navigateToPlannerAndPrepare();
-    await safeClick(By.css('[data-testid="planner-create-post-btn"]'));
-    await driver.sleep(2000);
-
-    const captionInput = await driver.wait(until.elementLocated(By.css('[data-testid="post-caption-input"]')), 10000);
-
-    await ensurePlatformState('linkedin', true);
-
-    const longCaption = 'A'.repeat(3050);
-    await captionInput.sendKeys(longCaption);
-    await driver.sleep(500);
-
-    await safeClick(By.xpath("//span[contains(text(), 'Close')]/.. | //button[contains(., 'Close')]"));
-  });
-
-  it('TC_POST_07 – Verify character limits logic for Threads (500 chars limit)', async function () {
+  it('TC_POST_06 – Verify character limits logic for Threads (500 chars limit)', async function () {
     await seedPlatforms(['THREADS']);
     await navigateToPlannerAndPrepare();
     await safeClick(By.css('[data-testid="planner-create-post-btn"]'));
@@ -375,7 +377,7 @@ describe('Post Creator Detailed E2E Suite', function () {
     await safeClick(By.xpath("//span[contains(text(), 'Close')]/.. | //button[contains(., 'Close')]"));
   });
 
-  it('TC_POST_08 – Verify platform validation blocks submission if YouTube has no video', async function () {
+  it('TC_POST_07 – Verify platform validation blocks submission if YouTube has no video', async function () {
     await seedPlatforms(['YOUTUBE']);
     await navigateToPlannerAndPrepare();
     await safeClick(By.css('[data-testid="planner-create-post-btn"]'));
@@ -396,7 +398,7 @@ describe('Post Creator Detailed E2E Suite', function () {
     await safeClick(By.xpath("//span[contains(text(), 'Close')]/.. | //button[contains(., 'Close')]"));
   });
 
-  it('TC_POST_09 – Verify platform validation blocks submission if TikTok has no media', async function () {
+  it('TC_POST_08 – Verify platform validation blocks submission if TikTok has no media', async function () {
     await seedPlatforms(['TIKTOK']);
     await navigateToPlannerAndPrepare();
     await safeClick(By.css('[data-testid="planner-create-post-btn"]'));
@@ -417,7 +419,7 @@ describe('Post Creator Detailed E2E Suite', function () {
     await safeClick(By.xpath("//span[contains(text(), 'Close')]/.. | //button[contains(., 'Close')]"));
   });
 
-  it('TC_POST_10 – Verify scheduling a post for tomorrow saves scheduledAt correctly in DB', async function () {
+  it('TC_POST_09 – Verify scheduling a post for tomorrow saves scheduledAt correctly in DB and displays on List UI', async function () {
     await seedPlatforms(['FACEBOOK']);
     await navigateToPlannerAndPrepare();
     await safeClick(By.css('[data-testid="planner-create-post-btn"]'));
@@ -437,7 +439,7 @@ describe('Post Creator Detailed E2E Suite', function () {
     await safeClick(By.css('[data-testid="publish-option-schedule"]'));
     await driver.sleep(1000);
 
-    // Tính toán ngày mai
+    // Lên lịch cho ngày mai
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(12);
@@ -460,9 +462,27 @@ describe('Post Creator Detailed E2E Suite', function () {
     );
     await driver.sleep(1000);
 
+    // Chụp màn hình để debug
+    try {
+      const image = await driver.takeScreenshot();
+      const dbgPath = path.join(__dirname, 'dbg_TC_POST_09_before_submit.png');
+      fs.writeFileSync(dbgPath, image, 'base64');
+      console.log(`📸 Chụp ảnh trước khi submit TC09: ${dbgPath}`);
+    } catch(e) {}
+
     await safeClick(By.css('[data-testid="post-submit-btn"]'));
     await driver.sleep(4000);
 
+    // 1. Kiểm tra hiển thị trên List UI
+    await driver.get(`${BASE_URL}/planner/list`);
+    await driver.sleep(2000); // Đợi trang list render các bài đăng
+    const uiPostCard = await driver.wait(
+      until.elementLocated(By.xpath(`//*[contains(text(), '${uniqueCaption}')]`)),
+      12000
+    );
+    expect(uiPostCard).to.exist;
+
+    // 2. Kiểm tra DB
     const connection = await mysql.createConnection(process.env.MYSQL_URL || 'mysql://root:root_password@localhost:3307/publicast');
     try {
       const [posts] = await connection.execute('SELECT id, scheduledAt, status FROM posts WHERE caption = ?', [uniqueCaption]);
