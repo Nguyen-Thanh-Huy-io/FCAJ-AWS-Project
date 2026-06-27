@@ -2,7 +2,7 @@ name: Selenium UI Automation Tests
 
 on:
   push:
-    branches: [ main, master, develop, feature/**, bugfix/** ]
+    branches: [ main, master, develop, feature/**, bugfix/**, bug/** ]
   pull_request:
     branches: [ main, master, develop ]
 
@@ -109,6 +109,7 @@ jobs:
           npm run test:brand
           npm run test:auth-suite
           npm run test:profile
+          npm run test:post-creator
 
       - name: Upload Test Screenshots
         if: failure()
