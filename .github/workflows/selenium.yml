@@ -94,6 +94,12 @@ jobs:
       - name: Run Selenium Tests
         working-directory: test_selenium
         run: |
+          echo "ADMIN_EMAIL=vothanhnha26@gmail.com" > .env
+          echo "ADMIN_PASSWORD=nhacc123@" >> .env
+          echo "MEMBER_EMAIL=vothanhnha26@gmail.com" >> .env
+          echo "MEMBER_PASSWORD=nhacc123@" >> .env
+          echo "BASE_URL=http://localhost:5173" >> .env
+          echo "API_URL=http://localhost:3000" >> .env
           npm run test:brand
           npm run test:auth-suite
 
