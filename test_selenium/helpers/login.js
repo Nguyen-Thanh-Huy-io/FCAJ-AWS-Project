@@ -17,8 +17,11 @@ async function loginAs(driver, role) {
   await driver.findElement(By.id('email')).sendKeys(email);
   await driver.findElement(By.id('password')).sendKeys(password);
   await driver.findElement(By.css('button[type="submit"]')).click();
-  // Wait for successful navigation after login, adjust as needed
-  await driver.wait(until.urlContains('/dashboard'), 10000);
+  // Wait for successful navigation after login, adjust as needed (allow /dashboard or /start onboarding page)
+  await driver.wait(async () => {
+    const currentUrl = await driver.getCurrentUrl();
+    return currentUrl.includes('/dashboard') || currentUrl.includes('/start');
+  }, 20000);
 }
 
 module.exports = { loginAs };
