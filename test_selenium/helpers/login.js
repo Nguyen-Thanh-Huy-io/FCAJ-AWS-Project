@@ -18,10 +18,22 @@ async function loginAs(driver, role) {
   await driver.findElement(By.id('password')).sendKeys(password);
   await driver.findElement(By.css('button[type="submit"]')).click();
   // Wait for successful navigation after login, adjust as needed (allow /dashboard or /start onboarding page)
-  await driver.wait(async () => {
-    const currentUrl = await driver.getCurrentUrl();
-    return currentUrl.includes('/dashboard') || currentUrl.includes('/start');
-  }, 20000);
+  try {
+    await driver.wait(async () => {
+      const currentUrl = await driver.getCurrentUrl();
+      console.log(`[loginAs] Current URL on navigation check: ${currentUrl}`);
+      return currentUrl.includes('/dashboard') || currentUrl.includes('/start') || currentUrl.includes('/manage/connections');
+    }, 20000);
+  } catch (err) {
+    const finalUrl = await driver.getCurrentUrl();
+    let bodyText = "";
+    try {
+      bodyText = await driver.findElement(By.css('body')).getText();
+    } catch (_) {}
+    console.error(`❌ [loginAs] Timeout waiting for redirection. Final URL: ${finalUrl}`);
+    console.error(`❌ [loginAs] Visible body text: \n${bodyText.substring(0, 1000)}`);
+    throw err;
+  }
 }
 
 module.exports = { loginAs };
