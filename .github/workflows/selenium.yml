@@ -92,6 +92,10 @@ jobs:
         run: |
           npm install
 
+      - name: Wait for Frontend and Backend to be Ready
+        run: |
+          npx wait-on -t 60000 http://localhost:5173/login http://localhost:3000/health || echo "Services might not support health endpoint, continuing..."
+
       - name: Run Selenium Tests
         working-directory: test_selenium
         run: |
