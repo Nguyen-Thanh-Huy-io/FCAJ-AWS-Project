@@ -38,16 +38,21 @@ async function loginAs(driver, role) {
     
     // Đi tới trang đăng ký
     await driver.get(`${process.env.BASE_URL || 'http://localhost:5173'}/signup`);
-    await driver.wait(until.elementLocated(By.id('email')), 15000);
+    
+    // Chờ tất cả các input element load đầy đủ trên DOM
+    const nameInput = await driver.wait(until.elementLocated(By.xpath("//input[@placeholder='Your name']")), 15000);
+    const emailInput = await driver.wait(until.elementLocated(By.id('email')), 15000);
+    const passwordInput = await driver.wait(until.elementLocated(By.id('password')), 15000);
+    const confirmPasswordInput = await driver.wait(until.elementLocated(By.xpath("//input[@placeholder='••••••••']")), 15000);
     
     const timestamp = Date.now();
     const newEmail = `brandtestadmin${timestamp}@gmail.com`;
     const newPassword = password; // sử dụng cùng mật khẩu nhacc123@
     
-    await driver.findElement(By.xpath("//input[@placeholder='Your name']")).sendKeys('Brand Admin Tester');
-    await driver.findElement(By.id('email')).sendKeys(newEmail);
-    await driver.findElement(By.id('password')).sendKeys(newPassword);
-    await driver.findElement(By.xpath("//input[@placeholder='••••••••']")).sendKeys(newPassword);
+    await nameInput.sendKeys('Brand Admin Tester');
+    await emailInput.sendKeys(newEmail);
+    await passwordInput.sendKeys(newPassword);
+    await confirmPasswordInput.sendKeys(newPassword);
     
     const checkbox = await driver.findElement(By.xpath("//input[@type='checkbox']"));
     if (!(await checkbox.isSelected())) {
