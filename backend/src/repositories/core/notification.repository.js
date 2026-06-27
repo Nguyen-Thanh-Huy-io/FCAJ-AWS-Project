@@ -13,12 +13,8 @@ class NotificationRepository {
         skip,
         take,
         orderBy,
-        include: viewerUserId ? {
-          readReceipts: {
-            where: { userId: viewerUserId },
-            select: { id: true, readAt: true }
-          }
-        } : undefined
+        // Removed eager loading of readReceipts to avoid Prisma validation error.
+        // The isRead flag is sufficient for UI logic.
       }),
       prisma.systemNotification.count({ where })
     ]);

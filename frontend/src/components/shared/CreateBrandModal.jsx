@@ -60,6 +60,7 @@ export function CreateBrandModal({ isOpen, onClose, onCreate }) {
                 value={brandName}
                 onChange={(e) => setBrandName(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none text-sm font-semibold transition-all shadow-sm focus:ring-1 focus:ring-black/10"
+                data-testid="create-brand-name"
               />
             </div>
 
@@ -69,6 +70,7 @@ export function CreateBrandModal({ isOpen, onClose, onCreate }) {
                 onClick={onClose}
                 disabled={loading}
                 className="flex-1 py-3 border border-gray-300 rounded-xl text-xs font-bold text-gray-700 hover:bg-gray-50 transition-all cursor-pointer text-center disabled:opacity-50"
+                data-testid="cancel-brand-btn"
               >
                 Hủy
               </button>
@@ -76,6 +78,7 @@ export function CreateBrandModal({ isOpen, onClose, onCreate }) {
                 type="submit"
                 disabled={loading || !brandName.trim()}
                 className="flex-1 py-3 bg-[#2D1D35] hover:bg-[#3D2D45] text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                data-testid="submit-brand-btn"
               >
                 {loading && <Loader2 className="animate-spin" size={14} />}
                 Tạo mới

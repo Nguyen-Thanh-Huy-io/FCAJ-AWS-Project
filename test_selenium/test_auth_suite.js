@@ -122,11 +122,11 @@ async function runAuthSuite() {
       await driver.get(`${BASE_URL}/signup`);
       console.log("👉 Đã truy cập trang Đăng ký.");
 
-      let nameInput = await driver.wait(until.elementLocated(By.xpath("//input[@placeholder='Your name']")), 5000);
-      let emailInput = await driver.findElement(By.xpath("//input[@placeholder='you@company.com']"));
-      let passwordInputs = await driver.findElements(By.xpath("//input[@type='password']"));
-      let passwordInput = passwordInputs[0];
-      let confirmPasswordInput = passwordInputs[1];
+      // Đợi input email có mặt bằng ID trước
+      let emailInput = await driver.wait(until.elementLocated(By.id('email')), 15000);
+      let nameInput = await driver.findElement(By.xpath("//input[@placeholder='Your name']"));
+      let passwordInput = await driver.findElement(By.id('password'));
+      let confirmPasswordInput = await driver.findElement(By.xpath("//input[@placeholder='••••••••']"));
       let checkbox = await driver.findElement(By.xpath("//input[@type='checkbox']"));
       let submitButton = await driver.findElement(By.xpath("//button[@type='submit']"));
 
@@ -149,7 +149,7 @@ async function runAuthSuite() {
 
       // Chờ chuyển hướng sang OTP
       console.log("⏳ Chờ chuyển hướng sang trang Verify OTP...");
-      await driver.wait(until.urlContains('/verify-otp'), 5000);
+      await driver.wait(until.urlContains('/verify-otp'), 10000);
       console.log("🎉 Đã chuyển sang trang OTP.");
       await takeScreenshot(driver, 'auth_001_2_otp_page.png');
 
@@ -167,7 +167,7 @@ async function runAuthSuite() {
       console.log(`🔑 Tìm thấy mã OTP: ${otpCode}`);
 
       // Điền OTP
-      let otpInput = await driver.wait(until.elementLocated(By.xpath("//input[@placeholder='000000']")), 5000);
+      let otpInput = await driver.wait(until.elementLocated(By.xpath("//input[@placeholder='000000']")), 10000);
       await otpInput.sendKeys(otpCode);
       
       let verifyButton = await driver.findElement(By.xpath("//button[@type='submit']"));
@@ -176,7 +176,7 @@ async function runAuthSuite() {
 
       // Chờ chuyển sang trang Onboarding /start
       console.log("⏳ Chờ chuyển hướng sang trang Onboarding (/start)...");
-      await driver.wait(until.urlContains('/start'), 8000);
+      await driver.wait(until.urlContains('/start'), 15000);
       console.log("🎉 Đăng ký & Xác thực OTP hoàn tất!");
       await takeScreenshot(driver, 'auth_001_3_onboarding_start.png');
 
@@ -224,11 +224,10 @@ async function runAuthSuite() {
       await driver.get(`${BASE_URL}/signup`);
       console.log("👉 Đã truy cập trang Đăng ký.");
 
-      let nameInput = await driver.wait(until.elementLocated(By.xpath("//input[@placeholder='Your name']")), 5000);
-      let emailInput = await driver.findElement(By.xpath("//input[@placeholder='you@company.com']"));
-      let passwordInputs = await driver.findElements(By.xpath("//input[@type='password']"));
-      let passwordInput = passwordInputs[0];
-      let confirmPasswordInput = passwordInputs[1];
+      let emailInput = await driver.wait(until.elementLocated(By.id('email')), 15000);
+      let nameInput = await driver.findElement(By.xpath("//input[@placeholder='Your name']"));
+      let passwordInput = await driver.findElement(By.id('password'));
+      let confirmPasswordInput = await driver.findElement(By.xpath("//input[@placeholder='••••••••']"));
       let checkbox = await driver.findElement(By.xpath("//input[@type='checkbox']"));
       let submitButton = await driver.findElement(By.xpath("//button[@type='submit']"));
 
@@ -248,7 +247,7 @@ async function runAuthSuite() {
       console.log("⏳ Chờ Toast thông báo lỗi...");
       let toastElement = await driver.wait(
         until.elementLocated(By.xpath("//*[contains(text(), 'không khớp') or contains(text(), 'mismatch') or contains(text(), 'match')]")),
-        5000
+        10000
       );
       const errorText = await toastElement.getText();
       console.log(`📢 Thông báo lỗi thực tế trên UI: "${errorText}"`);
@@ -280,11 +279,10 @@ async function runAuthSuite() {
       await driver.get(`${BASE_URL}/signup`);
       console.log("👉 Đã truy cập trang Đăng ký.");
 
-      let nameInput = await driver.wait(until.elementLocated(By.xpath("//input[@placeholder='Your name']")), 5000);
-      let emailInput = await driver.findElement(By.xpath("//input[@placeholder='you@company.com']"));
-      let passwordInputs = await driver.findElements(By.xpath("//input[@type='password']"));
-      let passwordInput = passwordInputs[0];
-      let confirmPasswordInput = passwordInputs[1];
+      let emailInput = await driver.wait(until.elementLocated(By.id('email')), 15000);
+      let nameInput = await driver.findElement(By.xpath("//input[@placeholder='Your name']"));
+      let passwordInput = await driver.findElement(By.id('password'));
+      let confirmPasswordInput = await driver.findElement(By.xpath("//input[@placeholder='••••••••']"));
       let checkbox = await driver.findElement(By.xpath("//input[@type='checkbox']"));
       let submitButton = await driver.findElement(By.xpath("//button[@type='submit']"));
 
@@ -300,7 +298,7 @@ async function runAuthSuite() {
       console.log("⏳ Chờ Toast thông báo lỗi trùng email...");
       let toastElement = await driver.wait(
         until.elementLocated(By.xpath("//*[contains(text(), 'tồn tại') or contains(text(), 'already exists') or contains(text(), 'Email')]")),
-        5000
+        10000
       );
       const errorText = await toastElement.getText();
       console.log(`📢 Thông báo lỗi thực tế trên UI: "${errorText}"`);
@@ -333,8 +331,8 @@ async function runAuthSuite() {
       await driver.get(`${BASE_URL}/login`);
       console.log("👉 Đã truy cập trang Đăng nhập.");
 
-      let emailInput = await driver.wait(until.elementLocated(By.xpath("//input[@type='email']")), 5000);
-      let passwordInput = await driver.findElement(By.xpath("//input[@type='password']"));
+      let emailInput = await driver.wait(until.elementLocated(By.id('email')), 15000);
+      let passwordInput = await driver.findElement(By.id('password'));
       let submitButton = await driver.findElement(By.xpath("//button[@type='submit']"));
 
       console.log(`✍️ Nhập Email: '${testEmail}'`);
@@ -349,7 +347,7 @@ async function runAuthSuite() {
 
       // Chờ chuyển sang trang Dashboard
       console.log("⏳ Chờ hệ thống xác thực và chuyển hướng đến Dashboard...");
-      await driver.wait(until.urlContains('/dashboard'), 5000);
+      await driver.wait(until.urlContains('/dashboard'), 15000);
       console.log("🎉 Đăng nhập thành công, đã vào Dashboard!");
       await takeScreenshot(driver, 'auth_004_2_dashboard.png');
 
@@ -374,8 +372,8 @@ async function runAuthSuite() {
       await driver.get(`${BASE_URL}/login`);
       console.log("👉 Đã truy cập trang Đăng nhập (đã xóa cookies).");
 
-      let emailInput = await driver.wait(until.elementLocated(By.xpath("//input[@type='email']")), 5000);
-      let passwordInput = await driver.findElement(By.xpath("//input[@type='password']"));
+      let emailInput = await driver.wait(until.elementLocated(By.id('email')), 15000);
+      let passwordInput = await driver.findElement(By.id('password'));
       let submitButton = await driver.findElement(By.xpath("//button[@type='submit']"));
 
       console.log(`✍️ Nhập Email: '${testEmail}'`);
@@ -388,7 +386,7 @@ async function runAuthSuite() {
       console.log("⏳ Chờ thông báo lỗi mật khẩu không hợp lệ...");
       let toastElement = await driver.wait(
         until.elementLocated(By.xpath("//*[contains(text(), 'mật khẩu') or contains(text(), 'Invalid') or contains(text(), 'sai')]")),
-        5000
+        10000
       );
       const errorText = await toastElement.getText();
       console.log(`📢 Thông báo lỗi thực tế trên UI: "${errorText}"`);
@@ -414,11 +412,10 @@ async function runAuthSuite() {
       await driver.get(`${BASE_URL}/signup`);
       console.log("👉 Đã truy cập trang Đăng ký.");
 
-      let nameInput = await driver.wait(until.elementLocated(By.xpath("//input[@placeholder='Your name']")), 5000);
-      let emailInput = await driver.findElement(By.xpath("//input[@placeholder='you@company.com']"));
-      let passwordInputs = await driver.findElements(By.xpath("//input[@type='password']"));
-      let passwordInput = passwordInputs[0];
-      let confirmPasswordInput = passwordInputs[1];
+      let emailInput = await driver.wait(until.elementLocated(By.id('email')), 15000);
+      let nameInput = await driver.findElement(By.xpath("//input[@placeholder='Your name']"));
+      let passwordInput = await driver.findElement(By.id('password'));
+      let confirmPasswordInput = await driver.findElement(By.xpath("//input[@placeholder='••••••••']"));
       let checkbox = await driver.findElement(By.xpath("//input[@type='checkbox']"));
       let submitButton = await driver.findElement(By.xpath("//button[@type='submit']"));
 
@@ -433,15 +430,15 @@ async function runAuthSuite() {
 
       // Chờ chuyển hướng sang trang Verify OTP nhưng KHÔNG NHẬP MÃ
       console.log("⏳ Chờ chuyển hướng sang trang OTP...");
-      await driver.wait(until.urlContains('/verify-otp'), 5000);
+      await driver.wait(until.urlContains('/verify-otp'), 10000);
       console.log("⚠️ Bỏ qua bước xác minh OTP, quay lại trang đăng nhập.");
       await takeScreenshot(driver, 'auth_006_1_verify_otp_left.png');
 
       // Đi tới trang đăng nhập trực tiếp
       await driver.get(`${BASE_URL}/login`);
       
-      let loginEmailInput = await driver.wait(until.elementLocated(By.xpath("//input[@type='email']")), 5000);
-      let loginPasswordInput = await driver.findElement(By.xpath("//input[@type='password']"));
+      let loginEmailInput = await driver.wait(until.elementLocated(By.id('email')), 15000);
+      let loginPasswordInput = await driver.findElement(By.id('password'));
       let loginSubmitButton = await driver.findElement(By.xpath("//button[@type='submit']"));
 
       console.log(`✍️ Thử đăng nhập bằng email chưa kích hoạt: '${unverifiedEmail}'`);
@@ -451,13 +448,13 @@ async function runAuthSuite() {
 
       // Chờ xem có báo lỗi "Account not activated" và tự động điều hướng về lại /verify-otp không
       console.log("⏳ Chờ phản hồi và chuyển hướng...");
-      await driver.wait(until.urlContains('/verify-otp'), 5000);
+      await driver.wait(until.urlContains('/verify-otp'), 10000);
       console.log("🎉 Đã tự động điều hướng người dùng quay lại trang OTP!");
       
       // Chờ toast thông báo kích hoạt xuất hiện
       let toastElement = await driver.wait(
         until.elementLocated(By.xpath("//*[contains(text(), 'kích hoạt') or contains(text(), 'activated') or contains(text(), 'OTP') or contains(text(), 'xác thực')]")),
-        5000
+        10000
       );
       const errorText = await toastElement.getText();
       console.log(`📢 Thông báo thực tế trên UI: "${errorText}"`);

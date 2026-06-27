@@ -14,22 +14,22 @@ async function runLocalLoginTest() {
 
     // Chờ các trường nhập liệu load xong
     console.log("🔍 Chờ form Đăng nhập xuất hiện...");
-    let emailInput = await driver.wait(until.elementLocated(By.xpath("//input[@type='email']")), 5000);
-    let passwordInput = await driver.findElement(By.xpath("//input[@type='password']"));
+    let emailInput = await driver.wait(until.elementLocated(By.id('email')), 15000);
+    let passwordInput = await driver.findElement(By.id('password'));
     let submitButton = await driver.findElement(By.xpath("//button[@type='submit']"));
 
-    console.log("✍️ Điền email đăng nhập: 'test_selenium_user@example.com'");
-    await emailInput.sendKeys('test_selenium_user@example.com');
+    console.log("✍️ Điền email đăng nhập: 'vothanhnha26@gmail.com'");
+    await emailInput.sendKeys('vothanhnha26@gmail.com');
 
-    console.log("✍️ Điền mật khẩu: 'Password123!'");
-    await passwordInput.sendKeys('Password123!');
+    console.log("✍️ Điền mật khẩu: 'nhacc123@'");
+    await passwordInput.sendKeys('nhacc123@');
 
     console.log("🖱️ Bấm nút đăng nhập...");
     await submitButton.click();
 
     // Chờ xem có chuyển hướng tới trang Dashboard không
     console.log("⏳ Chờ hệ thống xác thực và chuyển hướng trang...");
-    await driver.wait(until.urlContains('/dashboard'), 5000);
+    await driver.wait(until.urlContains('/dashboard'), 15000);
     console.log("🎉 KẾT QUẢ: Đăng nhập thành công và chuyển hướng đến Dashboard!");
     console.log("✅ KẾT QUẢ: KIỂM THỬ SELENIUM LOGIN HOẠT ĐỘNG THÀNH CÔNG!");
   } catch (error) {

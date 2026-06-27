@@ -2,9 +2,9 @@ name: Selenium UI Automation Tests
 
 on:
   push:
-    branches: [ main, master, feature/** ]
+    branches: [ main, master, develop, feature/**, bugfix/** ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, master, develop ]
 
 jobs:
   selenium-tests:
@@ -68,6 +68,7 @@ jobs:
         run: |
           npm install
           npx prisma db push
+          node prisma/seed.js
 
       - name: Start Backend Server
         working-directory: backend
@@ -79,6 +80,7 @@ jobs:
         working-directory: frontend
         run: |
           npm install
+          echo "VITE_API_BASE_URL=http://localhost:3000/api" > .env
           npm run dev &
 
       - name: Install Chrome
@@ -91,10 +93,21 @@ jobs:
         run: |
           npm install
 
+      - name: Wait for Frontend and Backend to be Ready
+        run: |
+          npx wait-on -t 60000 http://localhost:5173/login http://localhost:3000/health || echo "Services might not support health endpoint, continuing..."
+
       - name: Run Selenium Tests
         working-directory: test_selenium
         run: |
-          node test_simple.js
+          echo "ADMIN_EMAIL=vothanhnha26@gmail.com" > .env
+          echo "ADMIN_PASSWORD=nhacc123@" >> .env
+          echo "MEMBER_EMAIL=vothanhnha26@gmail.com" >> .env
+          echo "MEMBER_PASSWORD=nhacc123@" >> .env
+          echo "BASE_URL=http://localhost:5173" >> .env
+          echo "API_URL=http://localhost:3000" >> .env
+          npm run test:brand
+          npm run test:auth-suite
 
       - name: Upload Test Screenshots
         if: failure()

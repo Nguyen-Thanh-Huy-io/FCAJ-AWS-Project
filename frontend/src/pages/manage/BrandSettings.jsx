@@ -196,7 +196,8 @@ export function BrandSettingsPage() {
                 setIsCreateModalOpen(true);
               }
             }}
-            className="flex items-center gap-2 px-4 py-1.5 bg-[#FEFCE8] border border-[#FEF08A] rounded-lg text-xs font-bold text-[#854D0E] hover:bg-[#FEF9C3] transition-all shadow-sm cursor-pointer"
+            className="flex items-center gap-2 px-4 py-1.5 bg-[#FEFCE8] border border-[#FEF08A] rounded-lg text-xs font-bold text-[#854D0E] hover:bg-[#FEF9C3] transition-all shadow-sm cursor-pointer add-brand-btn"
+            data-testid="add-brand-btn"
           >
             <Plus size={14} /> Add brand <Diamond size={12} className="fill-current" />
           </button>
@@ -230,7 +231,8 @@ export function BrandSettingsPage() {
                     <div 
                       key={brand.id}
                       onClick={() => { setSelectedBrand({ ...brand }); selectBrand(brand.id); setIsDropdownOpen(false); }}
-                      className="p-3 flex items-center gap-3 hover:bg-[#E5E7EB] transition-colors cursor-pointer group"
+                      className="p-3 flex items-center gap-3 hover:bg-[#E5E7EB] transition-colors cursor-pointer group brand-row"
+                      data-testid={`brand-row-${brand.id}`}
                     >
                        <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-sm" style={{ backgroundColor: '#E1306C' }}>
                           {brand.name.charAt(0)}
@@ -290,6 +292,7 @@ export function BrandSettingsPage() {
                       value={selectedBrand.name} 
                       onChange={(e) => setSelectedBrand({...selectedBrand, name: e.target.value})} 
                       className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none text-sm font-medium" 
+                      data-testid="brand-name-input"
                     />
                   </div>
                 </div>
@@ -317,7 +320,8 @@ export function BrandSettingsPage() {
                 type="button"
                 onClick={handleDeleteBrand}
                 disabled={isDeleting || brands.length <= 1}
-                className="px-6 py-3 border border-red-200 hover:bg-red-50 text-red-600 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-3 border border-red-200 hover:bg-red-50 text-red-600 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed delete-btn"
+                data-testid="delete-brand-btn"
                 title={brands.length <= 1 ? "Không thể xóa thương hiệu duy nhất của bạn" : ""}
               >
                 {isDeleting ? "Đang xóa..." : "Xóa thương hiệu"}
@@ -327,7 +331,8 @@ export function BrandSettingsPage() {
                 type="button"
                 onClick={handleSaveBrand}
                 disabled={isUpdating || !selectedBrand.name.trim() || selectedBrand.name.trim() === activeBrand?.name}
-                className="px-6 py-3 bg-[#2D1D35] hover:bg-[#3D2D45] text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md disabled:opacity-50 flex items-center gap-1.5"
+                className="px-6 py-3 bg-[#2D1D35] hover:bg-[#3D2D45] text-white rounded-xl text-xs font-bold transition-all cursor-pointer shadow-md disabled:opacity-50 flex items-center gap-1.5 save-brand-btn"
+                data-testid="save-brand-btn"
               >
                 {isUpdating && <Loader2 className="animate-spin" size={12} />}
                 Lưu thay đổi
