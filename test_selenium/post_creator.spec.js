@@ -422,7 +422,7 @@ describe('Post Creator Detailed E2E Suite', function () {
     const modalElements = await driver.findElements(By.css('[data-testid="post-caption-input"]'));
     expect(modalElements.length).to.be.greaterThan(0);
 
-    await safeClick(By.xpath("//span[contains(text(), 'Close')]/.. | //button[contains(., 'Close')]"));
+    await safeClick(By.xpath("//button[text()='Cancel'] | //span[contains(text(), 'Cancel')]/.. | //span[contains(text(), 'Close')]/.. | //button[contains(., 'Close')] | //button[contains(., 'Cancel')]"));
   });
 
   it('TC_POST_08 – Verify platform validation blocks submission if TikTok has no media', async function () {
@@ -443,7 +443,7 @@ describe('Post Creator Detailed E2E Suite', function () {
     const modalElements = await driver.findElements(By.css('[data-testid="post-caption-input"]'));
     expect(modalElements.length).to.be.greaterThan(0);
 
-    await safeClick(By.xpath("//span[contains(text(), 'Close')]/.. | //button[contains(., 'Close')]"));
+    await safeClick(By.xpath("//button[text()='Cancel'] | //span[contains(text(), 'Cancel')]/.. | //span[contains(text(), 'Close')]/.. | //button[contains(., 'Close')] | //button[contains(., 'Cancel')]"));
   });
 
   it('TC_POST_09 – Verify scheduling a post for tomorrow saves scheduledAt correctly in DB and displays on List UI', async function () {
@@ -563,9 +563,22 @@ describe('Post Creator Detailed E2E Suite', function () {
       10000
     );
     await fileInput.sendKeys(videoFilePath);
-    await driver.sleep(2000); // Chờ React cập nhật state và render tên file
+    console.log("⏳ Chờ video upload lên Cloudinary (chờ biến mất trạng thái 'Uploading...')...");
+    try {
+      await driver.wait(
+        async () => {
+          const elements = await driver.findElements(By.xpath("//*[contains(text(), 'Uploading...')]"));
+          return elements.length === 0;
+        },
+        25000,
+        "Video upload to Cloudinary timed out after 25s"
+      );
+    } catch (e) {
+      console.warn("⚠️ Cảnh báo: Trạng thái upload không biến mất hoặc bị lỗi:", e.message);
+    }
+    await driver.sleep(2000); // Đợi React render xong và cập nhật state submit button hoàn chỉnh
 
-    // Kiểm tra tên file video xuất hiện trên thanh xem trước (không cần upload lên server)
+    // Kiểm tra tên file video xuất hiện trên thanh xem trước
     const videoPreviewName = await driver.wait(
       until.elementLocated(By.xpath("//*[contains(text(), 'sample_video.mp4')]") ),
       8000
