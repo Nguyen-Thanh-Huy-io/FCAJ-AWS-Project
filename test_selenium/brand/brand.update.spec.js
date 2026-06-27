@@ -15,11 +15,23 @@ const { expect } = require('chai');
 const { Builder, By, until } = require('selenium-webdriver');
 const { loginAs } = require('../helpers/login');
 
+const chrome = require('selenium-webdriver/chrome');
+
 describe('Brand Update', function () {
   this.timeout(60000);
   let driver;
   before(async function () {
-    driver = await new Builder().forBrowser('chrome').build();
+    const options = new chrome.Options();
+    if (process.env.CI || process.env.HEADLESS) {
+      options.addArguments('--headless=new');
+      options.addArguments('--no-sandbox');
+      options.addArguments('--disable-dev-shm-usage');
+      options.addArguments('--disable-gpu');
+    }
+    driver = await new Builder()
+      .forBrowser('chrome')
+      .setChromeOptions(options)
+      .build();
     await loginAs(driver, 'admin');
     await driver.get(`${BASE_URL}/manage/connections`);
     // Wait for Brand Settings page to load
