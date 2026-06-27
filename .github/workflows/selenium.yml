@@ -108,6 +108,7 @@ jobs:
           echo "API_URL=http://localhost:3000" >> .env
           npm run test:brand
           npm run test:auth-suite
+          npm run test:profile
 
       - name: Upload Test Screenshots
         if: failure()
