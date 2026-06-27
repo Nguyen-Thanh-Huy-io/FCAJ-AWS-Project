@@ -138,3 +138,32 @@ Vậy có ít nhất là **10 test case** để bao phủ 100% các nhánh.
   - Scenario: Bài viết cập nhật trực tiếp bởi Admin sang trạng thái `APPROVED` (không qua PENDING_APPROVAL).
   - Value(postData): `status = 'APPROVED'`, `userId` là Admin.
   - Kết quả kỳ vọng: Cập nhật trực tiếp sang `APPROVED`, không chạy qua nhánh `15 -> 16`.
+
+---
+
+## 4. Kiểm thử vòng đời (đời sống) của biến (Data Flow Testing)
+
+Dưới đây là bảng phân tích trạng thái và sự bất thường trong vòng đời của các biến chính qua từng kịch bản kiểm thử:
+
+| Kịch bản \ Biến | id | postData | brandId | userId | post | data | isDirectPublishing | hasApprovePermission | updatedPost | statusChangedToPublished |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **1** | `~duk` | `~dk` | `~dk` | `~dk` | `~duk` | `~k` | `~k` | `~k` | `~k` | `~k` |
+| **2** | `~duk` | `~dk` | `~duk` | `~dk` | `~duuk` | `~k` | `~k` | `~k` | `~k` | `~k` |
+| **3** | `~duk` | `~dk` | `~duk` | `~dk` | `~duuuk` | `~k` | `~k` | `~k` | `~k` | `~k` |
+| **4** | `~duuk` | `~duuuuk` | `~duuuk` | `~duuk` | `~duuuk` | `~duuduk` | `~duk` | `~duk` | `~duuuuk` | `~duk` |
+| **5** | `~duuk` | `~duuuuk` | `~duuuk` | `~duuk` | `~duuuk` | `~duuuk` | `~duk` | `~duk` | `~duuuuk` | `~duk` |
+| **6** | `~duuk` | `~duuuk` | `~duk` | `~dk` | `~duuuk` | `~duuk` | `~duk` | `~k` | `~duuuk` | `~duk` |
+| **7** | `~duuk` | `~duuuk` | `~duk` | `~dk` | `~duuuk` | `~duuk` | `~duk` | `~k` | `~duuuuuk` | `~duk` |
+| **8** | `~duuk` | `~duuuk` | `~duk` | `~dk` | `~duuuk` | `~duuk` | `~duk` | `~k` | `~duuuuuuk` | `~duk` |
+| **9** | `~duuk` | `~duuuk` | `~duk` | `~dk` | `~duuuk` | `~duuk` | `~duk` | `~k` | `~duuuuuuk` | `~duk` |
+| **10** | `~duuk` | `~duuuk` | `~duuuk` | `~duuk` | `~duuuk` | `~duuduk` | `~duk` | `~duk` | `~duuuuuk` | `~duk` |
+| **Kết luận** | Bình thường | Bình thường | Bình thường | Bình thường | Bình thường | Bình thường | Bình thường | Bình thường | Bình thường | Bình thường |
+
+**Chú thích:**
+*   `d` (Defined): Khai báo/gán giá trị.
+*   `u` (Used): Sử dụng/tham chiếu giá trị.
+*   `k` (Killed): Giải phóng/đi ra ngoài phạm vi biến (out of scope).
+*   `~` (Not): Trạng thái trước đó (ví dụ: `~d` là trước đó chưa từng định nghĩa).
+*   `~dk`, `~duk`: Lỗi tiềm ẩn dạng khai báo nhưng không sử dụng, hoặc được gán và sử dụng nhưng rẽ nhánh sớm nên giải phóng (đây là hành vi bình thường của luồng Guard Clause).
+*   **Đánh giá chung:** Không phát hiện bất thường nghiêm trọng (như sử dụng biến chưa khai báo `u` hoặc hủy biến hai lần `k`). Vòng đời của tất cả các biến đều hợp lệ.
+

@@ -51,7 +51,8 @@ class ApiService {
           error.response?.status === 401 &&
           !originalRequest._retry &&
           !originalRequest.url?.includes('/auth/refresh') &&
-          !originalRequest.url?.includes('/auth/login')
+          !originalRequest.url?.includes('/auth/login') &&
+          !originalRequest.url?.includes('/auth/logout')
         ) {
           if (isRefreshing) {
             // Queue this request until refresh is done

@@ -5,11 +5,12 @@ const brandRepository = require('../../repositories/workspace/brand.repository')
 const userRepository = require('../../repositories/auth/user.repository');
 const authorizationFacade = require('../auth/authorization.facade');
 const roleResolver = require('./role-resolver');
-const { TEAM_STATUS, PERMISSION_KEYS } = require('../../utils/constants');
+const { TEAM_STATUS, PERMISSION_KEYS, NOTIFICATION_TYPES } = require('../../utils/constants');
 const QueryPipeline = require('../../core/query-pipeline/query.pipeline');
 const TeamSearchFilter = require('./team/filters/search.filter');
 const TeamRoleFilter = require('./team/filters/role.filter');
 const TeamStatusFilter = require('./team/filters/status.filter');
+const notificationService = require('../core/notification.service');
 
 class TeamService {
   constructor() {
@@ -138,6 +139,21 @@ class TeamService {
       await emailService.sendTeamInvitation(user.email, inviter.name, brand.name, inviteUrl);
     } catch (err) {
       console.error('Failed to send invite email:', err);
+    }
+
+    // Tạo notification cho người được mời
+    try {
+      await notificationService.create({
+        userId: user.id,
+        brandId,
+        type: NOTIFICATION_TYPES.TEAM,
+        title: `Bạn được mời vào "${brand.name}"`,
+        message: `${inviter?.name || 'Ai đó'} đã mời bạn tham gia với vai trò ${role}.`,
+        actionUrl: `/invite?token=${token}`
+      });
+    } catch (notifErr) {
+      // Không để lỗi notification chặn flow mời thành viên
+      console.error('[TeamService] Failed to create invite notification:', notifErr.message);
     }
 
     return {
@@ -303,6 +319,21 @@ class TeamService {
     }
 
     const updated = await teamRepository.update(id, { role: dbRole, customRoleId });
+
+    // Tạo notification cho thành viên bị đổi vai trò
+    try {
+      await notificationService.create({
+        userId: team.userId,
+        brandId: team.brandId,
+        type: NOTIFICATION_TYPES.TEAM,
+        title: 'Vai trò của bạn đã được cập nhật',
+        message: `Vai trò của bạn trong workspace đã được thay đổi thành ${role}.`,
+        actionUrl: '/settings/team'
+      });
+    } catch (notifErr) {
+      console.error('[TeamService] Failed to create role-update notification:', notifErr.message);
+    }
+
     return this._formatTeamMember(updated);
   }
 

@@ -20,7 +20,7 @@ async function runLocalLoginTest() {
 
     console.log("✍️ Điền email đăng nhập: 'test_selenium_user@example.com'");
     await emailInput.sendKeys('test_selenium_user@example.com');
-    
+
     console.log("✍️ Điền mật khẩu: 'Password123!'");
     await passwordInput.sendKeys('Password123!');
 

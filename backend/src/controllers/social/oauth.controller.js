@@ -6,8 +6,8 @@ const instagramService = require('../../services/social/instagram');
 const linkedinService = require('../../services/social/linkedin');
 const linkedinGateway = require('../../services/social/linkedin/linkedin.gateway');
 const tiktokGateway = require('../../services/social/tiktok/tiktok.gateway');
-const { SOCIAL_TECHNICAL, GOOGLE_SCOPES, FACEBOOK_SCOPES, FACEBOOK_API, DEFAULT_CONFIG, API_VERSIONS } = require('../../utils/constants');
-const asyncHandler = require('../../utils/async-handler');
+const notificationService = require('../../services/core/notification.service');
+const { SOCIAL_TECHNICAL, GOOGLE_SCOPES, FACEBOOK_SCOPES, FACEBOOK_API, DEFAULT_CONFIG, API_VERSIONS, NOTIFICATION_TYPES } = require('../../utils/constants');const asyncHandler = require('../../utils/async-handler');
 const logger = require('../../utils/logger');
 const redisClient = require('../../config/redis');
 const crypto = require('crypto');
@@ -64,6 +64,7 @@ class OAuthController {
 
     try {
       await youtubeService.connectChannel(brandId, code, redirectUri);
+      await this._notifySocialConnected(brandId, 'YouTube');
       return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=youtube_connected`);
     } catch (error) {
       return this._handleCallbackError(error, frontendUrl, res);
@@ -107,11 +108,13 @@ class OAuthController {
     try {
       if (platform === 'instagram') {
         await instagramService.connectChannel(brandId, code, redirectUri);
+        await this._notifySocialConnected(brandId, 'Instagram');
         return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=instagram_connected`);
-      } else {
-        await facebookService.connectChannel(brandId, code, redirectUri);
-        return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=facebook_connected`);
       }
+
+      await facebookService.connectChannel(brandId, code, redirectUri);
+      await this._notifySocialConnected(brandId, 'Facebook');
+      return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=facebook_connected`);
     } catch (error) {
       return this._handleCallbackError(error, frontendUrl, res);
     }
@@ -145,6 +148,7 @@ class OAuthController {
 
     try {
       await instagramService.connectChannel(brandId, code, redirectUri);
+      await this._notifySocialConnected(brandId, 'Instagram');
       return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=instagram_connected`);
     } catch (error) {
       return this._handleCallbackError(error, frontendUrl, res);
@@ -162,9 +166,9 @@ class OAuthController {
     const codeVerifier = crypto.randomBytes(32).toString('base64url');
     const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
 
-    // Lưu codeVerifier vào Redis
+    // LÃ†Â°u codeVerifier vÃƒÂ o Redis
     const cacheKey = `tiktok_oauth_verifier:${brandId}`;
-    await redisClient.setEx(cacheKey, 600, codeVerifier); // Hết hạn sau 10 phút
+    await redisClient.setEx(cacheKey, 600, codeVerifier); // HÃ¡ÂºÂ¿t hÃ¡ÂºÂ¡n sau 10 phÃƒÂºt
 
     const url = tiktokGateway.getAuthUrl(SOCIAL_TECHNICAL.TIKTOK_SCOPES, brandId, redirectUri, codeChallenge);
     res.json({ url });
@@ -178,18 +182,19 @@ class OAuthController {
 
     if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
 
-    // Lấy codeVerifier từ Redis
+    // LÃ¡ÂºÂ¥y codeVerifier tÃ¡Â»Â« Redis
     const cacheKey = `tiktok_oauth_verifier:${brandId}`;
     const codeVerifier = await redisClient.get(cacheKey);
     if (!codeVerifier) {
       logger.warn('[TikTok OAuth] PKCE code verifier expired or not found', { brandId });
       return res.redirect(`${frontendUrl}/manage/connections?error=oauth_session_expired`);
     }
-    // Xóa ngay lập tức (Single Use)
+    // XÃƒÂ³a ngay lÃ¡ÂºÂ­p tÃ¡Â»Â©c (Single Use)
     await redisClient.del(cacheKey);
 
     try {
       await tiktokService.connectChannel(brandId, code, redirectUri, codeVerifier);
+      await this._notifySocialConnected(brandId, 'TikTok');
       return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=tiktok_connected`);
     } catch (error) {
       return this._handleCallbackError(error, frontendUrl, res);
@@ -227,6 +232,7 @@ class OAuthController {
 
     try {
       await linkedinService.connectChannel(brandId, code, redirectUri);
+      await this._notifySocialConnected(brandId, 'LinkedIn');
       return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=linkedin_connected`);
     } catch (error) {
       return this._handleCallbackError(error, frontendUrl, res);
@@ -254,12 +260,26 @@ class OAuthController {
     try {
       const threadsService = require('../../services/social/threads');
       await threadsService.connectChannel(brandId, code, redirectUri);
+      await this._notifySocialConnected(brandId, 'Threads');
       return res.redirect(`${frontendUrl}/manage/connections?tab=connections&success=threads_connected`);
     } catch (error) {
       return this._handleCallbackError(error, frontendUrl, res);
     }
   });
+
+  async _notifySocialConnected(brandId, platformName) {
+    try {
+      await notificationService.create({
+        brandId,
+        type: NOTIFICATION_TYPES.PLATFORM,
+        title: `${platformName} connected`,
+        message: `${platformName} has been connected successfully.`,
+        actionUrl: '/manage/connections'
+      });
+    } catch (err) {
+      logger.error(`[OAuthController] Failed to create ${platformName} connection notification:`, err);
+    }
+  }
 }
 
 module.exports = new OAuthController();
-
