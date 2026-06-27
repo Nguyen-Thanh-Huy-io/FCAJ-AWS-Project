@@ -20,6 +20,15 @@ const { reportBugToJira } = require('./jira_helper');
 
 // Hàm hỗ trợ chụp màn hình và báo lỗi Jira
 async function handleTestFailure(driver, testCaseName, error) {
+  try {
+    const currentUrl = await driver.getCurrentUrl();
+    console.error(`❌ Lỗi tại URL: ${currentUrl}`);
+    const pageSource = await driver.getPageSource();
+    console.error(`Page source snippet: ${pageSource.slice(0, 1000)}`);
+  } catch (e) {
+    console.error("Could not retrieve URL or page source:", e.message);
+  }
+
   const fileName = `${testCaseName.toLowerCase()}_failed_${Date.now()}.png`;
   const filePath = path.join(SCREENSHOT_DIR, fileName);
   try {
@@ -109,6 +118,7 @@ async function runAuthSuite() {
     console.log("📝 TEST CASE AUTH_001: Đăng ký thành công & Xác thực OTP");
     console.log("---------------------------------------------------------");
     try {
+      await resetBrowserSession(driver);
       await driver.get(`${BASE_URL}/signup`);
       console.log("👉 Đã truy cập trang Đăng ký.");
 

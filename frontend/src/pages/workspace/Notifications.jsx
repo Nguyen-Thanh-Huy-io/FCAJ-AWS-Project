@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Bell, Radio, CheckCircle, XCircle, AlertTriangle, Users, TrendingUp, CreditCard, FileText, Loader2 } from "lucide-react";
 import { useFilters } from "../../hooks/useFilters";
 import apiService from "../../services/api";
 import { toast } from "sonner";
+import { openNotificationStream } from "../../utils/notification-stream";
 
 const TYPE_ICONS = {
   stream: <Radio size={14} style={{ color: "#FFF" }} />,
@@ -14,31 +16,67 @@ const TYPE_ICONS = {
 };
 
 export function NotificationsPage() {
+  const navigate = useNavigate();
   const { filters, updateFilters, clearFilters, searchParamsString } = useFilters({
     category: "all",
-    page: "1"
+    isRead: "",
+    startDate: "",
+    endDate: "",
+    page: "1",
+    limit: "20"
   });
 
   const activeCategory = filters.category || "all";
   const [notifData, setNotifData] = useState({ data: [], meta: { categoryCounts: {} } });
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  // Fetch notifications
-  useEffect(() => {
-    const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
       setLoading(true);
-      try {
-        const response = await apiService.get(`/notifications?${searchParamsString}`);
-        setNotifData(response.data);
-      } catch (error) {
-        toast.error(error.message || "Failed to load notifications");
-      } finally {
+    }
+
+    try {
+      const query = searchParamsString ? `?${searchParamsString}` : "";
+      const response = await apiService.get(`/notifications${query}`);
+      setNotifData(response.data);
+      setErrorMessage("");
+    } catch (error) {
+      const message = error.message || "Failed to load notifications";
+      setErrorMessage(message);
+      if (!silent) {
+        toast.error(message);
+      }
+    } finally {
+      if (!silent) {
         setLoading(false);
       }
-    };
-
-    fetchNotifications();
+    }
   }, [searchParamsString]);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  useEffect(() => {
+    let stream;
+    try {
+      stream = openNotificationStream();
+      const refreshSilently = () => fetchNotifications({ silent: true });
+      stream.addEventListener("notification.created", refreshSilently);
+      stream.addEventListener("notification.read", refreshSilently);
+      stream.addEventListener("notifications.read_all", refreshSilently);
+      stream.onerror = () => {
+        console.error("Notification stream disconnected");
+      };
+    } catch (error) {
+      console.error("Notification stream error:", error);
+    }
+
+    return () => {
+      stream?.close();
+    };
+  }, [searchParamsString, fetchNotifications]);
 
   const markAsRead = async (id) => {
     try {
@@ -48,6 +86,7 @@ export function NotificationsPage() {
         ...prev,
         data: prev.data.map(n => n.id === id ? { ...n, isRead: true } : n)
       }));
+      window.dispatchEvent(new Event("notifications:changed"));
     } catch (error) {
       toast.error("Failed to mark as read");
     }
@@ -60,6 +99,7 @@ export function NotificationsPage() {
         ...prev,
         data: prev.data.map(n => ({ ...n, isRead: true }))
       }));
+      window.dispatchEvent(new Event("notifications:changed"));
       toast.success("All notifications marked as read");
     } catch (error) {
       toast.error("Failed to mark all as read");
@@ -68,6 +108,11 @@ export function NotificationsPage() {
 
   const notifications = notifData.data || [];
   const counts = notifData.meta?.categoryCounts || {};
+  const currentPage = notifData.meta?.page || 1;
+  const totalPages = notifData.meta?.totalPages || 1;
+  const total = notifData.meta?.total || 0;
+  const showUnreadOnly = filters.isRead === "false";
+  const hasDateFilter = Boolean(filters.startDate || filters.endDate);
 
   const categories = [
     { label: "All Notifications", count: counts.all || 0, key: "all" },
@@ -105,17 +150,74 @@ export function NotificationsPage() {
 
       {/* Main */}
       <div className="flex-1 overflow-y-auto" style={{ padding: "20px 24px" }}>
-        <div className="flex items-center justify-between mb-4">
-          <span style={{ fontSize: 15, fontWeight: 500, color: "#0A0A0A" }}>Notifications</span>
-          <button 
-            onClick={markAllRead}
-            style={{ fontSize: 12, color: "#2563EB", cursor: "pointer", background: "none", border: "none" }}
-          >
-            Mark all read
-          </button>
+        <div className="flex items-center justify-between mb-4 gap-3">
+          <div>
+            <span style={{ fontSize: 15, fontWeight: 500, color: "#0A0A0A" }}>Notifications</span>
+            <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>
+              Showing {notifications.length} of {total}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={filters.startDate || ""}
+              onChange={(e) => updateFilters({ startDate: e.target.value })}
+              style={{ fontSize: 12, color: "#374151", background: "#FFF", border: "0.5px solid #E5E7EB", borderRadius: 8, padding: "5px 8px" }}
+              aria-label="Start date"
+            />
+            <input
+              type="date"
+              value={filters.endDate || ""}
+              onChange={(e) => updateFilters({ endDate: e.target.value })}
+              style={{ fontSize: 12, color: "#374151", background: "#FFF", border: "0.5px solid #E5E7EB", borderRadius: 8, padding: "5px 8px" }}
+              aria-label="End date"
+            />
+            <button
+              onClick={() => updateFilters({ isRead: showUnreadOnly ? "" : "false" })}
+              style={{
+                fontSize: 12,
+                color: showUnreadOnly ? "#FFF" : "#374151",
+                cursor: "pointer",
+                background: showUnreadOnly ? "#0A0A0A" : "#FFF",
+                border: "0.5px solid #E5E7EB",
+                borderRadius: 8,
+                padding: "6px 10px"
+              }}
+            >
+              Unread only
+            </button>
+            {(filters.category !== "all" || filters.isRead || hasDateFilter) && (
+              <button
+                onClick={clearFilters}
+                style={{ fontSize: 12, color: "#6B7280", cursor: "pointer", background: "#FFF", border: "0.5px solid #E5E7EB", borderRadius: 8, padding: "6px 10px" }}
+              >
+                Clear filters
+              </button>
+            )}
+            <button
+              onClick={markAllRead}
+              disabled={loading || (counts.all || 0) === 0}
+              style={{ fontSize: 12, color: loading || (counts.all || 0) === 0 ? "#9CA3AF" : "#2563EB", cursor: loading || (counts.all || 0) === 0 ? "not-allowed" : "pointer", background: "none", border: "none" }}
+            >
+              Mark all read
+            </button>
+          </div>
         </div>
 
-        {loading ? (
+        {errorMessage && !loading ? (
+           <div className="flex flex-col items-center justify-center py-20 text-gray-400 gap-3">
+              <XCircle size={40} />
+              <span className="text-[11px] font-bold uppercase tracking-widest">Unable to load notifications</span>
+              <span className="text-xs text-gray-500">{errorMessage}</span>
+              <button
+                onClick={() => fetchNotifications()}
+                style={{ fontSize: 12, color: "#0A0A0A", cursor: "pointer", background: "#FFF", border: "0.5px solid #E5E7EB", borderRadius: 8, padding: "7px 12px" }}
+              >
+                Retry
+              </button>
+           </div>
+        ) : loading ? (
            <div className="flex flex-col gap-3 animate-pulse">
              {[1, 2, 3].map((n) => (
                <div
@@ -172,7 +274,13 @@ export function NotificationsPage() {
                   <button
                     style={{ padding: "5px 12px", borderRadius: 6, border: "0.5px solid #E5E7EB", fontSize: 11, color: "#0A0A0A", cursor: "pointer", background: "#FFF", flexShrink: 0 }}
                     onClick={() => {
-                       if (notif.actionUrl) window.location.href = notif.actionUrl;
+                       if (notif.actionUrl) {
+                         if (notif.actionUrl.startsWith("/")) {
+                           navigate(notif.actionUrl);
+                         } else {
+                           window.location.href = notif.actionUrl;
+                         }
+                       }
                        markAsRead(notif.id);
                     }}
                   >
@@ -181,6 +289,30 @@ export function NotificationsPage() {
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {!loading && totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4">
+            <span style={{ fontSize: 11, color: "#9CA3AF" }}>
+              Page {currentPage} of {totalPages}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={currentPage <= 1}
+                onClick={() => updateFilters({ page: currentPage - 1 })}
+                style={{ padding: "7px 12px", borderRadius: 8, border: "0.5px solid #E5E7EB", background: "#FFF", fontSize: 11, color: currentPage <= 1 ? "#D1D5DB" : "#374151", cursor: currentPage <= 1 ? "not-allowed" : "pointer" }}
+              >
+                Previous
+              </button>
+              <button
+                disabled={currentPage >= totalPages}
+                onClick={() => updateFilters({ page: currentPage + 1 })}
+                style={{ padding: "7px 12px", borderRadius: 8, border: "0.5px solid #E5E7EB", background: "#FFF", fontSize: 11, color: currentPage >= totalPages ? "#D1D5DB" : "#374151", cursor: currentPage >= totalPages ? "not-allowed" : "pointer" }}
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </div>

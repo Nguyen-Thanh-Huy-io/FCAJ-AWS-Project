@@ -142,6 +142,20 @@ class BrandRepository {
     });
   }
 
+  async userCanAccessBrand(userId, brandId) {
+    const count = await prisma.brand.count({
+      where: {
+        id: brandId,
+        OR: [
+          { ownerId: userId },
+          { teamMembers: { some: { userId } } }
+        ]
+      }
+    });
+
+    return count > 0;
+  }
+
   async create(data) {
     // Find a free plan to assign as default
     const freePlan = await prisma.plan.findFirst({

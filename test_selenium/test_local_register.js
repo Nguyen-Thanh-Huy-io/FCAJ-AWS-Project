@@ -96,6 +96,14 @@ async function runLocalRegisterTest() {
   } catch (error) {
     console.error("❌ KẾT QUẢ: Kiểm thử thất bại!");
     console.error("Chi tiết lỗi:", error.message);
+    try {
+      const currentUrl = await driver.getCurrentUrl();
+      console.log(`Current URL at failure: ${currentUrl}`);
+      const pageSource = await driver.getPageSource();
+      console.log(`Page source snippet: ${pageSource.slice(0, 1000)}`);
+    } catch (e) {
+      console.error("Could not retrieve page source:", e.message);
+    }
   } finally {
     // 6. Dọn dẹp
     console.log("🔌 Đóng kết nối Redis...");

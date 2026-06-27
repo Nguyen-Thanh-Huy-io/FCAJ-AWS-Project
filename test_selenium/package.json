@@ -7,7 +7,8 @@
     "test:google": "node test_google.js",
     "test:login": "node test_local_login.js",
     "test:register": "node test_local_register.js",
-    "test:auth-suite": "node test_auth_suite.js"
+    "test:auth-suite": "node test_auth_suite.js",
+    "test:notifications": "node test_notifications.js"
   },
   "dependencies": {
     "mysql2": "^3.22.5",

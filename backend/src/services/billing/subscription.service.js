@@ -4,6 +4,8 @@ const paymentRepository       = require('../../repositories/billing/payment.repo
 const subscriptionRepository  = require('../../repositories/billing/subscription.repository');
 const addonRepository         = require('../../repositories/billing/addon.repository');
 const logger                  = require('../../utils/logger');
+const notificationService     = require('../core/notification.service');
+const { NOTIFICATION_TYPES }  = require('../../utils/constants');
 
 /**
  * SubscriptionService (Orchestrator)
@@ -145,6 +147,20 @@ class SubscriptionService {
     // Check if QR has expired but status is still PENDING
     if (pending.status === 'PENDING' && new Date() > pending.expiredAt) {
       await paymentRepository.updatePendingStatus(transactionCode, 'EXPIRED');
+
+      // Notification: QR hết hạn
+      try {
+        await notificationService.create({
+          brandId: pending.brandId,
+          type: NOTIFICATION_TYPES.SYSTEM,
+          title: 'Giao dịch đã hết hạn',
+          message: 'Mã QR thanh toán đã hết hạn. Vui lòng thực hiện lại giao dịch.',
+          actionUrl: '/settings/billing'
+        });
+      } catch (notifErr) {
+        logger.warn('[SubscriptionService] Failed to create expired QR notification', { error: notifErr.message });
+      }
+
       return { status: 'EXPIRED' };
     }
 
@@ -232,6 +248,22 @@ class SubscriptionService {
 
     // Mark PendingPayment as PAID
     await paymentRepository.updatePendingStatus(pending.transactionCode, 'PAID');
+
+    // Notification: thanh toán thành công
+    try {
+      const isPlan = Boolean(pending.planId);
+      await notificationService.create({
+        brandId: pending.brandId,
+        type: NOTIFICATION_TYPES.SYSTEM,
+        title: isPlan ? 'Nâng cấp gói thành công' : 'Mua add-on thành công',
+        message: isPlan
+          ? `Gói ${pending.plan?.name || ''} đã được kích hoạt. Cảm ơn bạn đã sử dụng PubliCast!`
+          : `Add-on ${pending.addon?.name || ''} đã được kích hoạt thành công.`,
+        actionUrl: '/settings/billing'
+      });
+    } catch (notifErr) {
+      logger.warn('[SubscriptionService] Failed to create payment success notification', { error: notifErr.message });
+    }
 
     return { success: true, reason: 'ACTIVATED' };
   }
