@@ -12,11 +12,19 @@ async function loginAs(driver, role) {
   if (!email || !password) {
     throw new Error(`Missing credentials for role ${role}. Set ${emailEnv} and ${passwordEnv} in environment.`);
   }
+  const { Key } = require('selenium-webdriver');
   // Wait for React to render the login form
   await driver.wait(until.elementLocated(By.id('email')), 15000);
+  
+  // Fill credentials with delay to ensure React state update
   await driver.findElement(By.id('email')).sendKeys(email);
-  await driver.findElement(By.id('password')).sendKeys(password);
-  await driver.findElement(By.css('button[type="submit"]')).click();
+  await driver.sleep(500);
+  const passwordInput = await driver.findElement(By.id('password'));
+  await passwordInput.sendKeys(password);
+  await driver.sleep(500);
+  
+  // Submit by pressing ENTER on password field
+  await passwordInput.sendKeys(Key.ENTER);
   // Wait for successful navigation after login, adjust as needed (allow /dashboard or /start onboarding page)
   try {
     await driver.wait(async () => {
