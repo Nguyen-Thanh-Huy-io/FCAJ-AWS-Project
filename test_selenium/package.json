@@ -9,7 +9,8 @@
     "test:register": "node test_local_register.js",
     "test:auth-suite": "node test_auth_suite.js",
     "test:notifications": "node test_notifications.js",
-    "test:brand": "mocha brand/*.spec.js"
+    "test:brand": "mocha brand/*.spec.js",
+    "test:profile": "mocha profile/*.spec.js"
   },
   "dependencies": {
     "chai": "^4.3.7",
