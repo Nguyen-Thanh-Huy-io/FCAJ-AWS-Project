@@ -10,7 +10,8 @@
     "test:auth-suite": "node test_auth_suite.js",
     "test:notifications": "node test_notifications.js",
     "test:brand": "mocha brand/*.spec.js",
-    "test:profile": "mocha profile/*.spec.js"
+    "test:profile": "mocha profile/*.spec.js",
+    "test:post-creator": "mocha post_creator.spec.js"
   },
   "dependencies": {
     "chai": "^4.3.7",

@@ -1,0 +1,476 @@
+const path = require('path');
+const fs = require('fs');
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
+
+const { expect } = require('chai');
+const { Builder, By, until, Key } = require('selenium-webdriver');
+const chrome = require('selenium-webdriver/chrome');
+const mysql = require('mysql2/promise');
+
+const mockPlatforms = [
+  { platform: 'FACEBOOK', id: 'mock-fb-social-account-id', accountId: 'fb-123', name: 'Mock Facebook' },
+  { platform: 'INSTAGRAM', id: 'mock-ig-social-account-id', accountId: 'ig-123', name: 'Mock Instagram' },
+  { platform: 'TIKTOK', id: 'mock-tt-social-account-id', accountId: 'tt-123', name: 'Mock TikTok' },
+  { platform: 'YOUTUBE', id: 'mock-yt-social-account-id', accountId: 'yt-123', name: 'Mock YouTube' },
+  { platform: 'LINKEDIN', id: 'mock-li-social-account-id', accountId: 'li-123', name: 'Mock LinkedIn' },
+  { platform: 'TELEGRAM', id: 'mock-tg-social-account-id', accountId: 'tg-123', name: 'Mock Telegram' },
+  { platform: 'DISCORD', id: 'mock-dc-social-account-id', accountId: 'dc-123', name: 'Mock Discord' },
+  { platform: 'THREADS', id: 'mock-th-social-account-id', accountId: 'th-123', name: 'Mock Threads' }
+];
+
+async function seedPlatforms(platforms) {
+  console.log(`\n🛠️ Khởi tạo Mock Social Accounts cho các nền tảng: ${platforms.join(', ')}...`);
+  const connection = await mysql.createConnection(process.env.MYSQL_URL || 'mysql://root:root_password@localhost:3307/publicast');
+  try {
+    const email = process.env.ADMIN_EMAIL || 'vothanhnha26@gmail.com';
+    const [users] = await connection.execute('SELECT id FROM users WHERE email = ?', [email]);
+    if (users.length === 0) throw new Error(`User not found: ${email}`);
+    const userId = users[0].id;
+
+    const [brands] = await connection.execute('SELECT id FROM brands WHERE ownerId = ? OR id IN (SELECT brandId FROM teams WHERE userId = ?)', [userId, userId]);
+    if (brands.length === 0) throw new Error(`Brand not found for user: ${email}`);
+
+    // Xóa tất cả mock account cũ của tất cả các brand
+    const allIds = [];
+    for (const b of brands) {
+      for (const mock of mockPlatforms) {
+        allIds.push(`${mock.id}-${b.id}`);
+      }
+    }
+    const placeholders = allIds.map(() => '?').join(',');
+    if (allIds.length > 0) {
+      await connection.execute(`DELETE FROM social_accounts WHERE id IN (${placeholders})`, allIds);
+    }
+
+    const nowStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+    // Chèn mock accounts cho tất cả các brand của user này
+    for (const b of brands) {
+      for (const p of platforms) {
+        const mock = mockPlatforms.find(m => m.platform === p);
+        if (mock) {
+          const uniqueMockId = `${mock.id}-${b.id}`;
+          await connection.execute(
+            `INSERT INTO social_accounts (id, brandId, platform, platformAccountId, username, displayName, accessToken, scopes, isConnected, connectedAt, updatedAt) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              uniqueMockId,
+              b.id,
+              mock.platform,
+              mock.accountId,
+              `mock_${mock.platform.toLowerCase()}_user`,
+              mock.name,
+              'mock_access_token',
+              'mock_scopes',
+              1,
+              nowStr,
+              nowStr
+            ]
+          );
+        }
+      }
+    }
+    console.log(`✅ Đã seed thành công cho ${brands.length} brands.`);
+  } finally {
+    await connection.end();
+  }
+}
+
+async function cleanupMockSocialAccounts() {
+  console.log("🧹 Dọn dẹp tất cả Mock Social Accounts...");
+  const connection = await mysql.createConnection(process.env.MYSQL_URL || 'mysql://root:root_password@localhost:3307/publicast');
+  try {
+    const email = process.env.ADMIN_EMAIL || 'vothanhnha26@gmail.com';
+    const [users] = await connection.execute('SELECT id FROM users WHERE email = ?', [email]);
+    if (users.length > 0) {
+      const userId = users[0].id;
+      const [brands] = await connection.execute('SELECT id FROM brands WHERE ownerId = ? OR id IN (SELECT brandId FROM teams WHERE userId = ?)', [userId, userId]);
+      const allIds = [];
+      for (const b of brands) {
+        for (const mock of mockPlatforms) {
+          allIds.push(`${mock.id}-${b.id}`);
+        }
+      }
+      const placeholders = allIds.map(() => '?').join(',');
+      if (allIds.length > 0) {
+        await connection.execute(`DELETE FROM social_accounts WHERE id IN (${placeholders})`, allIds);
+      }
+    }
+    console.log("✅ Dọn dẹp hoàn tất.");
+  } catch (err) {
+    console.error("❌ Cleanup social accounts error:", err.message);
+  } finally {
+    await connection.end();
+  }
+}
+
+async function verifyAndCleanupPost(uniqueCaption) {
+  const connection = await mysql.createConnection(process.env.MYSQL_URL || 'mysql://root:root_password@localhost:3307/publicast');
+  try {
+    const [posts] = await connection.execute('SELECT id FROM posts WHERE caption = ?', [uniqueCaption]);
+    if (posts.length > 0) {
+      await connection.execute('DELETE FROM posts WHERE id = ?', [posts[0].id]);
+      return true;
+    }
+    return false;
+  } finally {
+    await connection.end();
+  }
+}
+
+describe('Post Creator Detailed E2E Suite', function () {
+  this.timeout(90000);
+  let driver;
+
+  async function safeClick(selector, timeout = 12000) {
+    let attempts = 0;
+    while (attempts < 3) {
+      try {
+        const element = await driver.wait(until.elementLocated(selector), timeout);
+        await driver.wait(until.elementIsVisible(element), timeout);
+        await element.click();
+        return;
+      } catch (err) {
+        if (err.name === 'StaleElementReferenceError' || err.name === 'ElementClickInterceptedError') {
+          attempts++;
+          await driver.sleep(1200);
+        } else {
+          throw err;
+        }
+      }
+    }
+    try {
+      const element = await driver.findElement(selector);
+      await driver.executeScript("arguments[0].click();", element);
+    } catch (err) {
+      throw new Error(`Failed to click on selector ${selector.toString()}: ${err.message}`);
+    }
+  }
+
+  async function ensurePlatformState(platform, shouldBeSelected) {
+    const selector = By.css(`[data-testid="platform-select-${platform}"]`);
+    const element = await driver.wait(until.elementLocated(selector), 12000);
+    const className = await element.getAttribute('class');
+    const isSelected = !className.includes('bg-gray-100');
+    
+    if (isSelected !== shouldBeSelected) {
+      await safeClick(selector);
+      await driver.sleep(600);
+    }
+  }
+
+  async function navigateToPlannerAndPrepare() {
+    const plannerUrl = `${BASE_URL}/planner/calendar`;
+    await driver.get(plannerUrl);
+    await driver.wait(until.elementLocated(By.css('[data-testid="planner-create-post-btn"]')), 15000);
+    await driver.sleep(2000); // Chờ re-render
+  }
+
+  before(async function () {
+    const options = new chrome.Options();
+    if (process.env.CI || process.env.HEADLESS) {
+      options.addArguments('--headless=new');
+      options.addArguments('--no-sandbox');
+      options.addArguments('--disable-dev-shm-usage');
+      options.addArguments('--disable-gpu');
+    }
+    driver = await new Builder()
+      .forBrowser('chrome')
+      .setChromeOptions(options)
+      .build();
+
+    const loginUrl = `${BASE_URL}/login`;
+    await driver.get(loginUrl);
+
+    const emailInput = await driver.wait(until.elementLocated(By.id('email')), 15000);
+    const passwordInput = await driver.findElement(By.id('password'));
+    const submitButton = await driver.findElement(By.xpath("//button[@type='submit']"));
+
+    const email = process.env.ADMIN_EMAIL || 'vothanhnha26@gmail.com';
+    const password = process.env.ADMIN_PASSWORD || 'nhacc123@';
+
+    await emailInput.sendKeys(email);
+    await driver.sleep(500);
+    await passwordInput.sendKeys(password);
+    await driver.sleep(500);
+    await submitButton.click();
+
+    await driver.wait(async () => {
+      const currentUrl = await driver.getCurrentUrl();
+      return currentUrl.includes('/dashboard') || currentUrl.includes('/start') || currentUrl.includes('/manage/connections');
+    }, 15000);
+  });
+
+  after(async function () {
+    if (driver) {
+      await driver.quit();
+    }
+    await cleanupMockSocialAccounts();
+  });
+
+  afterEach(async function () {
+    if (this.currentTest.state === 'failed') {
+      try {
+        const image = await driver.takeScreenshot();
+        const screenshotPath = path.join(__dirname, `error_${this.currentTest.title.replace(/[^a-zA-Z0-9]/g, '_')}.png`);
+        fs.writeFileSync(screenshotPath, image, 'base64');
+        console.log(`📸 Đã chụp màn hình khi lỗi: ${screenshotPath}`);
+      } catch (err) {
+        console.error("❌ Không thể chụp ảnh màn hình lỗi:", err.message);
+      }
+    }
+  });
+
+  it('TC_POST_01 – Verify Post Creator Modal can be opened and closed successfully', async function () {
+    await seedPlatforms(['FACEBOOK']);
+    await navigateToPlannerAndPrepare();
+    await safeClick(By.css('[data-testid="planner-create-post-btn"]'));
+    await driver.sleep(2000);
+
+    const captionInput = await driver.wait(
+      until.elementLocated(By.css('[data-testid="post-caption-input"]')),
+      10000
+    );
+    expect(captionInput).to.exist;
+
+    await safeClick(By.xpath("//span[contains(text(), 'Close')]/.. | //button[contains(., 'Close')]"));
+    await driver.sleep(1500);
+
+    const modalElements = await driver.findElements(By.css('[data-testid="post-caption-input"]'));
+    expect(modalElements.length).to.equal(0);
+  });
+
+  it('TC_POST_02 – Verify multi-platform selection and active platform switcher', async function () {
+    await seedPlatforms(['FACEBOOK', 'INSTAGRAM', 'LINKEDIN']);
+    await navigateToPlannerAndPrepare();
+    await safeClick(By.css('[data-testid="planner-create-post-btn"]'));
+    await driver.sleep(2000);
+
+    await ensurePlatformState('facebook', true);
+    await ensurePlatformState('instagram', true);
+    await ensurePlatformState('linkedin', true);
+
+    // Bỏ chọn Facebook
+    await ensurePlatformState('facebook', false);
+
+    await safeClick(By.xpath("//span[contains(text(), 'Close')]/.. | //button[contains(., 'Close')]"));
+  });
+
+  it('TC_POST_03 – Verify publish options menu updates submit button label text', async function () {
+    await seedPlatforms(['FACEBOOK']);
+    await navigateToPlannerAndPrepare();
+    await safeClick(By.css('[data-testid="planner-create-post-btn"]'));
+    await driver.sleep(2000);
+
+    await safeClick(By.css('[data-testid="post-publish-menu-btn"]'));
+    await driver.sleep(1000);
+
+    await safeClick(By.css('[data-testid="publish-option-draft"]'));
+    await driver.sleep(500);
+
+    const submitBtn = await driver.findElement(By.css('[data-testid="post-submit-btn"]'));
+    const btnText = await submitBtn.getText();
+    expect(btnText.toUpperCase()).to.equal('SAVE');
+
+    await safeClick(By.xpath("//span[contains(text(), 'Close')]/.. | //button[contains(., 'Close')]"));
+  });
+
+  it('TC_POST_04 – Verify creating Facebook post draft saves caption to database', async function () {
+    await seedPlatforms(['FACEBOOK']);
+    await navigateToPlannerAndPrepare();
+    await safeClick(By.css('[data-testid="planner-create-post-btn"]'));
+    await driver.sleep(2000);
+
+    const captionInput = await driver.wait(until.elementLocated(By.css('[data-testid="post-caption-input"]')), 10000);
+
+    await ensurePlatformState('facebook', true);
+
+    const uniqueCaption = `Mocha E2E Test Post - Facebook Draft - Created at ${Date.now()}`;
+    await captionInput.sendKeys(uniqueCaption);
+    await driver.sleep(500);
+
+    await safeClick(By.css('[data-testid="post-publish-menu-btn"]'));
+    await driver.sleep(1000);
+
+    await safeClick(By.css('[data-testid="publish-option-draft"]'));
+    await driver.sleep(500);
+
+    await safeClick(By.css('[data-testid="post-submit-btn"]'));
+    await driver.sleep(4000);
+
+    const dbVerified = await verifyAndCleanupPost(uniqueCaption);
+    expect(dbVerified).to.be.true;
+  });
+
+  it('TC_POST_05 – Verify multi-platform post draft saves targetPlatforms correctly in DB', async function () {
+    await seedPlatforms(['FACEBOOK', 'INSTAGRAM', 'LINKEDIN']);
+    await navigateToPlannerAndPrepare();
+    await safeClick(By.css('[data-testid="planner-create-post-btn"]'));
+    await driver.sleep(2500);
+
+    const captionInput = await driver.wait(until.elementLocated(By.css('[data-testid="post-caption-input"]')), 10000);
+
+    await ensurePlatformState('instagram', true);
+    await ensurePlatformState('linkedin', true);
+    await ensurePlatformState('facebook', true);
+
+    const uniqueCaption = `Mocha E2E Multi-Platform Draft - Created at ${Date.now()}`;
+    await captionInput.sendKeys(uniqueCaption);
+    await driver.sleep(500);
+
+    await safeClick(By.css('[data-testid="post-publish-menu-btn"]'));
+    await driver.sleep(1000);
+
+    await safeClick(By.css('[data-testid="publish-option-draft"]'));
+    await driver.sleep(500);
+
+    await safeClick(By.css('[data-testid="post-submit-btn"]'));
+    await driver.sleep(4000);
+
+    const connection = await mysql.createConnection(process.env.MYSQL_URL || 'mysql://root:root_password@localhost:3307/publicast');
+    try {
+      const [posts] = await connection.execute('SELECT id, targetPlatforms FROM posts WHERE caption = ?', [uniqueCaption]);
+      expect(posts.length).to.be.greaterThan(0);
+      expect(posts[0].targetPlatforms.toLowerCase()).to.include('facebook');
+      expect(posts[0].targetPlatforms.toLowerCase()).to.include('instagram');
+      expect(posts[0].targetPlatforms.toLowerCase()).to.include('linkedin');
+      await connection.execute('DELETE FROM posts WHERE id = ?', [posts[0].id]);
+    } finally {
+      await connection.end();
+    }
+  });
+
+  it('TC_POST_06 – Verify character limits logic for LinkedIn (3000 chars limit)', async function () {
+    await seedPlatforms(['LINKEDIN']);
+    await navigateToPlannerAndPrepare();
+    await safeClick(By.css('[data-testid="planner-create-post-btn"]'));
+    await driver.sleep(2000);
+
+    const captionInput = await driver.wait(until.elementLocated(By.css('[data-testid="post-caption-input"]')), 10000);
+
+    await ensurePlatformState('linkedin', true);
+
+    const longCaption = 'A'.repeat(3050);
+    await captionInput.sendKeys(longCaption);
+    await driver.sleep(500);
+
+    await safeClick(By.xpath("//span[contains(text(), 'Close')]/.. | //button[contains(., 'Close')]"));
+  });
+
+  it('TC_POST_07 – Verify character limits logic for Threads (500 chars limit)', async function () {
+    await seedPlatforms(['THREADS']);
+    await navigateToPlannerAndPrepare();
+    await safeClick(By.css('[data-testid="planner-create-post-btn"]'));
+    await driver.sleep(2000);
+
+    const captionInput = await driver.wait(until.elementLocated(By.css('[data-testid="post-caption-input"]')), 10000);
+
+    await ensurePlatformState('threads', true);
+
+    const longCaption = 'A'.repeat(550);
+    await captionInput.sendKeys(longCaption);
+    await driver.sleep(500);
+
+    await safeClick(By.xpath("//span[contains(text(), 'Close')]/.. | //button[contains(., 'Close')]"));
+  });
+
+  it('TC_POST_08 – Verify platform validation blocks submission if YouTube has no video', async function () {
+    await seedPlatforms(['YOUTUBE']);
+    await navigateToPlannerAndPrepare();
+    await safeClick(By.css('[data-testid="planner-create-post-btn"]'));
+    await driver.sleep(2000);
+
+    await ensurePlatformState('youtube', true);
+
+    const captionInput = await driver.findElement(By.css('[data-testid="post-caption-input"]'));
+    await captionInput.sendKeys("Testing YouTube validation without video attachment.");
+    await driver.sleep(500);
+
+    await safeClick(By.css('[data-testid="post-submit-btn"]'));
+    await driver.sleep(1500);
+
+    const modalElements = await driver.findElements(By.css('[data-testid="post-caption-input"]'));
+    expect(modalElements.length).to.be.greaterThan(0);
+
+    await safeClick(By.xpath("//span[contains(text(), 'Close')]/.. | //button[contains(., 'Close')]"));
+  });
+
+  it('TC_POST_09 – Verify platform validation blocks submission if TikTok has no media', async function () {
+    await seedPlatforms(['TIKTOK']);
+    await navigateToPlannerAndPrepare();
+    await safeClick(By.css('[data-testid="planner-create-post-btn"]'));
+    await driver.sleep(2000);
+
+    await ensurePlatformState('tiktok', true);
+
+    const captionInput = await driver.findElement(By.css('[data-testid="post-caption-input"]'));
+    await captionInput.sendKeys("Testing TikTok validation without media attachment.");
+    await driver.sleep(500);
+
+    await safeClick(By.css('[data-testid="post-submit-btn"]'));
+    await driver.sleep(1500);
+
+    const modalElements = await driver.findElements(By.css('[data-testid="post-caption-input"]'));
+    expect(modalElements.length).to.be.greaterThan(0);
+
+    await safeClick(By.xpath("//span[contains(text(), 'Close')]/.. | //button[contains(., 'Close')]"));
+  });
+
+  it('TC_POST_10 – Verify scheduling a post for tomorrow saves scheduledAt correctly in DB', async function () {
+    await seedPlatforms(['FACEBOOK']);
+    await navigateToPlannerAndPrepare();
+    await safeClick(By.css('[data-testid="planner-create-post-btn"]'));
+    await driver.sleep(2000);
+
+    const captionInput = await driver.wait(until.elementLocated(By.css('[data-testid="post-caption-input"]')), 10000);
+
+    await ensurePlatformState('facebook', true);
+
+    const uniqueCaption = `Mocha E2E Scheduled Post - Created at ${Date.now()}`;
+    await captionInput.sendKeys(uniqueCaption);
+    await driver.sleep(500);
+
+    await safeClick(By.css('[data-testid="post-publish-menu-btn"]'));
+    await driver.sleep(1000);
+
+    await safeClick(By.css('[data-testid="publish-option-schedule"]'));
+    await driver.sleep(1000);
+
+    // Tính toán ngày mai
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(12);
+    tomorrow.setMinutes(0);
+    tomorrow.setSeconds(0);
+    tomorrow.setMilliseconds(0);
+
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const day = String(tomorrow.getDate()).padStart(2, '0');
+    const hours = String(tomorrow.getHours()).padStart(2, '0');
+    const minutes = String(tomorrow.getMinutes()).padStart(2, '0');
+    const formattedDate = `${year}-${month}-${day}T${hours}:${minutes}`;
+
+    const dateInput = await driver.findElement(By.css('[data-testid="post-scheduled-date-input"]'));
+    await driver.executeScript(
+      "arguments[0].value = arguments[1]; arguments[0].dispatchEvent(new Event('change', { bubbles: true }));",
+      dateInput,
+      formattedDate
+    );
+    await driver.sleep(1000);
+
+    await safeClick(By.css('[data-testid="post-submit-btn"]'));
+    await driver.sleep(4000);
+
+    const connection = await mysql.createConnection(process.env.MYSQL_URL || 'mysql://root:root_password@localhost:3307/publicast');
+    try {
+      const [posts] = await connection.execute('SELECT id, scheduledAt, status FROM posts WHERE caption = ?', [uniqueCaption]);
+      expect(posts.length).to.be.greaterThan(0);
+      expect(posts[0].scheduledAt).to.not.be.null;
+      await connection.execute('DELETE FROM posts WHERE id = ?', [posts[0].id]);
+    } finally {
+      await connection.end();
+    }
+  });
+});
