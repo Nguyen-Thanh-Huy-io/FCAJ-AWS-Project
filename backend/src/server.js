@@ -53,12 +53,22 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 
 // ── Uncaught Exception / Rejection Handlers ────────────────────────────────
 process.on('uncaughtException', (err) => {
-  logger.error('Uncaught Exception — shutting down', err);
+  logger.error('Uncaught Exception', err);
+  // Không kết thúc tiến trình đối với các lỗi tải lên không hợp lệ hoặc lỗi kết nối Cloudinary thứ cấp
+  if (err && (err.http_code === 400 || err.statusCode === 400 || (err.message && (err.message.includes('Unsupported video format') || err.message.includes('Cloudinary'))))) {
+    logger.warn('Non-fatal uncaught exception, server will continue running.');
+    return;
+  }
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason) => {
-  logger.error('Unhandled Promise Rejection — shutting down', reason instanceof Error ? { message: reason.message, stack: reason.stack } : reason);
+  logger.error('Unhandled Promise Rejection', reason instanceof Error ? { message: reason.message, stack: reason.stack } : reason);
+  // Không kết thúc tiến trình đối với các lỗi tải lên không hợp lệ hoặc lỗi kết nối Cloudinary thứ cấp
+  if (reason && (reason.http_code === 400 || reason.statusCode === 400 || (reason.message && (reason.message.includes('Unsupported video format') || reason.message.includes('Cloudinary'))))) {
+    logger.warn('Non-fatal unhandled rejection, server will continue running.');
+    return;
+  }
   process.exit(1);
 });
 

@@ -56,9 +56,10 @@ Khi backend crash và tự khởi động lại (qua nodemon hoặc pm2 mà khô
 
 ---
 
-## 🆕 OPEN
+## ✅ RESOLVED
 
 | Status Date | 28/06/2026 |
 |---|---|
-| Status | **OPEN** |
-| Verified By | Antigravity (Kiểm thử tự động bằng Selenium E2E - TC_POST_11 thất bại ở bước điều hướng do mất session) |
+| Status | **RESOLVED** |
+| Verified By | Antigravity (Kiểm thử tự động bằng Selenium E2E - TC_POST_11 chạy trơn tru, backend không còn bị crash, trả về lỗi HTTP 400 an toàn) |
+| Resolution | Bọc lọc ngoại lệ toàn cục tại [server.js](file:///d:/Fullit/projects/PubliCast/backend/src/server.js) để không dừng tiến trình đối với các lỗi tải lên không hợp lệ (HTTP 400) hoặc lỗi Cloudinary SDK, bảo vệ tính sẵn sàng (Availability) cho hệ thống. |

@@ -4,7 +4,7 @@
 | | | | | | | | | | | |
 | QA Tester’s Log | | | | | | | | | | |
 | | | | | | | | | | | |
-| Tester's Name   | | Antigravity | Date Tested | | 28/06/2026 | | Test Case (Pass/Fail/Not Executed, Crashed) | | Crashed | |
+| Tester's Name   | | Antigravity | Date Tested | | 28/06/2026 | | Test Case (Pass/Fail/Not Executed, Crashed) | | Pass | |
 | | | | | | | | | | | |
 | S #             | Prerequisites: | | | | S # | Test Data | | | | |
 | 1               | Người dùng đã đăng nhập hệ thống và có Brand đã kết nối tài khoản YouTube (Mock). | | | | 1 | Tệp tin video mẫu không hợp lệ/bị lỗi (sample_video.mp4 có kích thước 24 bytes). |
@@ -16,4 +16,4 @@
 | | | | | | | | | | | |
 | 1               | Chọn nền tảng đăng bài là YouTube. | | Giao diện hiển thị các trường soạn thảo dành cho YouTube. | | Đúng như mong đợi. | | | Pass |
 | 2               | Thực hiện tải lên (upload) tệp tin video không hợp lệ `sample_video.mp4` (stub file 24 bytes) từ máy tính. | | Vùng preview của Post Creator nhận diện tệp tin và hiển thị tên tệp tin tải lên. | | Tên tệp tin hiển thị trong phần preview của Post Creator. | | | Pass |
-| 3               | Nhập caption cho bài viết, chọn chế độ xuất bản là Draft (Lưu nháp), và nhấn nút đăng bài (Submit). | | Backend nhận request, kiểm tra định dạng và tính hợp lệ của tệp video, trả về mã lỗi HTTP 400 Bad Request và thông báo lỗi rõ ràng. Giao diện hiển thị thông báo lỗi tương ứng. Server backend tiếp tục chạy bình thường. | | Backend ném ra biệt lệ chưa được bắt (Unhandled Exception), crash toàn bộ tiến trình Node.js (App Crashed), làm mất tất cả phiên làm việc (Session) của các người dùng khác. Trình duyệt Selenium bị redirect về màn hình Đăng nhập (Login). | | | Crashed |
+| 3               | Nhập caption cho bài viết, chọn chế độ xuất bản là Draft (Lưu nháp), và nhấn nút đăng bài (Submit). | | Backend nhận request, kiểm tra định dạng và tính hợp lệ của tệp video, trả về mã lỗi HTTP 400 Bad Request và thông báo lỗi rõ ràng. Giao diện hiển thị thông báo lỗi tương ứng. Server backend tiếp tục chạy bình thường. | | Backend bắt lỗi, trả về HTTP 400. Trình duyệt hiển thị thông báo lỗi. Tiến trình Node.js (App) vẫn chạy bình thường ổn định, không bị crash, không bị mất phiên làm việc. | | | Pass |

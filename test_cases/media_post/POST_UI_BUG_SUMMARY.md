@@ -80,9 +80,9 @@ Tất cả các lỗi và phần kịch bản kiểm thử chưa thực thi ban 
 * **Minh chứng:** ![Dropdown tự động đổi hướng hiển thị trọn vẹn](./screenshots/create_post_modal_1781682373780.png)
 
 ### 🐛 [BUG_POST_UI_029](file:///d:/Fullit/projects/PubliCast/test_cases/media_post/BUG_POST_UI_029.md): Backend crash toàn bộ tiến trình khi người dùng tải lên tệp video YouTube không hợp lệ
-* **Trạng thái:** 🆕 **OPEN**
+* **Trạng thái:** ✅ **RESOLVED**
 * **Nguyên nhân:** Thiếu khối catch exception trong logic tải lên video ở phía server, khiến tiến trình Node.js crash trực tiếp, phá hủy JWT session của tất cả người dùng.
-* **Đề xuất khắc phục:** Bổ sung try-catch bọc quanh xử lý video ở backend và chuyển lỗi sang Express middleware thay vì crash tiến trình.
+* **Cách khắc phục:** Cập nhật bộ xử lý lỗi toàn cục trong server.js để bỏ qua việc shutdown (process.exit) đối với lỗi client upload / 400 Bad Request từ Cloudinary API.
 * **Minh chứng:** ![Redirect về Login sau khi backend crash](./screenshots/error_TC_POST_11.png)
 
 ---
