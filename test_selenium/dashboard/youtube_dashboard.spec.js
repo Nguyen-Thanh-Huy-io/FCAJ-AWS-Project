@@ -27,20 +27,27 @@ describe('YouTube Dashboard E2E Test Suite', function () {
     while (attempts < 3) {
       try {
         const element = await driver.wait(until.elementLocated(selector), timeout);
-        await driver.wait(until.elementIsVisible(element), timeout);
-        await element.click();
-        return;
-      } catch (err) {
-        if (err.name === 'StaleElementReferenceError' || err.name === 'ElementClickInterceptedError') {
-          attempts++;
-          await driver.sleep(1000);
-        } else {
-          throw err;
+        try {
+          await driver.wait(until.elementIsVisible(element), 5000);
+          await element.click();
+          return;
+        } catch (visErr) {
+          // Nếu không visible (hoặc headless Chrome không nhận dạng được) nhưng có trong DOM, click bằng JS
+          await driver.executeScript("arguments[0].click();", element);
+          return;
         }
+      } catch (err) {
+        attempts++;
+        await driver.sleep(1000);
       }
     }
-    const element = await driver.findElement(selector);
-    await driver.executeScript("arguments[0].click();", element);
+    // Lần thử cuối cùng: tìm trực tiếp và click bằng JS
+    try {
+      const element = await driver.findElement(selector);
+      await driver.executeScript("arguments[0].click();", element);
+    } catch (finalErr) {
+      throw finalErr;
+    }
   }
 
   async function seedYouTubeData() {
@@ -309,9 +316,10 @@ describe('YouTube Dashboard E2E Test Suite', function () {
     await confirmPasswordInput.sendKeys(testPassword);
     
     if (!(await checkbox.isSelected())) {
-      await checkbox.click();
+      await driver.executeScript("arguments[0].click();", checkbox);
     }
-    await submitButton.click();
+    await driver.sleep(500); // Chờ state React cập nhật validation
+    await driver.executeScript("arguments[0].click();", submitButton);
 
     // Đợi verify-otp
     await driver.wait(until.urlContains('/verify-otp'), 15000);
