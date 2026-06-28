@@ -4,7 +4,7 @@
 | ----------- | -------------------------------------------------------------- |
 | Name        | Tràn chữ tên thương hiệu (Active Brand Text Overflow)         |
 | Component   | Dashboard / UI Constraints                                     |
-| Status      | Fail (Gốc) / Resolved                                          |
+| Status      | Fail                                                           |
 | Execution   | Automated (Selenium)                                           |
 | Test File   | `test_selenium/dashboard/general_dashboard.spec.js`            |
 | Created By  | Nhã                                                            |

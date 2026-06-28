@@ -2,7 +2,7 @@
 | --------------- | ---------| ---------------------| ------------------------------------------------------------- |
 | Created By      | Nhã| Reviewed By          | Nhã Võ                                                        |
 | Version         | 1.0       | Date Tested          | 28/06/2026                                                    |
-| Test Status     | Resolved  | Tester's Name        | Nhã|
+| Test Status     | Fail      | Tester's Name        | Nhã|
 | Use Case ID     | UC06 |
 
 ### Prerequisites
@@ -23,7 +23,7 @@ Xác minh hệ thống loại bỏ khoảng trắng và chuẩn hóa email trư�
 | :--- | :--- | :--- | :--- | :---: |
 | 1 | Nhấp nút "Invite Member" để mở modal mời thành viên mới. | Modal mời thành viên mở lên thành công. | Modal hiển thị đầy đủ | Pass |
 | 2 | Nhập email đã tồn tại nhưng có khoảng trắng thừa ở đầu hoặc cuối (ví dụ: ` test@gmail.com `) vào ô nhập email. | Email được điền vào ô nhập. | Email hiển thị đúng | Pass |
-| 3 | Chọn một vai trò tùy chỉnh khác và bấm gửi lời mời. | Hệ thống chặn gửi, loại bỏ khoảng trắng và phát hiện email trùng lặp, hiển thị toast báo lỗi rõ ràng. | Toast hiển thị lỗi email trùng lặp | Pass |
+| 3 | Chọn một vai trò tùy chỉnh khác và bấm gửi lời mời. | Hệ thống chặn gửi, loại bỏ khoảng trắng và phát hiện email trùng lặp, hiển thị toast báo lỗi rõ ràng. | Lời mời được gửi đi thành công mà không có cảnh báo trùng lặp | Fail |
 
 ### Linked Bug
 - Có liên kết với bug report [BUG_UC06_TEAM_NHA_03.md](file:///d:/Fullit/projects/PubliCast/test_cases/team/BUG_UC06_TEAM_NHA_03.md) (`PC-55`).

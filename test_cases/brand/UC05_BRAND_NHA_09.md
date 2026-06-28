@@ -4,7 +4,7 @@
 | ----------- | -------------------------------------------------------------- |
 | Name        | Save button disabled when name unchanged                        |
 | Component   | Brand Settings / Update                                        |
-| Status      | Fail (Gốc) / Resolved                                          |
+| Status      | Fail                                                           |
 | Execution   | Automated (Selenium)                                           |
 | Test File   | `test_selenium/brand/brand.update.spec.js`                     |
 | Created By  | Nhã                                                            |
