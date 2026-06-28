@@ -2,6 +2,25 @@
 
 Tài liệu này mô tả chi tiết các kịch bản kiểm thử (Test Cases) từ **AUTOLIST_001** đến **AUTOLIST_007** nhằm đánh giá toàn diện hoạt động của bộ lập lịch tự động Autolist.
 
+### 📋 Test Data Sử dụng cho Autolist E2E
+*   **Autolist Cấu hình Interval (TC_AUTOLIST_002)**:
+    *   `name`: "Interval Queue"
+    *   `scheduleType`: "INTERVAL"
+    *   `intervalMinutes`: 60
+*   **Autolist Cấu hình Specific Times (TC_AUTOLIST_003)**:
+    *   `name`: "Specific Times Queue"
+    *   `scheduleType`: "SPECIFIC"
+    *   `specificTimes`: "08:00,14:00,20:00"
+*   **Autolist Cấu hình Active Days (TC_AUTOLIST_004)**:
+    *   `name`: "Work Days Queue"
+    *   `activeDays`: "Mo,We"
+*   **Autolist Cấu hình Loop (TC_AUTOLIST_005)**:
+    *   `loopEnabled`: true
+*   **Bài viết mẫu chèn vào hàng đợi (Mock Posts)**:
+    *   Bài viết 1: `caption` = "Automated post number 1", `status` = "DRAFT"
+    *   Bài viết 2: `caption` = "Automated post number 2", `status` = "DRAFT"
+    *   Bài viết 3: `caption` = "Automated post number 3", `status` = "DRAFT"
+
 ---
 
 ### **AUTOLIST_001: Tạo mới và cấu hình Autolist**

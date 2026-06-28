@@ -9,6 +9,24 @@
 2. Có Custom Role "Role Admin Only" được tạo và chỉ bật quyền "Quản lý vai trò (Manage Roles)" (`MANAGE_ROLES`) nhưng KHÔNG bật quyền "Mời thành viên (Invite Members)" (`INVITE_MEMBERS` / `MANAGE_TEAM`).
 3. Một thành viên được gán vai trò này đã kích hoạt tài khoản.
 
+### Test Data
+*   **Tài khoản Owner (Quản trị)**:
+    *   Email: `seleniumowner@gmail.com`
+    *   Mật khẩu: `Password123!`
+*   **Custom Role**:
+    *   Tên vai trò: `Role Admin Only`
+    *   Quyền kích hoạt: `MANAGE_ROLES`
+    *   Quyền bị tắt: `INVITE_MEMBERS`, `MANAGE_TEAM`
+*   **Tài khoản Member (Thành viên test)**:
+    *   Email: `seleniumroleadmin@gmail.com`
+    *   Mật khẩu: `Password123!`
+*   **Dữ liệu vai trò mới (để test tạo vai trò)**:
+    *   Tên vai trò mới: `Temporary Assistant`
+    *   Quyền gán: `CREATE_POSTS`
+*   **Dữ liệu lời mời thành viên mới (để test bị chặn)**:
+    *   Email mời: `invitedcandidate@gmail.com`
+    *   Vai trò gán: `Viewer`
+
 ### Test Scenario
 Xác minh rằng thành viên chỉ có thể thực hiện quản lý vai trò và bị chặn khi cố tình gửi lời mời thành viên mới.
 

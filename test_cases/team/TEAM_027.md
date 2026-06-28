@@ -9,6 +9,20 @@
 2. Có Custom Role "Publisher Only" được tạo và bật quyền "Phê duyệt bài viết (Approve Posts)" (`APPROVE_POSTS`) và "Xóa bài viết (Delete Posts)" (`DELETE_POSTS`) nhưng KHÔNG bật quyền "Tạo bài viết (Create Posts)" (`CREATE_POSTS`).
 3. Một thành viên được gán vai trò này đã kích hoạt tài khoản.
 
+### Test Data
+*   **Tài khoản Owner (Quản trị)**:
+    *   Email: `seleniumowner@gmail.com`
+    *   Mật khẩu: `Password123!`
+*   **Custom Role**:
+    *   Tên vai trò: `Publisher Only`
+    *   Quyền kích hoạt: `APPROVE_POSTS`, `DELETE_POSTS`
+    *   Quyền bị tắt: `CREATE_POSTS`
+*   **Tài khoản Member (Thành viên test)**:
+    *   Email: `seleniumpublisher@gmail.com`
+    *   Mật khẩu: `Password123!`
+*   **Dữ liệu bài viết kiểm thử**:
+    *   Post ID cần phê duyệt/xóa (mock): `mock-post-id-789`
+
 ### Test Scenario
 Xác minh rằng thành viên chỉ có thể thực hiện các hành động Phê duyệt và Xóa bài viết, đồng thời bị chặn khi cố tình Tạo hoặc Chỉnh sửa bài viết ở cả API và UI.
 
