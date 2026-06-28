@@ -2,26 +2,24 @@
 
 Tài liệu này xác định kịch bản kiểm thử tự động E2E bằng Selenium WebDriver cho trang Dashboard chung mới (`/dashboard`) sau khi tái cấu trúc và loại bỏ các tính năng Livestream.
 
-## Các Test Case chi tiết (Total: 10 Test Cases)
+## Các Test Case chi tiết (Total: 11 Test Cases)
 
-| Mã Test Case | Tên Test Case | Mô tả kịch bản | Kết quả mong đợi (Assertion) | Trạng thái |
-| :--- | :--- | :--- | :--- | :--- |
-| **TC_DASHBOARD_01** | Đăng nhập & Điều hướng | Đăng nhập bằng tài khoản test local, chờ chuyển hướng đến trang chủ. | Trình duyệt chuyển hướng thành công đến `/dashboard`. | Sẵn sàng |
-| **TC_DASHBOARD_02** | Xác minh Stat Cards | Kiểm tra sự hiển thị của các thẻ thông số thống kê tổng quan. | Hiển thị các nhãn tiếng Việt: `Tổng người theo dõi`, `Tổng lượt xem`, `Tổng video`, `Thương hiệu hiện tại`. | Sẵn sàng |
-| **TC_DASHBOARD_03** | Xác minh Hàng chờ bài đăng | Kiểm tra sự xuất hiện của cấu phần hàng chờ bài đăng gần đây. | Hiển thị tiêu đề `Hàng chờ bài đăng gần đây` và nút `Tạo bài đăng`. | Sẵn sàng |
-| **TC_DASHBOARD_04** | Xác minh Kết nối mạng xã hội | Kiểm tra sự xuất hiện của thẻ trạng thái kết nối platform. | Hiển thị tiêu đề `Kết Nối Mạng Xã Hội` và danh sách các platform (YouTube, Facebook...). | Sẵn sàng |
-| **TC_DASHBOARD_05** | Xác minh Gỡ bỏ Livestream ở Header | Kiểm tra các phần tử trên Topbar để tìm liên kết livestream. | Không tìm thấy bất kỳ nút hay liên kết nào chứa `/live` hoặc chữ `Livestream`. | Sẵn sàng |
-| **TC_DASHBOARD_06** | Kiểm tra Chuyển hướng Redirect | Truy cập trực tiếp các đường dẫn livestream cũ (`/live`, `/scheduler`). | Trình duyệt tự động chuyển hướng ngược về `/dashboard`. | Sẵn sàng |
-| **TC_DASHBOARD_07** | Bấm nút Tạo bài đăng | Click nút `Tạo bài đăng` ở phần hàng chờ bài đăng gần đây. | Xuất hiện Popup/Drawer Form tạo bài đăng (`Post Creator UI`). | Sẵn sàng |
-| **TC_DASHBOARD_08** | Điều hướng Lịch đăng | Click nút `Lịch đăng →` ở phần hàng chờ bài đăng gần đây. | Trình duyệt chuyển hướng thành công sang trang `/planner`. | Sẵn sàng |
-| **TC_DASHBOARD_09** | Điều hướng Quản lý kết nối | Click nút `Quản lý` ở thẻ trạng thái kết nối mạng xã hội. | Trình duyệt chuyển hướng thành công sang trang `/manage/connections`. | Sẵn sàng |
-| **TC_DASHBOARD_10** | Tràn chữ Tên thương hiệu | Kiểm tra xem thẻ ACTIVE BRAND có xử lý tốt văn bản dài không. | Tên thương hiệu hiển thị gọn gàng, không bị tràn (scrollWidth <= clientWidth). | Tái hiện lỗi |
+| Mã Test Case | Tên Test Case | Mô tả kịch bản | Trạng thái |
+| :--- | :--- | :--- | :--- |
+| **[TC_DASHBOARD_00](file:///d:/Fullit/projects/PubliCast/test_cases/dashboard/TC_DASHBOARD_00.md)** | Đăng ký & Onboarding | Đăng ký người dùng test mới, hoàn tất onboarding và seed dữ liệu. | Pass |
+| **[TC_DASHBOARD_01_02](file:///d:/Fullit/projects/PubliCast/test_cases/dashboard/TC_DASHBOARD_01_02.md)** | Điều hướng & Stat Cards | Xác minh URL chứa `/dashboard` và các Stat Cards hiển thị chính xác số liệu đã seed. | Pass |
+| **[TC_DASHBOARD_03](file:///d:/Fullit/projects/PubliCast/test_cases/dashboard/TC_DASHBOARD_03.md)** | Hàng chờ bài đăng | Kiểm tra hàng chờ bài đăng gần đây chứa các bài viết đã seed (Draft, Scheduled, Published). | Pass |
+| **[TC_DASHBOARD_04](file:///d:/Fullit/projects/PubliCast/test_cases/dashboard/TC_DASHBOARD_04.md)** | Kết nối mạng xã hội | Xác minh các platform kết nối (YouTube, Facebook...) hiển thị trạng thái "Đã kết nối". | Pass |
+| **[TC_DASHBOARD_05_06](file:///d:/Fullit/projects/PubliCast/test_cases/dashboard/TC_DASHBOARD_05_06.md)** | Gỡ bỏ Livestream | Đảm bảo không còn menu livestream ở Header, tự động chuyển hướng từ `/live` về `/dashboard`. | Pass |
+| **[TC_DASHBOARD_07](file:///d:/Fullit/projects/PubliCast/test_cases/dashboard/TC_DASHBOARD_07.md)** | Mở/Đóng Post Creator | Kiểm tra tính năng mở và đóng Post Creator modal trực tiếp từ Dashboard. | Pass |
+| **[TC_DASHBOARD_08_09](file:///d:/Fullit/projects/PubliCast/test_cases/dashboard/TC_DASHBOARD_08_09.md)** | Liên kết nhanh | Kiểm tra liên kết nhanh đến phần Lịch đăng (Planner) và Quản lý kết nối (Connections). | Pass |
+| **[TC_DASHBOARD_10](file:///d:/Fullit/projects/PubliCast/test_cases/dashboard/TC_DASHBOARD_10.md)** | Tràn chữ Tên thương hiệu | Kiểm tra xem thẻ ACTIVE BRAND có xử lý tốt văn bản dài không. | Fail (Gốc) / Resolved |
+
+### 🐛 Bug Report liên quan
+*   [BUG_PC_56_ACTIVE_BRAND_OVERFLOW.md](file:///d:/Fullit/projects/PubliCast/test_cases/dashboard/BUG_PC_56_ACTIVE_BRAND_OVERFLOW.md) (Jira Key: `PC-56`)
 
 ---
 
 ## Môi trường kiểm thử (Environment Setup)
 - **Frontend URL**: `http://localhost:5173`
-- **Tài khoản kiểm thử**:
-  - Email: `vothanhnha26@gmail.com`
-  - Mật khẩu: `nhacc123@`
 - **Thư viện sử dụng**: Selenium WebDriver, Mocha (test runner), Chai (assertions).

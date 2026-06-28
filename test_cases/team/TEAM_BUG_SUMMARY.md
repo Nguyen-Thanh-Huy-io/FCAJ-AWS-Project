@@ -89,11 +89,11 @@ Tất cả các lỗi nghiêm trọng đã được khắc phục hoàn toàn tr
 * **Cách khắc phục:** Bổ sung bước kiểm tra nghiệp vụ trong `RoleService.deleteRole`, đếm số lượng thành viên đang gán vai trò này, nếu lớn hơn 0 thì ném lỗi 400 rõ ràng.
 * **Minh chứng:** ![Thông báo lỗi chặn xóa vai trò](./screenshots/delete_role_error_toast.png)
 
-### 🐛 BUG_TEAM_024: API `/api/social/metrics` bỏ qua kiểm tra quyền `VIEW_ANALYTICS`
+### 🐛 BUG_PC_54: API `/api/social/metrics` bỏ qua kiểm tra quyền `VIEW_ANALYTICS`
 * **Trạng thái:** ⚠️ **OPEN / AUDIT DETECTED**
 * **Nguyên nhân:** Route `/api/social/metrics` chưa áp dụng middleware `checkPermission('VIEW_ANALYTICS')` để xác thực quyền truy cập dữ liệu thống kê của Custom Role.
 * **Cách khắc phục đề xuất:** Thêm middleware `checkPermission('VIEW_ANALYTICS')` vào route metrics trong file social/metrics routes tương ứng.
-* **Minh chứng:** [BUG_TEAM_024.md](file:///d:/Fullit/projects/PubliCast/test_cases/team/BUG_TEAM_024.md)
+* **Minh chứng:** [BUG_PC_54_API_SOCIAL_METRICS_BYPASS.md](file:///d:/Fullit/projects/PubliCast/test_cases/team/BUG_PC_54_API_SOCIAL_METRICS_BYPASS.md)
 
 ---
 

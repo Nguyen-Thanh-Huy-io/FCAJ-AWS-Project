@@ -1,6 +1,6 @@
-# BUG REPORT - TEAM_024
+# BUG REPORT - PC-54
 
-| ID number        | BUG_TEAM_024                                                                                                  |
+| ID number        | PC-54                                                                                                          |
 | ---------------- | ------------------------------------------------------------------------------------------------------------- |
 | Name             | TEAM - API `/api/social/metrics` bỏ qua kiểm tra quyền `VIEW_ANALYTICS` của Custom Role                       |
 | Reporter         | Antigravity                                                                                                   |
