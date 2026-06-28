@@ -94,13 +94,13 @@ Tất cả các lỗi nghiêm trọng đã được khắc phục hoàn toàn tr
 * **Trạng thái:** ⚠️ **OPEN / AUDIT DETECTED**
 * **Nguyên nhân:** Route `/api/social/metrics` chưa áp dụng middleware `checkPermission('VIEW_ANALYTICS')` để xác thực quyền truy cập dữ liệu thống kê của Custom Role.
 * **Cách khắc phục đề xuất:** Thêm middleware `checkPermission('VIEW_ANALYTICS')` vào route metrics trong file social/metrics routes tương ứng.
-* **Chi tiết đầy đủ:** [BUG_TC_TEAM_08_C_PC54_API_SOCIAL_METRICS_BYPASS.md](file:///d:/Fullit/projects/PubliCast/test_cases/team/BUG_TC_TEAM_08_C_PC54_API_SOCIAL_METRICS_BYPASS.md)
+* **Chi tiết đầy đủ:** [BUG_UC07_TEAM_NHA_08_C.md](file:///d:/Fullit/projects/PubliCast/test_cases/team/BUG_UC07_TEAM_NHA_08_C.md)
 
 ### 🐛 BUG_TC_TEAM_02_03_05_07_08_09 – PC-55: Nhóm lỗi UI/Validation – Mời thành viên, Tìm kiếm và Quản lý vai trò
 * **Test Cases liên kết:** `UC06_TEAM_NHA_02`, `03`, `05`, `UC07_TEAM_NHA_07`, `08`, `UC06_UC20_TEAM_NHA_09`
 * **Trạng thái:** ✅ **RESOLVED**
 * **Nguyên nhân:** Nhóm 7 lỗi về validation email, tìm kiếm/lọc thành viên, và xóa vai trò đang được gán.
-* **Chi tiết đầy đủ:** [BUG_TC_TEAM_02_03_05_07_08_09_PC55_INVITE_FILTER_ROLE_BUGS.md](file:///d:/Fullit/projects/PubliCast/test_cases/team/BUG_TC_TEAM_02_03_05_07_08_09_PC55_INVITE_FILTER_ROLE_BUGS.md)
+* **Chi tiết đầy đủ:** [BUG_UC06_TEAM_NHA_03.md](file:///d:/Fullit/projects/PubliCast/test_cases/team/BUG_UC06_TEAM_NHA_03.md)
 
 ---
 

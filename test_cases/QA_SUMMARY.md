@@ -30,7 +30,7 @@
 | `UC05_BRAND_NHA_08.md` | Cập nhật tên Brand thành công | Happy path |
 | `UC05_BRAND_NHA_09.md` | Nút Save disabled khi tên không đổi | **Bug PC-51** |
 
-**Bug:** `BUG_UC05_BRAND_NHA_09_PC51_UPDATE_DISABLED_COMPARE.md` → ⚠️ OPEN
+**Bug:** `BUG_UC05_BRAND_NHA_09.md` → ⚠️ OPEN
 
 ---
 
@@ -55,8 +55,8 @@
 | `UC07_TEAM_NHA_09_B.md` | TC_TEAM_09 | UC07 | Xóa vai trò tùy chỉnh sau khi đã thu hồi gán | Happy path |
 
 **Bugs:**
-- `BUG_UC07_TEAM_NHA_08_C_PC54_API_SOCIAL_METRICS_BYPASS.md` → ⚠️ OPEN
-- `BUG_UC06_UC07_TEAM_NHA_02_09_PC55_INVITE_FILTER_ROLE_BUGS.md` → ✅ RESOLVED
+- `BUG_UC07_TEAM_NHA_08_C.md` → ⚠️ OPEN
+- `BUG_UC06_TEAM_NHA_03.md` → ✅ RESOLVED
 
 ---
 
@@ -66,10 +66,10 @@
 |------|-------|------|
 | `UC12_AUTOLISTS_NHA_01.md` | Tạo AutoList mới (Interval) | Happy path |
 | `UC12_AUTOLISTS_NHA_03.md` | Thêm bài vào hàng đợi | Happy path |
-| `UC12_AUTOLISTS_NHA_06.md` | Chứng minh lỗi Schedule Drift | **Bug AUTOLIST_001** |
+| `UC12_AUTOLISTS_NHA_06.md` | Lỗi Schedule Drift | **Bug PC-52** |
 | `UC12_AUTOLISTS_NHA_07.md` | Xác minh fix Schedule Drift | Regression |
 
-**Bug:** `BUG_UC12_AUTOLISTS_NHA_06_07_SCHEDULE_DRIFT.md` → ✅ RESOLVED
+**Bug:** `BUG_UC12_AUTOLISTS_NHA_06.md` → ✅ RESOLVED
 
 ---
 
@@ -82,7 +82,7 @@
 | `UC17_ANALYTICS_NHA_07_08.md` | Tab Competitors | **Bug PC-53** |
 | `UC18_ANALYTICS_NHA_09_10.md` | Xuất báo cáo CSV | Happy path |
 
-**Bug:** `BUG_UC17_ANALYTICS_NHA_07_08_PC53_COMPETITORS_ACTION_COLUMN_OVERFLOW.md` → ⚠️ OPEN
+**Bug:** `BUG_UC17_ANALYTICS_NHA_07_08.md` → ⚠️ OPEN
 
 ---
 
@@ -96,7 +96,7 @@
 | `UC17_DASHBOARD_NHA_FB_09_10.md` | Facebook Competitors: Thêm & Xóa | Happy path |
 | `UC18_DASHBOARD_NHA_FB_12_13.md` | Facebook Export báo cáo CSV | Happy path |
 
-**Bug:** `BUG_UC05_UC16_DASHBOARD_NHA_10_PC56_ACTIVE_BRAND_OVERFLOW.md` → ⚠️ OPEN
+**Bug:** `BUG_UC05_UC16_DASHBOARD_NHA_10.md` → ⚠️ OPEN
 
 ---
 
@@ -111,7 +111,7 @@
 | `UC08_POST_MEDIA_NHA_10.md` | TC_POST_10 | Upload ảnh local → hiển thị preview Facebook | Happy path |
 | `UC08_UC10_POST_MEDIA_NHA_POST_UI_029.md` | TC_POST_11 | Backend crash khi upload video không hợp lệ | **Bug PC-57 Critical** |
 
-**Bug:** `BUG_UC08_UC10_POST_MEDIA_NHA_POST_UI_029_PC57_BACKEND_CRASH_INVALID_VIDEO.md` → ✅ RESOLVED
+**Bug:** `BUG_UC10_POST_MEDIA_NHA_09.md` → ✅ RESOLVED
 
 ---
 
@@ -119,10 +119,10 @@
 
 | Bug File | Jira | TC gốc | Trạng thái |
 |----------|------|--------|-----------|
-| `BUG_UC05_BRAND_NHA_09_PC51_...` | PC-51 | UC05_BRAND_NHA_09 | ⚠️ OPEN |
-| `BUG_UC17_ANALYTICS_NHA_07_08_PC53_...` | PC-53 | UC17_ANALYTICS_NHA_07_08 | ⚠️ OPEN |
-| `BUG_UC07_TEAM_NHA_08_C_PC54_...` | PC-54 | UC07_TEAM_NHA_08_C | ⚠️ OPEN |
-| `BUG_UC06_UC07_TEAM_NHA_02_09_PC55_...` | PC-55 | UC06_TEAM_NHA_02 ~ _09 | ✅ RESOLVED |
-| `BUG_UC05_UC16_DASHBOARD_NHA_10_PC56_...` | PC-56 | UC05_UC16_DASHBOARD_NHA_10 | ⚠️ OPEN |
-| `BUG_UC08_UC10_POST_MEDIA_NHA_POST_UI_029_PC57_...` | PC-57 | UC08_UC10_POST_MEDIA_NHA_POST_UI_029 | ✅ RESOLVED |
-| `BUG_UC12_AUTOLISTS_NHA_06_07_...` | AUTOLIST_001 | UC12_AUTOLISTS_NHA_06 & 07 | ✅ RESOLVED |
+| `BUG_UC05_BRAND_NHA_09.md` | PC-51 | UC05_BRAND_NHA_09 | ⚠️ OPEN |
+| `BUG_UC17_ANALYTICS_NHA_07_08.md` | PC-53 | UC17_ANALYTICS_NHA_07_08 | ⚠️ OPEN |
+| `BUG_UC07_TEAM_NHA_08_C.md` | PC-54 | UC07_TEAM_NHA_08_C | ⚠️ OPEN |
+| `BUG_UC06_TEAM_NHA_03.md` | PC-55 | UC06_TEAM_NHA_03 | ✅ RESOLVED |
+| `BUG_UC05_UC16_DASHBOARD_NHA_10.md` | PC-56 | UC05_UC16_DASHBOARD_NHA_10 | ⚠️ OPEN |
+| `BUG_UC10_POST_MEDIA_NHA_09.md` | PC-57 | UC10_POST_MEDIA_NHA_09 | ✅ RESOLVED |
+| `BUG_UC12_AUTOLISTS_NHA_06.md` | PC-52 | UC12_AUTOLISTS_NHA_06 | ✅ RESOLVED |
