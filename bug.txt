@@ -1,0 +1,92 @@
+🖱️ Bật quyền CREATE_POSTS (Tạo bài viết) cho custom role...
+    ✔ TC_TEAM_05: Quản lý Custom Role (Tạo mới & validate tên vai trò) (11046ms)
+    ✔ TC_TEAM_06: Mời thành viên mới với Custom Role (16009ms)
+    1) TC_TEAM_07: Quy trình chấp nhận lời mời và Kích hoạt tài khoản thành viên
+📸 Đã chụp màn hình khi lỗi: /home/runner/work/PubliCast/PubliCast/test_selenium/team/error_TC_TEAM_07__Quy_tr_nh_ch_p_nh_n_l_i_m_i_v__K_ch_ho_t_t_i_kho_n_th_nh_vi_n.png
+    2) TC_TEAM_08: Kiểm chứng phân quyền Custom Role hạn chế trên UI & Backend API
+📸 Đã chụp màn hình khi lỗi: /home/runner/work/PubliCast/PubliCast/test_selenium/team/error_TC_TEAM_08__Ki_m_ch_ng_ph_n_quy_n_Custom_Role_h_n_ch__tr_n_UI___Backend_API.png
+📡 Kiểm chứng quyền VIEW_ANALYTICS trên Report API (bị cấm)...
+    3) TC_TEAM_08_C: Kiểm chứng phân quyền xem Báo cáo & Biểu đồ thống kê (VIEW_ANALYTICS)
+📸 Đã chụp màn hình khi lỗi: /home/runner/work/PubliCast/PubliCast/test_selenium/team/error_TC_TEAM_08_C__Ki_m_ch_ng_ph_n_quy_n_xem_B_o_c_o___Bi_u____th_ng_k___VIEW_ANALYTICS_.png
+📡 Kiểm chứng quyền INVITE_MEMBERS (được phép)...
+    4) TC_TEAM_08_D: Kiểm chứng Custom Role chỉ có quyền Quản lý thành viên (MANAGE_TEAM)
+📸 Đã chụp màn hình khi lỗi: /home/runner/work/PubliCast/PubliCast/test_selenium/team/error_TC_TEAM_08_D__Ki_m_ch_ng_Custom_Role_ch__c__quy_n_Qu_n_l__th_nh_vi_n__MANAGE_TEAM_.png
+📡 Kiểm chứng quyền VIEW_ANALYTICS trên Report API (được phép)...
+    5) TC_TEAM_08_E: Kiểm chứng Custom Role chỉ có quyền Xem báo cáo (VIEW_ANALYTICS)
+📸 Đã chụp màn hình khi lỗi: /home/runner/work/PubliCast/PubliCast/test_selenium/team/error_TC_TEAM_08_E__Ki_m_ch_ng_Custom_Role_ch__c__quy_n_Xem_b_o_c_o__VIEW_ANALYTICS_.png
+📡 Kiểm chứng quyền MANAGE_ROLES (được phép)...
+    6) TC_TEAM_08_F: Kiểm chứng Custom Role chỉ có quyền Quản lý vai trò (MANAGE_ROLES)
+📸 Đã chụp màn hình khi lỗi: /home/runner/work/PubliCast/PubliCast/test_selenium/team/error_TC_TEAM_08_F__Ki_m_ch_ng_Custom_Role_ch__c__quy_n_Qu_n_l__vai_tr___MANAGE_ROLES_.png
+📡 Kiểm chứng quyền APPROVE_POSTS (được phép)...
+    7) TC_TEAM_08_G: Kiểm chứng Custom Role chỉ có quyền Phê duyệt bài viết (APPROVE_POSTS) và Xóa bài viết (DELETE_POSTS)
+📸 Đã chụp màn hình khi lỗi: /home/runner/work/PubliCast/PubliCast/test_selenium/team/error_TC_TEAM_08_G__Ki_m_ch_ng_Custom_Role_ch__c__quy_n_Ph__duy_t_b_i_vi_t__APPROVE_POSTS__v__X_a_b_i_vi_t__DELETE_POSTS_.png
+📡 Kiểm chứng quyền CREATE_POSTS (được phép)...
+    8) TC_TEAM_08_H: Kiểm chứng Custom Role chỉ có quyền Tạo bài viết (CREATE_POSTS) và Đăng bài viết (PUBLISH_POSTS)
+📸 Đã chụp màn hình khi lỗi: /home/runner/work/PubliCast/PubliCast/test_selenium/team/error_TC_TEAM_08_H__Ki_m_ch_ng_Custom_Role_ch__c__quy_n_T_o_b_i_vi_t__CREATE_POSTS__v____ng_b_i_vi_t__PUBLISH_POSTS_.png
+    9) TC_TEAM_09: Chặn xóa vai trò đang hoạt động & Dọn dẹp dứt điểm
+📸 Đã chụp màn hình khi lỗi: /home/runner/work/PubliCast/PubliCast/test_selenium/team/error_TC_TEAM_09__Ch_n_x_a_vai_tr___ang_ho_t___ng___D_n_d_p_d_t__i_m.png
+🧹 Cleaning up Team test data from DB...
+✅ DB Cleanup completed.
+  3 passing (1m)
+  3 pending
+  9 failing
+  1) Team Management E2E Test Suite
+       TC_TEAM_07: Quy trình chấp nhận lời mời và Kích hoạt tài khoản thành viên:
+     TimeoutError: Waiting for URL to contain "/dashboard"
+Wait timed out after 20101ms
+      at /home/runner/work/PubliCast/PubliCast/test_selenium/node_modules/selenium-webdriver/lib/webdriver.js:929:22
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+  2) Team Management E2E Test Suite
+       TC_TEAM_08: Kiểm chứng phân quyền Custom Role hạn chế trên UI & Backend API:
+      AssertionError: expected 401 to equal 403
+      + expected - actual
+      -401
+      +403
+      
+      at Context.<anonymous> (team/team_management.spec.js:493:30)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+  3) Team Management E2E Test Suite
+       TC_TEAM_08_C: Kiểm chứng phân quyền xem Báo cáo & Biểu đồ thống kê (VIEW_ANALYTICS):
+      AssertionError: expected 401 to equal 403
+      + expected - actual
+      -401
+      +403
+      
+      at Context.<anonymous> (team/team_management.spec.js:564:33)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+  4) Team Management E2E Test Suite
+       TC_TEAM_08_D: Kiểm chứng Custom Role chỉ có quyền Quản lý thành viên (MANAGE_TEAM):
+     AssertionError: expected 401 to be one of [ 200, 201 ]
+      at Context.<anonymous> (team/team_management.spec.js:653:36)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+  5) Team Management E2E Test Suite
+       TC_TEAM_08_E: Kiểm chứng Custom Role chỉ có quyền Xem báo cáo (VIEW_ANALYTICS):
+      AssertionError: expected 401 to equal 200
+      + expected - actual
+      -401
+      +200
+      
+      at Context.<anonymous> (team/team_management.spec.js:734:33)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+  6) Team Management E2E Test Suite
+       TC_TEAM_08_F: Kiểm chứng Custom Role chỉ có quyền Quản lý vai trò (MANAGE_ROLES):
+     AssertionError: expected 401 to be one of [ 200, 201 ]
+      at Context.<anonymous> (team/team_management.spec.js:810:40)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+  7) Team Management E2E Test Suite
+       TC_TEAM_08_G: Kiểm chứng Custom Role chỉ có quyền Phê duyệt bài viết (APPROVE_POSTS) và Xóa bài viết (DELETE_POSTS):
+     AssertionError: expected 401 to be one of [ 200, 404 ]
+      at Context.<anonymous> (team/team_management.spec.js:878:37)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+  8) Team Management E2E Test Suite
+       TC_TEAM_08_H: Kiểm chứng Custom Role chỉ có quyền Tạo bài viết (CREATE_POSTS) và Đăng bài viết (PUBLISH_POSTS):
+     AssertionError: expected 401 to be one of [ 200, 201 ]
+      at Context.<anonymous> (team/team_management.spec.js:952:36)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+  9) Team Management E2E Test Suite
+       TC_TEAM_09: Chặn xóa vai trò đang hoạt động & Dọn dẹp dứt điểm:
+     TimeoutError: Waiting for element to be located By(xpath, //button[@title='Menu'])
+Wait timed out after 10140ms
+      at /home/runner/work/PubliCast/PubliCast/test_selenium/node_modules/selenium-webdriver/lib/webdriver.js:929:22
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+Error: Process completed with exit code 9.

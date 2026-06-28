@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Check, AlertTriangle, Loader2 } from "lucide-react";
 import apiService from "../../services/api";
 import { toast } from "sonner";
+import { STORAGE_KEYS } from "../../constants/storageKeys";
 
 export function InviteFlow() {
   const location = useLocation();
@@ -55,7 +56,12 @@ export function InviteFlow() {
 
       const tokenVal = response.data.accessToken || response.data.token;
       if (tokenVal) {
-        localStorage.setItem("token", tokenVal);
+        localStorage.setItem(STORAGE_KEYS.TOKEN, tokenVal);
+      }
+
+      const brandId = response.data.brandId;
+      if (brandId) {
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_BRAND_ID, brandId);
       }
 
       setScreen("accepted");
@@ -203,7 +209,7 @@ export function InviteFlow() {
             <button 
               onClick={() => {
                 // Force a page refresh to reload brand context with new membership
-                window.location.href = "/";
+                window.location.href = "/dashboard";
               }}
               className="w-full py-3 rounded-xl bg-[#0A0A0A] text-white mb-3 hover:bg-gray-900 transition-all font-bold"
               style={{ fontSize: 14 }}

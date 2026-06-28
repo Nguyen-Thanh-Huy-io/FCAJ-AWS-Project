@@ -14,6 +14,7 @@ const discordStatsController = require('../../controllers/social/discord-stats.c
 const threadsController = require('../../controllers/social/threads.controller');
 const { verifyAuth } = require('../../middlewares/auth.middleware');
 const { requireFeature } = require('../../middlewares/feature-gate.middleware');
+const checkPermission = require('../../middlewares/permission.middleware');
 const { PRODUCT_IDS } = require('../../utils/constants');
 
 const router = express.Router();
@@ -66,7 +67,7 @@ router.get('/instagram/published-posts', verifyAuth, instagramController.getInst
 router.get('/threads/published-posts', verifyAuth, threadsController.getThreadsPublishedPosts);
 
 // Real-time Metrics
-router.get('/metrics', verifyAuth, socialAnalyticsController.getMetrics);
+router.get('/metrics', verifyAuth, checkPermission('VIEW_ANALYTICS'), socialAnalyticsController.getMetrics);
 
 // YouTube Tracked Videos
 router.post('/youtube/track', verifyAuth, youtubeController.trackYouTubeVideo);

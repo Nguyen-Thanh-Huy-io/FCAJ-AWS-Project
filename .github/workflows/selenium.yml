@@ -2,7 +2,7 @@ name: Selenium UI Automation Tests
 
 on:
   push:
-    branches: [ main, master, develop, feature/**, bugfix/**, bug/** ]
+    branches: [ main, master, develop, "feature/**", "bugfix/**", "bug/**", "bug/*" ]
   pull_request:
     branches: [ main, master, develop ]
 
@@ -110,7 +110,7 @@ jobs:
           echo "REDIS_URL=redis://localhost:6379" >> .env
 
       - name: Run Full Selenium Test Suite
-        if: ${{ !startsWith(github.ref_name, 'bug/PC-53') }}
+        if: ${{ !startsWith(github.ref_name, 'bug/PC-53') && !startsWith(github.ref_name, 'bug/PC-54') && !startsWith(github.ref_name, 'bug/PC-55') }}
         working-directory: test_selenium
         run: |
           npm run test:brand
@@ -124,6 +124,12 @@ jobs:
         run: |
           npm run test:youtube-dashboard
 
+      - name: Run Team Management Tests (PC-54 and PC-55 branches)
+        if: ${{ startsWith(github.ref_name, 'bug/PC-54') || startsWith(github.ref_name, 'bug/PC-55') }}
+        working-directory: test_selenium
+        run: |
+          npm run test:team-management
+
       - name: Upload Test Screenshots
         if: failure()
         uses: actions/upload-artifact@v4
@@ -132,3 +138,5 @@ jobs:
           path: |
             test_cases/auth/screenshots/
             test_selenium/dashboard/error_*.png
+            test_selenium/team/error_*.png
+            test_selenium/error_*.png
