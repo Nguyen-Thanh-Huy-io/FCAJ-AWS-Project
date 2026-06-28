@@ -7,6 +7,9 @@
 | Status      | Pass                                                           |
 | Execution   | Automated (Selenium)                                           |
 | Test File   | `test_selenium/dashboard/facebook_dashboard.spec.js`           |
+| Created By  | Nhã                                                            |
+| Tester      | Nhã                                                            |
+| Use Case ID | UC17                                                           |
 
 ## 1. Prerequisites
 - Đang hiển thị trang `/dashboard/facebook` tab `COMPETITORS`.

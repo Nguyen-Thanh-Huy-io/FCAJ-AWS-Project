@@ -7,6 +7,9 @@
 | Status      | Pass                                                           |
 | Execution   | Automated (Selenium)                                           |
 | Test File   | `test_selenium/brand/brand.delete.spec.js`                     |
+| Created By  | Nhã                                                            |
+| Tester      | Nhã                                                            |
+| Use Case ID | UC05                                                           |
 
 ## 1. Prerequisites
 - Người dùng đăng nhập bằng tài khoản quản trị (`admin`).

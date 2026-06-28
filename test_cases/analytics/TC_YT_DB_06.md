@@ -7,6 +7,9 @@
 | Status      | Pass                                                           |
 | Execution   | Automated (Selenium)                                           |
 | Test File   | `test_selenium/dashboard/youtube_dashboard.spec.js`             |
+| Created By  | Nhã                                                            |
+| Tester      | Nhã                                                            |
+| Use Case ID | UC16                                                           |
 
 ## 1. Prerequisites
 - Người dùng đang ở trang `/dashboard/youtube` tab `VIDEOS`.

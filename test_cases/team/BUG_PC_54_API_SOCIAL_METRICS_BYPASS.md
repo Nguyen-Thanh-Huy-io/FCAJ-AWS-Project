@@ -3,8 +3,9 @@
 | ID number        | PC-54                                                                                                          |
 | ---------------- | ------------------------------------------------------------------------------------------------------------- |
 | Name             | TEAM - API `/api/social/metrics` bỏ qua kiểm tra quyền `VIEW_ANALYTICS` của Custom Role                       |
-| Reporter         | Antigravity                                                                                                   |
+| Reporter         | NHA                                                                                                   |
 | Submit Date      | 28/06/2026                                                                                                    |
+| Use Case ID     | UC16, UC07                                                                                                       |
 | Summary          | Thành viên thuộc Custom Role không được cấp quyền `VIEW_ANALYTICS` vẫn có thể truy cập thành công API lấy chỉ số và biểu đồ phân tích (`GET /api/social/metrics`). |
 | URL              | http://localhost:5173/manage/reports                                                                          |
 | Screenshot       | ![Screenshot](./screenshots/error_TC_TEAM_08_C__Ki_m_ch_ng_ph_n_quy_n_xem_B_o_c_o___Bi_u____th_ng_k___VIEW_ANALYTICS_.png) |

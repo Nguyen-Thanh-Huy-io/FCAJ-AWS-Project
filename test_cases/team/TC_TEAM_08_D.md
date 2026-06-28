@@ -1,8 +1,9 @@
 | Test Case ID    | TC_TEAM_08_D | Test Case Description | Kiểm chứng Custom Role chỉ có quyền Quản lý thành viên (MANAGE_TEAM) |
 | --------------- | ---------| ---------------------| -------------------------------------------------------------------- |
-| Created By      | Antigravity | Reviewed By          | Nhã Võ                                                                |
+| Created By      | Nhã | Reviewed By          | Nhã Võ                                                                |
 | Version         | 1.0       | Date Tested          | 28/06/2026                                                            |
-| Test Status     | Pass      | Tester's Name        | Antigravity                                                           |
+| Test Status     | Pass      | Tester's Name        | Nhã                                                           |
+| Use Case ID     | UC07 |
 
 ### Prerequisites
 1. Custom Role "Restricted Analyst" được cập nhật chỉ bật các quyền `MANAGE_TEAM` và `INVITE_MEMBERS`.

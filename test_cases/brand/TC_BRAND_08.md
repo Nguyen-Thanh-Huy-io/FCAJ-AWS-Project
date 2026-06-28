@@ -7,6 +7,9 @@
 | Status      | Pass                                                           |
 | Execution   | Automated (Selenium)                                           |
 | Test File   | `test_selenium/brand/brand.update.spec.js`                     |
+| Created By  | Nhã                                                            |
+| Tester      | Nhã                                                            |
+| Use Case ID | UC05                                                           |
 
 ## 1. Prerequisites
 - Người dùng đã đăng nhập với vai trò `admin`.

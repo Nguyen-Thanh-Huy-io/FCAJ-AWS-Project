@@ -7,6 +7,9 @@
 | Status      | Fail (Gốc) / Resolved                                          |
 | Execution   | Automated (Selenium)                                           |
 | Test File   | `test_selenium/dashboard/youtube_dashboard.spec.js`             |
+| Created By  | Nhã                                                            |
+| Tester      | Nhã                                                            |
+| Use Case ID | UC17                                                           |
 
 ## 1. Prerequisites
 - Đang hiển thị trang `/dashboard/youtube` tab `COMPETITORS`.

@@ -3,8 +3,9 @@
 | ID number        | PC-53                                                                                                          |
 | ---------------- | ------------------------------------------------------------------------------------------------------------- |
 | Name             | YouTube Dashboard – Competitors table ẩn cột Action (3-dot menu) trên viewport nhỏ do overflow-x              |
-| Reporter         | Antigravity                                                                                                   |
+| Reporter         | NHA                                                                                                   |
 | Submit Date      | 28/06/2026                                                                                                    |
+| Use Case ID     | UC17                                                                                                       |
 | Summary          | Bảng danh sách Competitors trong tab COMPETITORS có min-width: 800px. Trên các viewport nhỏ hơn (bao gồm Selenium mặc định ~1024px), bảng kích hoạt horizontal scroll khiến cột cuối cùng chứa icon ⭐ và nút ⋮ (menu hành động) bị nằm ngoài vùng nhìn thấy của người dùng. |
 | URL              | /dashboard/youtube → tab COMPETITORS                                                                          |
 | Screenshot       | ![Screenshot](./screenshots/youtube_competitors_overflow.png)                                                 |

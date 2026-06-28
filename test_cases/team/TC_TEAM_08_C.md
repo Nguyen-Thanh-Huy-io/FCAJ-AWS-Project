@@ -1,8 +1,9 @@
 | Test Case ID    | TC_TEAM_08_C | Test Case Description | Kiểm chứng phân quyền xem Báo cáo & Biểu đồ thống kê (VIEW_ANALYTICS) |
 | --------------- | ---------| ---------------------| --------------------------------------------------------------------- |
-| Created By      | Antigravity | Reviewed By          | Nhã Võ                                                                |
+| Created By      | Nhã | Reviewed By          | Nhã Võ                                                                |
 | Version         | 1.0       | Date Tested          | 28/06/2026                                                            |
-| Test Status     | Pass      | Tester's Name        | Antigravity                                                           |
+| Test Status     | Pass      | Tester's Name        | Nhã                                                           |
+| Use Case ID     | UC07 |
 
 ### Prerequisites
 1. Thành viên `testmember@gmail.com` gán vai trò "Restricted Analyst" (chỉ có quyền `CREATE_POSTS`, không có quyền `VIEW_ANALYTICS`).

@@ -3,8 +3,9 @@
 | ID number        | BUG_POST_UI_029                                                                                               |
 | ---------------- | ------------------------------------------------------------------------------------------------------------- |
 | Name             | MEDIA - Backend crash toàn bộ tiến trình khi người dùng tải lên tệp video YouTube không hợp lệ                 |
-| Reporter         | Antigravity                                                                                                   |
+| Reporter         | NHA                                                                                                   |
 | Submit Date      | 28/06/2026                                                                                                    |
+| Use Case ID     | UC08, UC10                                                                                                       |
 | Summary          | Khi người dùng tải lên (upload) tệp video có định dạng không hợp lệ hoặc bị lỗi (corrupted) cho bài đăng YouTube và nhấn nút Lưu (Submit), backend không bắt được biệt lệ (Unhandled Exception), dẫn đến crash toàn bộ tiến trình Node.js, làm vô hiệu hóa và mất phiên đăng nhập (JWT token) của tất cả người dùng khác trên hệ thống. |
 | URL              | http://localhost:5173/planner/calendar (Gặp lỗi crash tại API backend `/api/posts` hoặc `/api/media/upload`)    |
 | Screenshot       | ![Screenshot](./screenshots/error_TC_POST_11.png)                                                             |
@@ -61,5 +62,5 @@ Khi backend crash và tự khởi động lại (qua nodemon hoặc pm2 mà khô
 | Status Date | 28/06/2026 |
 |---|---|
 | Status | **RESOLVED** |
-| Verified By | Antigravity (Kiểm thử tự động bằng Selenium E2E - TC_POST_11 chạy trơn tru, backend không còn bị crash, trả về lỗi HTTP 400 an toàn) |
+| Verified By | Nhã (Kiểm thử tự động bằng Selenium E2E - TC_POST_11 chạy trơn tru, backend không còn bị crash, trả về lỗi HTTP 400 an toàn) |
 | Resolution | Bọc lọc ngoại lệ toàn cục tại [server.js](file:///d:/Fullit/projects/PubliCast/backend/src/server.js) để không dừng tiến trình đối với các lỗi tải lên không hợp lệ (HTTP 400) hoặc lỗi Cloudinary SDK, bảo vệ tính sẵn sàng (Availability) cho hệ thống. |

@@ -7,6 +7,9 @@
 | Status      | Pass                                                           |
 | Execution   | Automated (Selenium)                                           |
 | Test File   | `test_selenium/dashboard/general_dashboard.spec.js`            |
+| Created By  | Nhã                                                            |
+| Tester      | Nhã                                                            |
+| Use Case ID | UC16                                                           |
 
 ## 1. Prerequisites
 - Đã seed dữ liệu bài đăng (Draft, Scheduled, Published) cho Dashboard.

@@ -1,8 +1,9 @@
 | Test Case ID    | TC_TEAM_05 | Test Case Description | Quản lý Custom Role (Tạo mới & validate tên vai trò) |
 | --------------- | ---------| ---------------------| ---------------------------------------------------- |
-| Created By      | Antigravity | Reviewed By          | Nhã Võ                                               |
+| Created By      | Nhã | Reviewed By          | Nhã Võ                                               |
 | Version         | 1.0       | Date Tested          | 28/06/2026                                           |
-| Test Status     | Pass      | Tester's Name        | Antigravity                                          |
+| Test Status     | Pass      | Tester's Name        | Nhã                                          |
+| Use Case ID     | UC06 |
 
 ### Prerequisites
 1. Đã đăng nhập với tư cách Owner của một Brand trên gói PRO (hỗ trợ Custom Roles).

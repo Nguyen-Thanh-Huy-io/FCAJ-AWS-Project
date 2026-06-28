@@ -1,8 +1,9 @@
 | Test Case ID    | TC_TEAM_07 | Test Case Description | Quy trình chấp nhận lời mời và Kích hoạt tài khoản thành viên |
 | --------------- | ---------| ---------------------| ----------------------------------------------------------- |
-| Created By      | Antigravity | Reviewed By          | Nhã Võ                                                      |
+| Created By      | Nhã | Reviewed By          | Nhã Võ                                                      |
 | Version         | 1.0       | Date Tested          | 28/06/2026                                                  |
-| Test Status     | Pass      | Tester's Name        | Antigravity                                                 |
+| Test Status     | Pass      | Tester's Name        | Nhã                                                 |
+| Use Case ID     | UC07 |
 
 ### Prerequisites
 1. Đã gửi lời mời tới `testmember@gmail.com` với Custom Role "Restricted Analyst".

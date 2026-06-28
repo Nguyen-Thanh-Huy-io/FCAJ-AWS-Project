@@ -7,6 +7,9 @@
 | Status      | Pass                                                           |
 | Execution   | Automated (Selenium)                                           |
 | Test File   | `test_selenium/dashboard/facebook_dashboard.spec.js`           |
+| Created By  | Nhã                                                            |
+| Tester      | Nhã                                                            |
+| Use Case ID | UC16                                                           |
 
 ## 1. Prerequisites
 - Thương hiệu đã kết nối Facebook và đã được seed dữ liệu.

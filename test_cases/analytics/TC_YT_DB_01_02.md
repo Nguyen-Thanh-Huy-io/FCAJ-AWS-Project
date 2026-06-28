@@ -7,6 +7,9 @@
 | Status      | Pass                                                           |
 | Execution   | Automated (Selenium)                                           |
 | Test File   | `test_selenium/dashboard/youtube_dashboard.spec.js`             |
+| Created By  | Nhã                                                            |
+| Tester      | Nhã                                                            |
+| Use Case ID | UC16                                                           |
 
 ## 1. Prerequisites
 - Đã hoàn tất đăng nhập và seed dữ liệu từ `TC_YT_DB_00`.

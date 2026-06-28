@@ -7,6 +7,9 @@
 | Status      | Pass                                                           |
 | Execution   | Automated (Selenium)                                           |
 | Test File   | `test_selenium/autolists.spec.js`                              |
+| Created By  | Nhã                                                            |
+| Tester      | Nhã                                                            |
+| Use Case ID | UC12                                                           |
 
 ## 1. Prerequisites
 - Đã tạo thành công AutoList từ test case `TC_AUTOLIST_01`.

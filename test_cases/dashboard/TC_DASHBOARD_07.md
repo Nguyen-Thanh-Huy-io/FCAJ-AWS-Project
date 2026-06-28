@@ -7,6 +7,9 @@
 | Status      | Pass                                                           |
 | Execution   | Automated (Selenium)                                           |
 | Test File   | `test_selenium/dashboard/general_dashboard.spec.js`            |
+| Created By  | Nhã                                                            |
+| Tester      | Nhã                                                            |
+| Use Case ID | UC10                                                           |
 
 ## 1. Prerequisites
 - Đang hiển thị trang Dashboard chính `/dashboard`.

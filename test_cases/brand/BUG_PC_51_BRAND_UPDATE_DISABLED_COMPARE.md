@@ -3,8 +3,9 @@
 | ID number        | PC-51                                                                                                          |
 | ---------------- | ------------------------------------------------------------------------------------------------------------- |
 | Name             | BRAND - Kiểm thử Selenium TC09 thất bại khi so khớp giá trị disabled                                          |
-| Reporter         | Antigravity                                                                                                   |
+| Reporter         | NHA                                                                                                   |
 | Submit Date      | 28/06/2026                                                                                                    |
+| Use Case ID     | UC05                                                                                                       |
 | Summary          | Nút 'Lưu thay đổi' (save-brand-btn) đã bị vô hiệu hóa chính xác trên giao diện (UI) khi tên không đổi, nhưng phương thức `.getAttribute('disabled')` của Selenium WebDriver trả về chuỗi `'true'` thay vì `null` hoặc ngược lại tùy thuộc vào môi trường webdriver. Điều này khiến assert mong đợi `expect(isDisabled).to.not.be.null` hoặc `expect(isDisabled).to.be.null` bị fail tùy theo môi trường. |
 | URL              | http://localhost:5173/manage/connections                                                                      |
 | Screenshot       | ![Screenshot](./screenshots/brand_update_failed.png)                                                          |

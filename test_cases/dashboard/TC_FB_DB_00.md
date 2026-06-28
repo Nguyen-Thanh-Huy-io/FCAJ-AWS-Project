@@ -7,6 +7,9 @@
 | Status      | Pass                                                           |
 | Execution   | Automated (Selenium)                                           |
 | Test File   | `test_selenium/dashboard/facebook_dashboard.spec.js`           |
+| Created By  | Nhã                                                            |
+| Tester      | Nhã                                                            |
+| Use Case ID | UC01, UC02, UC05                                                           |
 
 ## 1. Prerequisites
 - Hệ thống Redis, MySQL và Backend/Frontend PubliCast đang chạy bình thường.

@@ -7,6 +7,9 @@
 | Status      | Pass                                                           |
 | Execution   | Automated (Selenium)                                           |
 | Test File   | `test_selenium/brand/brand.list.spec.js`                       |
+| Created By  | Nhã                                                            |
+| Tester      | Nhã                                                            |
+| Use Case ID | UC05                                                           |
 
 ## 1. Prerequisites
 - Người dùng đã được đăng ký và thiết lập tài khoản quản trị (Admin).

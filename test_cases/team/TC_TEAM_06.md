@@ -1,8 +1,9 @@
 | Test Case ID    | TC_TEAM_06 | Test Case Description | Mời thành viên mới với Custom Role |
 | --------------- | ---------| ---------------------| ---------------------------------- |
-| Created By      | Antigravity | Reviewed By          | Nhã Võ                             |
+| Created By      | Nhã | Reviewed By          | Nhã Võ                             |
 | Version         | 1.0       | Date Tested          | 28/06/2026                         |
-| Test Status     | Pass      | Tester's Name        | Antigravity                        |
+| Test Status     | Pass      | Tester's Name        | Nhã                        |
+| Use Case ID     | UC05, UC06 |
 
 ### Prerequisites
 1. Đã đăng nhập với tư cách Owner của một Brand trên gói PRO.
