@@ -15,8 +15,8 @@
 | | | | | | | | | | | |
 | Step #          | Step Details | | Expected Results | | Actual Results | | | Pass / Fail / Not executed / Suspended/ Crashed | |
 | | | | | | | | | | | |
-| 1               | Chọn nền tảng đăng bài là YouTube. | | Giao diện hiển thị các trường soạn thảo dành cho YouTube. | | Đúng như mong đợi. | | | Pass |
-| 2               | Thực hiện tải lên (upload) tệp tin video không hợp lệ `sample_video.mp4` (stub file 24 bytes) từ máy tính. | | Vùng preview của Post Creator nhận diện tệp tin và hiển thị tên tệp tin tải lên. | | Tên tệp tin hiển thị trong phần preview của Post Creator. | | | Pass |
+| 1               | Đăng nhập hệ thống, mở tính năng tạo bài viết mới "Create new post" và chọn nền tảng đăng bài là YouTube. | | Giao diện hiển thị các trường soạn thảo dành cho YouTube. | | Đúng như mong đợi. | | | Pass |
+| 2               | Thực hiện đính kèm và tải lên tệp tin video không hợp lệ `sample_video.mp4` (kích thước 24 bytes không có nội dung giải mã video hợp lệ). | | Vùng preview của Post Creator nhận diện tệp tin và hiển thị tên tệp tin tải lên. | | Tên tệp tin hiển thị trong phần preview của Post Creator. | | | Pass |
 | 3               | Nhập caption cho bài viết, chọn chế độ xuất bản là Draft (Lưu nháp), và nhấn nút đăng bài (Submit). | | Backend nhận request, kiểm tra định dạng và tính hợp lệ của tệp video, trả về mã lỗi HTTP 400 Bad Request và thông báo lỗi rõ ràng. Giao diện hiển thị thông báo lỗi tương ứng. Server backend tiếp tục chạy bình thường. | | Backend bị crash tiến trình Node.js hoàn toàn, người dùng bị mất phiên làm việc và đẩy ra trang đăng nhập. | | | Crashed |
 
 ## 5. Linked Bug

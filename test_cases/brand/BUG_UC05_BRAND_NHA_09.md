@@ -29,9 +29,9 @@ Description
 Tại trang cài đặt thương hiệu, khi người dùng thực hiện xóa tên thương hiệu hiện tại đi và nhập lại đúng tên ban đầu của thương hiệu đó, nút "Lưu thay đổi" vẫn sáng lên và cho phép click gửi yêu cầu cập nhật, thay vì phải tự động vô hiệu hóa để tránh gửi yêu cầu cập nhật vô ích lên hệ thống.
 
 Steps to reproduce
-1. Đăng nhập và đi tới trang cài đặt thương hiệu.
-2. Xóa tên thương hiệu hiện tại đi và nhập lại chính xác tên cũ của thương hiệu đó.
-3. Quan sát trạng thái hoạt động của nút Lưu thay đổi.
+1. Đăng nhập và truy cập trang cài đặt thương hiệu tại URL `/manage/connections`.
+2. Định vị ô nhập tên thương hiệu (`data-testid="brand-name-input"`), xóa tên thương hiệu hiện tại và nhập lại chính xác tên cũ của thương hiệu đó.
+3. Quan sát trạng thái hoạt động của nút "Lưu thay đổi" (`data-testid="save-brand-btn"`).
 
 Expected result
 Nút Lưu thay đổi phải tự động vô hiệu hóa (bị mờ đi và chặn click) khi tên thương hiệu nhập vào hoàn toàn trùng khớp với tên gốc hiện tại.

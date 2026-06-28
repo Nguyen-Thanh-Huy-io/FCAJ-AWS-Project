@@ -20,11 +20,12 @@
 | Long Brand Name| `SeleniumBrandWithNameThatIsExtremelyLongAndShouldBeTruncated...`  |
 
 ## 3. Step-by-Step Procedure
-1. Cập nhật tên thương hiệu hiện tại trong database thành chuỗi cực kỳ dài: `SeleniumBrandWithNameThatIsExtremelyLongAndShouldBeTruncatedWithEllipsisOrWordBreak_123456789`.
-2. Thực hiện làm mới (refresh) trang trình duyệt để nhận tên thương hiệu mới.
-3. Định vị phần tử hiển thị tên thương hiệu đang hoạt động (`Active Brand`).
-4. Sử dụng script Selenium để đo lường `scrollWidth` và `clientWidth` của phần tử chứa chữ tên thương hiệu này.
-5. So sánh hai giá trị: `scrollWidth` phải nhỏ hơn hoặc bằng `clientWidth`.
+1. Đăng nhập vào hệ thống, truy cập trang Dashboard tại URL `/dashboard`.
+2. Tạo mới hoặc cập nhật tên thương hiệu hiện tại thành một chuỗi cực kỳ dài: `SeleniumBrandWithNameThatIsExtremelyLongAndShouldBeTruncatedWithEllipsisOrWordBreak_123456789`.
+3. Thực hiện làm mới (refresh) trang trình duyệt và quan sát widget hiển thị tên thương hiệu đang hoạt động ở góc trên bên phải.
+4. Định vị phần tử hiển thị tên thương hiệu đang hoạt động (`Active Brand`).
+5. Sử dụng script Selenium để đo lường `scrollWidth` và `clientWidth` của phần tử chứa chữ tên thương hiệu này.
+6. So sánh hai giá trị: `scrollWidth` phải nhỏ hơn hoặc bằng `clientWidth`.
 
 ## 4. Expected Result
 - Chữ không được tràn ra khỏi khung bao ngoài (scrollWidth <= clientWidth).

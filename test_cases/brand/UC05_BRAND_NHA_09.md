@@ -21,10 +21,10 @@
 | Name Input  | Giữ nguyên tên của thương hiệu đang active |
 
 ## 3. Step-by-Step Procedure
-1. Tại trang `/manage/connections`, tìm ô nhập tên thương hiệu (`data-testid="brand-name-input"`).
-2. Lấy tên hiện tại của thương hiệu.
-3. Xóa ô nhập, sau đó nhập lại chính xác tên thương hiệu đó.
-4. Kiểm tra xem nút "Lưu thay đổi" (`data-testid="save-brand-btn"`) có bị vô hiệu hóa (disabled) hay không.
+1. Đăng nhập và truy cập trang cài đặt thương hiệu tại URL `/manage/connections`.
+2. Định vị ô nhập tên thương hiệu (`data-testid="brand-name-input"`), xóa tên thương hiệu hiện tại và nhập lại chính xác tên cũ của thương hiệu đó.
+3. Quan sát trạng thái hoạt động của nút "Lưu thay đổi" (`data-testid="save-brand-btn"`).
+4. Kiểm tra xem nút "Lưu thay đổi" có bị vô hiệu hóa (disabled) hay không.
 
 ## 4. Expected Result
 - Nút "Lưu thay đổi" phải ở trạng thái disabled khi tên không đổi để tránh gửi request dư thừa lên server.

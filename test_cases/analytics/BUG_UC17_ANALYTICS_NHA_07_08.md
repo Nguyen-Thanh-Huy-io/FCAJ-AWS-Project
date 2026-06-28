@@ -29,10 +29,10 @@ Description
 Bảng đối thủ cạnh tranh được thiết kế với chiều rộng tối thiểu cố định. Trên các kích thước màn hình nhỏ hoặc khi thu nhỏ trình duyệt, bảng xuất hiện thanh cuộn ngang và cột thao tác cuối cùng (chứa nút xóa đối thủ) bị ẩn ngoài vùng hiển thị của màn hình. Người dùng không thể thấy nút này để thao tác trừ khi thực hiện kéo thanh cuộn ngang thủ công, gây khó khăn cho trải nghiệm.
 
 Steps to reproduce
-1. Đăng nhập và đi tới trang báo cáo phân tích, chọn tab Đối thủ cạnh tranh.
-2. Thêm một số đối thủ cạnh tranh vào danh sách theo dõi.
-3. Thu hẹp cửa sổ trình duyệt xuống chiều rộng dưới 900 pixel.
-4. Quan sát vị trí hiển thị của nút thao tác ở cuối dòng.
+1. Đăng nhập hệ thống, truy cập trang `/dashboard/youtube` và click chọn tab `COMPETITORS`.
+2. Nhập handle đối thủ cạnh tranh (ví dụ: `@FapTV`) vào ô tìm kiếm và click nút "Thêm vào danh sách theo dõi".
+3. Thay đổi chiều rộng cửa sổ trình duyệt xuống dưới 900 pixel.
+4. Quan sát vị trí hiển thị của nút thao tác ở cuối dòng (icon menu hành động ⋮).
 
 Expected result
 Nút thao tác xóa đối thủ phải luôn được hiển thị trong tầm mắt của người dùng (ví dụ: ghim cố định cột thao tác ở cạnh phải bảng khi có thanh cuộn ngang).

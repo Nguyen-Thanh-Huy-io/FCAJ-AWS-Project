@@ -29,9 +29,9 @@ Description
 Khi chọn một thương hiệu có tên rất dài, phần văn bản hiển thị tên thương hiệu trên widget góc trên cùng bên phải màn hình Dashboard bị kéo dài quá mức, tràn ra khỏi viền bao quanh của thẻ và đè lên nhãn hiển thị trạng thái "Selected". Lỗi này gây mất mỹ quan giao diện.
 
 Steps to reproduce
-1. Đăng nhập vào hệ thống và truy cập trang Dashboard.
-2. Tạo mới hoặc đổi tên thương hiệu hiện tại thành một chuỗi rất dài (ví dụ: SeleniumBrandWithNameThatIsExtremelyLong).
-3. Quay lại trang Dashboard và quan sát widget hiển thị ở góc trên cùng bên phải.
+1. Đăng nhập vào hệ thống, truy cập trang Dashboard tại URL `/dashboard`.
+2. Tạo mới hoặc cập nhật tên thương hiệu hiện tại thành một chuỗi cực kỳ dài: `SeleniumBrandWithNameThatIsExtremelyLongAndShouldBeTruncatedWithEllipsisOrWordBreak_123456789`.
+3. Thực hiện làm mới (refresh) trang trình duyệt và quan sát widget hiển thị tên thương hiệu đang hoạt động ở góc trên bên phải.
 
 Expected result
 Tên thương hiệu dài hiển thị gọn gàng bên trong widget, tự động xuống dòng hoặc cắt bớt để bảo đảm mỹ quan.

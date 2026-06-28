@@ -20,16 +20,13 @@
 | Competitor  | `@FapTV` hoặc kênh YouTube bất kỳ     |
 
 ## 3. Step-by-Step Procedure
-1. Click chọn tab `COMPETITORS` trên Dashboard.
-2. Tìm ô tìm kiếm đối thủ (`[placeholder="Tìm kiếm kênh đối thủ..."]`).
-3. Nhập handle của đối thủ (ví dụ: `@FapTV`) và click nút "Tìm kiếm".
-4. Khi kết quả tìm kiếm xuất hiện, click nút "Thêm vào danh sách theo dõi".
-5. Xác minh đối thủ mới xuất hiện trong danh sách.
-6. Thay đổi chiều rộng cửa sổ trình duyệt xuống dưới 900 pixel.
-7. Quan sát vị trí hiển thị của nút thao tác ở cuối dòng.
-8. Click vào icon menu hành động (nút ⋮) ở cột Action cuối cùng của đối thủ vừa thêm.
-9. Click nút "Xóa đối thủ" trong dropdown menu.
-10. Xác minh đối thủ biến mất khỏi danh sách.
+1. Đăng nhập hệ thống, truy cập trang `/dashboard/youtube` và click chọn tab `COMPETITORS`.
+2. Nhập handle đối thủ cạnh tranh (ví dụ: `@FapTV`) vào ô tìm kiếm và click nút "Thêm vào danh sách theo dõi".
+3. Thay đổi chiều rộng cửa sổ trình duyệt xuống dưới 900 pixel.
+4. Quan sát vị trí hiển thị của nút thao tác ở cuối dòng (icon menu hành động ⋮).
+5. Click vào icon menu hành động (nút ⋮) ở cột Action cuối cùng của đối thủ vừa thêm.
+6. Click nút "Xóa đối thủ" trong dropdown menu.
+7. Xác minh đối thủ biến mất khỏi danh sách.
 
 ## 4. Expected Result
 - Tính năng tìm kiếm và thêm đối thủ hoạt động tốt, hiển thị ngay trên UI.
