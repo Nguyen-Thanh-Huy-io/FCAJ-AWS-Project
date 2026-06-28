@@ -13,7 +13,7 @@ export function StatCard({
       className={`flex flex-col bg-white border border-gray-100 rounded-2xl p-4 min-w-0 shadow-sm ${className}`}
     >
       <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 6 }} className="font-bold uppercase tracking-wider">{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: "#0A0A0A", lineHeight: 1.2 }}>{value}</div>
+      <div style={{ fontSize: 22, fontWeight: 700, color: "#0A0A0A", lineHeight: 1.2, wordBreak: "break-all" }}>{value}</div>
       {delta && (
         <div style={{ fontSize: 11, color: deltaColor || "#16A34A", marginTop: 4 }} className="font-bold">{delta}</div>
       )}

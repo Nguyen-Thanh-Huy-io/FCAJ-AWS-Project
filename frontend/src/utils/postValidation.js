@@ -30,7 +30,7 @@ export function validatePostForm({
   }
 
   // 1. Validate ngày lên lịch
-  if (selectedPublishId !== 'now') {
+  if (['schedule', 'review'].includes(selectedPublishId)) {
     const isPastDate = new Date(scheduledDate).getTime() < Date.now() - 60000;
     if (isPastDate) {
       errors.push("Publish date can't be a past date.");

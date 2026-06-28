@@ -14,6 +14,7 @@
     "test:post-creator": "mocha post_creator.spec.js",
     "test:autolists": "mocha autolists.spec.js --timeout 120000",
     "test:youtube-dashboard": "mocha dashboard/youtube_dashboard.spec.js --timeout 120000",
+    "test:general-dashboard": "mocha dashboard/general_dashboard.spec.js --timeout 120000",
     "test:facebook-dashboard": "mocha dashboard/facebook_dashboard.spec.js --timeout 120000",
     "test:dashboard-all": "mocha dashboard/*.spec.js --timeout 120000",
     "test:team-management": "mocha team/team_management.spec.js --timeout 120000"

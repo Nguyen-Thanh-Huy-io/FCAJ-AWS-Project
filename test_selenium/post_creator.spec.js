@@ -323,7 +323,7 @@ describe('Post Creator Detailed E2E Suite', function () {
     await driver.sleep(500);
 
     await safeClick(By.css('[data-testid="post-submit-btn"]'));
-    await driver.sleep(4000);
+    await driver.wait(until.stalenessOf(captionInput), 12000);
 
     // 1. Kiểm tra hiển thị trên List UI
     await driver.get(`${BASE_URL}/planner/list`);
@@ -362,7 +362,7 @@ describe('Post Creator Detailed E2E Suite', function () {
     await driver.sleep(500);
 
     await safeClick(By.css('[data-testid="post-submit-btn"]'));
-    await driver.sleep(4000);
+    await driver.wait(until.stalenessOf(captionInput), 12000);
 
     // 1. Kiểm tra hiển thị trên List UI
     await driver.get(`${BASE_URL}/planner/list`);
@@ -492,7 +492,7 @@ describe('Post Creator Detailed E2E Suite', function () {
 
 
     await safeClick(By.css('[data-testid="post-submit-btn"]'));
-    await driver.sleep(4000);
+    await driver.wait(until.stalenessOf(captionInput), 12000);
 
     // 1. Kiểm tra hiển thị trên List UI
     await driver.get(`${BASE_URL}/planner/list`);
@@ -591,7 +591,7 @@ describe('Post Creator Detailed E2E Suite', function () {
     await safeClick(By.css('[data-testid="publish-option-draft"]'));
     await driver.sleep(400);
     await safeClick(By.css('[data-testid="post-submit-btn"]'));
-    await driver.sleep(4000);
+    await driver.wait(until.stalenessOf(captionInput), 12000);
 
     // Kiểm tra hiển thị trên List UI
     await driver.get(`${BASE_URL}/planner/list`);

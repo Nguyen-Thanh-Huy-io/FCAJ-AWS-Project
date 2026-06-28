@@ -15,16 +15,6 @@ const productDropdownData = {
       { name: "AI Assistant", desc: "AI-powered content help", path: "/ai" },
     ],
   },
-  col2: {
-    title: "Livestream",
-    icon: "📡",
-    items: [
-      { name: "Stream Scheduler", desc: "Plan your live sessions", path: "/scheduler" },
-      { name: "Live Monitor", desc: "Real-time stream control", path: "/live" },
-      { name: "Multi-Platform Streaming", desc: "Go live everywhere at once", path: "/live" },
-      { name: "VOD History", desc: "Past stream recordings", path: "/history" },
-    ],
-  },
   col3: {
     title: "Analytics & Grow",
     icon: "📊",
@@ -95,10 +85,10 @@ export function Navbar() {
             {productOpen && (
               <div
                 className="absolute top-8 left-0 bg-white rounded-xl p-4 z-50"
-                style={{ border: "0.5px solid #E5E7EB", width: 600, boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)" }}
+                style={{ border: "0.5px solid #E5E7EB", width: 420, boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)" }}
                 onMouseLeave={() => setProductOpen(false)}
               >
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   {Object.values(productDropdownData).map((col) => (
                     <div key={col.title}>
                       <div className="flex items-center gap-1.5 mb-2">

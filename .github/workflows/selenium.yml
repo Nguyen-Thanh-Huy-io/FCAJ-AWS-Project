@@ -110,7 +110,7 @@ jobs:
           echo "REDIS_URL=redis://localhost:6379" >> .env
 
       - name: Run Full Selenium Test Suite
-        if: ${{ !startsWith(github.ref_name, 'bug/PC-53') && !startsWith(github.ref_name, 'bug/PC-54') && !startsWith(github.ref_name, 'bug/PC-55') }}
+        if: ${{ !startsWith(github.ref_name, 'bug/PC-53') && !startsWith(github.ref_name, 'bug/PC-54') && !startsWith(github.ref_name, 'bug/PC-55') && !startsWith(github.ref_name, 'bug/PC-56') && !startsWith(github.ref_name, 'bugfix/PC-56') }}
         working-directory: test_selenium
         run: |
           npm run test:brand
@@ -129,6 +129,12 @@ jobs:
         working-directory: test_selenium
         run: |
           npm run test:team-management
+
+      - name: Run General Dashboard Tests (PC-56 branch only)
+        if: ${{ startsWith(github.ref_name, 'bug/PC-56') || startsWith(github.ref_name, 'bugfix/PC-56') }}
+        working-directory: test_selenium
+        run: |
+          npm run test:general-dashboard
 
       - name: Upload Test Screenshots
         if: failure()
