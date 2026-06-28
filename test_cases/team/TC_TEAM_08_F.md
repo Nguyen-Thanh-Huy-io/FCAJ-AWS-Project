@@ -1,4 +1,4 @@
-| Test Case ID    | TEAM_028 | Test Case Description | Kiểm chứng nhóm quyền Quản trị & Cấu hình (MANAGE_ROLES, INVITE_MEMBERS) của Custom Role |
+| Test Case ID    | TC_TEAM_08_F | Test Case Description | Kiểm chứng nhóm quyền Quản trị & Cấu hình (MANAGE_ROLES, INVITE_MEMBERS) của Custom Role |
 | --------------- | ---------| ---------------------| -----------------------------------------------------------------------------------------|
 | Created By      | Antigravity | Reviewed By          | Nhã Võ                                                                                    |
 | Version         | 1.0       | Date Tested          | 28/06/2026                                                                                |

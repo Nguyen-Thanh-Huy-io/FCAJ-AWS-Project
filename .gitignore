@@ -17,3 +17,4 @@ yarn-error.log*
 metricool_attributes_reference_v5.html
 
 *.md
+!test_cases/**/*.md

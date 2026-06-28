@@ -1,4 +1,4 @@
-| Test Case ID    | TEAM_027 | Test Case Description | Kiểm chứng nhóm quyền Nội dung & Media (CREATE_POSTS, APPROVE_POSTS, DELETE_POSTS) của Custom Role |
+| Test Case ID    | TC_TEAM_08_G | Test Case Description | Kiểm chứng nhóm quyền Nội dung & Media (CREATE_POSTS, APPROVE_POSTS, DELETE_POSTS) của Custom Role |
 | --------------- | ---------| ---------------------| --------------------------------------------------------------------------------------------------|
 | Created By      | Antigravity | Reviewed By          | Nhã Võ                                                                                    |
 | Version         | 1.0       | Date Tested          | 28/06/2026                                                                                |

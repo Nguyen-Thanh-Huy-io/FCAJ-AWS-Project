@@ -1,4 +1,4 @@
-| Test Case ID    | TEAM_029 | Test Case Description | Kiểm chứng Custom Role có quyền Tạo và Đăng bài viết (CREATE_POSTS, PUBLISH_POSTS) nhưng KHÔNG có quyền Phê duyệt và Xóa bài viết |
+| Test Case ID    | TC_TEAM_08_H | Test Case Description | Kiểm chứng Custom Role có quyền Tạo và Đăng bài viết (CREATE_POSTS, PUBLISH_POSTS) nhưng KHÔNG có quyền Phê duyệt và Xóa bài viết |
 | --------------- | ---------| ---------------------| ----------------------------------------------------------------------------------------------------------------------------------|
 | Created By      | Antigravity | Reviewed By          | Nhã Võ                                                                                    |
 | Version         | 1.0       | Date Tested          | 28/06/2026                                                                                |
