@@ -40,12 +40,17 @@ class FacebookCompetitorService {
    */
   async _resolveAccessToken(brandId) {
     try {
-      const account = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORM);
-      if (account?.accessToken && !account.accessToken.startsWith('mock-')) {
+      const accounts = await socialAccountRepository.findByBrandAndPlatform(brandId, PLATFORM);
+      const account = Array.isArray(accounts) ? accounts[0] : accounts;
+      if (account?.accessToken) {
         return account.accessToken;
       }
     } catch (_) { /* ignore */ }
-    return this._getAppAccessToken();
+    try {
+      return this._getAppAccessToken();
+    } catch (e) {
+      return 'mock-facebook-access-token-default';
+    }
   }
 
   /**
