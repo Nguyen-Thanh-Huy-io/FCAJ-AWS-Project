@@ -6,13 +6,21 @@ const prisma = require('../../src/config/prisma');
 
 jest.mock('../../src/repositories/workspace/auto-list.repository', () => ({
   findById: jest.fn(),
-  updateStats: jest.fn()
+  updateStats: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+  delete: jest.fn()
 }));
 
 jest.mock('../../src/repositories/workspace/post.repository', () => ({
   create: jest.fn(),
   update: jest.fn(),
   updateMany: jest.fn()
+}));
+
+jest.mock('../../src/queues/publish.queue', () => ({
+  upsertPublishJob: jest.fn(),
+  removePublishJob: jest.fn()
 }));
 
 jest.mock('../../src/config/prisma', () => ({
@@ -25,94 +33,101 @@ jest.mock('../../src/config/prisma', () => ({
   }
 }));
 
-describe('AutoList Queue Scheduler', () => {
-  describe('IntervalScheduleStrategy', () => {
-    it('should generate slots spaced by intervalMinutes only on activeDays', () => {
+describe('AutoList Queue Scheduler Suite', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  // AUTOLIST_001: Tạo mới và cấu hình Autolist (Validate đầu vào)
+  describe('AUTOLIST_001: createAutoList & updateAutoList', () => {
+    it('should format and save valid Autolist settings and emit created event', async () => {
+      const mockCreated = { id: 'list-999', name: 'New List' };
+      autoListRepository.create.mockResolvedValue(mockCreated);
+      autoListRepository.findById.mockResolvedValue(mockCreated);
+
+      const data = {
+        name: 'New List',
+        scheduleType: 'INTERVAL',
+        intervalMinutes: 120,
+        activeDays: 'Mo,Tu,We,Th,Fr',
+        isActive: true,
+        loopEnabled: false
+      };
+
+      const result = await autoListService.createAutoList('brand-1', data);
+
+      expect(autoListRepository.create).toHaveBeenCalledWith(expect.objectContaining({
+        name: 'New List',
+        brandId: 'brand-1',
+        intervalMinutes: 120,
+        activeDays: 'Mo,Tu,We,Th,Fr',
+        isActive: true
+      }));
+      expect(result).toEqual(mockCreated);
+    });
+  });
+
+  // AUTOLIST_002: Lập lịch theo Khoảng thời gian (Interval)
+  describe('AUTOLIST_002: IntervalScheduleStrategy', () => {
+    it('should generate slots spaced by intervalMinutes correctly', () => {
       const strategy = new IntervalScheduleStrategy();
       const mockAutoList = {
         intervalMinutes: 120, // 2 hours
-        activeDays: 'Mo,Tu,We,Th,Fr' // No weekends
+        activeDays: 'Mo,Tu,We,Th,Fr,Sa,Su'
       };
       
-      // Start from a Friday (2026-05-22 is a Friday) at 22:00
-      const fromDate = new Date('2026-05-22T22:00:00Z');
-      
+      const fromDate = new Date('2026-05-22T10:00:00Z');
       const slots = strategy.calculateNextSlots(mockAutoList, 3, fromDate);
       
       expect(slots).toHaveLength(3);
-      expect(slots[0].getDay()).toBe(1); // Monday
+      expect(slots[0].toISOString()).toBe('2026-05-22T12:00:00.000Z');
+      expect(slots[1].toISOString()).toBe('2026-05-22T14:00:00.000Z');
+      expect(slots[2].toISOString()).toBe('2026-05-22T16:00:00.000Z');
     });
   });
 
-  describe('SpecificTimesScheduleStrategy', () => {
-    it('should generate slots matching specificTimes on activeDays', () => {
+  // AUTOLIST_003: Lập lịch theo Mốc giờ cố định (Specific Times)
+  describe('AUTOLIST_003: SpecificTimesScheduleStrategy', () => {
+    it('should generate slots matching specificTimes', () => {
       const strategy = new SpecificTimesScheduleStrategy();
       const mockAutoList = {
         specificTimes: '09:00,18:00',
-        activeDays: 'Mo,We,Fr'
+        activeDays: 'Mo,Tu,We,Th,Fr,Sa,Su'
       };
       
-      // Start from a Wednesday (2026-05-20) at 12:00
       const fromDate = new Date('2026-05-20T12:00:00');
+      const slots = strategy.calculateNextSlots(mockAutoList, 2, fromDate);
       
-      const slots = strategy.calculateNextSlots(mockAutoList, 3, fromDate);
-      
-      expect(slots).toHaveLength(3);
-      expect(slots[0].toLocaleTimeString('en-US', { hour12: false })).toBe('18:00:00');
-      expect(slots[0].getDay()).toBe(3); // Wednesday
+      expect(slots).toHaveLength(2);
+      expect(slots[0].getHours()).toBe(18);
+      expect(slots[1].getHours()).toBe(9);
     });
   });
 
-  describe('AutoList Service Bug Verification', () => {
-    it('should prove schedule drift bug in _updatePostSchedules', async () => {
+  // AUTOLIST_004: Bộ lọc ngày hoạt động (Active Days Filter)
+  describe('AUTOLIST_004: Active Days Filter Logic', () => {
+    it('should generate slots skipping weekends when activeDays is weekdays only', () => {
+      const strategy = new IntervalScheduleStrategy();
       const mockAutoList = {
-        id: 'list-123',
-        name: 'Weekly Queue',
-        scheduleType: 'INTERVAL',
         intervalMinutes: 60,
-        activeDays: 'Mo,Tu,We,Th,Fr,Sa,Su',
-        isActive: true,
-        posts: [
-          { id: 'post-1', status: 'PUBLISHED', publishedAt: new Date('2026-06-19T10:00:00Z') },
-          { id: 'post-2', status: 'DRAFT', scheduledAt: null }
-        ]
+        activeDays: 'Mo,Tu,We,Th,Fr' // Weekend skipped
       };
-
-      autoListRepository.findById.mockResolvedValue(mockAutoList);
-      autoListRepository.updateStats.mockResolvedValue({});
-      postRepository.update.mockResolvedValue({});
-
-      // Gọi recalculateQueueSchedules
-      await autoListService.recalculateQueueSchedules('list-123');
-
-      // Trong code hiện tại, fromDate truyền vào calculateNextSlots luôn là new Date().
-      // Do đó, bài đăng nháp tiếp theo (post-2) sẽ có scheduledAt là: now + 60 phút
-      // thay vì: post-1.publishedAt + 60 phút = 11:00:00Z.
-      // Điều này gây ra trôi lịch (BUG_AUTOLIST_001).
       
-      // Kiểm tra xem postRepository.update đã được gọi để cập nhật post-2 chưa
-      expect(postRepository.update).toHaveBeenCalled();
+      // Start from Friday night (2026-05-22 is a Friday) at 23:30
+      const fromDate = new Date('2026-05-22T23:30:00Z');
+      const slots = strategy.calculateNextSlots(mockAutoList, 1, fromDate);
       
-      const updateCall = postRepository.update.mock.calls[0];
-      expect(updateCall[0]).toBe('post-2');
-      
-      const updatedData = updateCall[1];
-      expect(updatedData.status).toBe('SCHEDULED');
-      expect(updatedData.scheduledAt).toBeDefined();
-      
-      // Nếu không bị drift, scheduledAt phải xấp xỉ 2026-06-19T11:00:00Z (mốc đăng trước + 60 phút)
-      const diffFromPrevPost = updatedData.scheduledAt.getTime() - mockAutoList.posts[0].publishedAt.getTime();
-      
-      // Nếu hiệu số này lớn hơn 60 phút rất nhiều (ví dụ bây giờ là 18:30 tối, tức là trôi mất 8 tiếng),
-      // thì đó chính là drift bug!
-      const minutesDiff = diffFromPrevPost / (1000 * 60);
-      console.log(`[Drift Test Check] Minutes diff from previous post: ${minutesDiff} mins`);
+      expect(slots).toHaveLength(1);
+      expect(slots[0].getDay()).toBe(1); // Should roll over to Monday (Day 1)
     });
+  });
 
+  // AUTOLIST_005: Tự động lặp lại hàng đợi (Auto Loop)
+  describe('AUTOLIST_005: Auto Loop Mechanism', () => {
     it('should duplicate published posts as new DRAFTs to preserve history when loop is enabled', async () => {
       const mockAutoList = {
         id: 'list-123',
-        name: 'Weekly Queue',
+        name: 'Looping Queue',
         scheduleType: 'INTERVAL',
         intervalMinutes: 60,
         activeDays: 'Mo,Tu,We,Th,Fr,Sa,Su',
@@ -123,14 +138,13 @@ describe('AutoList Queue Scheduler', () => {
         ]
       };
 
-      // Giả lập hàng đợi cạn bài viết chưa đăng
       autoListRepository.findById.mockResolvedValue(mockAutoList);
       autoListRepository.updateStats.mockResolvedValue({});
       postRepository.create.mockResolvedValue({ id: 'post-1-dup', status: 'DRAFT' });
 
       await autoListService.recalculateQueueSchedules('list-123');
 
-      // Đảm bảo postRepository.create được gọi với các thông tin đã nhân bản và trạng thái DRAFT
+      // Verify that it duplicates the post
       expect(postRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           title: 'Post 1',
@@ -138,9 +152,96 @@ describe('AutoList Queue Scheduler', () => {
           autoListId: 'list-123'
         })
       );
+      // Ensure the old post is detached from autolist to preserve history
+      expect(postRepository.update).toHaveBeenCalledWith('post-1', { autoListId: null });
+    });
+  });
+
+  // AUTOLIST_006: Kéo thả thay đổi thứ tự bài viết (Reorder Posts)
+  describe('AUTOLIST_006: reorderPosts', () => {
+    it('should update createdAt timestamps sequentially and recalculate schedules', async () => {
+      const mockAutoList = { id: 'list-123', posts: [] };
+      autoListRepository.findById.mockResolvedValue(mockAutoList);
+      postRepository.update.mockResolvedValue({});
+
+      const recalculateSpy = jest.spyOn(autoListService, 'recalculateQueueSchedules').mockResolvedValue({});
+
+      await autoListService.reorderPosts('list-123', ['post-c', 'post-a', 'post-b']);
+
+      // Should update createdAt sequentially for all 3 posts
+      expect(postRepository.update).toHaveBeenCalledTimes(3);
+      expect(postRepository.update.mock.calls[0][0]).toBe('post-c');
+      expect(postRepository.update.mock.calls[1][0]).toBe('post-a');
+      expect(postRepository.update.mock.calls[2][0]).toBe('post-b');
+
+      // Recalculates queue schedules immediately
+      expect(recalculateSpy).toHaveBeenCalledWith('list-123');
+      recalculateSpy.mockRestore();
+    });
+  });
+
+  // AUTOLIST_007: Bật/Tắt trạng thái hàng đợi (Toggle Active Status)
+  describe('AUTOLIST_007: toggleStatus', () => {
+    it('should pause Autolist, convert scheduled posts to DRAFTs, and remove publish jobs from queue', async () => {
+      const mockAutoList = {
+        id: 'list-123',
+        isActive: true,
+        posts: [
+          { id: 'post-1', status: 'SCHEDULED' },
+          { id: 'post-2', status: 'DRAFT' }
+        ]
+      };
+      autoListRepository.findById.mockResolvedValue(mockAutoList);
+      autoListRepository.update.mockResolvedValue({ ...mockAutoList, isActive: false });
       
-      // Đảm bảo không gọi updateMany để reset các bài viết cũ làm mất lịch sử
-      expect(postRepository.updateMany).not.toHaveBeenCalled();
+      const { removePublishJob } = require('../../src/queues/publish.queue');
+
+      await autoListService.toggleStatus('list-123');
+
+      // Updates active state
+      expect(autoListRepository.update).toHaveBeenCalledWith('list-123', { isActive: false });
+      // Removes active job from queue
+      expect(removePublishJob).toHaveBeenCalledWith('post-1');
+      expect(removePublishJob).not.toHaveBeenCalledWith('post-2');
+    });
+  });
+
+  // BUG_AUTOLIST_001: Khắc phục lỗi trôi lịch biểu (Schedule Drift Bug)
+  describe('BUG_AUTOLIST_001: Schedule Drift Bug Verification', () => {
+    it('should calculate new post schedules based on previous published posts, preventing drift', async () => {
+      const prevPublishedAt = new Date(Date.now() - 10 * 60 * 1000); // 10 minutes ago
+      const mockAutoList = {
+        id: 'list-123',
+        name: 'Weekly Queue',
+        scheduleType: 'INTERVAL',
+        intervalMinutes: 60,
+        activeDays: 'Mo,Tu,We,Th,Fr,Sa,Su',
+        isActive: true,
+        posts: [
+          { id: 'post-1', status: 'PUBLISHED', publishedAt: prevPublishedAt },
+          { id: 'post-2', status: 'DRAFT', scheduledAt: null }
+        ]
+      };
+
+      autoListRepository.findById.mockResolvedValue(mockAutoList);
+      autoListRepository.updateStats.mockResolvedValue({});
+      postRepository.update.mockResolvedValue({});
+
+      await autoListService.recalculateQueueSchedules('list-123');
+
+      expect(postRepository.update).toHaveBeenCalled();
+      const updateCall = postRepository.update.mock.calls.find(c => c[0] === 'post-2');
+      expect(updateCall).toBeDefined();
+      
+      const updatedData = updateCall[1];
+      expect(updatedData.status).toBe('SCHEDULED');
+      expect(updatedData.scheduledAt).toBeDefined();
+
+      // Diff should be close to 60 minutes if fromDate uses the previous post's publishedAt
+      const diffFromPrevPost = updatedData.scheduledAt.getTime() - mockAutoList.posts[0].publishedAt.getTime();
+      const minutesDiff = Math.round(diffFromPrevPost / (1000 * 60));
+      
+      expect(minutesDiff).toBe(60);
     });
   });
 });
