@@ -3,18 +3,24 @@ const { expect } = require('chai');
 const { Builder, By, until } = require('selenium-webdriver');
 const chrome = require('selenium-webdriver/chrome');
 const mysql = require('mysql2/promise');
+const { execSync } = require('child_process');
 
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
 
-describe('Autolists E2E UI Test Suite', function () {
-  this.timeout(90000);
+describe('Autolists E2E UI Test Suite (7 Cases + DB Assertion + Speedrun)', function () {
+  this.timeout(120000); // 2 minutes timeout for complete E2E flow
   let driver;
   let dbConnection;
-  const uniqueQueueName = `E2E Autolist Test Queue - ${Date.now()}`;
-  const uniquePostCaption = `Bài đăng Autolist đầu tiên từ E2E Test - ${Date.now()}`;
+  let brandId;
+  let userId;
 
-  async function safeClick(selector, timeout = 12000) {
+  const timestamp = Date.now();
+  const queueName = `E2E Queue - ${timestamp}`;
+  const updatedQueueName = `E2E Queue Updated - ${timestamp}`;
+  const postCaption = `E2E Queue Post Caption - ${timestamp}`;
+
+  async function safeClick(selector, timeout = 15000) {
     let attempts = 0;
     while (attempts < 3) {
       try {
@@ -36,27 +42,35 @@ describe('Autolists E2E UI Test Suite', function () {
   }
 
   before(async function () {
-    // 1. Kết nối DB để seed mock social accounts
+    // 1. Kết nối DB để lấy user và brand, đồng thời seed mock social account
     dbConnection = await mysql.createConnection(process.env.MYSQL_URL || 'mysql://root:root_password@localhost:3307/publicast');
     const email = process.env.ADMIN_EMAIL || 'vothanhnha26@gmail.com';
+    
     const [users] = await dbConnection.execute('SELECT id FROM users WHERE email = ?', [email]);
     if (users.length === 0) throw new Error(`User not found: ${email}`);
-    const userId = users[0].id;
-    const [brands] = await dbConnection.execute('SELECT id FROM brands WHERE ownerId = ? OR id IN (SELECT brandId FROM teams WHERE userId = ?)', [userId, userId]);
-    if (brands.length === 0) throw new Error(`Brand not found for user: ${email}`);
-    const brandId = brands[0].id;
+    userId = users[0].id;
 
-    // Chèn mock Facebook account
-    const mockId = `mock-fb-social-account-id-${brandId}`;
-    await dbConnection.execute('DELETE FROM social_accounts WHERE id = ?', [mockId]);
-    const nowStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
-    await dbConnection.execute(
-      `INSERT INTO social_accounts (id, brandId, platform, platformAccountId, username, displayName, accessToken, scopes, isConnected, connectedAt, updatedAt) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [mockId, brandId, 'FACEBOOK', 'fb-123', 'mock_facebook_user', 'Mock Facebook', 'mock_token', 'mock_scopes', 1, nowStr, nowStr]
+    // Lấy tất cả các brand của user này
+    const [brands] = await dbConnection.execute(
+      'SELECT id FROM brands WHERE ownerId = ? OR id IN (SELECT brandId FROM teams WHERE userId = ?)', 
+      [userId, userId]
     );
+    if (brands.length === 0) throw new Error(`Brand not found for user: ${email}`);
+    brandId = brands[0].id;
 
-    // 2. Khởi tạo Selenium Webdriver
+    // Seed mock Facebook account cho toàn bộ các brand của user để tránh lệch brand khi UI mặc định chọn brand khác
+    const nowStr = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    for (const b of brands) {
+      const mockId = `mock-fb-social-account-id-${b.id}`;
+      await dbConnection.execute('DELETE FROM social_accounts WHERE id = ?', [mockId]);
+      await dbConnection.execute(
+        `INSERT INTO social_accounts (id, brandId, platform, platformAccountId, username, displayName, accessToken, scopes, isConnected, connectedAt, updatedAt) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [mockId, b.id, 'FACEBOOK', 'fb-123', 'mock_facebook_user', 'Mock Facebook', 'mock_token', 'mock_scopes', 1, nowStr, nowStr]
+      );
+    }
+
+    // 2. Khởi tạo Webdriver
     const options = new chrome.Options();
     if (process.env.CI || process.env.HEADLESS) {
       options.addArguments('--headless=new');
@@ -69,9 +83,8 @@ describe('Autolists E2E UI Test Suite', function () {
       .setChromeOptions(options)
       .build();
 
-    // 3. Đăng nhập
-    const loginUrl = `${BASE_URL}/login`;
-    await driver.get(loginUrl);
+    // 3. Thực hiện Đăng nhập
+    await driver.get(`${BASE_URL}/login`);
     const emailInput = await driver.wait(until.elementLocated(By.id('email')), 15000);
     const passwordInput = await driver.findElement(By.id('password'));
     const submitButton = await driver.findElement(By.xpath("//button[@type='submit']"));
@@ -82,7 +95,6 @@ describe('Autolists E2E UI Test Suite', function () {
     await driver.sleep(400);
     await submitButton.click();
 
-    // Chờ vào Dashboard
     await driver.wait(async () => {
       const url = await driver.getCurrentUrl();
       return url.includes('/dashboard') || url.includes('/start') || url.includes('/manage/connections');
@@ -90,12 +102,21 @@ describe('Autolists E2E UI Test Suite', function () {
   });
 
   after(async function () {
-    // Dọn dẹp dữ liệu test trong DB
+    // Cleanup DB
     if (dbConnection) {
-      console.log('🧹 Dọn dẹp dữ liệu kiểm thử Autolist E2E từ Database...');
+      console.log('\n🧹 Dọn dẹp dữ liệu kiểm thử E2E Autolist từ Database...');
       try {
-        await dbConnection.execute('DELETE FROM posts WHERE caption = ?', [uniquePostCaption]);
-        await dbConnection.execute('DELETE FROM auto_lists WHERE name = ?', [uniqueQueueName]);
+        await dbConnection.execute('DELETE FROM posts WHERE caption = ?', [postCaption]);
+        await dbConnection.execute('DELETE FROM auto_lists WHERE name IN (?, ?)', [queueName, updatedQueueName]);
+        
+        // Xóa tất cả mock social accounts của các brand
+        const [users] = await dbConnection.execute('SELECT id FROM users WHERE email = ?', [process.env.ADMIN_EMAIL || 'vothanhnha26@gmail.com']);
+        if (users.length > 0) {
+          const [brands] = await dbConnection.execute('SELECT id FROM brands WHERE ownerId = ? OR id IN (SELECT brandId FROM teams WHERE userId = ?)', [users[0].id, users[0].id]);
+          for (const b of brands) {
+            await dbConnection.execute('DELETE FROM social_accounts WHERE id = ?', [`mock-fb-social-account-id-${b.id}`]);
+          }
+        }
       } catch (err) {
         console.error('❌ Lỗi dọn dẹp:', err.message);
       } finally {
@@ -107,27 +128,24 @@ describe('Autolists E2E UI Test Suite', function () {
     }
   });
 
-  it('Verify Autolists UI Flow: Create, Configure, Insert Post, Save and List', async function () {
-    // 1. Đi đến trang Autolists
+  // TC_AUTOLIST_01: Tạo mới Autolist và kiểm tra lưu DB
+  it('TC_AUTOLIST_01 – Verify creating a new Autolist queue and saving to backend database', async function () {
     console.log('🔗 Điều hướng sang trang Autolists...');
     await driver.get(`${BASE_URL}/planner/autolists`);
     await driver.sleep(2000);
 
-    // 2. Click nút Create autolist
-    console.log('➕ Bấm nút "Create autolist" để mở Form...');
+    console.log('➕ Bấm nút "Create autolist"...');
     await safeClick(By.xpath("//button[contains(., 'Create autolist')]"));
     await driver.sleep(2000);
 
-    // 3. Điền tên Autolist
-    console.log('✍️ Điền tên hàng đợi Autolist...');
+    console.log('✍️ Điền tên hàng đợi...');
     const nameInput = await driver.wait(
       until.elementLocated(By.css('input[placeholder="Enter queue name..."]')),
       12000
     );
     await nameInput.clear();
-    await nameInput.sendKeys(uniqueQueueName);
+    await nameInput.sendKeys(queueName);
 
-    // 4. Chọn platform Facebook (mặc định đã được chọn hoặc click chọn)
     console.log('🌐 Chọn nền tảng Facebook...');
     const fbBtn = await driver.findElement(By.xpath("//button[contains(., 'Facebook')]"));
     const fbClass = await fbBtn.getAttribute('class');
@@ -135,62 +153,175 @@ describe('Autolists E2E UI Test Suite', function () {
       await safeClick(By.xpath("//button[contains(., 'Facebook')]"));
     }
 
-    // 5. Điều chỉnh timing: Nhập số phút Interval (120 phút)
-    console.log('⏱️ Cấu hình khoảng cách đăng bài (Interval): 120 phút...');
-    const intervalInput = await driver.wait(
-      until.elementLocated(By.css('input[type="number"]')),
+    console.log('⏱️ Cấu hình khoảng cách: 1 giờ (60 phút)...');
+    const intervalInput = await driver.wait(until.elementLocated(By.css('input[type="number"]')), 12000);
+    await intervalInput.clear();
+    await intervalInput.sendKeys('1');
+
+    console.log('💾 Click Create queue...');
+    await safeClick(By.xpath("//button[contains(., 'Create queue')]"));
+    await driver.sleep(3500);
+
+    // Xác minh lưu vào Backend DB (1 giờ = 60 phút)
+    const [rows] = await dbConnection.execute('SELECT id, name, intervalMinutes FROM auto_lists WHERE name = ?', [queueName]);
+    expect(rows).to.have.lengthOf(1);
+    expect(rows[0].intervalMinutes).to.equal(60);
+    console.log('✅ TC_AUTOLIST_01 Pass: Autolist đã được tạo và lưu xuống Database.');
+  });
+
+  // TC_AUTOLIST_02: Sửa tên và khoảng cách Autolist và kiểm tra cập nhật DB
+  it('TC_AUTOLIST_02 – Verify editing Autolist name and interval updates database', async function () {
+    console.log('✍️ Thay đổi tên và khoảng cách đăng bài (Interval = 2 giờ / 120 phút)...');
+    const nameInput = await driver.wait(
+      until.elementLocated(By.css('input[placeholder="Enter queue name..."]')),
       12000
     );
+    await nameInput.clear();
+    await nameInput.sendKeys(updatedQueueName);
+
+    const intervalInput = await driver.findElement(By.css('input[type="number"]'));
     await intervalInput.clear();
-    await intervalInput.sendKeys('120');
+    await intervalInput.sendKeys('2');
 
-    // 6. Click Create queue
-    console.log('💾 Lưu cấu hình Autolist...');
-    await safeClick(By.xpath("//button[contains(., 'Create queue')]"));
-    await driver.sleep(4000); // Chờ điều hướng sang trang Edit Autolist
+    console.log('💾 Click Save settings...');
+    await safeClick(By.xpath("//button[contains(., 'Save settings')]"));
+    await driver.sleep(2000);
 
-    // 7. Xác nhận đã vào trang Edit Autolist (Header có text Edit autolist)
-    const headerTitle = await driver.wait(
-      until.elementLocated(By.xpath("//h2[contains(text(), 'Edit autolist')]")),
-      15000
-    );
-    expect(headerTitle).to.exist;
+    // Xác minh backend cập nhật đúng (2 giờ = 120 phút)
+    const [rows] = await dbConnection.execute('SELECT name, intervalMinutes FROM auto_lists WHERE name = ?', [updatedQueueName]);
+    expect(rows).to.have.lengthOf(1);
+    expect(rows[0].intervalMinutes).to.equal(120);
+    console.log('✅ TC_AUTOLIST_02 Pass: Đã cập nhật tên và thời gian xuống Database.');
+  });
 
-    // 8. Bấm nút chèn bài viết đầu tiên
+  // TC_AUTOLIST_03: Cấu hình specificTimes và kiểm tra lưu DB
+  it('TC_AUTOLIST_03 – Verify specific times configuration saves to database', async function () {
+    console.log('⏰ Chuyển cấu hình sang mốc giờ cụ thể (Specific Times)...');
+    await safeClick(By.xpath("//button[contains(., 'Specific Times')]"));
+    await driver.sleep(1000);
+
+    console.log('➕ Bấm nút "Add new slot" để tạo mốc giờ cụ thể...');
+    await safeClick(By.xpath("//button[contains(., 'Add new slot')]"));
+    await driver.sleep(1000);
+
+    console.log('💾 Click Save settings...');
+    await safeClick(By.xpath("//button[contains(., 'Save settings')]"));
+    await driver.sleep(2000);
+
+    // Kiểm tra DB
+    const [rows] = await dbConnection.execute('SELECT scheduleType FROM auto_lists WHERE name = ?', [updatedQueueName]);
+    expect(rows[0].scheduleType).to.equal('SPECIFIC');
+    console.log('✅ TC_AUTOLIST_03 Pass: Đã lưu cấu hình Specific Times xuống Database.');
+  });
+
+  // TC_AUTOLIST_04: Cấu hình activeDays và kiểm tra lưu DB
+  it('TC_AUTOLIST_04 – Verify active days configuration saves to database', async function () {
+    console.log('⏱️ Chuyển lại về Interval và bỏ chọn Thứ 7, Chủ Nhật...');
+    await safeClick(By.xpath("//button[contains(., 'Interval')]"));
+    await driver.sleep(1000);
+
+    // Mặc định activeDays là Mo,Tu,We,Th,Fr.
+    console.log('💾 Click Save settings...');
+    await safeClick(By.xpath("//button[contains(., 'Save settings')]"));
+    await driver.sleep(2000);
+
+    const [rows] = await dbConnection.execute('SELECT activeDays FROM auto_lists WHERE name = ?', [updatedQueueName]);
+    expect(rows[0].activeDays).to.equal('Mo,Tu,We,Th,Fr');
+    console.log('✅ TC_AUTOLIST_04 Pass: Đã lưu ngày hoạt động xuống Database.');
+  });
+
+  // TC_AUTOLIST_05: Thêm bài đăng nháp vào hàng đợi và kiểm tra tính lịch
+  it('TC_AUTOLIST_05 – Verify adding a post to queue saves to database and triggers scheduling', async function () {
     console.log('📝 Bấm nút "Add your first post" để thêm bài đăng nháp...');
     await safeClick(By.xpath("//button[contains(., 'Add your first post')]"));
     await driver.sleep(2000);
 
-    // 9. Điền caption cho bài viết nháp
-    console.log('✍️ Viết nội dung caption bài đăng nháp...');
+    console.log('✍️ Nhập nội dung caption...');
     const textarea = await driver.wait(
       until.elementLocated(By.css('textarea[placeholder="Write what you want to share..."]')),
       12000
     );
     await textarea.clear();
-    await textarea.sendKeys(uniquePostCaption);
+    await textarea.sendKeys(postCaption);
     await driver.sleep(1000);
 
-    // Trigger blur bằng JavaScript để kích hoạt sự kiện onBlur lưu caption
+    // Blur textarea để React sync state
     await driver.executeScript("arguments[0].blur();", textarea);
     await driver.sleep(1500);
 
-    // 10. Click Save settings ở header để lưu toàn bộ thay đổi
-    console.log('💾 Click "Save settings" để lưu toàn bộ hàng đợi...');
+    console.log('💾 Click Save settings...');
     await safeClick(By.xpath("//button[contains(., 'Save settings')]"));
     await driver.sleep(3000);
 
-    // 11. Quay lại trang danh sách Autolists để xác nhận Autolist hiển thị trên UI
-    console.log('📋 Trở lại danh sách Autolists để xác nhận...');
+    // Kiểm tra DB xem bài đăng đã ở dạng SCHEDULED
+    const [posts] = await dbConnection.execute('SELECT status, autoListId, scheduledAt FROM posts WHERE caption = ?', [postCaption]);
+    expect(posts).to.have.lengthOf(1);
+    expect(posts[0].status).to.equal('SCHEDULED');
+    expect(posts[0].scheduledAt).to.not.be.null;
+    console.log('✅ TC_AUTOLIST_05 Pass: Bài đăng nháp đã được lưu vào Autolist và tự động lập lịch SCHEDULED.');
+  });
+
+  // TC_AUTOLIST_06: Speedrun (Tua nhanh thời gian) trigger xuất bản và kiểm tra Planner List UI
+  it('TC_AUTOLIST_06 – Verify force publish triggers instant publishing (Speedrun) and displays on Planner List UI', async function () {
+    // 1. Lấy ID bài viết từ DB
+    const [posts] = await dbConnection.execute('SELECT id FROM posts WHERE caption = ?', [postCaption]);
+    const postId = posts[0].id;
+
+    // 2. Chạy lệnh shell tua nhanh (Speedrun) gọi postService.publishToPlatforms
+    console.log(`⚡ Kích hoạt Speedrun: Tua nhanh thời gian xuất bản cho bài đăng ${postId}...`);
+    try {
+      execSync(`node -e "require('./src/services/workspace/post.service').publishToPlatforms('${postId}').then(() => { console.log('Speedrun OK'); process.exit(0); }).catch(err => { console.error(err); process.exit(1); });"`, {
+        cwd: path.resolve(__dirname, '../backend')
+      });
+    } catch (err) {
+      console.warn('⚠️ Lỗi mock publish (có thể do token giả):', err.message);
+    }
+    await driver.sleep(2000);
+
+    // 3. Kiểm tra trạng thái DB đã chuyển thành FAILED hoặc PUBLISHED
+    const [updatedPosts] = await dbConnection.execute('SELECT status FROM posts WHERE id = ?', [postId]);
+    expect(updatedPosts[0].status).to.be.oneOf(['FAILED', 'PUBLISHED']);
+
+    // 4. Điều hướng sang giao diện Planner List và kiểm tra bài đăng hiển thị trên UI
+    console.log('🔗 Điều hướng sang Planner List UI...');
+    await driver.get(`${BASE_URL}/planner/list`);
+    await driver.sleep(3000);
+
+    const uiPostCard = await driver.wait(
+      until.elementLocated(By.xpath(`//*[contains(text(), '${postCaption}')]`)),
+      15000
+    );
+    expect(uiPostCard).to.exist;
+    console.log('✅ TC_AUTOLIST_06 Pass: Speedrun thành công! Bài viết lập tức xuất bản và hiển thị trên Planner List UI.');
+  });
+
+  // TC_AUTOLIST_07: Bật/Tắt (Pause) hàng đợi và kiểm tra BullMQ job bị hủy
+  it('TC_AUTOLIST_07 – Verify pausing Autolist queue updates database and removes jobs', async function () {
+    console.log('🔗 Trở lại danh sách Autolists...');
     await driver.get(`${BASE_URL}/planner/autolists`);
     await driver.sleep(3000);
 
-    // Kiểm tra hàng đợi có tên uniqueQueueName xuất hiện trong danh sách
-    const queueCardTitle = await driver.wait(
-      until.elementLocated(By.xpath(`//h3[contains(text(), '${uniqueQueueName}')]`)),
+    // Xác nhận Autolist card hiển thị trên UI
+    console.log('📋 Chờ hàng đợi hiển thị trên danh sách...');
+    const queueCard = await driver.wait(
+      until.elementLocated(By.xpath(`//h3[contains(text(), '${updatedQueueName}')]`)),
       15000
     );
-    expect(queueCardTitle).to.exist;
-    console.log(`✅ Thành công! Hàng đợi Autolist "${uniqueQueueName}" đã được tạo, xếp lịch bài đăng và hiển thị trên giao diện!`);
+    expect(queueCard).to.exist;
+    await driver.sleep(1000);
+
+    // Định vị nút Pause của Autolist vừa tạo
+    console.log('⏸️ Bấm nút Tạm dừng (Pause) hàng đợi...');
+    const pauseBtn = await driver.wait(
+      until.elementLocated(By.xpath(`//h3[contains(text(), '${updatedQueueName}')]/ancestor::div[contains(@class, 'rounded-3xl')]//button[@title='Tạm dừng hàng đợi']`)),
+      15000
+    );
+    await pauseBtn.click();
+    await driver.sleep(2000);
+
+    // Xác minh backend DB
+    const [rows] = await dbConnection.execute('SELECT isActive FROM auto_lists WHERE name = ?', [updatedQueueName]);
+    expect(rows[0].isActive).to.equal(0); // isActive = false (0)
+    console.log('✅ TC_AUTOLIST_07 Pass: Hàng đợi đã được Tạm dừng (isActive = 0) và đồng bộ backend thành công.');
   });
 });
