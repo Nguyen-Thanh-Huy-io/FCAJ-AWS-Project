@@ -10,11 +10,11 @@
 |--------|:--:|:----------:|-------------------|
 | **Brand** | 5 | 1 | UC05 |
 | **Team** | 15 | 2 | UC01, UC02, UC05, UC06, UC07, UC20 |
-| **Autolists** | 4 | 1 | UC12 |
+| **Autolists** | 4 | 0 | UC12 |
 | **Analytics** | 4 | 1 | UC01, UC02, UC05, UC16, UC17, UC18 |
 | **Dashboard** | 5 | 1 | UC05, UC16, UC17, UC18 |
 | **Post-Media** | 6 | 1 | UC08, UC10, UC13 |
-| **TỔNG** | **39** | **7** | |
+| **TỔNG** | **39** | **6** | |
 
 ---
 
@@ -66,10 +66,10 @@
 |------|-------|------|
 | `UC12_AUTOLISTS_NHA_01.md` | Tạo AutoList mới (Interval) | Happy path |
 | `UC12_AUTOLISTS_NHA_03.md` | Thêm bài vào hàng đợi | Happy path |
-| `UC12_AUTOLISTS_NHA_06.md` | Lỗi Schedule Drift | **Bug PC-52** |
+| `UC12_AUTOLISTS_NHA_06.md` | Lỗi Schedule Drift | Regression |
 | `UC12_AUTOLISTS_NHA_07.md` | Xác minh fix Schedule Drift | Regression |
 
-**Bug:** `BUG_UC12_AUTOLISTS_NHA_06.md` → ✅ RESOLVED
+**Bug:** Không có
 
 ---
 
@@ -125,4 +125,3 @@
 | `BUG_UC06_TEAM_NHA_03.md` | PC-55 | UC06_TEAM_NHA_03 | ✅ RESOLVED |
 | `BUG_UC05_UC16_DASHBOARD_NHA_10.md` | PC-56 | UC05_UC16_DASHBOARD_NHA_10 | ⚠️ OPEN |
 | `BUG_UC10_POST_MEDIA_NHA_09.md` | PC-57 | UC10_POST_MEDIA_NHA_09 | ✅ RESOLVED |
-| `BUG_UC12_AUTOLISTS_NHA_06.md` | PC-52 | UC12_AUTOLISTS_NHA_06 | ✅ RESOLVED |
