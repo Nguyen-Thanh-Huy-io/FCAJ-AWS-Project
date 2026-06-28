@@ -311,6 +311,11 @@ class YouTubeAnalyticsService {
       throw new Error('Social account not found or is not a YouTube account');
     }
 
+    if (account.accessToken && account.accessToken.startsWith('mock-')) {
+      console.log(`[YouTube Analytics] Mock token detected: ${account.accessToken}. Skipping Google API sync.`);
+      return account;
+    }
+
     const client = this._createAuthenticatedClient(account);
 
     const channelData = await this.getChannelInfo(client, startDate, endDate, account);

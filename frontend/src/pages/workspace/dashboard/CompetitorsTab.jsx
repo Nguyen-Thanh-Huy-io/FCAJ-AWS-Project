@@ -136,7 +136,11 @@ export function CompetitorsTab({
                   {["Competitor", "Subscribers", "Views", "Videos", "Added At", ""].map((h, i) => (
                     <th 
                       key={i} 
-                      className={`px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest ${h === "" ? "text-right" : "text-left"}`}
+                      className={`px-6 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest ${
+                        h === "" 
+                          ? "text-right sticky right-0 bg-gray-50/95 z-10 border-l border-gray-100/50 shadow-[-10px_0_10px_-10px_rgba(0,0,0,0.05)]" 
+                          : "text-left"
+                      }`}
                     >
                       {h}
                     </th>
@@ -147,7 +151,7 @@ export function CompetitorsTab({
                 <tbody className="divide-y divide-gray-50">
                   {[1, 2, 3].map((n) => (
                     <tr key={n} className="animate-pulse">
-                      <td className="px-6 py-4">
+                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-gray-100" />
                           <div className="flex flex-col gap-2">
@@ -160,7 +164,7 @@ export function CompetitorsTab({
                       <td className="px-6 py-4"><div className="w-20 h-4 bg-gray-100 rounded" /></td>
                       <td className="px-6 py-4"><div className="w-12 h-4 bg-gray-100 rounded" /></td>
                       <td className="px-6 py-4"><div className="w-20 h-3 bg-gray-50 rounded" /></td>
-                      <td className="px-6 py-4 text-right"><div className="inline-block w-8 h-8 bg-gray-100 rounded-lg" /></td>
+                      <td className="px-6 py-4 text-right sticky right-0 bg-white z-10 border-l border-gray-100/50 shadow-[-10px_0_10px_-10px_rgba(0,0,0,0.05)]"><div className="inline-block w-8 h-8 bg-gray-100 rounded-lg" /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -187,7 +191,7 @@ export function CompetitorsTab({
                       <td className="px-6 py-4 text-sm font-bold text-[#0A0A0A]">{comp.totalViews?.toLocaleString() || '0'}</td>
                       <td className="px-6 py-4 text-sm font-bold text-[#0A0A0A]">{comp.totalVideos?.toLocaleString() || '0'}</td>
                       <td className="px-6 py-4 text-[10px] font-medium text-gray-400">{new Date(comp.addedAt).toLocaleDateString()}</td>
-                      <td className="px-6 py-4 text-right relative">
+                      <td className="px-6 py-4 text-right sticky right-0 bg-white z-10 border-l border-gray-100/50 shadow-[-10px_0_10px_-10px_rgba(0,0,0,0.05)]">
                         <div className="flex items-center justify-end gap-2">
                           {/* Nút Star yêu thích */}
                           <button 

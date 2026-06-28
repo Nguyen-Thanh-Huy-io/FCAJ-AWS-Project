@@ -97,7 +97,7 @@ jobs:
         run: |
           npx wait-on -t 60000 http://localhost:5173/login http://localhost:3000/health || echo "Services might not support health endpoint, continuing..."
 
-      - name: Run Selenium Tests
+      - name: Setup Selenium Test .env
         working-directory: test_selenium
         run: |
           echo "ADMIN_EMAIL=vothanhnha26@gmail.com" > .env
@@ -106,14 +106,29 @@ jobs:
           echo "MEMBER_PASSWORD=nhacc123@" >> .env
           echo "BASE_URL=http://localhost:5173" >> .env
           echo "API_URL=http://localhost:3000" >> .env
+          echo "MYSQL_URL=mysql://root:root_password@localhost:3307/publicast" >> .env
+          echo "REDIS_URL=redis://localhost:6379" >> .env
+
+      - name: Run Full Selenium Test Suite
+        if: ${{ !startsWith(github.ref_name, 'bug/PC-53') }}
+        working-directory: test_selenium
+        run: |
           npm run test:brand
           npm run test:auth-suite
           npm run test:profile
           npm run test:post-creator
+
+      - name: Run YouTube Dashboard Tests (PC-53 branch only)
+        if: ${{ startsWith(github.ref_name, 'bug/PC-53') }}
+        working-directory: test_selenium
+        run: |
+          npm run test:youtube-dashboard
 
       - name: Upload Test Screenshots
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: selenium-screenshots
-          path: test_cases/auth/screenshots/
+          path: |
+            test_cases/auth/screenshots/
+            test_selenium/dashboard/error_*.png
