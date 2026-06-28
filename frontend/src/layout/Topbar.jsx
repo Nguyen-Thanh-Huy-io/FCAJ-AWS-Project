@@ -294,7 +294,6 @@ export function Topbar() {
               { icon: <BarChart2 size={18} />, path: "/analytics", label: "Reports", isNew: true },
               { icon: <MessageSquare size={18} />, path: "/manage/inbox", label: "Inbox" },
               { icon: <Calendar size={18} />, path: "/planner", label: "Planning" },
-              { icon: <Radio size={18} />, path: "/live", label: "Livestream" },
               { icon: <Link2 size={18} />, path: "/smartlinks", label: "SmartLinks" },
               { icon: <Zap size={18} />, path: "/ai", label: "AI" },
             ].map((tool, i) => {
