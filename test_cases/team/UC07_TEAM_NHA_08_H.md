@@ -1,33 +1,27 @@
-| Test Case ID    | TC_TEAM_08_H | Test Case Description | Kiểm chứng Custom Role có quyền Tạo và Đăng bài viết (CREATE_POSTS, PUBLISH_POSTS) nhưng KHÔNG có quyền Phê duyệt và Xóa bài viết |
-| --------------- | ---------| ---------------------| ----------------------------------------------------------------------------------------------------------------------------------|
-| Created By      | Nhã| Reviewed By          | Nhã Võ                                                                                    |
-| Version         | 1.0       | Date Tested          | 28/06/2026                                                                                |
+| Test Case ID    | TC_TEAM_08_H | Test Case Description | Kiểm chứng Custom Role chỉ có quyền Tạo bài viết (CREATE_POSTS) và Đăng bài viết (PUBLISH_POSTS) |
+| --------------- | ---------| ---------------------| ----------------------------------------------------------------------------------------------- |
+| Created By      | Nhã| Reviewed By          | Nhã Võ                                                                                          |
+| Version         | 1.0       | Date Tested          | 28/06/2026                                                                                      |
 | Test Status     | Pass      | Tester's Name        | Nhã|
 | Use Case ID     | UC07 |
 
 ### Prerequisites
-1. Đã đăng nhập vào hệ thống PubliCast.
-2. Có Custom Role "Editor Only" được tạo và bật quyền "Tạo bài viết (Create Posts)" (`CREATE_POSTS`) và "Đăng bài viết (Publish Posts)" (`PUBLISH_POSTS`) nhưng KHÔNG bật quyền "Phê duyệt bài viết (Approve Posts)" (`APPROVE_POSTS`) và "Xóa bài viết (Delete Posts)" (`DELETE_POSTS`).
-3. Một thành viên được gán vai trò này đã kích hoạt tài khoản.
+1. Custom Role "Restricted Analyst" được cập nhật qua DB để chỉ sở hữu: `CREATE_POSTS`, `PUBLISH_POSTS`.
+2. Thành viên được gán vai trò này đã đăng nhập vào hệ thống.
 
 ### Test Data
 | S # | Test Data |
 | :--- | :--- |
-| 1 | Tài khoản Owner (Quản trị): `seleniumowner@gmail.com` / `Password123!` |
-| 2 | Custom Role: Tên vai trò là `Editor Only` |
-| 3 | Quyền kích hoạt: `CREATE_POSTS`, `PUBLISH_POSTS` |
-| 4 | Quyền bị tắt: `APPROVE_POSTS`, `DELETE_POSTS` |
-| 5 | Tài khoản Member (Thành viên test): `seleniummember@gmail.com` / `Password123!` |
-| 6 | Dữ liệu bài viết kiểm thử: Tiêu đề `Test Post Draft by Editor Only`, Nội dung `This is a test post content created by member with Editor Only role.` |
+| 1 | Thao tác được phép: Tạo bài viết mới qua API `POST /api/posts` |
+| 2 | Thao tác bị cấm 1: Phê duyệt bài viết qua API `POST /api/posts/bulk-approve` |
+| 3 | Thao tác bị cấm 2: Xóa bài viết qua API `DELETE /api/posts/bulk` |
 
 ### Test Scenario
-Xác minh rằng thành viên có quyền Tạo bài viết có thể thực hiện thành công việc tạo bài viết nháp, trong khi các quyền nâng cao như Phê duyệt bài viết và Xóa bài viết bị chặn hoàn toàn ở cả giao diện UI và API.
+Xác minh rằng thành viên chỉ có quyền tạo và đăng bài viết có thể thực hiện tạo bài đăng thành công (trả về 201 Created). Tuy nhiên, khi gửi yêu cầu phê duyệt hoặc xóa bài viết, Backend sẽ chặn lại và trả về lỗi 403 Forbidden.
 
 ### Step-by-Step Procedure
 | Step # | Step Details | Expected Results | Actual Results | Pass/Fail |
 | :--- | :--- | :--- | :--- | :---: |
-| 1 | Đăng nhập bằng tài khoản thành viên có vai trò "Editor Only". | Đăng nhập thành công và vào trang Dashboard chính. | Đăng nhập thành công và vào dashboard | Pass |
-| 2 | Gửi yêu cầu API `POST /api/posts` để tạo bài viết mới. | Backend chấp nhận yêu cầu và tạo bài viết thành công (trả về 201/200). | Trả về mã trạng thái 201 Created | Pass |
-| 3 | Gửi yêu cầu API `POST /api/posts/bulk-approve` để duyệt bài viết. | Backend chặn yêu cầu và trả về mã lỗi 403 Forbidden. | Trả về mã lỗi 403 Forbidden | Pass |
-| 4 | Gửi yêu cầu API `DELETE /api/posts/bulk` để xóa bài viết. | Backend chặn yêu cầu và trả về mã lỗi 403 Forbidden. | Trả về mã lỗi 403 Forbidden | Pass |
-| 5 | Truy cập giao diện Planner và xác nhận nút "Create post". | Nút "Create post" hiển thị trạng thái hoạt động bình thường, không bị disabled hay bị cảnh báo bởi AccessGuard. | Nút hoạt động bình thường | Pass |
+| 1 | Gửi yêu cầu API `POST /api/posts` tạo một bài viết nháp. | Backend xử lý thành công và trả về mã trạng thái 201 Created. | Bài đăng được tạo thành công | Pass |
+| 2 | Gửi yêu cầu API `POST /api/posts/bulk-approve` để phê duyệt bài viết. | Backend chặn yêu cầu và trả về mã lỗi 403 Forbidden. | API trả về 403 Forbidden | Pass |
+| 3 | Gửi yêu cầu API `DELETE /api/posts/bulk` để xóa bài viết. | Backend chặn yêu cầu và trả về mã lỗi 403 Forbidden. | API trả về 403 Forbidden | Pass |

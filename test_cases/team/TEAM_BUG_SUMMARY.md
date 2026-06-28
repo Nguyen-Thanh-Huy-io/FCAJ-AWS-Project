@@ -89,16 +89,18 @@ Tất cả các lỗi nghiêm trọng đã được khắc phục hoàn toàn tr
 * **Cách khắc phục:** Bổ sung bước kiểm tra nghiệp vụ trong `RoleService.deleteRole`, đếm số lượng thành viên đang gán vai trò này, nếu lớn hơn 0 thì ném lỗi 400 rõ ràng.
 * **Minh chứng:** ![Thông báo lỗi chặn xóa vai trò](./screenshots/delete_role_error_toast.png)
 
-### 🐛 BUG_PC54: API `/api/social/metrics` bỏ qua kiểm tra quyền `VIEW_ANALYTICS`
+### 🐛 BUG_TC_TEAM_08_C – PC-54: API `/api/social/metrics` bỏ qua kiểm tra quyền `VIEW_ANALYTICS`
+* **Test Case liên kết:** `UC07_TEAM_NHA_08_C.md` (TC_TEAM_08_C)
 * **Trạng thái:** ⚠️ **OPEN / AUDIT DETECTED**
 * **Nguyên nhân:** Route `/api/social/metrics` chưa áp dụng middleware `checkPermission('VIEW_ANALYTICS')` để xác thực quyền truy cập dữ liệu thống kê của Custom Role.
 * **Cách khắc phục đề xuất:** Thêm middleware `checkPermission('VIEW_ANALYTICS')` vào route metrics trong file social/metrics routes tương ứng.
-* **Minh chứng:** [BUG_PC54_TEAM_NHA_API_SOCIAL_METRICS_BYPASS.md](file:///d:/Fullit/projects/PubliCast/test_cases/team/BUG_PC54_TEAM_NHA_API_SOCIAL_METRICS_BYPASS.md)
+* **Chi tiết đầy đủ:** [BUG_TC_TEAM_08_C_PC54_API_SOCIAL_METRICS_BYPASS.md](file:///d:/Fullit/projects/PubliCast/test_cases/team/BUG_TC_TEAM_08_C_PC54_API_SOCIAL_METRICS_BYPASS.md)
 
-### 🐛 BUG_PC55: Nhóm lỗi UI/Validation – Mời thành viên, Tìm kiếm và Quản lý vai trò
+### 🐛 BUG_TC_TEAM_02_03_05_07_08_09 – PC-55: Nhóm lỗi UI/Validation – Mời thành viên, Tìm kiếm và Quản lý vai trò
+* **Test Cases liên kết:** `UC06_TEAM_NHA_02`, `03`, `05`, `UC07_TEAM_NHA_07`, `08`, `UC06_UC20_TEAM_NHA_09`
 * **Trạng thái:** ✅ **RESOLVED**
 * **Nguyên nhân:** Nhóm 7 lỗi về validation email, tìm kiếm/lọc thành viên, và xóa vai trò đang được gán.
-* **Chi tiết đầy đủ:** [BUG_PC55_TEAM_NHA_INVITE_FILTER_UI_BUGS.md](file:///d:/Fullit/projects/PubliCast/test_cases/team/BUG_PC55_TEAM_NHA_INVITE_FILTER_UI_BUGS.md)
+* **Chi tiết đầy đủ:** [BUG_TC_TEAM_02_03_05_07_08_09_PC55_INVITE_FILTER_ROLE_BUGS.md](file:///d:/Fullit/projects/PubliCast/test_cases/team/BUG_TC_TEAM_02_03_05_07_08_09_PC55_INVITE_FILTER_ROLE_BUGS.md)
 
 ---
 

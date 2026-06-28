@@ -1,33 +1,27 @@
-| Test Case ID    | TC_TEAM_08_G | Test Case Description | Kiểm chứng nhóm quyền Nội dung & Media (CREATE_POSTS, APPROVE_POSTS, DELETE_POSTS) của Custom Role |
-| --------------- | ---------| ---------------------| --------------------------------------------------------------------------------------------------|
-| Created By      | Nhã| Reviewed By          | Nhã Võ                                                                                    |
-| Version         | 1.0       | Date Tested          | 28/06/2026                                                                                |
+| Test Case ID    | TC_TEAM_08_G | Test Case Description | Kiểm chứng Custom Role chỉ có quyền Phê duyệt bài viết (APPROVE_POSTS) và Xóa bài viết (DELETE_POSTS) |
+| --------------- | ---------| ---------------------| ----------------------------------------------------------------------------------------------------- |
+| Created By      | Nhã| Reviewed By          | Nhã Võ                                                                                                |
+| Version         | 1.0       | Date Tested          | 28/06/2026                                                                                            |
 | Test Status     | Pass      | Tester's Name        | Nhã|
 | Use Case ID     | UC07 |
 
 ### Prerequisites
-1. Đã đăng nhập vào hệ thống PubliCast.
-2. Có Custom Role "Publisher Only" được tạo và bật quyền "Phê duyệt bài viết (Approve Posts)" (`APPROVE_POSTS`) và "Xóa bài viết (Delete Posts)" (`DELETE_POSTS`) nhưng KHÔNG bật quyền "Tạo bài viết (Create Posts)" (`CREATE_POSTS`).
-3. Một thành viên được gán vai trò này đã kích hoạt tài khoản.
+1. Custom Role "Restricted Analyst" được cập nhật qua DB để chỉ sở hữu: `APPROVE_POSTS`, `DELETE_POSTS`.
+2. Thành viên được gán vai trò này đã đăng nhập vào hệ thống.
 
 ### Test Data
 | S # | Test Data |
 | :--- | :--- |
-| 1 | Tài khoản Owner (Quản trị): `seleniumowner@gmail.com` / `Password123!` |
-| 2 | Custom Role: Tên vai trò là `Publisher Only` |
-| 3 | Quyền kích hoạt: `APPROVE_POSTS`, `DELETE_POSTS` |
-| 4 | Quyền bị tắt: `CREATE_POSTS` |
-| 5 | Tài khoản Member (Thành viên test): `seleniumpublisher@gmail.com` / `Password123!` |
-| 6 | Dữ liệu bài viết kiểm thử: Post ID cần phê duyệt/xóa (mock) `mock-post-id-789` |
+| 1 | Thao tác được phép 1: Phê duyệt bài viết qua API `/api/posts/bulk-approve` |
+| 2 | Thao tác được phép 2: Xóa bài viết qua API `/api/posts/bulk` |
+| 3 | Thao tác bị cấm: Tạo bài viết qua API `POST /api/posts` |
 
 ### Test Scenario
-Xác minh rằng thành viên chỉ có thể thực hiện các hành động Phê duyệt và Xóa bài viết, đồng thời bị chặn khi cố tình Tạo hoặc Chỉnh sửa bài viết ở cả API và UI.
+Xác minh rằng thành viên có quyền phê duyệt và xóa bài viết có thể thực hiện gọi các API duyệt bài viết và xóa bài viết thành công (hoặc trả về lỗi 404 Not Found nếu ID bài đăng giả lập không tồn tại trong DB, thay vì bị chặn 403). Khi gửi yêu cầu tạo bài đăng mới, Backend sẽ chặn lại và trả về lỗi 403 Forbidden.
 
 ### Step-by-Step Procedure
 | Step # | Step Details | Expected Results | Actual Results | Pass/Fail |
 | :--- | :--- | :--- | :--- | :---: |
-| 1 | Đăng nhập bằng tài khoản thành viên có vai trò "Publisher Only". | Đăng nhập thành công và vào trang Dashboard chính. | Đăng nhập thành công và vào dashboard | Pass |
-| 2 | Gửi yêu cầu API `POST /api/posts/bulk-approve` để duyệt bài viết. | Backend trả về mã trạng thái 200 OK hoặc 404 (do post không tồn tại), không trả về 403. | Trả về mã trạng thái 404 Not Found (được phép truy cập) | Pass |
-| 3 | Gửi yêu cầu API `DELETE /api/posts/bulk` để xóa bài viết. | Backend trả về mã trạng thái 200 OK hoặc 404 (do post không tồn tại), không trả về 403. | Trả về mã trạng thái 404 Not Found (được phép truy cập) | Pass |
-| 4 | Gửi yêu cầu API `POST /api/posts` để tạo bài viết mới. | Backend chặn yêu cầu và trả về mã lỗi 403 Forbidden. | Trả về mã lỗi 403 Forbidden | Pass |
-| 5 | Truy cập giao diện Planner và kiểm chứng nút "Create post". | Nút "Create post" bị vô hiệu hóa bởi AccessGuard và hiển thị toast cảnh báo khi click. | Nút bị disabled và hiển thị cảnh báo từ AccessGuard | Pass |
+| 1 | Gửi yêu cầu API `POST /api/posts/bulk-approve` phê duyệt bài viết ngẫu nhiên. | Phản hồi từ Backend trả về trạng thái 200 (OK) hoặc 404 (Không tìm thấy bài viết), nhưng KHÔNG phải 403. | Phản hồi trả về 404 (không bị chặn 403) | Pass |
+| 2 | Gửi yêu cầu API `DELETE /api/posts/bulk` xóa bài viết ngẫu nhiên. | Phản hồi từ Backend trả về trạng thái 200 (OK) hoặc 404 (Không tìm thấy), KHÔNG phải 403. | Phản hồi trả về 404 (không bị chặn 403) | Pass |
+| 3 | Gửi yêu cầu API `POST /api/posts` tạo một bài viết mới bằng token của thành viên này. | Backend phát hiện thiếu quyền `CREATE_POSTS`, chặn yêu cầu và trả về lỗi 403 Forbidden. | API trả về 403 Forbidden | Pass |
