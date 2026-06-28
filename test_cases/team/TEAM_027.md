@@ -10,18 +10,14 @@
 3. Một thành viên được gán vai trò này đã kích hoạt tài khoản.
 
 ### Test Data
-*   **Tài khoản Owner (Quản trị)**:
-    *   Email: `seleniumowner@gmail.com`
-    *   Mật khẩu: `Password123!`
-*   **Custom Role**:
-    *   Tên vai trò: `Publisher Only`
-    *   Quyền kích hoạt: `APPROVE_POSTS`, `DELETE_POSTS`
-    *   Quyền bị tắt: `CREATE_POSTS`
-*   **Tài khoản Member (Thành viên test)**:
-    *   Email: `seleniumpublisher@gmail.com`
-    *   Mật khẩu: `Password123!`
-*   **Dữ liệu bài viết kiểm thử**:
-    *   Post ID cần phê duyệt/xóa (mock): `mock-post-id-789`
+| S # | Test Data |
+| :--- | :--- |
+| 1 | Tài khoản Owner (Quản trị): `seleniumowner@gmail.com` / `Password123!` |
+| 2 | Custom Role: Tên vai trò là `Publisher Only` |
+| 3 | Quyền kích hoạt: `APPROVE_POSTS`, `DELETE_POSTS` |
+| 4 | Quyền bị tắt: `CREATE_POSTS` |
+| 5 | Tài khoản Member (Thành viên test): `seleniumpublisher@gmail.com` / `Password123!` |
+| 6 | Dữ liệu bài viết kiểm thử: Post ID cần phê duyệt/xóa (mock) `mock-post-id-789` |
 
 ### Test Scenario
 Xác minh rằng thành viên chỉ có thể thực hiện các hành động Phê duyệt và Xóa bài viết, đồng thời bị chặn khi cố tình Tạo hoặc Chỉnh sửa bài viết ở cả API và UI.

@@ -10,19 +10,14 @@
 3. Một thành viên được gán vai trò này đã kích hoạt tài khoản.
 
 ### Test Data
-*   **Tài khoản Owner (Quản trị)**:
-    *   Email: `seleniumowner@gmail.com`
-    *   Mật khẩu: `Password123!`
-*   **Custom Role**:
-    *   Tên vai trò: `Editor Only`
-    *   Quyền kích hoạt: `CREATE_POSTS`, `PUBLISH_POSTS`
-    *   Quyền bị tắt: `APPROVE_POSTS`, `DELETE_POSTS`
-*   **Tài khoản Member (Thành viên test)**:
-    *   Email: `seleniummember@gmail.com`
-    *   Mật khẩu: `Password123!`
-*   **Dữ liệu bài viết kiểm thử**:
-    *   Tiêu đề: `Test Post Draft by Editor Only`
-    *   Nội dung: `This is a test post content created by member with Editor Only role.`
+| S # | Test Data |
+| :--- | :--- |
+| 1 | Tài khoản Owner (Quản trị): `seleniumowner@gmail.com` / `Password123!` |
+| 2 | Custom Role: Tên vai trò là `Editor Only` |
+| 3 | Quyền kích hoạt: `CREATE_POSTS`, `PUBLISH_POSTS` |
+| 4 | Quyền bị tắt: `APPROVE_POSTS`, `DELETE_POSTS` |
+| 5 | Tài khoản Member (Thành viên test): `seleniummember@gmail.com` / `Password123!` |
+| 6 | Dữ liệu bài viết kiểm thử: Tiêu đề `Test Post Draft by Editor Only`, Nội dung `This is a test post content created by member with Editor Only role.` |
 
 ### Test Scenario
 Xác minh rằng thành viên có quyền Tạo bài viết có thể thực hiện thành công việc tạo bài viết nháp, trong khi các quyền nâng cao như Phê duyệt bài viết và Xóa bài viết bị chặn hoàn toàn ở cả giao diện UI và API.

@@ -10,22 +10,15 @@
 3. Một thành viên được gán vai trò này đã kích hoạt tài khoản.
 
 ### Test Data
-*   **Tài khoản Owner (Quản trị)**:
-    *   Email: `seleniumowner@gmail.com`
-    *   Mật khẩu: `Password123!`
-*   **Custom Role**:
-    *   Tên vai trò: `Role Admin Only`
-    *   Quyền kích hoạt: `MANAGE_ROLES`
-    *   Quyền bị tắt: `INVITE_MEMBERS`, `MANAGE_TEAM`
-*   **Tài khoản Member (Thành viên test)**:
-    *   Email: `seleniumroleadmin@gmail.com`
-    *   Mật khẩu: `Password123!`
-*   **Dữ liệu vai trò mới (để test tạo vai trò)**:
-    *   Tên vai trò mới: `Temporary Assistant`
-    *   Quyền gán: `CREATE_POSTS`
-*   **Dữ liệu lời mời thành viên mới (để test bị chặn)**:
-    *   Email mời: `invitedcandidate@gmail.com`
-    *   Vai trò gán: `Viewer`
+| S # | Test Data |
+| :--- | :--- |
+| 1 | Tài khoản Owner (Quản trị): `seleniumowner@gmail.com` / `Password123!` |
+| 2 | Custom Role: Tên vai trò là `Role Admin Only` |
+| 3 | Quyền kích hoạt: `MANAGE_ROLES` |
+| 4 | Quyền bị tắt: `INVITE_MEMBERS`, `MANAGE_TEAM` |
+| 5 | Tài khoản Member (Thành viên test): `seleniumroleadmin@gmail.com` / `Password123!` |
+| 6 | Dữ liệu vai trò mới (để test tạo vai trò): Tên vai trò mới `Temporary Assistant`, Quyền gán `CREATE_POSTS` |
+| 7 | Dữ liệu lời mời thành viên mới (để test bị chặn): Email mời `invitedcandidate@gmail.com`, Vai trò gán `Viewer` |
 
 ### Test Scenario
 Xác minh rằng thành viên chỉ có thể thực hiện quản lý vai trò và bị chặn khi cố tình gửi lời mời thành viên mới.
