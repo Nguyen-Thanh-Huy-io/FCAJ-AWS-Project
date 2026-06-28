@@ -564,17 +564,20 @@ describe('YouTube Dashboard E2E Test Suite', function () {
     await driver.sleep(500); // Chờ animation re-render kết thúc
 
     // Test TC_YT_DB_08: Xóa đối thủ cạnh tranh (xóa Competitor A)
-    // FIX: lucide-react v0.487 đổi tên icon MoreVertical → class là 'lucide-ellipsis-vertical'
-    // (không còn là 'lucide-more-vertical' như các phiên bản cũ)
+    // Dùng button[2] (nút menu hành động là nút thứ 2 trong hàng, sau nút Star)
+    // giúp test case cực kỳ ổn định, không phụ thuộc vào sự thay đổi class name của icon Lucide.
     const moreMenuBtn = await driver.wait(
-      until.elementLocated(By.xpath("//tr[.//span[text()='Competitor A channel']]//button[.//svg[contains(@class, 'lucide-ellipsis-vertical')]]")),
+      until.elementLocated(By.xpath("//tr[.//span[text()='Competitor A channel']]//button[2]")),
       10000
     );
-    await driver.executeScript("arguments[0].click();", moreMenuBtn);
+    await moreMenuBtn.click(); // Click native để trigger Radix UI DropdownMenu mở ra
     await driver.sleep(800);
 
-    // Click Delete competitor
-    const deleteBtn = await driver.findElement(By.xpath("//div[contains(text(), 'Delete competitor')]"));
+    // Click Delete competitor (đợi menu item xuất hiện trong DOM)
+    const deleteBtn = await driver.wait(
+      until.elementLocated(By.xpath("//*[contains(text(), 'Delete competitor')]")),
+      10000
+    );
     await deleteBtn.click();
     await driver.sleep(800);
 
@@ -602,18 +605,23 @@ describe('YouTube Dashboard E2E Test Suite', function () {
       until.elementLocated(By.xpath("//span[text()='Competitor B channel']")),
       15000
     );
-    await driver.sleep(500);
-
     // Click nút Download ở sticky header (luôn hiển thị)
-    const downloadMenuBtn = await driver.wait(
-      until.elementLocated(By.xpath("//button[.//svg[contains(@class, 'lucide-download')]]")),
+    // Định vị bằng CSS selector của SVG rồi lấy button cha để tránh lỗi namespace của XPath SVG
+    const downloadIcon = await driver.wait(
+      until.elementLocated(By.css("svg.lucide-download")),
       10000
     );
+    const downloadMenuBtn = await driver.executeScript("return arguments[0].closest('button');", downloadIcon);
     await downloadMenuBtn.click();
-    await driver.sleep(800);
+    await driver.sleep(1000);
     
-    // Click button Tải file CSV
-    await safeClick(By.xpath("//button[contains(., 'Tải file CSV')]"));
+    // Click button Tải file CSV (tìm div chứa text rồi lấy button cha để đảm bảo click chính xác)
+    const csvText = await driver.wait(
+      until.elementLocated(By.xpath("//div[text()='Tải file CSV']")),
+      10000
+    );
+    const csvBtn = await driver.executeScript("return arguments[0].closest('button');", csvText);
+    await csvBtn.click();
     await driver.sleep(3000); // Chờ download xong
 
     // Xác minh file CSV tồn tại trong thư mục test_downloads
