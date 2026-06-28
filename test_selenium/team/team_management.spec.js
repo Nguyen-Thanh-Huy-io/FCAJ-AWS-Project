@@ -421,25 +421,23 @@ describe('Team Management E2E Test Suite', function () {
     expect(roleRows.length).to.greaterThan(0, 'Không tìm thấy custom role "Restricted Analyst" trong DB');
     const customRoleId = roleRows[0].id;
 
-    // Bước 2: Lấy invitation token THẬT từ API bằng owner token trong localStorage
-    // → Tránh self-sign JWT với secret có thể không khớp trên CI (backend/.env bị .gitignore)
+    // Bước 2: Lấy invitation token THẬT từ API
+    // Dùng credentials: 'include' để browser tự gửi HttpOnly cookie (giống apiService)
+    // Không dùng localStorage.getItem('token') vì token được lưu trong HttpOnly cookie
     const apiUrl = process.env.API_URL || 'http://localhost:3000';
-    const ownerToken = await driver.executeScript("return localStorage.getItem('token') || '';");
 
     const inviteRes = await driver.executeScript(`
       return fetch(arguments[0] + '/api/team/invite', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + arguments[1]
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: arguments[2],
-          role: arguments[3],
-          brandId: arguments[4]
+          email: arguments[1],
+          role: arguments[2],
+          brandId: arguments[3]
         })
       }).then(r => r.json());
-    `, apiUrl, ownerToken, memberEmail, customRoleId, ownerBrandId);
+    `, apiUrl, memberEmail, customRoleId, ownerBrandId);
 
     const token = inviteRes.token;
     if (!token || typeof token !== 'string') {
