@@ -567,14 +567,18 @@ class FacebookGateway {
     }
   }
 
-  /**
-   * Tìm kiếm Facebook Pages công khai theo query string.
-   * Dùng Graph API /search endpoint (cần App Access Token hoặc User Access Token).
-   * @param {string} appAccessToken - App-level access token (APP_ID|APP_SECRET)
-   * @param {string} query - Từ khóa tìm kiếm
-   * @returns {Array} Danh sách pages kết quả
-   */
   async searchFacebookPages(appAccessToken, query) {
+    if (appAccessToken && (appAccessToken.startsWith('mock-') || appAccessToken.includes('mock-'))) {
+      return [
+        {
+          pageId: "mock_comp_page_123",
+          title: "Competitor C page",
+          thumbnail: "https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg",
+          followersCount: 15200,
+          category: "Media"
+        }
+      ];
+    }
     const url = `${this.graphBaseUrl}/search?q=${encodeURIComponent(query)}&type=page&fields=id,name,picture{url},fan_count,followers_count,category&access_token=${appAccessToken}&limit=10`;
     const res = await fetch(url);
     if (!res.ok) {
@@ -599,6 +603,16 @@ class FacebookGateway {
    * @returns {Object} Page info
    */
   async getPublicPageInfo(pageId, appAccessToken) {
+    if (appAccessToken && (appAccessToken.startsWith('mock-') || appAccessToken.includes('mock-'))) {
+      return {
+        pageId: pageId,
+        displayName: `Competitor C page`,
+        avatarUrl: `https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg`,
+        followersCount: 15200,
+        category: "Media",
+        profileUrl: `https://www.facebook.com/${pageId}`,
+      };
+    }
     const url = `${this.graphBaseUrl}/${pageId}?fields=id,name,picture{url},fan_count,followers_count,category,link&access_token=${appAccessToken}`;
     const res = await fetch(url);
     if (!res.ok) {
