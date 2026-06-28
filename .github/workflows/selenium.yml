@@ -110,7 +110,7 @@ jobs:
           echo "REDIS_URL=redis://localhost:6379" >> .env
 
       - name: Run Full Selenium Test Suite
-        if: ${{ !startsWith(github.ref_name, 'bug/PC-53') && !startsWith(github.ref_name, 'bug/PC-54') }}
+        if: ${{ !startsWith(github.ref_name, 'bug/PC-53') && !startsWith(github.ref_name, 'bug/PC-54') && !startsWith(github.ref_name, 'bug/PC-55') }}
         working-directory: test_selenium
         run: |
           npm run test:brand
@@ -124,8 +124,8 @@ jobs:
         run: |
           npm run test:youtube-dashboard
 
-      - name: Run Team Management Tests (PC-54 branch only)
-        if: ${{ startsWith(github.ref_name, 'bug/PC-54') }}
+      - name: Run Team Management Tests (PC-54 and PC-55 branches)
+        if: ${{ startsWith(github.ref_name, 'bug/PC-54') || startsWith(github.ref_name, 'bug/PC-55') }}
         working-directory: test_selenium
         run: |
           npm run test:team-management
