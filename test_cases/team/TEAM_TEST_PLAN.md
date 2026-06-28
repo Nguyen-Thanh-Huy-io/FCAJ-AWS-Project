@@ -1,29 +1,77 @@
-# Kế hoạch kiểm thử tự động (Selenium E2E Test Plan) - Phân hệ Đội ngũ & Phân quyền (Team)
+# Kế hoạch Kiểm thử Tự động E2E - Module Team (Quản lý Đội ngũ & Phân quyền)
 
-Tài liệu này tổng hợp toàn bộ các kịch bản kiểm thử E2E bằng Selenium WebDriver cho phân hệ Quản lý Đội ngũ và Phân quyền tùy chỉnh tương ứng với **UC06 (Quản lý Đội ngũ)** & **UC07 (Cấu hình Phân quyền tùy chỉnh)**.
+Tài liệu này ánh xạ các kịch bản kiểm thử tự động (E2E Selenium) của phân hệ Quản lý Đội ngũ và Custom Roles (`team/team_management.spec.js`) sang các mô tả nghiệp vụ chi tiết.
 
-## Danh sách Test Cases (Total: 15 Test Cases)
+## 📋 Danh sách Test Cases Ánh xạ
 
-| Mã Test Case | Tên Test Case | Mô tả kịch bản | Kết quả mong đợi (Assertion) | Trạng thái |
-| :--- | :--- | :--- | :--- | :--- |
-| **TC_TEAM_01** | Đăng ký Owner mới và Onboarding | Tạo tài khoản Owner mới, xác minh OTP, và hoàn thành quy trình Onboarding. | Đăng nhập thành công và chuyển hướng tới Dashboard của Brand mặc định. | Đã triển khai |
-| **TC_TEAM_02** | Validate khi mời thành viên | Nhập email rỗng hoặc sai định dạng khi mời thành viên. | UI hiển thị lỗi validation ngăn chặn gửi lời mời không hợp lệ. | Đã triển khai |
-| **TC_TEAM_03** | Chặn mời trùng email hiện có | Thử mời lại một email đã có trong team (kể cả có khoảng trắng / chữ hoa). | Hệ thống phát hiện trùng lặp và từ chối gửi lời mời. | Đã triển khai |
-| **TC_TEAM_04** | Kiểm tra giới hạn ghế thành viên | Mời số thành viên vượt quá hạn mức `Plan Seats Limit` của gói cước. | Hệ thống từ chối và yêu cầu nâng cấp gói cước. | Đã triển khai |
-| **TC_TEAM_05** | Quản lý Custom Role (Tạo mới) | Tạo vai trò tùy chỉnh mới và kiểm tra validation tên vai trò trùng lặp. | Hệ thống chặn tạo vai trò trùng tên và cho phép tạo vai trò hợp lệ. | Đã triển khai |
-| **TC_TEAM_06** | Mời thành viên với Custom Role | Gửi lời mời tới thành viên mới và gán vai trò Custom Role vừa tạo. | Lời mời được gửi thành công kèm thông tin liên kết Custom Role. | Đã triển khai |
-| **TC_TEAM_07** | Quy trình chấp nhận lời mời | Thành viên mới nhấn link kích hoạt từ email và thiết lập tài khoản. | Tài khoản thành viên chuyển sang ACTIVE và đăng nhập thành công. | Đã triển khai |
-| **TC_TEAM_08** | Phân quyền Custom Role hạn chế | Đăng nhập bằng tài khoản thành viên có Custom Role hạn chế. | Thành viên bị chặn truy cập các API hoặc UI mà mình không có quyền. | Đã triển khai |
-| **TC_TEAM_08_C** | Quyền xem Báo cáo & Thống kê | Kiểm chứng phân quyền xem báo cáo biểu đồ (`VIEW_ANALYTICS`). | Thành viên có quyền xem bình thường, thành viên không có quyền bị chặn. | Đã triển khai |
-| **TC_TEAM_08_D** | Chỉ có quyền Quản lý thành viên | Kiểm chứng vai trò chỉ có quyền quản lý thành viên (`MANAGE_TEAM`). | Cho phép xem và sửa đội ngũ nhưng chặn các tác vụ khác. | Đã triển khai |
-| **TC_TEAM_08_E** | Chỉ có quyền Xem báo cáo | Kiểm chứng vai trò chỉ có quyền xem báo cáo (`VIEW_ANALYTICS`). | Cho phép vào trang báo cáo, chặn trang cài đặt đội ngũ. | Đã triển khai |
-| **TC_TEAM_08_F** | Chỉ có quyền Quản lý vai trò | Kiểm chứng vai trò chỉ có quyền quản lý vai trò (`MANAGE_ROLES`). | Cho phép tạo, sửa Custom Role nhưng chặn sửa đội ngũ. | Đã triển khai |
-| **TC_TEAM_08_G** | Quyền phê duyệt & Xóa bài viết | Kiểm chứng vai trò có quyền `APPROVE_POSTS` và `DELETE_POSTS`. | Cho phép phê duyệt và xóa bài viết thành công. | Đã triển khai |
-| **TC_TEAM_08_H** | Quyền tạo & Đăng bài viết | Kiểm chứng vai trò có quyền `CREATE_POSTS` và `PUBLISH_POSTS`. | Cho phép tạo bài và publish trực tiếp lên social media. | Đã triển khai |
-| **TC_TEAM_09** | Chặn xóa vai trò đang hoạt động | Thử xóa một vai trò đang được gán cho một thành viên đang hoạt động. | Hệ thống từ chối xóa và hiển thị thông báo cảnh báo lỗi phù hợp. | Đã triển khai |
+### 1. Onboarding & Đăng ký (Onboarding)
+*   **TC_TEAM_01: Đăng ký Owner mới và hoàn tất onboarding**
+    *   **Mã test Selenium**: `TC_TEAM_01` trong `team_management.spec.js`
+    *   **Mô tả**: Tạo tài khoản Owner mới, xác minh OTP qua Redis, hoàn thành điền thông tin và tạo Brand đầu tiên.
+    *   **Kết quả mong đợi**: Tài khoản được kích hoạt (ACTIVE), chuyển hướng thành công tới `/dashboard`.
 
----
+### 2. Mời thành viên & Validation (Invitations)
+*   **TC_TEAM_02: Kiểm tra Validation khi mời thành viên (Email rỗng & Sai format)**
+    *   **Mã test Selenium**: `TC_TEAM_02` trong `team_management.spec.js`
+    *   **Mô tả**: Gửi lời mời với email rỗng hoặc sai định dạng.
+    *   **Kết quả mong đợi**: Xuất hiện thông báo lỗi toast "Vui lòng nhập địa chỉ email" hoặc lỗi định dạng email tương ứng.
+*   **TC_TEAM_03: Chặn mời trùng email hiện có (kể cả có khoảng trắng / chữ hoa)**
+    *   **Mã test Selenium**: `TC_TEAM_03` trong `team_management.spec.js`
+    *   **Mô tả**: Gửi lời mời tới một email đã tồn tại trong danh sách thành viên của Brand.
+    *   **Kết quả mong đợi**: Toast hiển thị cảnh báo email đã là thành viên hoặc đã tồn tại.
+*   **TC_TEAM_04: Kiểm tra giới hạn thành viên (Plan Seats Limit)**
+    *   **Mã test Selenium**: `TC_TEAM_04` trong `team_management.spec.js`
+    *   **Mô tả**: Thử mời số lượng thành viên vượt quá giới hạn số lượng ghế (Seats Limit) của gói cước hiện tại.
+    *   **Kết quả mong đợi**: Hệ thống hiển thị toast lỗi yêu cầu nâng cấp gói cước.
 
-## Môi trường & File kiểm thử
-- **Môi trường**: Chrome (chạy headless trên CI)
-- **Tập tin kiểm thử tương ứng**: `test_selenium/team/team_management.spec.js`
+### 3. Quản lý Vai trò tùy chỉnh (Custom Roles)
+*   **TC_TEAM_05: Quản lý Custom Role (Tạo mới & validate tên vai trò)**
+    *   **Mã test Selenium**: `TC_TEAM_05` trong `team_management.spec.js`
+    *   **Mô tả**: Tạo một Custom Role mới với các quyền cụ thể và xác minh validate tên không được để trống.
+    *   **Kết quả mong đợi**: Ghi nhận Custom Role mới trong DB và hiển thị trên UI.
+*   **TC_TEAM_06: Mời thành viên mới với Custom Role**
+    *   **Mã test Selenium**: `TC_TEAM_06` trong `team_management.spec.js`
+    *   **Mô tả**: Mời thành viên và gán Custom Role vừa tạo (ví dụ: "Restricted Analyst").
+    *   **Kết quả mong đợi**: Lời mời được gửi đi thành công với trạng thái PENDING hiển thị trên danh sách.
+
+### 4. Quy trình chấp nhận lời mời (Accept Invitation Flow)
+*   **TC_TEAM_07: Quy trình chấp nhận lời mời và Kích hoạt tài khoản thành viên**
+    *   **Mã test Selenium**: `TC_TEAM_07` trong `team_management.spec.js`
+    *   **Mô tả**: Lấy link mời chứa token từ email giả lập, đăng xuất Owner, truy cập link mời dưới tư cách thành viên, điền thông tin kích hoạt tài khoản.
+    *   **Kết quả mong đợi**: Thành viên đăng nhập thành công và được dẫn thẳng vào `/dashboard` của Brand được mời.
+
+### 5. Kiểm chứng phân quyền trên UI & API (Role-Based Access Control)
+*   **TC_TEAM_08: Kiểm chứng phân quyền Custom Role hạn chế trên UI & Backend API**
+    *   **Mã test Selenium**: `TC_TEAM_08` trong `team_management.spec.js`
+    *   **Mô tả**: Kiểm tra các hành động bị cấm đối với tài khoản chỉ có quyền phân tích (không có quyền tạo bài, quản lý team).
+    *   **Kết quả mong đợi**: Các menu/action bị cấm phải bị ẩn trên UI, và gọi API trực tiếp phải bị Backend trả về lỗi 403 Forbidden.
+*   **TC_TEAM_08_C: Kiểm chứng phân quyền xem Báo cáo & Biểu đồ thống kê (VIEW_ANALYTICS)**
+    *   **Mã test Selenium**: `TC_TEAM_08_C` trong `team_management.spec.js`
+    *   **Mô tả**: Tài khoản có quyền `VIEW_ANALYTICS` được phép tải dữ liệu thống kê biểu đồ.
+    *   **Kết quả mong đợi**: Dữ liệu biểu đồ hiển thị bình thường.
+*   **TC_TEAM_08_D: Kiểm chứng Custom Role chỉ có quyền Quản lý thành viên (MANAGE_TEAM)**
+    *   **Mã test Selenium**: `TC_TEAM_08_D` trong `team_management.spec.js`
+    *   **Mô tả**: Kiểm chứng tài khoản chỉ có quyền `MANAGE_TEAM` thì có thể xem/mời thành viên nhưng bị chặn các tính năng soạn thảo.
+    *   **Kết quả mong đợi**: UI chặn truy cập soạn thảo, nút Create Post bị ẩn/vô hiệu hóa.
+*   **TC_TEAM_08_E: Kiểm chứng Custom Role chỉ có quyền Xem báo cáo (VIEW_ANALYTICS)**
+    *   **Mã test Selenium**: `TC_TEAM_08_E` trong `team_management.spec.js`
+    *   **Mô tả**: Thành viên chỉ có quyền `VIEW_ANALYTICS` có thể xem số liệu thống kê nhưng không thể quản lý nhân sự.
+    *   **Kết quả mong đợi**: Menu quản lý đội ngũ bị ẩn hoặc trả về lỗi khi truy cập.
+*   **TC_TEAM_08_F: Kiểm chứng Custom Role chỉ có quyền Quản lý vai trò (MANAGE_ROLES)**
+    *   **Mã test Selenium**: `TC_TEAM_08_F` trong `team_management.spec.js`
+    *   **Mô tả**: Kiểm tra tính năng quản trị vai trò đối với tài khoản chỉ được cấp quyền `MANAGE_ROLES`.
+    *   **Kết quả mong đợi**: Thao tác cập nhật ma trận vai trò được thực thi thành công.
+*   **TC_TEAM_08_G: Kiểm chứng Custom Role chỉ có quyền Phê duyệt bài viết (APPROVE_POSTS) và Xóa bài viết (DELETE_POSTS)**
+    *   **Mã test Selenium**: `TC_TEAM_08_G` trong `team_management.spec.js`
+    *   **Mô tả**: Tài khoản có quyền duyệt và xóa nhưng không có quyền tạo bài đăng mới.
+    *   **Kết quả mong đợi**: Chức năng duyệt/xóa bài hoạt động bình thường, chức năng tạo bài viết mới bị khóa.
+*   **TC_TEAM_08_H: Kiểm chứng Custom Role chỉ có quyền Tạo bài viết (CREATE_POSTS) và Đăng bài viết (PUBLISH_POSTS)**
+    *   **Mã test Selenium**: `TC_TEAM_08_H` trong `team_management.spec.js`
+    *   **Mô tả**: Tài khoản có quyền tạo và xuất bản trực tiếp bài viết nhưng không có quyền phê duyệt bài của người khác.
+    *   **Kết quả mong đợi**: Tạo bài thành công, không hiển thị chức năng duyệt bài của thành viên khác.
+
+### 6. Xóa vai trò & Dọn dẹp (Role Cleanup)
+*   **TC_TEAM_09: Chặn xóa vai trò đang hoạt động & Dọn dẹp dứt điểm**
+    *   **Mã test Selenium**: `TC_TEAM_09` trong `team_management.spec.js`
+    *   **Mô tả**: Thử xóa một Custom Role đang được gán cho một thành viên. Sau đó dọn dẹp các tài khoản kiểm thử khỏi DB.
+    *   **Kết quả mong đợi**: Hệ thống báo lỗi không thể xóa vai trò đang được sử dụng. Dữ liệu rác được dọn dẹp sạch sẽ sau test.
