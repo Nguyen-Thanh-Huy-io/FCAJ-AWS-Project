@@ -31,4 +31,4 @@
 - Việc so khớp thuộc tính disabled trả về `"true"` hoặc giá trị không null.
 
 ## 5. Linked Bug
-- Có liên kết với bug report [BUG_UC05_BRAND_NHA_PC_51_BRAND_UPDATE_DISABLED_COMPARE.md](file:///d:/Fullit/projects/PubliCast/test_cases/brand/BUG_UC05_BRAND_NHA_PC_51_BRAND_UPDATE_DISABLED_COMPARE.md) trên Jira (`PC-51`).
+- Có liên kết với bug report [BUG_UC05_BRAND_NHA_09.md](file:///d:/Fullit/projects/PubliCast/test_cases/brand/BUG_UC05_BRAND_NHA_09.md) trên Jira (`PC-51`).

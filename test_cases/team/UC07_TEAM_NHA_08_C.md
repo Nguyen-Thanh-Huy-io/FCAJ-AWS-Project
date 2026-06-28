@@ -27,3 +27,6 @@ Xác minh rằng thành viên không có quyền `VIEW_ANALYTICS` sẽ bị ch�
 | 3 | Nhấp chuột vào nút "Load Data" trên giao diện Báo cáo. | Lời gọi API bị chặn, hiển thị thông báo toast lỗi: "Không thể tải dữ liệu". | Toast lỗi "Không thể tải dữ liệu" hiển thị | Pass |
 | 4 | Kiểm tra vùng hiển thị lịch sử PDF. | Hiển thị thông báo: "Chưa có bản ghi báo cáo nào được tạo". | Thông báo trống hiển thị đúng | Pass |
 | 5 | Gửi yêu cầu API `GET /api/social/metrics` kiểm tra phân quyền. | Backend phải chặn và trả về lỗi 403 Forbidden (Tuy nhiên, có thể trả về 200 do bug phân quyền). | API trả về 403 Forbidden | Pass |
+
+### Linked Bug
+- Có liên kết với bug report [BUG_UC07_TEAM_NHA_08_C.md](file:///d:/Fullit/projects/PubliCast/test_cases/team/BUG_UC07_TEAM_NHA_08_C.md) (`PC-54`).

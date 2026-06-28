@@ -18,3 +18,6 @@
 | 1               | Chọn nền tảng đăng bài là YouTube. | | Giao diện hiển thị các trường soạn thảo dành cho YouTube. | | Đúng như mong đợi. | | | Pass |
 | 2               | Thực hiện tải lên (upload) tệp tin video không hợp lệ `sample_video.mp4` (stub file 24 bytes) từ máy tính. | | Vùng preview của Post Creator nhận diện tệp tin và hiển thị tên tệp tin tải lên. | | Tên tệp tin hiển thị trong phần preview của Post Creator. | | | Pass |
 | 3               | Nhập caption cho bài viết, chọn chế độ xuất bản là Draft (Lưu nháp), và nhấn nút đăng bài (Submit). | | Backend nhận request, kiểm tra định dạng và tính hợp lệ của tệp video, trả về mã lỗi HTTP 400 Bad Request và thông báo lỗi rõ ràng. Giao diện hiển thị thông báo lỗi tương ứng. Server backend tiếp tục chạy bình thường. | | Backend bắt lỗi, trả về HTTP 400. Trình duyệt hiển thị thông báo lỗi. Tiến trình Node.js (App) vẫn chạy bình thường ổn định, không bị crash, không bị mất phiên làm việc. | | | Pass |
+
+## 5. Linked Bug
+- Có liên kết với bug report [BUG_UC08_UC10_POST_MEDIA_NHA_POST_UI_029.md](file:///d:/Fullit/projects/PubliCast/test_cases/post-media/BUG_UC08_UC10_POST_MEDIA_NHA_POST_UI_029.md) (`PC-57`).
