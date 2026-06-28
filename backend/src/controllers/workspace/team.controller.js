@@ -48,6 +48,12 @@ class TeamController {
     }
 
     const result = await teamService.acceptInvitation({ token, name, password });
+    
+    if (result.accessToken && result.refreshToken) {
+      const { setAuthCookies } = require('../../utils/cookie.utils');
+      setAuthCookies(res, result.accessToken, result.refreshToken);
+    }
+
     res.status(200).json(result);
   });
 

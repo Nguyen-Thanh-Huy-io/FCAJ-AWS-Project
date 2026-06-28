@@ -273,6 +273,7 @@ class TeamService {
     return {
       message: 'Chấp nhận lời mời thành công',
       ...tokens,
+      brandId: team.brandId,
       user: {
         id: updatedUser.id,
         email: updatedUser.email,
