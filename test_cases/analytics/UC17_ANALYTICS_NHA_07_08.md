@@ -35,4 +35,4 @@
 - Không bị lỗi ẩn cột hành động trên các màn hình nhỏ.
 
 ## 5. Linked Bug
-- Có liên kết với bug report [BUG_PC_53_COMPETITORS_ACTION_COLUMN_OVERFLOW.md](file:///d:/Fullit/projects/PubliCast/test_cases/analytics/BUG_PC_53_COMPETITORS_ACTION_COLUMN_OVERFLOW.md) (`PC-53`).
+- Có liên kết với bug report [BUG_UC17_ANALYTICS_NHA_PC_53_COMPETITORS_ACTION_COLUMN_OVERFLOW.md](file:///d:/Fullit/projects/PubliCast/test_cases/analytics/BUG_UC17_ANALYTICS_NHA_PC_53_COMPETITORS_ACTION_COLUMN_OVERFLOW.md) (`PC-53`).

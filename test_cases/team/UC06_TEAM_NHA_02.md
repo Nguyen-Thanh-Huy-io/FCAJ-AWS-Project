@@ -1,8 +1,8 @@
 | Test Case ID    | TC_TEAM_02 | Test Case Description | Kiểm tra Validation khi mời thành viên (Email rỗng & Sai format) |
 | --------------- | ---------| ---------------------| ------------------------------------------------------------- |
-| Created By      | Nhã | Reviewed By          | Nhã Võ                                                        |
+| Created By      | Nhã| Reviewed By          | Nhã Võ                                                        |
 | Version         | 1.0       | Date Tested          | 28/06/2026                                                    |
-| Test Status     | Pass      | Tester's Name        | Nhã                                                   |
+| Test Status     | Pass      | Tester's Name        | Nhã|
 | Use Case ID     | UC06 |
 
 ### Prerequisites

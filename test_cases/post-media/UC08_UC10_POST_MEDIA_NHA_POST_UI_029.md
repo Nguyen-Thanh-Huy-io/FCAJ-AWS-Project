@@ -1,10 +1,11 @@
 | Test Case ID    | | POST_UI_029 | Test Case Description | | Xác minh luồng xử lý lỗi và độ ổn định khi tải lên (upload) tệp video không hợp lệ cho YouTube | | | | | |
 | --------------- | --- | ------- | --------------------- | --- | -------------------------------------------------------- | --- | --- | --- | --- | --- |
-| Created By      | | Antigravity | Reviewed By | | Nhã Võ | | Version | | 1.0 | |
+| Created By      | Nhã| Antigravity | Reviewed By | | Nhã Võ | | Version | | 1.0 | |
 | | | | | | | | | | | |
 | QA Tester’s Log | | | | | | | | | | |
 | | | | | | | | | | | |
-| Tester's Name   | | Antigravity | Date Tested | | 28/06/2026 | | Test Case (Pass/Fail/Not Executed, Crashed) | | Pass | |
+| Tester's Name   | Nhã|
+| Use Case ID     | UC08, UC10 | Antigravity | Date Tested | | 28/06/2026 | | Test Case (Pass/Fail/Not Executed, Crashed) | | Pass | |
 | | | | | | | | | | | |
 | S #             | Prerequisites: | | | | S # | Test Data | | | | |
 | 1               | Người dùng đã đăng nhập hệ thống và có Brand đã kết nối tài khoản YouTube (Mock). | | | | 1 | Tệp tin video mẫu không hợp lệ/bị lỗi (sample_video.mp4 có kích thước 24 bytes). |

@@ -31,4 +31,4 @@
 - Giao diện áp dụng cơ chế tự động rút gọn bằng dấu ba chấm (ellipsis) hoặc tự xuống dòng (word-break) gọn gàng.
 
 ## 5. Linked Bug
-- Có liên kết với bug report [BUG_PC_56_ACTIVE_BRAND_OVERFLOW.md](file:///d:/Fullit/projects/PubliCast/test_cases/dashboard/BUG_PC_56_ACTIVE_BRAND_OVERFLOW.md) (`PC-56`).
+- Có liên kết với bug report [BUG_UC05_UC16_DASHBOARD_NHA_PC_56_ACTIVE_BRAND_OVERFLOW.md](file:///d:/Fullit/projects/PubliCast/test_cases/dashboard/BUG_UC05_UC16_DASHBOARD_NHA_PC_56_ACTIVE_BRAND_OVERFLOW.md) (`PC-56`).

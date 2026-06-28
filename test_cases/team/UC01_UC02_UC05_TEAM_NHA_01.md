@@ -1,8 +1,8 @@
 | Test Case ID    | TC_TEAM_01 | Test Case Description | Đăng ký Owner mới và hoàn tất onboarding |
 | --------------- | ---------| ---------------------| --------------------------------------- |
-| Created By      | Nhã | Reviewed By          | Nhã Võ                                  |
+| Created By      | Nhã| Reviewed By          | Nhã Võ                                  |
 | Version         | 1.0       | Date Tested          | 28/06/2026                              |
-| Test Status     | Pass      | Tester's Name        | Nhã                             |
+| Test Status     | Pass      | Tester's Name        | Nhã|
 | Use Case ID     | UC01, UC02, UC05 |
 
 ### Prerequisites

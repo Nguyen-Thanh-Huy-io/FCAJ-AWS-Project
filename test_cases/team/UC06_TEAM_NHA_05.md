@@ -1,8 +1,8 @@
 | Test Case ID    | TC_TEAM_05 | Test Case Description | Quản lý Custom Role (Tạo mới & validate tên vai trò) |
 | --------------- | ---------| ---------------------| ---------------------------------------------------- |
-| Created By      | Nhã | Reviewed By          | Nhã Võ                                               |
+| Created By      | Nhã| Reviewed By          | Nhã Võ                                               |
 | Version         | 1.0       | Date Tested          | 28/06/2026                                           |
-| Test Status     | Pass      | Tester's Name        | Nhã                                          |
+| Test Status     | Pass      | Tester's Name        | Nhã|
 | Use Case ID     | UC06 |
 
 ### Prerequisites

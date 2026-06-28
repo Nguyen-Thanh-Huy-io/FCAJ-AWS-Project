@@ -1,8 +1,8 @@
 | Test Case ID    | TC_TEAM_08 | Test Case Description | Kiểm chứng phân quyền Custom Role hạn chế trên UI & Backend API |
 | --------------- | ---------| ---------------------| ------------------------------------------------------------- |
-| Created By      | Nhã | Reviewed By          | Nhã Võ                                                        |
+| Created By      | Nhã| Reviewed By          | Nhã Võ                                                        |
 | Version         | 1.0       | Date Tested          | 28/06/2026                                                    |
-| Test Status     | Pass      | Tester's Name        | Nhã                                                   |
+| Test Status     | Pass      | Tester's Name        | Nhã|
 | Use Case ID     | UC07 |
 
 ### Prerequisites

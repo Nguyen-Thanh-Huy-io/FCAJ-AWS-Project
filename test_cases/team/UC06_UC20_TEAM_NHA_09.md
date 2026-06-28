@@ -1,8 +1,8 @@
 | Test Case ID    | TC_TEAM_09 | Test Case Description | Chặn xóa vai trò đang hoạt động & Dọn dẹp dứt điểm |
 | --------------- | ---------| ---------------------| ------------------------------------------------ |
-| Created By      | Nhã | Reviewed By          | Nhã Võ                                           |
+| Created By      | Nhã| Reviewed By          | Nhã Võ                                           |
 | Version         | 1.0       | Date Tested          | 28/06/2026                                       |
-| Test Status     | Pass      | Tester's Name        | Nhã                                      |
+| Test Status     | Pass      | Tester's Name        | Nhã|
 | Use Case ID     | UC06, UC20 |
 
 ### Prerequisites
