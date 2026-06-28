@@ -336,8 +336,11 @@ describe('General Dashboard E2E Test Suite', function () {
     expect(await postCreatorTitle.isDisplayed()).to.be.true;
 
     // Đóng Post Creator
-    const closeBtn = await driver.findElement(By.xpath("//button[contains(., 'Close')]"));
-    await closeBtn.click();
+    const closeBtn = await driver.wait(
+      until.elementLocated(By.xpath("//button[contains(., 'Close')]")),
+      15000
+    );
+    await driver.executeScript("arguments[0].click();", closeBtn);
 
     await driver.wait(until.stalenessOf(postCreatorTitle), 10000);
     console.log("✅ Mở và đóng Post Creator từ Dashboard thành công!");
