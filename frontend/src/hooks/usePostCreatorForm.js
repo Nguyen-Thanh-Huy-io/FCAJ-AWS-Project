@@ -613,7 +613,7 @@ export function usePostCreatorForm() {
         isLibrary,
         altText,
         targetPlatforms: selectedPlatforms.map(p => p.toUpperCase()),
-        scheduledAt: selectedPublishId === 'now' ? null : (scheduledDate ? new Date(scheduledDate).toISOString() : null),
+        scheduledAt: ['schedule', 'review'].includes(selectedPublishId) ? (scheduledDate ? new Date(scheduledDate).toISOString() : null) : null,
         mediaUrls: postMediaUrls,
         reviewerIds: selectedReviewerIds,
         approvalPolicy: approvalPolicy,

@@ -1497,7 +1497,7 @@ export function PostCreatorPage() {
                  <button onClick={closePostCreator} className="px-6 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-500 hover:bg-gray-50 hover:text-black transition-all cursor-pointer">Cancel</button>
                  
                  <div className="flex items-center gap-4">
-                     {!isLibrary && selectedPublishId !== 'now' && (
+                     {!isLibrary && ['schedule', 'review'].includes(selectedPublishId) && (
                        <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-2xl px-5 py-2.5 hover:bg-gray-50 transition-all relative">
                            <Calendar size={18} className="text-gray-400" />
                            <input 
