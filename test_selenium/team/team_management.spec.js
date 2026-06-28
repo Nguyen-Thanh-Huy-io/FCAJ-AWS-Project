@@ -233,7 +233,7 @@ describe('Team Management E2E Test Suite', function () {
     await upgradePlanToPro(ownerBrandId);
   });
 
-  it.skip('TC_TEAM_02: Kiểm tra Validation khi mời thành viên (Email rỗng & Sai format)', async function () {
+  it('TC_TEAM_02: Kiểm tra Validation khi mời thành viên (Email rỗng & Sai format)', async function () {
     await driver.get(`${BASE_URL}/manage/team`);
     await driver.sleep(2000);
 
@@ -264,7 +264,7 @@ describe('Team Management E2E Test Suite', function () {
     await driver.sleep(1000);
   });
 
-  it.skip('TC_TEAM_03: Chặn mời trùng email hiện có (kể cả có khoảng trắng / chữ hoa)', async function () {
+  it('TC_TEAM_03: Chặn mời trùng email hiện có (kể cả có khoảng trắng / chữ hoa)', async function () {
     // 1. Mời lần đầu cho duplicate-member@gmail.com
     await safeClick(By.xpath("//button[contains(., 'Invite Member')]"));
     await driver.sleep(1000);
@@ -316,7 +316,7 @@ describe('Team Management E2E Test Suite', function () {
   });
 
 
-  it.skip('TC_TEAM_04: Kiểm tra giới hạn thành viên (Plan Seats Limit)', async function () {
+  it('TC_TEAM_04: Kiểm tra giới hạn thành viên (Plan Seats Limit)', async function () {
     // Nhắc lại: duplicate-member@gmail.com đang là ACTIVE và chiếm 1 seat. 
     // Ta set maxTeamSeats = 1. Khi đó số seats đang dùng là 1/1, đã hết ghế trống!
     await setMaxSeats(ownerBrandId, 1);
