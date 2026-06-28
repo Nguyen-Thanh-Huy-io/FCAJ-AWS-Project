@@ -413,25 +413,38 @@ describe('Team Management E2E Test Suite', function () {
   });
 
   it('TC_TEAM_07: Quy trình chấp nhận lời mời và Kích hoạt tài khoản thành viên', async function () {
-    const [teamRows] = await dbConnection.execute(
-      `SELECT t.id, u.email FROM teams t JOIN users u ON t.userId = u.id WHERE t.brandId = ? AND u.email = ?`,
-      [ownerBrandId, memberEmail]
+    // Bước 1: Lấy customRoleId của "Restricted Analyst" từ DB
+    const [roleRows] = await dbConnection.execute(
+      `SELECT id FROM custom_roles WHERE brandId = ? AND name = 'Restricted Analyst' LIMIT 1`,
+      [ownerBrandId]
     );
-    expect(teamRows.length).to.greaterThan(0);
-    const teamId = teamRows[0].id;
+    expect(roleRows.length).to.greaterThan(0, 'Không tìm thấy custom role "Restricted Analyst" trong DB');
+    const customRoleId = roleRows[0].id;
 
-    // Require jsonwebtoken trực tiếp từ backend node_modules để tránh thiếu package ở test_selenium
-    const jwt = require(path.resolve(__dirname, '..', '..', 'backend', 'node_modules', 'jsonwebtoken'));
-    let secret = 'fallback_secret';
-    const backendEnvPath = path.resolve(__dirname, '..', '..', 'backend', '.env');
-    if (fs.existsSync(backendEnvPath)) {
-      const backendEnv = require('dotenv').parse(fs.readFileSync(backendEnvPath));
-      secret = backendEnv.ACCESS_TOKEN_SECRET || secret;
+    // Bước 2: Lấy invitation token THẬT từ API bằng owner token trong localStorage
+    // → Tránh self-sign JWT với secret có thể không khớp trên CI (backend/.env bị .gitignore)
+    const apiUrl = process.env.API_URL || 'http://localhost:3000';
+    const ownerToken = await driver.executeScript("return localStorage.getItem('token') || '';");
+
+    const inviteRes = await driver.executeScript(`
+      return fetch(arguments[0] + '/api/team/invite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + arguments[1]
+        },
+        body: JSON.stringify({
+          email: arguments[2],
+          role: arguments[3],
+          brandId: arguments[4]
+        })
+      }).then(r => r.json());
+    `, apiUrl, ownerToken, memberEmail, customRoleId, ownerBrandId);
+
+    const token = inviteRes.token;
+    if (!token || typeof token !== 'string') {
+      throw new Error('Không lấy được invitation token từ API. Response: ' + JSON.stringify(inviteRes));
     }
-    const token = jwt.sign(
-      { teamId, email: memberEmail, brandId: ownerBrandId },
-      secret
-    );
 
     // Đăng xuất tài khoản Owner
     await driver.get(`${BASE_URL}/dashboard`);
