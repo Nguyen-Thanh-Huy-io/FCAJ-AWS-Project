@@ -62,5 +62,5 @@ Lỗi xảy ra tại logic xác định `fromDate` trong hàm `_updatePostSchedu
 | Status Date | 28/06/2026 |
 |---|---|
 | Status | **RESOLVED** |
-| Verified By | Antigravity (Kiểm thử tự động bằng Jest - `should prove schedule drift bug in _updatePostSchedules` đã PASS) |
+| Verified By | Antigravity (Kiểm thử tự động Jest Backend - `should prove schedule drift bug in _updatePostSchedules` và Selenium E2E UI - `TC_AUTOLIST_06` & `TC_AUTOLIST_07` đã PASS 100%) |
 | Resolution | Cập nhật logic hàm `_updatePostSchedules` để lấy mốc thời gian đăng của bài viết đã đăng gần nhất (`lastPostedAt` hoặc `publishedAt`) làm mốc `fromDate` tính toán lịch cho bài tiếp theo. Thêm cơ chế phòng vệ nếu mốc cũ quá cũ (lớn hơn 1 interval) thì mới dùng `new Date()` làm mốc fallback. |
