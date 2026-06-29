@@ -86,7 +86,7 @@ class ApiService {
         }
 
         // Xử lý lỗi thông thường (Gộp từ nhánh develop)
-        const message = data?.message || data?.errors?.[0]?.msg || error.message;
+        const message = data?.message || (data?.errors && data.errors[0] ? data.errors[0].msg : null) || error.message;
         const customError = new Error(message);
         customError.status = error.response?.status;
         return Promise.reject(customError);

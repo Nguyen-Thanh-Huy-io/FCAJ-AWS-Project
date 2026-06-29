@@ -50,6 +50,31 @@ class NotificationService {
 
     const data = this._buildCreateData(notificationData);
     const notification = await notificationRepository.create(data);
+    
+    // Broadcast notification via WebSocket SocketManager
+    try {
+      const socketManager = require('../workspace/socket/socket.manager');
+      const { SOCKET_EVENTS } = require('../../utils/socket-constants');
+      if (notification.userId) {
+        socketManager.emitToUser(notification.userId, SOCKET_EVENTS.NOTIFICATION_CREATED, {
+          notificationId: notification.id,
+          title: notification.title,
+          message: notification.message
+        });
+      } else {
+        // Global system notification
+        if (socketManager.io) {
+          socketManager.io.emit(SOCKET_EVENTS.NOTIFICATION_CREATED, {
+            notificationId: notification.id,
+            title: notification.title,
+            message: notification.message
+          });
+        }
+      }
+    } catch (wsErr) {
+      console.error('⚠️ [NotificationService] Real-time websocket dispatch failed:', wsErr.message);
+    }
+
     notificationRealtime.broadcast('notification.created', { notificationId: notification.id });
     return this._formatNotification(notification);
   }
@@ -68,6 +93,15 @@ class NotificationService {
       throw error;
     }
 
+    // Push read receipt over socket
+    try {
+      const socketManager = require('../workspace/socket/socket.manager');
+      const { SOCKET_EVENTS } = require('../../utils/socket-constants');
+      socketManager.emitToUser(userId, SOCKET_EVENTS.NOTIFICATION_READ, { notificationId: id });
+    } catch (wsErr) {
+      console.error('⚠️ [NotificationService] Real-time read status update failed:', wsErr.message);
+    }
+
     notificationRealtime.publishToUser(userId, 'notification.read', { notificationId: id });
     return result;
   }
@@ -79,6 +113,16 @@ class NotificationService {
       ...this._applyReadFilter(this._buildVisibilityWhere(userId, brandId), 'false', userId)
     };
     const result = await notificationRepository.markAllAsRead(where, userId);
+
+    // Push read-all receipt over socket
+    try {
+      const socketManager = require('../workspace/socket/socket.manager');
+      const { SOCKET_EVENTS } = require('../../utils/socket-constants');
+      socketManager.emitToUser(userId, SOCKET_EVENTS.NOTIFICATIONS_READ_ALL, { count: result.count });
+    } catch (wsErr) {
+      console.error('⚠️ [NotificationService] Real-time read-all status update failed:', wsErr.message);
+    }
+
     notificationRealtime.publishToUser(userId, 'notifications.read_all', { count: result.count });
     return result;
   }

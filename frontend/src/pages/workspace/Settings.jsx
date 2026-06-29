@@ -1,20 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { 
   User, Shield, CreditCard, Globe, 
   Mail, Lock, Smartphone, ExternalLink,
   MessageCircle, Send, Paperclip, CheckCircle2, Search,
-  AlertTriangle, Loader2, Plus
+  AlertTriangle, Loader2, Plus, FileText, ChevronRight
 } from "lucide-react";
 import profileService from "../../services/profile.service";
 import apiService from "../../services/api";
 import { toast } from "sonner";
 import { useConfirm } from "@/hooks/useConfirm";
+import { useBrand } from "../../context/BrandContext";
 
 export function SettingsPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const confirm = useConfirm();
+  const { activeBrand } = useBrand();
   const [activeTab, setActiveTab] = useState("account");
 
   // State for form fields
@@ -30,24 +32,58 @@ export function SettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
-  // Chat in settings
-  const [chatInput, setChatInput] = useState("");
-  const [chatMessages, setChatMessages] = useState([
-    { role: "staff", text: "Hello! How can I assist you today?", time: "May 14, 10:00 AM" },
-    { role: "user", text: "I have a question about the Pro plan limits.", time: "May 14, 10:05 AM" },
-    { role: "staff", text: "Of course! The Pro plan allows up to 10 brands and 500 posts per month.", time: "May 14, 10:10 AM" },
-  ]);
+  // Support History Tickets State
+  const [tickets, setTickets] = useState([]);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [ticketMessages, setTicketMessages] = useState([]);
+  const [loadingTickets, setLoadingTickets] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
 
   // Handle tab switching from URL
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const tabParam = params.get("tab");
     
-    if (tabParam === "support") setActiveTab("support");
+    if (tabParam === "support-history") setActiveTab("support-history");
     else if (tabParam === "access") setActiveTab("access");
     else if (tabParam === "billing") setActiveTab("billing");
     else setActiveTab("account");
   }, [location.search]);
+
+  // Fetch support tickets (History)
+  const fetchSupportHistory = async () => {
+    if (!activeBrand) return;
+    setLoadingTickets(true);
+    try {
+      const res = await apiService.get(`/tickets?brandId=${activeBrand.id}`);
+      setTickets(res.data.data || []);
+    } catch (err) {
+      console.error("Error fetching support history:", err);
+      toast.error("Không thể tải lịch sử hỗ trợ");
+    } finally {
+      setLoadingTickets(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "support-history" && activeBrand) {
+      fetchSupportHistory();
+    }
+  }, [activeTab, activeBrand]);
+
+  const loadTicketMessages = async (ticket) => {
+    setSelectedTicket(ticket);
+    setLoadingMessages(true);
+    try {
+      const res = await apiService.get(`/tickets/${ticket.id}`);
+      setTicketMessages(res.data.data?.messages || []);
+    } catch (err) {
+      console.error("Error fetching ticket messages:", err);
+      toast.error("Không thể tải nội dung phiên chat");
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
 
   // Fetch profile data on mount
   useEffect(() => {
@@ -152,130 +188,103 @@ export function SettingsPage() {
     }
   };
 
-  const handleSendMessage = () => {
-    if (!chatInput.trim()) return;
-    setChatMessages([...chatMessages, { role: "user", text: chatInput, time: "Just now" }]);
-    setChatInput("");
-  };
-
   return (
-    <div className="flex-1 overflow-y-auto bg-white font-sans">
-      {/* Settings Header */}
-      <div className="px-10 py-8 border-b border-gray-100">
-        <h1 className="text-2xl font-bold text-[#0A0A0A]">Settings</h1>
-        <p className="text-gray-500 mt-1 font-medium text-sm">Manage your account settings and support interactions.</p>
+    <div className="flex-1 flex flex-col overflow-hidden bg-[#F8F8F7] p-8">
+      {/* Top horizontal navigation instead of a vertical sidebar */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <h1 className="text-lg font-extrabold text-[#0A0A0A] tracking-tight pl-2">Cài đặt hệ thống</h1>
+        
+        <div className="flex flex-wrap gap-1 bg-gray-55/60 p-1 rounded-xl">
+          {[
+            { id: "account", label: "Hồ sơ cá nhân", icon: User },
+            { id: "access", label: "Bảo mật & Đăng nhập", icon: Shield },
+            { id: "support-history", label: "Lịch sử hỗ trợ (Chat)", icon: MessageCircle },
+            { id: "billing", label: "Cổng thanh toán", icon: CreditCard },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isTabActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setSelectedTicket(null);
+                  navigate(`/settings?tab=${tab.id}`, { replace: true });
+                }}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold transition-all ${
+                  isTabActive 
+                    ? "bg-slate-900 text-white shadow-sm" 
+                    : "text-gray-500 hover:text-gray-800 hover:bg-gray-100/50"
+                }`}
+              >
+                <Icon size={14} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Internal Tabs */}
-      <div className="px-10 border-b border-gray-100 flex gap-8 sticky top-0 bg-white z-10">
-        {[
-          { id: "account", label: "Account" },
-          { id: "access", label: "Access" },
-          { id: "support", label: "Support Chat" },
-          { id: "billing", label: "Plans and Billing" },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => navigate(`/settings?tab=${tab.id}`)}
-            data-testid={`settings-tab-${tab.id}`}
-            className="py-4 text-sm font-bold tracking-tight transition-all relative"
-            style={{ color: activeTab === tab.id ? "#0A0A0A" : "#9CA3AF" }}
-          >
-            {tab.label}
-            {activeTab === tab.id && <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#0A0A0A]" />}
-          </button>
-        ))}
-      </div>
-
-      <div className="p-10 max-w-4xl space-y-12">
+      {/* Main Settings Panel */}
+      <div className="flex-1 overflow-y-auto bg-white rounded-3xl border border-gray-100 p-8 shadow-sm">
         {activeTab === "account" && (
-          <div className="space-y-12 animate-in fade-in duration-300">
-            {/* Personal Information */}
-            <section className="space-y-6">
-              <div className="flex items-center gap-2">
-                <User size={18} className="text-gray-400" />
-                <h2 className="text-lg font-bold text-[#0A0A0A]">Personal information</h2>
+          <div className="space-y-10 animate-in fade-in duration-300">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                 <User size={18} className="text-gray-400" />
+                 <h2 className="text-lg font-bold text-[#0A0A0A]">Personal profile</h2>
               </div>
-              {isLoading ? (
-                <div className="grid grid-cols-1 gap-6 animate-pulse">
-                  <div className="space-y-2">
-                    <div className="w-20 h-3 bg-gray-100 rounded" />
-                    <div className="w-full h-11 bg-gray-100 rounded-xl" />
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-6">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Full Name</label>
-                    <input 
-                      value={fullName} 
-                      onChange={(e) => setFullName(e.target.value)} 
-                      data-testid="profile-fullname-input"
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none transition-all text-sm font-medium" 
-                    />
-                  </div>
-                </div>
-              )}
-            </section>
+              <p className="text-sm text-gray-500 leading-relaxed">
+                 Manage your public profile settings and customize how summary metrics are received.
+              </p>
+            </div>
 
-            {/* Preferences */}
-            <section className="space-y-6">
-              <div className="flex items-center gap-2 pt-4">
-                <Globe size={18} className="text-gray-400" />
-                <h2 className="text-lg font-bold text-[#0A0A0A]">Preferences</h2>
-              </div>
-              <div className="grid grid-cols-2 gap-6">
+            <section className="space-y-6 max-w-xl">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Language</label>
-                  <select className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none text-sm bg-white cursor-pointer font-medium">
-                    <option>English</option><option>Vietnamese</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Timezone</label>
-                  <select className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none text-sm bg-white cursor-pointer font-medium">
-                    <option>Asia/Ho_Chi_Minh</option><option>UTC +00:00</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">First day of the week</label>
-                  <select className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none text-sm bg-white cursor-pointer font-medium">
-                    <option>Sunday</option><option>Monday</option>
-                  </select>
-                </div>
-              </div>
-            </section>
-
-            {/* Monthly Summary */}
-            <section className="space-y-6">
-              <div className="flex items-center gap-2 pt-4">
-                <Mail size={18} className="text-gray-400" />
-                <h2 className="text-lg font-bold text-[#0A0A0A]">Monthly summary</h2>
-              </div>
-              <div className="p-6 rounded-2xl bg-gray-50 border border-gray-100 space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-bold text-[#0A0A0A]">Receive monthly summary</div>
-                    <p className="text-xs text-gray-500 mt-0.5">Get a detailed report of your brand's performance every month.</p>
-                  </div>
-                  <div 
-                    onClick={() => setReceiveSummary(!receiveSummary)}
-                    data-testid="toggle-monthly-summary"
-                    className={`w-10 h-6 rounded-full flex items-center p-1 cursor-pointer transition-all ${receiveSummary ? 'bg-green-500' : 'bg-gray-300'}`}
-                  >
-                    <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-all ${receiveSummary ? 'translate-x-4' : 'translate-x-0'}`} />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Custom e-mail for the monthly summary</label>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Full Name</label>
                   <input 
-                    placeholder="Enter email"
-                    value={customSummaryEmail}
-                    onChange={(e) => setCustomSummaryEmail(e.target.value)}
+                    type="text" 
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    data-testid="profile-fullname-input"
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none text-sm font-medium" 
                   />
-                  <p className="text-[10px] text-gray-400 italic">When this field is empty the monthly summary is sent to <b>{email}</b></p>
                 </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">E-mail</label>
+                  <input value={email} disabled className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-450 text-sm font-medium" />
+                </div>
+              </div>
+
+              <div className="p-6 rounded-2xl bg-slate-50 border border-slate-100 space-y-4">
+                 <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                       <CheckCircle2 size={18} className="text-green-600" />
+                       <span className="text-sm font-bold text-[#0A0A0A]">Monthly metrics report</span>
+                    </div>
+                    <div 
+                      onClick={() => setReceiveSummary(!receiveSummary)}
+                      className={`w-10 h-6 rounded-full flex items-center p-1 cursor-pointer transition-all ${receiveSummary ? 'bg-green-600' : 'bg-gray-300'}`}
+                    >
+                      <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-all ${receiveSummary ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </div>
+                 </div>
+                 <p className="text-[11px] text-gray-500 leading-relaxed font-medium">
+                    We will send you a monthly analytics report containing reach, content overview, and comparison indices automatically.
+                 </p>
+
+                 <div className="space-y-1.5 pt-2">
+                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Alternative Email (Optional)</label>
+                   <input 
+                     type="email" 
+                     placeholder="Enter destination email address"
+                     value={customSummaryEmail}
+                     onChange={(e) => setCustomSummaryEmail(e.target.value)}
+                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-black outline-none text-sm font-medium" 
+                   />
+                   <p className="text-[10px] text-gray-400 italic">When this field is empty the monthly summary is sent to <b>{email}</b></p>
+                 </div>
               </div>
             </section>
 
@@ -394,22 +403,6 @@ export function SettingsPage() {
               </div>
 
               <div className="space-y-3 max-w-xl">
-                {/* Local Email/Password Method */}
-                <div className="flex items-center justify-between p-4 rounded-2xl border border-gray-100 bg-white shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-gray-50 rounded-xl">
-                      <Mail size={18} className="text-gray-600" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-bold text-[#0A0A0A]">Email & Mật khẩu</div>
-                      <div className="text-xs text-gray-400 font-medium mt-0.5">{email}</div>
-                    </div>
-                  </div>
-                  <span className="px-3 py-1 bg-green-50 text-green-700 text-[10px] font-black uppercase tracking-wider rounded-lg border border-green-100">
-                    Đang hoạt động
-                  </span>
-                </div>
-
                 {/* Google OAuth Method */}
                 <div className="flex items-center justify-between p-4 rounded-2xl border border-gray-100 bg-white shadow-sm">
                   <div className="flex items-center gap-3">
@@ -453,42 +446,91 @@ export function SettingsPage() {
           </div>
         )}
 
-        {activeTab === "support" && (
+        {/* TAB SUPPORT HISTORY (Archived Ticket support chat sessions) */}
+        {activeTab === "support-history" && (
           <div className="space-y-6 animate-in fade-in duration-300">
              <div>
-                <h2 className="text-lg font-bold text-[#0A0A0A]">Support History</h2>
-                <p className="text-sm text-gray-500 mt-1">Review your conversations with our support team.</p>
+                <h2 className="text-lg font-bold text-[#0A0A0A]">Lịch sử hỗ trợ (Chat)</h2>
+                <p className="text-sm text-gray-500 mt-1">Xem lại tất cả các phiên chat hỗ trợ kỹ thuật trước đây đã được hoàn thành.</p>
              </div>
 
-             <div className="border border-gray-100 rounded-3xl overflow-hidden flex flex-col h-[500px] bg-gray-50/50 shadow-inner">
-                <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                   {chatMessages.map((msg, i) => (
-                     <div key={i} data-testid="chat-message" className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[75%] p-4 rounded-2xl text-sm ${msg.role === 'user' ? 'bg-[#0A0A0A] text-white rounded-tr-none' : 'bg-white text-gray-700 shadow-sm border border-gray-100 rounded-tl-none'}`}>
-                           {msg.text}
-                           <div className={`text-[9px] mt-1.5 ${msg.role === 'user' ? 'text-white/40' : 'text-gray-400'}`}>{msg.time}</div>
-                        </div>
-                     </div>
-                   ))}
+             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 min-h-[500px]">
+                {/* Left ticket list */}
+                <div className="md:col-span-4 bg-white rounded-3xl border border-gray-150 p-4 space-y-2 max-h-[500px] overflow-y-auto">
+                   <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2 mb-3">Các phiên đã đóng</h3>
+                   {loadingTickets ? (
+                     <div className="flex items-center justify-center p-8"><Loader2 className="animate-spin text-gray-400" size={20} /></div>
+                   ) : tickets.length === 0 ? (
+                     <div className="text-xs text-gray-400 text-center py-8">Chưa có phiên hỗ trợ nào.</div>
+                   ) : (
+                     tickets.map((t) => (
+                       <button
+                         key={t.id}
+                         onClick={() => loadTicketMessages(t)}
+                         className={`w-full text-left p-3 rounded-2xl border transition-all flex items-center justify-between ${
+                           selectedTicket?.id === t.id 
+                             ? "bg-slate-50 border-slate-300/80 shadow-sm" 
+                             : "border-transparent hover:bg-slate-50/50"
+                         }`}
+                       >
+                         <div className="min-w-0">
+                           <div className="text-xs font-bold text-[#0A0A0A] truncate">{t.subject}</div>
+                           <div className="text-[9px] text-gray-400 mt-0.5 font-mono">Phiên: {t.id.substring(0, 8)}</div>
+                         </div>
+                         <ChevronRight size={14} className="text-gray-400 shrink-0" />
+                       </button>
+                     ))
+                   )}
                 </div>
-                <div className="p-4 bg-white border-t border-gray-100">
-                   <div className="flex gap-2">
-                      <input 
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                        placeholder="Type your message..." 
-                        data-testid="support-chat-input"
-                        className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-black outline-none text-sm transition-all" 
-                      />
-                      <button 
-                        onClick={handleSendMessage} 
-                        data-testid="support-chat-send-btn"
-                        className="p-2.5 bg-[#0A0A0A] text-white rounded-xl hover:bg-gray-800 transition-all"
-                      >
-                         <Send size={18} />
-                      </button>
-                   </div>
+
+                {/* Right ticket messages box (Read-only view) */}
+                <div className="md:col-span-8 bg-white rounded-3xl border border-gray-150 overflow-hidden flex flex-col h-[500px] shadow-sm">
+                   {selectedTicket ? (
+                     <>
+                       {/* Box Header */}
+                       <div className="bg-[#2D1D35]/5 p-4 border-b border-gray-150 flex items-center justify-between">
+                         <div>
+                           <div className="text-xs font-bold text-[#0A0A0A]">{selectedTicket.subject}</div>
+                           <div className="text-[9px] text-gray-400 mt-0.5">Trạng thái: <span className="text-green-600 font-bold uppercase">{selectedTicket.status}</span> · Đóng ngày: {new Date(selectedTicket.updatedAt).toLocaleDateString()}</div>
+                         </div>
+                       </div>
+                       
+                       {/* Messages content (Locked only readable) */}
+                       <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50/20">
+                         {loadingMessages ? (
+                           <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin text-gray-400" size={24} /></div>
+                         ) : (
+                           ticketMessages.map((msg) => {
+                             const isUser = msg.senderId === selectedTicket.userId;
+                             return (
+                               <div key={msg.id} className={`flex ${!isUser ? 'justify-start' : 'justify-end'}`}>
+                                 <div className={`max-w-[80%] p-3.5 rounded-2xl text-xs leading-relaxed ${
+                                   isUser 
+                                     ? 'bg-[#2D1D35] text-white rounded-tr-none shadow-sm' 
+                                     : 'bg-white text-gray-700 shadow-sm border border-gray-150 rounded-tl-none'
+                                 }`}>
+                                   <div>{msg.content}</div>
+                                   <div className={`text-[8px] mt-1.5 font-medium ${isUser ? 'text-white/40' : 'text-gray-400'}`}>
+                                     {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                   </div>
+                                 </div>
+                               </div>
+                             );
+                           })
+                         )}
+                       </div>
+                       
+                       {/* Disabled Input Info footer */}
+                       <div className="p-4 bg-gray-50 border-t border-gray-150 text-center text-[10px] text-gray-400 font-bold tracking-wider uppercase">
+                         Đây là lịch sử lưu trữ. Cuộc hội thoại này đã đóng.
+                       </div>
+                     </>
+                   ) : (
+                     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-gray-400 gap-2">
+                       <FileText size={32} className="opacity-50" />
+                       <div className="text-xs">Chọn một phiên hỗ trợ đã đóng ở Sidebar bên trái để xem lại lịch sử chi tiết.</div>
+                     </div>
+                   )}
                 </div>
              </div>
           </div>

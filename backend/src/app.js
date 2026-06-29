@@ -129,12 +129,15 @@ app.use('/api/search', searchRoutes);
 app.use('/api/livestreams', (_req, res) => {
   res.status(503).json({ message: 'Livestream feature is temporarily disabled' });
 });
+const ticketRoutes = require('./routes/workspace/ticket.routes');
+
 app.use('/api/posts', postRoutes);
 app.use('/api/media', mediaLibraryRoutes);
 app.use('/api/media-folders', mediaFolderRoutes);
 app.use('/api/team', teamRoutes);
 app.use('/api/inbox', inboxRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/tickets', ticketRoutes);
 app.use('/api/admin/revenue', revenueRoutes);
 app.use('/api/admin/products', productRoutes);
 app.use('/api/admin/platform-limits', platformLimitRoutes);
