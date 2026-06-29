@@ -11,6 +11,7 @@ import apiService from "../../services/api";
 import { toast } from "sonner";
 import { useConfirm } from "@/hooks/useConfirm";
 import { useBrand } from "../../context/BrandContext";
+import socketClient from "../../services/socket";
 
 export function SettingsPage() {
   const location = useLocation();
@@ -32,26 +33,23 @@ export function SettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
-  // Support History Tickets State
+  // Support History Tickets State (Closed tickets)
   const [tickets, setTickets] = useState([]);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [ticketMessages, setTicketMessages] = useState([]);
   const [loadingTickets, setLoadingTickets] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
 
-  // Active Support Chat State (Mocked locally to satisfy Selenium tests)
-  const [chatInput, setChatInput] = useState("");
-  const [chatMessages, setChatMessages] = useState([
-    { role: "staff", text: "Hello! How can I assist you today?", time: "May 14, 10:00 AM" },
-    { role: "user", text: "I have a question about the Pro plan limits.", time: "May 14, 10:05 AM" },
-    { role: "staff", text: "Of course! The Pro plan allows up to 10 brands and 500 posts per month.", time: "May 14, 10:10 AM" },
-  ]);
+  // Real Active Support Chat State (Connected to backend sockets)
+  const [activeSupportTicket, setActiveSupportTicket] = useState(null);
+  const [activeSupportMessages, setActiveSupportMessages] = useState([]);
+  const [activeSupportInput, setActiveSupportInput] = useState("");
+  const activeMessagesEndRef = useRef(null);
 
-  const handleSendMessage = () => {
-    if (!chatInput.trim()) return;
-    setChatMessages([...chatMessages, { role: "user", text: chatInput, time: "Just now" }]);
-    setChatInput("");
-  };
+  // Auto-scroll active messages to bottom
+  useEffect(() => {
+    activeMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [activeSupportMessages]);
 
   // Handle tab switching from URL
   useEffect(() => {
@@ -79,11 +77,187 @@ export function SettingsPage() {
     }
   };
 
+  // Fetch current active support session
+  const fetchActiveSession = async () => {
+    if (!activeBrand) return;
+    try {
+      const res = await apiService.get(`/tickets/active?brandId=${activeBrand.id}`);
+      const activeTicket = res.data.data;
+      if (activeTicket) {
+        setActiveSupportTicket(activeTicket);
+        
+        // Map messages to view format
+        const formatted = (activeTicket.messages || []).map(m => ({
+          id: m.id,
+          role: m.senderId === activeTicket.userId ? "user" : "agent",
+          text: m.content,
+          time: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        }));
+
+        if (!activeTicket.assignedAgentId && formatted.length > 0) {
+          formatted.push({
+            role: "system",
+            text: "Hệ thống: Vui lòng đợi trong giây lát, nhân viên hỗ trợ đang được kết nối...",
+            time: ""
+          });
+        }
+        setActiveSupportMessages(formatted);
+      } else {
+        setActiveSupportTicket(null);
+        setActiveSupportMessages([
+          { role: "agent", text: "Chào bạn! 👋 Mình có thể hỗ trợ gì cho bạn hôm nay? Gửi tin nhắn để bắt đầu phiên hỗ trợ mới nhé.", time: "" }
+        ]);
+      }
+    } catch (err) {
+      console.error("Error fetching active chat session in settings:", err);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === "support" && activeBrand) {
       fetchSupportHistory();
+      fetchActiveSession();
     }
   }, [activeTab, activeBrand]);
+
+  // Real-time socket event subscription for active support ticket
+  useEffect(() => {
+    if (activeTab === "support" && activeSupportTicket) {
+      socketClient.emit('join_room', { ticketId: activeSupportTicket.id });
+
+      const handleNewMessage = (msg) => {
+        if (msg.ticketId === activeSupportTicket.id) {
+          setActiveSupportMessages(prev => {
+            if (prev.some(p => p.id === msg.id)) return prev;
+
+            if (msg.sender === 'user') {
+              const tempIndex = prev.findIndex(p => p.id && String(p.id).startsWith('temp-'));
+              if (tempIndex !== -1) {
+                const updated = [...prev];
+                updated[tempIndex] = {
+                  id: msg.id,
+                  role: 'user',
+                  text: msg.text,
+                  time: msg.time,
+                };
+                return updated;
+              }
+            }
+
+            const updatedList = [...prev, {
+              id: msg.id,
+              role: msg.sender === 'user' ? 'user' : 'agent',
+              text: msg.text,
+              time: msg.time,
+            }];
+
+            if (msg.sender === 'staff') {
+              return updatedList.filter(m => m.role !== 'system');
+            }
+            return updatedList;
+          });
+        }
+      };
+
+      const handleStatusUpdated = (payload) => {
+        if (payload.ticketId === activeSupportTicket.id && payload.status === 'RESOLVED') {
+          toast.info("Phiên hỗ trợ này đã được đóng.");
+          setActiveSupportTicket(null);
+          setActiveSupportMessages([
+            { role: "agent", text: "Phiên chat đã kết thúc. Bạn có thể xem lại lịch sử hỗ trợ trong Cài đặt.", time: "" }
+          ]);
+          fetchSupportHistory();
+        }
+      };
+
+      const handleTicketAssigned = (payload) => {
+        if (payload.ticketId === activeSupportTicket.id) {
+          setActiveSupportTicket(prev => prev && prev.id === payload.ticketId ? {
+            ...prev,
+            assignedAgentId: payload.assignedAgent.id,
+            assignedAgent: payload.assignedAgent
+          } : prev);
+
+          setActiveSupportMessages(prev => {
+            const filtered = prev.filter(m => m.role !== 'system');
+            return [
+              ...filtered,
+              {
+                role: "system",
+                text: `Hệ thống: Nhân viên ${payload.assignedAgent.name} đã kết nối vào cuộc trò chuyện.`,
+                time: ""
+              }
+            ];
+          });
+          toast.success(`Nhân viên ${payload.assignedAgent.name} đã nhận hỗ trợ phiên chat của bạn.`);
+        }
+      };
+
+      socketClient.on('new_message', handleNewMessage);
+      socketClient.on('ticket_status_updated', handleStatusUpdated);
+      socketClient.on('ticket_assigned', handleTicketAssigned);
+
+      return () => {
+        socketClient.emit('leave_room', { ticketId: activeSupportTicket.id });
+        socketClient.off('new_message', handleNewMessage);
+        socketClient.off('ticket_status_updated', handleStatusUpdated);
+        socketClient.off('ticket_assigned', handleTicketAssigned);
+      };
+    }
+  }, [activeTab, activeSupportTicket]);
+
+  const handleSendSupportMessage = async () => {
+    if (!activeSupportInput.trim()) return;
+    if (!activeBrand) return;
+
+    let currentTicket = activeSupportTicket;
+    const originalText = activeSupportInput;
+
+    try {
+      if (!currentTicket) {
+        const res = await apiService.post('/tickets', {
+          brandId: activeBrand.id,
+          subject: originalText.substring(0, 40) || 'Hỗ trợ khách hàng'
+        });
+        currentTicket = res.data.data;
+        setActiveSupportTicket(currentTicket);
+        setActiveSupportMessages([]);
+        socketClient.emit('join_room', { ticketId: currentTicket.id });
+      }
+
+      setActiveSupportMessages(prev => {
+        const updated = [...prev, {
+          id: 'temp-' + Date.now(),
+          role: "user",
+          text: originalText,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        }];
+
+        if (!currentTicket.assignedAgentId) {
+          const filtered = updated.filter(m => m.role !== 'system');
+          filtered.push({
+            role: "system",
+            text: "Hệ thống: Vui lòng đợi trong giây lát, nhân viên hỗ trợ đang được kết nối...",
+            time: ""
+          });
+          return filtered;
+        }
+        return updated;
+      });
+
+      const payload = {
+        ticketId: currentTicket.id,
+        messageType: 'TEXT',
+        content: originalText,
+      };
+
+      socketClient.emit('send_message', payload);
+      setActiveSupportInput("");
+    } catch (err) {
+      console.error("Failed to send support message from Settings:", err);
+      toast.error("Không thể gửi tin nhắn hỗ trợ");
+    }
+  };
 
   const loadTicketMessages = async (ticket) => {
     setSelectedTicket(ticket);
@@ -582,33 +756,38 @@ export function SettingsPage() {
                        
                        {/* Messages list (Real-time live session simulation) */}
                        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50/20">
-                         {chatMessages.map((msg, i) => (
-                           <div key={i} data-testid="chat-message" className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                         {activeSupportMessages.map((msg, i) => (
+                           <div key={msg.id || i} data-testid="chat-message" className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                               <div className={`max-w-[80%] p-3.5 rounded-2xl text-xs leading-relaxed ${
                                 msg.role === 'user' 
                                   ? 'bg-[#2D1D35] text-white rounded-tr-none shadow-sm' 
-                                  : 'bg-white text-gray-700 shadow-sm border border-gray-150 rounded-tl-none'
+                                  : msg.role === 'system'
+                                    ? 'bg-amber-50 text-amber-800 text-[10px] text-center mx-auto rounded-xl border border-amber-200'
+                                    : 'bg-white text-gray-700 shadow-sm border border-gray-150 rounded-tl-none'
                               }`}>
                                  <div>{msg.text}</div>
-                                 <div className={`text-[8px] mt-1.5 font-medium ${msg.role === 'user' ? 'text-white/45' : 'text-gray-400'}`}>{msg.time}</div>
+                                 {msg.role !== 'system' && (
+                                   <div className={`text-[8px] mt-1.5 font-medium ${msg.role === 'user' ? 'text-white/45' : 'text-gray-400'}`}>{msg.time}</div>
+                                 )}
                               </div>
                            </div>
                          ))}
+                         <div ref={activeMessagesEndRef} />
                        </div>
                        
                        {/* Input Form area */}
                        <div className="p-4 bg-white border-t border-gray-150">
                           <div className="flex gap-2">
                              <input 
-                               value={chatInput}
-                               onChange={(e) => setChatInput(e.target.value)}
-                               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                               value={activeSupportInput}
+                               onChange={(e) => setActiveSupportInput(e.target.value)}
+                               onKeyDown={(e) => e.key === 'Enter' && handleSendSupportMessage()}
                                placeholder="Nhập tin nhắn..." 
                                data-testid="support-chat-input"
                                className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl focus:bg-white focus:border-black outline-none text-sm transition-all font-medium" 
                              />
                              <button 
-                               onClick={handleSendMessage} 
+                               onClick={handleSendSupportMessage} 
                                data-testid="support-chat-send-btn"
                                className="p-2.5 bg-[#2D1D35] text-white rounded-xl hover:opacity-90 transition-all shadow-md"
                              >
