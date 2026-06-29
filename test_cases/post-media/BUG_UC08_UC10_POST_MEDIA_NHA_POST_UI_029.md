@@ -1,5 +1,5 @@
 ID number
-BUG_UC10_POST_MEDIA_NHA_09
+BUG_UC08_UC10_POST_MEDIA_NHA_POST_UI_029
 Name
 POST_MEDIA - Máy chủ bị dừng hoạt động khi người dùng tải lên tệp video không hợp lệ (PC-57)
 Reporter
@@ -26,12 +26,12 @@ Priority
 High
 
 Description
-Khi người dùng tạo một bài đăng YouTube và đính kèm tải lên một tệp tin video bị lỗi (ví dụ tệp video giả lập chỉ có kích thước vài bytes và không chứa nội dung giải mã video hợp lệ), hệ thống xử lý tệp tin ở máy chủ gặp lỗi ngoại lệ nhưng không được xử lý an toàn. Lỗi này làm cho ứng dụng máy chủ bị sập đột ngột, dẫn đến việc toàn bộ người dùng khác đang làm việc trên hệ thống bị mất phiên đăng nhập và bị đẩy ra màn hình đăng nhập.
+Khi người dùng tạo một bài đăng YouTube và đính kèm tải lên một tệp tin video bị lỗi (ví dụ tệp video giả lập chỉ có kích thước vài bytes và không chứa nội dung giải mã video hợp lệ), hệ thống xử lý tệp tin ở máy chủ gặp lỗi ngoại lệ nhưng không được xử lý an sau. Lỗi này làm cho ứng dụng máy chủ bị sập đột ngột, dẫn đến việc toàn bộ người dùng khác đang làm việc trên hệ thống bị mất phiên đăng nhập và bị đẩy ra màn hình đăng nhập.
 
 Steps to reproduce
-1. Mở tính năng tạo bài viết mới và chọn nền tảng YouTube.
-2. Chọn đính kèm và tải lên một tệp tin video giả lập hoặc tệp bị hỏng (kích thước vài bytes không có định dạng nén video hợp lệ).
-3. Bấm xác nhận gửi để lưu bài viết.
+1. Đăng nhập hệ thống, mở tính năng tạo bài viết mới "Create new post" và chọn nền tảng đăng bài là YouTube.
+2. Thực hiện đính kèm và tải lên tệp tin video không hợp lệ `sample_video.mp4` (kích thước 24 bytes không có nội dung giải mã video hợp lệ).
+3. Nhập caption cho bài viết, chọn chế độ xuất bản là Draft (Lưu nháp), và nhấn nút đăng bài (Submit).
 4. Quan sát trạng thái hoạt động của máy chủ hệ thống.
 
 Expected result

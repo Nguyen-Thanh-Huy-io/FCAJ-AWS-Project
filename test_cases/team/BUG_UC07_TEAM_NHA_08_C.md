@@ -29,9 +29,9 @@ Description
 Khi một thành viên thuộc vai trò tùy chỉnh đã bị tắt quyền "Xem báo cáo (View Analytics)", việc truy cập giao diện Báo cáo trên ứng dụng bị chặn chính xác. Tuy nhiên, khi gửi trực tiếp yêu cầu lấy dữ liệu tới đường dẫn API thống kê của hệ thống, hệ thống vẫn trả về toàn bộ dữ liệu chỉ số mạng xã hội thay vì chặn lại. Lỗi này có nguy cơ rò rỉ dữ liệu chỉ số của thương hiệu.
 
 Steps to reproduce
-1. Tạo một vai trò tùy chỉnh mới và tắt quyền "Xem báo cáo".
-2. Gán vai trò tùy chỉnh này cho một thành viên và đăng nhập bằng tài khoản của thành viên đó.
-3. Gửi yêu cầu lấy dữ liệu trực tiếp đến đường dẫn API lấy dữ liệu thống kê của thương hiệu.
+1. Đăng nhập bằng tài khoản thành viên bị hạn chế quyền `VIEW_ANALYTICS` (ví dụ: `testmember@gmail.com`).
+2. Truy cập URL `/manage/reports` bằng tài khoản thành viên bị hạn chế quyền và thực hiện thao tác nhấp nút "Load Data" trên giao diện.
+3. Gửi yêu cầu API lấy dữ liệu trực tiếp tới `GET /api/social/metrics?brandId=<brandId>&platform=YOUTUBE` bằng token của thành viên đó.
 4. Kiểm tra phản hồi trả về từ hệ thống.
 
 Expected result

@@ -14,6 +14,14 @@ export const useAuthStore = create((set, get) => ({
       const res = await profileService.getUserProfile();
       if (res && res.data) {
         set({ user: res.data, isAuthenticated: true });
+        // Auto connect socket using a fallback or cookie flow
+        try {
+          const { socketClient } = await import('../services/socket');
+          const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
+          socketClient.connect(token || 'dummy-token-cookie-auth');
+        } catch (sErr) {
+          console.error('Socket connection error:', sErr);
+        }
       } else {
         set({ user: null, isAuthenticated: false });
       }
@@ -61,6 +69,12 @@ export const useAuthStore = create((set, get) => ({
 
   logout: async () => {
     try {
+      try {
+        const { socketClient } = await import('../services/socket');
+        socketClient.disconnect();
+      } catch (sErr) {
+        console.error('Socket disconnect error:', sErr);
+      }
       await authService.logout();
     } finally {
       set({ user: null, isAuthenticated: false });

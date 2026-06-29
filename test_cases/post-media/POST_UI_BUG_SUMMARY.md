@@ -79,7 +79,7 @@ Tất cả các lỗi và phần kịch bản kiểm thử chưa thực thi ban 
 * **Cách khắc phục:** Cập nhật component `MediaDropdown.jsx` sử dụng `useRef` và `useEffect` để tính toán tọa độ qua `getBoundingClientRect()`. Nếu phát hiện tràn phía trên (`rect.top < 0`), hệ thống tự động đổi class định vị thành `top-full mt-2` để mở hướng xuống dưới.
 * **Minh chứng:** ![Dropdown tự động đổi hướng hiển thị trọn vẹn](./screenshots/create_post_modal_1781682373780.png)
 
-### 🐛 [BUG_POST_UI_029](file:///d:/Fullit/projects/PubliCast/test_cases/media_post/BUG_UC08_UC10_POST_MEDIA_NHA_POST_UI_029.md): Backend crash toàn bộ tiến trình khi người dùng tải lên tệp video YouTube không hợp lệ
+### 🐛 [BUG_POST_UI_029](file:///d:/Fullit/projects/PubliCast/test_cases/post-media/BUG_UC08_UC10_POST_MEDIA_NHA_POST_UI_029.md): Backend crash toàn bộ tiến trình khi người dùng tải lên tệp video YouTube không hợp lệ
 * **Trạng thái:** ✅ **RESOLVED**
 * **Nguyên nhân:** Thiếu khối catch exception trong logic tải lên video ở phía server, khiến tiến trình Node.js crash trực tiếp, phá hủy JWT session của tất cả người dùng.
 * **Cách khắc phục:** Cập nhật bộ xử lý lỗi toàn cục trong server.js để bỏ qua việc shutdown (process.exit) đối với lỗi client upload / 400 Bad Request từ Cloudinary API.
