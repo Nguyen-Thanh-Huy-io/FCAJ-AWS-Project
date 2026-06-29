@@ -62,13 +62,19 @@ describe('Profile & Settings Detailed Suite', function () {
 
     it('TC_PROFILE_02 – Verify direct navigation to tabs via URL queries', async function () {
       await driver.get(`${BASE_URL}/settings?tab=support`);
-      await driver.wait(until.elementLocated(By.css('[data-testid="support-chat-input"]')), 10000);
-      const chatInput = await driver.findElement(By.css('[data-testid="support-chat-input"]'));
+      const chatInput = await driver.wait(
+        until.elementLocated(By.css('[data-testid="support-chat-input"]')),
+        10000
+      );
+      await driver.wait(until.elementIsVisible(chatInput), 5000);
       expect(await chatInput.isDisplayed()).to.be.true;
 
       await driver.get(`${BASE_URL}/settings?tab=billing`);
-      await driver.wait(until.elementLocated(By.css('[data-testid="billing-upgrade-btn"]')), 10000);
-      const upgradeBtn = await driver.findElement(By.css('[data-testid="billing-upgrade-btn"]'));
+      const upgradeBtn = await driver.wait(
+        until.elementLocated(By.css('[data-testid="billing-upgrade-btn"]')),
+        10000
+      );
+      await driver.wait(until.elementIsVisible(upgradeBtn), 5000);
       expect(await upgradeBtn.isDisplayed()).to.be.true;
     });
 
