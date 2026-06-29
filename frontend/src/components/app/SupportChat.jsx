@@ -277,7 +277,7 @@ export function SupportChat() {
                 <button 
                   onClick={() => {
                     setIsOpen(false);
-                    navigate('/settings?tab=support-history');
+                    navigate('/settings?tab=support');
                   }} 
                   title="Lịch sử hỗ trợ"
                   className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-white"
