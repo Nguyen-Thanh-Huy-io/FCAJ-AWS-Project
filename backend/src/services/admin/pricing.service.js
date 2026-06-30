@@ -1,6 +1,7 @@
 const planRepository = require('../../repositories/admin/plan.repository');
 const planLimitRepository = require('../../repositories/admin/plan-limit.repository');
-const { ERROR_MESSAGES, BILLING_CYCLES } = require('../../utils/constants');
+const notificationService = require('../core/notification.service');
+const { ERROR_MESSAGES, BILLING_CYCLES, NOTIFICATION_TYPES } = require('../../utils/constants');
 
 /**
  * PricingService - Business Logic Layer
@@ -54,6 +55,11 @@ class PricingService {
       isActive: true
     });
 
+    await this._notifyPricingChange(
+      'Pricing plan created',
+      `Plan "${createdPlan.name}" (${createdPlan.billingCycle}) was created.`
+    );
+
     return this._formatPlanResponse(createdPlan);
   }
 
@@ -75,6 +81,10 @@ class PricingService {
     }
 
     const updatedPlan = await planRepository.update(planId, updateData);
+    await this._notifyPricingChange(
+      'Pricing plan updated',
+      `Plan "${updatedPlan.name}" (${updatedPlan.billingCycle}) was updated.`
+    );
     return this._formatPlanResponse(updatedPlan);
   }
 
@@ -86,7 +96,12 @@ class PricingService {
     if (!plan) throw this._error('Plan not found', 404);
     if (!plan.isActive) throw this._error('Plan already inactive', 400);
 
-    return planRepository.delete(planId);
+    const deactivatedPlan = await planRepository.delete(planId);
+    await this._notifyPricingChange(
+      'Pricing plan deactivated',
+      `Plan "${deactivatedPlan.name}" (${deactivatedPlan.billingCycle}) was deactivated.`
+    );
+    return deactivatedPlan;
   }
 
   /**
@@ -195,6 +210,20 @@ class PricingService {
     if (data.priceAmount === undefined || isNaN(parseFloat(data.priceAmount))) throw this._error('Price numeric required', 400);
     if (!Object.values(BILLING_CYCLES).includes(data.billingCycle?.toUpperCase())) throw this._error('Invalid cycle', 400);
     if (!data.planLimitId) throw this._error('Limit ID required', 400);
+  }
+
+  async _notifyPricingChange(title, message) {
+    try {
+      await notificationService.create({
+        type: NOTIFICATION_TYPES.SYSTEM,
+        title,
+        message,
+        isGlobal: true,
+        actionUrl: '/admin/pricing'
+      });
+    } catch (err) {
+      console.error('[PricingService] Failed to create pricing notification:', err.message);
+    }
   }
 }
 

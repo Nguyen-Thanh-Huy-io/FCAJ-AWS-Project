@@ -1,7 +1,8 @@
 const BaseStep = require('../../../../core/pipeline/base.step');
 const postRepository = require('../../../../repositories/workspace/post.repository');
 const autoListRepository = require('../../../../repositories/workspace/auto-list.repository');
-const { POST_STATUS } = require('../../../../utils/constants');
+const notificationService = require('../../../core/notification.service');
+const { POST_STATUS, NOTIFICATION_TYPES } = require('../../../../utils/constants');
 
 class UpdatePostStatusStep extends BaseStep {
   async execute(context) {
@@ -40,9 +41,12 @@ class UpdatePostStatusStep extends BaseStep {
           publishedAt: primaryResult.publishedAt || new Date()
         });
       }
+
+      await this._notifyPublishSuccess(post, results);
     } else {
-      // Handle Failure
       const failureReason = firstFailure ? `${firstFailure.platform}: ${firstFailure.error}` : 'Unknown publishing error';
+
+      // Handle Failure
       if (shouldLoop) {
         await this._handleLoopCycle(post, {
           status: POST_STATUS.FAILED,
@@ -54,6 +58,8 @@ class UpdatePostStatusStep extends BaseStep {
           failureReason
         });
       }
+
+      await this._notifyPublishFailure(post, failureReason);
     }
 
     // Post-Publish: Trigger stats update and rescheduling for AutoLists
@@ -109,6 +115,37 @@ class UpdatePostStatusStep extends BaseStep {
       });
     } catch (err) {
       console.error('[UpdatePostStatusStep] Loop cycle failure:', err.message);
+    }
+  }
+
+  async _notifyPublishSuccess(post, results) {
+    try {
+      const platforms = results.map(r => r.platform).filter(Boolean).join(', ');
+      await notificationService.create({
+        userId: post.createdByUserId,
+        brandId: post.brandId,
+        type: NOTIFICATION_TYPES.CONTENT,
+        title: 'Post published successfully',
+        message: `"${post.title}" was published${platforms ? ` to ${platforms}` : ''}.`,
+        actionUrl: '/planner'
+      });
+    } catch (err) {
+      console.error('[UpdatePostStatusStep] Failed to create publish success notification:', err.message);
+    }
+  }
+
+  async _notifyPublishFailure(post, failureReason) {
+    try {
+      await notificationService.create({
+        userId: post.createdByUserId,
+        brandId: post.brandId,
+        type: NOTIFICATION_TYPES.CONTENT,
+        title: 'Post publishing failed',
+        message: `"${post.title}" could not be published. ${failureReason}`,
+        actionUrl: '/planner'
+      });
+    } catch (err) {
+      console.error('[UpdatePostStatusStep] Failed to create publish failure notification:', err.message);
     }
   }
 }

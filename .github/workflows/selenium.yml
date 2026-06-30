@@ -2,9 +2,9 @@ name: Selenium UI Automation Tests
 
 on:
   push:
-    branches: [ main, master, feature/** ]
+    branches: [ main, master, develop, "feature/**", "bugfix/**", "bug/**", "bug/*" ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, master, develop ]
 
 jobs:
   selenium-tests:
@@ -68,6 +68,7 @@ jobs:
         run: |
           npm install
           npx prisma db push
+          node prisma/seed.js
 
       - name: Start Backend Server
         working-directory: backend
@@ -79,6 +80,7 @@ jobs:
         working-directory: frontend
         run: |
           npm install
+          echo "VITE_API_BASE_URL=http://localhost:3000/api" > .env
           npm run dev &
 
       - name: Install Chrome
@@ -91,14 +93,56 @@ jobs:
         run: |
           npm install
 
-      - name: Run Selenium Tests
+      - name: Wait for Frontend and Backend to be Ready
+        run: |
+          npx wait-on -t 60000 http://localhost:5173/login http://localhost:3000/health || echo "Services might not support health endpoint, continuing..."
+
+      - name: Setup Selenium Test .env
         working-directory: test_selenium
         run: |
-          node test_simple.js
+          echo "ADMIN_EMAIL=vothanhnha26@gmail.com" > .env
+          echo "ADMIN_PASSWORD=nhacc123@" >> .env
+          echo "MEMBER_EMAIL=vothanhnha26@gmail.com" >> .env
+          echo "MEMBER_PASSWORD=nhacc123@" >> .env
+          echo "BASE_URL=http://localhost:5173" >> .env
+          echo "API_URL=http://localhost:3000" >> .env
+          echo "MYSQL_URL=mysql://root:root_password@localhost:3307/publicast" >> .env
+          echo "REDIS_URL=redis://localhost:6379" >> .env
+
+      - name: Run Full Selenium Test Suite
+        if: ${{ !startsWith(github.ref_name, 'bug/PC-53') && !startsWith(github.ref_name, 'bug/PC-54') && !startsWith(github.ref_name, 'bug/PC-55') && !startsWith(github.ref_name, 'bug/PC-56') && !startsWith(github.ref_name, 'bugfix/PC-56') }}
+        working-directory: test_selenium
+        run: |
+          npm run test:brand
+          npm run test:auth-suite
+          npm run test:profile
+          npm run test:post-creator
+
+      - name: Run YouTube Dashboard Tests (PC-53 branch only)
+        if: ${{ startsWith(github.ref_name, 'bug/PC-53') }}
+        working-directory: test_selenium
+        run: |
+          npm run test:youtube-dashboard
+
+      - name: Run Team Management Tests (PC-54 and PC-55 branches)
+        if: ${{ startsWith(github.ref_name, 'bug/PC-54') || startsWith(github.ref_name, 'bug/PC-55') }}
+        working-directory: test_selenium
+        run: |
+          npm run test:team-management
+
+      - name: Run General Dashboard Tests (PC-56 branch only)
+        if: ${{ startsWith(github.ref_name, 'bug/PC-56') || startsWith(github.ref_name, 'bugfix/PC-56') }}
+        working-directory: test_selenium
+        run: |
+          npm run test:general-dashboard
 
       - name: Upload Test Screenshots
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: selenium-screenshots
-          path: test_cases/auth/screenshots/
+          path: |
+            test_cases/auth/screenshots/
+            test_selenium/dashboard/error_*.png
+            test_selenium/team/error_*.png
+            test_selenium/error_*.png

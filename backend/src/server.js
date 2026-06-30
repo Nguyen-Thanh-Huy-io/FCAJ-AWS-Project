@@ -5,8 +5,34 @@ const prisma = require('./config/prisma');
 
 const PORT = parseInt(process.env.PORT, 10) || 3000;
 
+const socketManager = require('./services/workspace/socket/socket.manager');
+
 const server = app.listen(PORT, async () => {
   logger.info('Server started', { port: PORT, env: process.env.NODE_ENV || 'development' });
+
+  // Initialize SocketManager with HTTP server and CORS configuration matching app.js
+  const ALLOWED_ORIGINS = (process.env.CORS_ALLOWED_ORIGINS || '')
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean);
+
+  const corsOptions = {
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      const isLocalhost = origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1');
+      const isAllowed = isLocalhost || ALLOWED_ORIGINS.includes(origin);
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+  };
+
+  socketManager.init(server, corsOptions);
 
   // Seed default system permissions
   const { seedSystemPermissions } = require('./config/seeder');
@@ -53,12 +79,22 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 
 // ── Uncaught Exception / Rejection Handlers ────────────────────────────────
 process.on('uncaughtException', (err) => {
-  logger.error('Uncaught Exception — shutting down', err);
+  logger.error('Uncaught Exception', err);
+  // Không kết thúc tiến trình đối với các lỗi tải lên không hợp lệ hoặc lỗi kết nối Cloudinary thứ cấp
+  if (err && (err.http_code === 400 || err.statusCode === 400 || (err.message && (err.message.includes('Unsupported video format') || err.message.includes('Cloudinary'))))) {
+    logger.warn('Non-fatal uncaught exception, server will continue running.');
+    return;
+  }
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason) => {
-  logger.error('Unhandled Promise Rejection — shutting down', reason instanceof Error ? { message: reason.message, stack: reason.stack } : reason);
+  logger.error('Unhandled Promise Rejection', reason instanceof Error ? { message: reason.message, stack: reason.stack } : reason);
+  // Không kết thúc tiến trình đối với các lỗi tải lên không hợp lệ hoặc lỗi kết nối Cloudinary thứ cấp
+  if (reason && (reason.http_code === 400 || reason.statusCode === 400 || (reason.message && (reason.message.includes('Unsupported video format') || reason.message.includes('Cloudinary'))))) {
+    logger.warn('Non-fatal unhandled rejection, server will continue running.');
+    return;
+  }
   process.exit(1);
 });
 

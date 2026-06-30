@@ -476,7 +476,7 @@ export function PostCreatorPage() {
                            <div className="flex items-center gap-1.5 relative">
                              <button 
                                type="button"
-                               onClick={() => handlePlatformClick("facebook", hasFacebookAccess, PRODUCT_IDS.FACEBOOK_MANAGEMENT)}
+                               data-testid="platform-select-facebook" onClick={() => handlePlatformClick("facebook", hasFacebookAccess, PRODUCT_IDS.FACEBOOK_MANAGEMENT)}
                                className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
                                  selectedPlatforms.includes('facebook')
                                    ? activePlatform === 'facebook'
@@ -507,7 +507,7 @@ export function PostCreatorPage() {
                            <div className="flex items-center gap-1.5 relative">
                              <button 
                                type="button"
-                               onClick={() => handlePlatformClick("instagram", hasInstagramAccess, PRODUCT_IDS.INSTAGRAM_MANAGEMENT || 'instagram_management')}
+                               data-testid="platform-select-instagram" onClick={() => handlePlatformClick("instagram", hasInstagramAccess, PRODUCT_IDS.INSTAGRAM_MANAGEMENT || 'instagram_management')}
                                className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
                                  selectedPlatforms.includes('instagram')
                                    ? activePlatform === 'instagram'
@@ -536,7 +536,7 @@ export function PostCreatorPage() {
                            <div className="relative">
                              <button 
                                type="button" 
-                               onClick={() => handlePlatformClick("tiktok", hasTiktokAccess, PRODUCT_IDS.TIKTOK_CREATIVE)}
+                               data-testid="platform-select-tiktok" onClick={() => handlePlatformClick("tiktok", hasTiktokAccess, PRODUCT_IDS.TIKTOK_CREATIVE)}
                                className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
                                  selectedPlatforms.includes('tiktok')
                                    ? activePlatform === 'tiktok'
@@ -565,7 +565,7 @@ export function PostCreatorPage() {
                            <div className="flex items-center gap-1.5 relative">
                              <button 
                                type="button"
-                               onClick={() => handlePlatformClick("youtube", hasYoutubeAccess, PRODUCT_IDS.YOUTUBE_ANALYTICS)}
+                               data-testid="platform-select-youtube" onClick={() => handlePlatformClick("youtube", hasYoutubeAccess, PRODUCT_IDS.YOUTUBE_ANALYTICS)}
                                className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
                                  selectedPlatforms.includes('youtube')
                                    ? activePlatform === 'youtube'
@@ -594,7 +594,7 @@ export function PostCreatorPage() {
                            <div className="flex items-center gap-1.5 relative">
                              <button 
                                type="button"
-                               onClick={() => handlePlatformClick("linkedin", hasLinkedinAccess, PRODUCT_IDS.LINKEDIN_MANAGEMENT || 'linkedin_management')}
+                               data-testid="platform-select-linkedin" onClick={() => handlePlatformClick("linkedin", hasLinkedinAccess, PRODUCT_IDS.LINKEDIN_MANAGEMENT || 'linkedin_management')}
                                className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
                                  selectedPlatforms.includes('linkedin')
                                    ? activePlatform === 'linkedin'
@@ -671,7 +671,7 @@ export function PostCreatorPage() {
                            <div className="flex items-center gap-1.5 relative">
                              <button 
                                type="button"
-                               onClick={() => handlePlatformClick("threads", true)}
+                               data-testid="platform-select-threads" onClick={() => handlePlatformClick("threads", true)}
                                className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
                                  selectedPlatforms.includes('threads')
                                    ? activePlatform === 'threads'
@@ -704,10 +704,10 @@ export function PostCreatorPage() {
 
                {/* Text Area Card */}
               <div className="border border-gray-200 rounded-[24px] overflow-hidden focus-within:border-black transition-all shadow-sm bg-white relative">
-                  <input type="file" ref={fileInputRef} accept="video/*" onChange={handleVideoChange} className="hidden" />
+                  <input type="file" ref={fileInputRef} accept="video/*,image/*" onChange={handleVideoChange} className="hidden" data-testid="post-file-input" />
                   <textarea ref={textareaRef} 
                     value={caption}
-                    onChange={(e) => setCaption(e.target.value)}
+                    onChange={(e) => setCaption(e.target.value)} data-testid="post-caption-input"
                     className="w-full p-6 text-sm font-medium leading-relaxed outline-none min-h-[350px] resize-none"
                     placeholder="What's on your mind?"
                   />
@@ -744,7 +744,7 @@ export function PostCreatorPage() {
                           <div className="relative">
                             {/* Image Container with aspect ratio and rounded borders */}
                             <div className="w-16 h-16 rounded-2xl overflow-hidden border border-gray-100 shadow-md">
-                              <img src={videoFileUrl} alt="Preview" style={getImageStyle(imageTransform)} className={`w-full h-full object-cover ${getImageFilterClass(imageTransform?.filter)}`} />
+                              <img src={videoFileUrl} alt="Preview" data-testid="post-image-preview" style={getImageStyle(imageTransform)} className={`w-full h-full object-cover ${getImageFilterClass(imageTransform?.filter)}`} />
                             </div>
                             
                             {/* Three dots button */}
@@ -1497,11 +1497,11 @@ export function PostCreatorPage() {
                  <button onClick={closePostCreator} className="px-6 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-500 hover:bg-gray-50 hover:text-black transition-all cursor-pointer">Cancel</button>
                  
                  <div className="flex items-center gap-4">
-                     {!isLibrary && selectedPublishId !== 'now' && (
+                     {!isLibrary && ['schedule', 'review'].includes(selectedPublishId) && (
                        <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-2xl px-5 py-2.5 hover:bg-gray-50 transition-all relative">
                            <Calendar size={18} className="text-gray-400" />
                            <input 
-                             type="datetime-local" 
+                             type="datetime-local" data-testid="post-scheduled-date-input" 
                              value={scheduledDate}
                              onChange={(e) => setScheduledDate(e.target.value)}
                              className="text-[11px] font-bold text-gray-600 uppercase tracking-widest outline-none bg-transparent cursor-pointer border-none p-0"
@@ -1510,7 +1510,7 @@ export function PostCreatorPage() {
                      )}
                     
                      {isLibrary ? (
-                        <button 
+                        <button data-testid="post-submit-btn" 
                           onClick={() => {
                             if (!hasCreatePermission) return;
                             handleCreatePost();
@@ -1526,7 +1526,7 @@ export function PostCreatorPage() {
                         </button>
                      ) : (
                        <div className="flex items-center">
-                          <button 
+                          <button data-testid="post-submit-btn" 
                             onClick={() => {
                               if (!hasCreatePermission) return;
                               handleCreatePost();
@@ -1541,7 +1541,7 @@ export function PostCreatorPage() {
                              {isCreating ? <Loader2 size={16} className="animate-spin" /> : getPublishButtonLabelText()}
                           </button>
                           <div className="relative">
-                             <button 
+                             <button data-testid="post-publish-menu-btn" 
                                onClick={() => {
                                  if (!hasCreatePermission) return;
                                  setShowPublishMenu(!showPublishMenu);
@@ -1562,7 +1562,7 @@ export function PostCreatorPage() {
                                         Bài đã đăng — chỉ có thể chỉnh nội dung
                                       </div>
                                     ) : editablePublishOptions.map((opt) => (
-                                       <button key={opt.id} onClick={() => { setSelectedPublishId(opt.id); setShowPublishMenu(false); }} className={`w-full flex items-center justify-between px-6 py-3 hover:bg-gray-50 transition-all text-left cursor-pointer ${selectedPublishId === opt.id ? 'bg-gray-50' : ''}`}>
+                                       <button key={opt.id} onClick={() => { setSelectedPublishId(opt.id); setShowPublishMenu(false); }} data-testid={`publish-option-${opt.id}`} className={`w-full flex items-center justify-between px-6 py-3 hover:bg-gray-50 transition-all text-left cursor-pointer ${selectedPublishId === opt.id ? 'bg-gray-50' : ''}`}>
                                           <div>
                                              <div className="text-[10px] font-black text-gray-800 uppercase tracking-widest">{opt.label}</div>
                                              <div className="text-[9px] text-gray-400 font-bold">{opt.sub}</div>

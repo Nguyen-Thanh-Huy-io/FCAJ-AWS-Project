@@ -7,12 +7,27 @@
     "test:google": "node test_google.js",
     "test:login": "node test_local_login.js",
     "test:register": "node test_local_register.js",
-    "test:auth-suite": "node test_auth_suite.js"
+    "test:auth-suite": "node test_auth_suite.js",
+    "test:notifications": "node test_notifications.js",
+    "test:brand": "mocha brand/*.spec.js",
+    "test:profile": "mocha profile/*.spec.js",
+    "test:post-creator": "mocha post_creator.spec.js",
+    "test:autolists": "mocha autolists.spec.js --timeout 120000",
+    "test:youtube-dashboard": "mocha dashboard/youtube_dashboard.spec.js --timeout 120000",
+    "test:general-dashboard": "mocha dashboard/general_dashboard.spec.js --timeout 120000",
+    "test:facebook-dashboard": "mocha dashboard/facebook_dashboard.spec.js --timeout 120000",
+    "test:dashboard-all": "mocha dashboard/*.spec.js --timeout 120000",
+    "test:team-management": "mocha team/team_management.spec.js --timeout 120000"
   },
   "dependencies": {
+    "chai": "^4.3.7",
     "dotenv": "^17.4.2",
+    "mocha": "^10.7.3",
     "mysql2": "^3.22.5",
     "redis": "^6.0.0",
     "selenium-webdriver": "^4.18.0"
+  },
+  "devDependencies": {
+    "nock": "^14.0.16"
   }
 }

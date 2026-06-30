@@ -1,7 +1,8 @@
 const socialPlatformFactory = require('./social-platform.factory');
 const socialAccountRepository = require('../../repositories/social/social-account.repository');
 const googleDriveService = require('./google-drive.service');
-const { PLATFORMS } = require('../../utils/constants');
+const notificationService = require('../core/notification.service');
+const { PLATFORMS, NOTIFICATION_TYPES } = require('../../utils/constants');
 
 class SocialService {
   /**
@@ -18,8 +19,9 @@ class SocialService {
         }, ms);
       });
       return Promise.race([promise, timeoutPromise])
-        .catch(err => {
+        .catch(async (err) => {
           console.warn(`[SocialService] Sync failed or timed out: ${err.message}. Using fallback account.`);
+          await this._notifyPlatformSyncFailure(fallback, err);
           return fallback;
         })
         .finally(() => {
@@ -37,6 +39,7 @@ class SocialService {
         );
       } catch (error) {
         console.error(`Failed to sync metrics for ${account.platform} (${account.id}):`, error.message);
+        await this._notifyPlatformSyncFailure(account, error);
         return account; 
       }
     }));
@@ -76,7 +79,37 @@ class SocialService {
    * Disconnect a social account from a brand
    */
   async disconnectAccount(brandId, platform) {
-    return await socialAccountRepository.deleteManyByBrandAndPlatform(brandId, platform);
+    const result = await socialAccountRepository.deleteManyByBrandAndPlatform(brandId, platform);
+    await this._notifyPlatformDisconnected(brandId, platform);
+    return result;
+  }
+
+  async _notifyPlatformDisconnected(brandId, platform) {
+    try {
+      await notificationService.create({
+        brandId,
+        type: NOTIFICATION_TYPES.PLATFORM,
+        title: `${platform} disconnected`,
+        message: `${platform} has been disconnected. Reconnect it to keep publishing and syncing analytics.`,
+        actionUrl: '/manage/connections'
+      });
+    } catch (err) {
+      console.error(`[SocialService] Failed to create ${platform} disconnect notification:`, err.message);
+    }
+  }
+
+  async _notifyPlatformSyncFailure(account, error) {
+    try {
+      await notificationService.create({
+        brandId: account.brandId,
+        type: NOTIFICATION_TYPES.PLATFORM,
+        title: `${account.platform} sync failed`,
+        message: `${account.platform} could not sync analytics. ${error.message || 'Reconnect the platform to continue syncing.'}`,
+        actionUrl: '/manage/connections'
+      });
+    } catch (err) {
+      console.error(`[SocialService] Failed to create ${account.platform} sync failure notification:`, err.message);
+    }
   }
 }
 

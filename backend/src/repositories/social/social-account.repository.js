@@ -986,6 +986,14 @@ class SocialAccountRepository {
     return this._decryptAccount(account);
   }
 
+  async findByPlatformAccountIdAndPlatform(platformAccountId, platform) {
+    const account = await prisma.socialAccount.findFirst({
+      where: { platformAccountId, platform }
+    });
+    return this._decryptAccount(account);
+  }
+
+
   async deleteManyByBrandAndPlatform(brandId, platform) {
     return prisma.socialAccount.deleteMany({
       where: { brandId, platform }

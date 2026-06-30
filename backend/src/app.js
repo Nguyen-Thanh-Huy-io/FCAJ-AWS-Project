@@ -25,7 +25,7 @@ const socialRoutes = require('./routes/social/social.routes');
 const inboxRoutes = require('./routes/social/inbox.routes');
 
 // Routes - Workspace Domain
-const livestreamRoutes = require('./routes/workspace/livestream.routes');
+// const livestreamRoutes = require('./routes/workspace/livestream.routes');
 const postRoutes = require('./routes/workspace/post.routes');
 const mediaLibraryRoutes = require('./routes/workspace/media-library.routes');
 const mediaFolderRoutes = require('./routes/workspace/media-folder.routes');
@@ -126,13 +126,18 @@ app.use('/api', profileRoutes);
 app.use('/api/admin/pricing', pricingRoutes);
 app.use('/api/admin/audit-logs', auditLogRoutes);
 app.use('/api/search', searchRoutes);
-app.use('/api/livestreams', livestreamRoutes);
+app.use('/api/livestreams', (_req, res) => {
+  res.status(503).json({ message: 'Livestream feature is temporarily disabled' });
+});
+const ticketRoutes = require('./routes/workspace/ticket.routes');
+
 app.use('/api/posts', postRoutes);
 app.use('/api/media', mediaLibraryRoutes);
 app.use('/api/media-folders', mediaFolderRoutes);
 app.use('/api/team', teamRoutes);
 app.use('/api/inbox', inboxRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/tickets', ticketRoutes);
 app.use('/api/admin/revenue', revenueRoutes);
 app.use('/api/admin/products', productRoutes);
 app.use('/api/admin/platform-limits', platformLimitRoutes);

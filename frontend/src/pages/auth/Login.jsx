@@ -241,7 +241,7 @@ export function LoginPage({ initialScreen = "login" }) {
                 <form onSubmit={handleLogin} className="flex flex-col gap-4 mb-6">
                   <div>
                     <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#374151", marginBottom: 6 }}>Email address</label>
-                    <input type="email" placeholder="you@company.com" value={email || ""} onChange={(e) => setEmail(e.target.value)}
+                    <input id="email" type="email" placeholder="you@company.com" value={email || ""} onChange={(e) => setEmail(e.target.value)}
                       style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "0.5px solid #E5E7EB", fontSize: 14, outline: "none", height: 46 }} required />
                   </div>
                   <div>
@@ -257,7 +257,7 @@ export function LoginPage({ initialScreen = "login" }) {
                       </button>
                     </div>
                     <div className="relative">
-                      <input type={showPass ? "text" : "password"} placeholder="••••••••" value={password || ""} onChange={(e) => setPassword(e.target.value)}
+                      <input id="password" type={showPass ? "text" : "password"} placeholder="••••••••" value={password || ""} onChange={(e) => setPassword(e.target.value)}
                         style={{ width: "100%", padding: "12px 40px 12px 14px", borderRadius: 10, border: "0.5px solid #E5E7EB", fontSize: 14, outline: "none", height: 46 }} required />
                       <button type="button" onClick={() => setShowPass(!showPass)} style={{ position: "absolute", right: 14, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#9CA3AF" }}>
                         {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -319,13 +319,13 @@ export function LoginPage({ initialScreen = "login" }) {
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#374151", marginBottom: 6 }}>Email Address</label>
-                    <input type="email" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)}
+                    <input id="email" type="email" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)}
                         style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "0.5px solid #E5E7EB", fontSize: 14, outline: "none", height: 46 }} required />
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#374151", marginBottom: 6 }}>Password</label>
                     <div className="relative">
-                      <input type={showPass ? "text" : "password"} placeholder="Min. 8 characters"
+                      <input id="password" type={showPass ? "text" : "password"} placeholder="Min. 8 characters"
                         value={password}
                         onChange={(e) => {
                           setPassword(e.target.value);

@@ -8,6 +8,7 @@ import { useDebounce } from "../../hooks/useDebounce";
 import apiService from "../../services/api";
 import { useBrand } from "../../context/BrandContext";
 import { toast } from "sonner";
+import socketClient from "../../services/socket";
 
 // SOLID Components
 import { ConversationItem, SafeAvatar } from "../../components/inbox/ConversationItem";
@@ -87,6 +88,49 @@ export function InboxPage() {
   useEffect(() => {
     fetchInbox();
   }, [searchParamsString, activeBrand]);
+
+  // Real-time Webhook updates via Socket.io
+  useEffect(() => {
+    if (!activeBrand) return;
+
+    // Join brand room
+    socketClient.emit("join_room", { brandId: activeBrand.id });
+    console.log(`🔌 [InboxPage] Joined socket room for brand: ${activeBrand.id}`);
+
+    const handleNewInboxItem = (data) => {
+      // Check if new item matches the currently selected platform (ignoring case)
+      if (data.platform?.toLowerCase() === platformFilter.toLowerCase()) {
+        console.log("⚡ [InboxPage] Received new inbox item realtime:", data);
+        fetchInbox();
+
+        // If we are currently viewing this thread, refresh the thread messages
+        if (activeConv && (activeConv.id === data.id || activeConv.id === data.parentItemId)) {
+          fetchThread();
+        }
+      }
+    };
+
+    const handleInboxItemDeleted = (data) => {
+      if (data.platformItemId) {
+        console.log("⚡ [InboxPage] Inbox item deleted realtime:", data);
+        fetchInbox();
+        if (activeConv && (activeConv.id === data.id || activeConv.platformItemId === data.platformItemId)) {
+          setActiveConv(null);
+          setThread([]);
+        }
+      }
+    };
+
+    socketClient.on("new_inbox_item", handleNewInboxItem);
+    socketClient.on("inbox_item_deleted", handleInboxItemDeleted);
+
+    return () => {
+      socketClient.emit("leave_room", { brandId: activeBrand.id });
+      socketClient.off("new_inbox_item", handleNewInboxItem);
+      socketClient.off("inbox_item_deleted", handleInboxItemDeleted);
+      console.log(`🔌 [InboxPage] Left socket room for brand: ${activeBrand.id}`);
+    };
+  }, [activeBrand?.id, platformFilter, activeConv?.id]);
 
   // Fetch thread for active conversation
   const fetchThread = async () => {

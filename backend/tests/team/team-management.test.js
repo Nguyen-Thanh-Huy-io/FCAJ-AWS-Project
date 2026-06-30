@@ -62,6 +62,13 @@ jest.mock('../../src/services/core/email.service', () => ({
   sendTeamInvitation: jest.fn().mockResolvedValue(true)
 }));
 
+// Mock Notification Service (bắt buộc mock vì team.service.js đã gọi notificationService)
+jest.mock('../../src/services/core/notification.service', () => ({
+  create: jest.fn().mockResolvedValue({ id: 'notif-mock-id' })
+}));
+
+const notificationService = require('../../src/services/core/notification.service');
+
 describe('Team Management APIs', () => {
   afterEach(() => {
     jest.clearAllMocks();
@@ -154,6 +161,52 @@ describe('Team Management APIs', () => {
       expect(res.body.message).toBe('Đã gửi lời mời thành công');
       expect(res.body.token).toBeDefined();
     });
+
+    it('should create a TEAM notification for the invited user', async () => {
+      const mockBrand = {
+        id: 'brand-1',
+        name: 'My Brand',
+        ownerId: 'operator-id',
+        subscription: { plan: { planLimit: { maxTeamSeats: 5 } } }
+      };
+
+      prisma.brand.findFirst.mockResolvedValue(mockBrand);
+      prisma.team.count.mockResolvedValue(1);
+      prisma.user.findUnique.mockImplementation(async (query) => {
+        if (query.where.id === 'operator-id') return { id: 'operator-id', name: 'Owner' };
+        return null;
+      });
+      prisma.user.create.mockResolvedValue({ id: 'new-user-id', email: 'notify-test@gmail.com' });
+
+      const mockTeam = {
+        id: 'team-notif-id',
+        brandId: 'brand-1',
+        userId: 'new-user-id',
+        role: 'USER',
+        status: 'PENDING',
+        user: { id: 'new-user-id', name: 'notify-test', email: 'notify-test@gmail.com' },
+        invitedBy: { name: 'Owner' }
+      };
+
+      prisma.team.findUnique.mockResolvedValue(mockTeam);
+      prisma.team.create.mockResolvedValue(mockTeam);
+      prisma.team.update.mockResolvedValue(mockTeam);
+      prisma.brand.findUnique.mockResolvedValue(mockBrand);
+      notificationService.create.mockClear();
+
+      await request(app)
+        .post('/api/team/invite')
+        .send({ email: 'notify-test@gmail.com', role: 'User', brandId: 'brand-1' });
+
+      expect(notificationService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'new-user-id',
+          brandId: 'brand-1',
+          type: 'team',
+          title: expect.stringContaining('My Brand')
+        })
+      );
+    });
   });
 
   describe('GET /api/team/invitations/validate', () => {
@@ -235,6 +288,41 @@ describe('Team Management APIs', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.data.role).toBe('Admin');
+    });
+
+    it('should create a TEAM notification for the member whose role was updated', async () => {
+      const mockTeam = {
+        id: 'team-1',
+        brandId: 'brand-1',
+        userId: 'user-1',
+        role: 'USER',
+        status: 'ACTIVE',
+        brand: { ownerId: 'operator-id' }
+      };
+
+      prisma.team.findUnique.mockResolvedValue(mockTeam);
+      prisma.brand.findUnique.mockResolvedValue({ id: 'brand-1', ownerId: 'operator-id' });
+      prisma.customRole.findFirst.mockResolvedValue(null);
+      prisma.team.update.mockResolvedValue({
+        ...mockTeam,
+        role: 'ADMIN',
+        user: { name: 'User One', email: 'user1@gmail.com', avatarUrl: null },
+        invitedBy: { name: 'Owner' }
+      });
+      notificationService.create.mockClear();
+
+      await request(app)
+        .put('/api/team/team-1/role')
+        .send({ role: 'Admin' });
+
+      expect(notificationService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-1',
+          brandId: 'brand-1',
+          type: 'team',
+          title: 'Vai trò của bạn đã được cập nhật'
+        })
+      );
     });
   });
 

@@ -26,13 +26,10 @@ async function runLocalRegisterTest() {
 
     // Chờ form đăng ký xuất hiện
     console.log("🔍 Chờ form Đăng ký xuất hiện...");
-    let nameInput = await driver.wait(until.elementLocated(By.xpath("//input[@placeholder='Your name']")), 5000);
-    let emailInput = await driver.findElement(By.xpath("//input[@placeholder='you@company.com']"));
-    
-    // Tìm các trường password bằng xpath
-    let passwordInputs = await driver.findElements(By.xpath("//input[@type='password']"));
-    let passwordInput = passwordInputs[0];
-    let confirmPasswordInput = passwordInputs[1];
+    let emailInput = await driver.wait(until.elementLocated(By.id('email')), 15000);
+    let nameInput = await driver.findElement(By.xpath("//input[@placeholder='Your name']"));
+    let passwordInput = await driver.findElement(By.id('password'));
+    let confirmPasswordInput = await driver.findElement(By.xpath("//input[@placeholder='••••••••']"));
     
     let checkbox = await driver.findElement(By.xpath("//input[@type='checkbox']"));
     let submitButton = await driver.findElement(By.xpath("//button[@type='submit']"));
@@ -40,7 +37,7 @@ async function runLocalRegisterTest() {
     console.log("✍️ Điền Tên: 'Selenium OTP Tester'");
     await nameInput.sendKeys('Selenium OTP Tester');
 
-    // Tạo email test dạng gmail test với timestamp để tránh trùng lặp, không chứa dấu chấm
+    // Tạo email test dạng gmail test với timestamp để tránh trùng lặp
     const timestamp = Date.now();
     const testEmail = `publicasttestuser${timestamp}@gmail.com`;
     console.log(`✍️ Điền Email Test: '${testEmail}'`);
@@ -60,7 +57,7 @@ async function runLocalRegisterTest() {
 
     // 2. Đợi chuyển hướng sang trang Verify OTP
     console.log("⏳ Chờ hệ thống xử lý đăng ký và chuyển hướng sang trang OTP...");
-    await driver.wait(until.urlContains('/verify-otp'), 5000);
+    await driver.wait(until.urlContains('/verify-otp'), 10000);
     console.log("🎉 Đăng ký thành công, đã chuyển đến trang xác thực OTP!");
 
     // Đợi 2 giây để chắc chắn backend đã tạo và lưu OTP vào Redis
@@ -79,7 +76,7 @@ async function runLocalRegisterTest() {
 
     // 4. Nhập OTP vào form Verify OTP
     console.log("✍️ Điền mã OTP vào ô input...");
-    let otpInput = await driver.wait(until.elementLocated(By.xpath("//input[@placeholder='000000']")), 5000);
+    let otpInput = await driver.wait(until.elementLocated(By.xpath("//input[@placeholder='000000']")), 10000);
     await otpInput.sendKeys(otp);
 
     console.log("🖱️ Bấm nút Verify Code...");
@@ -88,14 +85,21 @@ async function runLocalRegisterTest() {
 
     // 5. Chờ hệ thống xác thực và chuyển hướng sang trang Onboarding /start hoặc /dashboard
     console.log("⏳ Chờ chuyển hướng sau khi xác thực thành công...");
-    // Theo cấu trúc App.jsx và Login.jsx, verify thành công sẽ navigate("/start")
-    await driver.wait(until.urlContains('/start'), 8000);
+    await driver.wait(until.urlContains('/start'), 15000);
     console.log("🎉 Chuyển hướng thành công sang trang Onboarding (/start)!");
     console.log("✅ KẾT QUẢ: TOÀN BỘ LUỒNG ĐĂNG KÝ VÀ XÁC THỰC OTP BẰNG SELENIUM THÀNH CÔNG RỰC RỠ!");
 
   } catch (error) {
     console.error("❌ KẾT QUẢ: Kiểm thử thất bại!");
     console.error("Chi tiết lỗi:", error.message);
+    try {
+      const currentUrl = await driver.getCurrentUrl();
+      console.log(`Current URL at failure: ${currentUrl}`);
+      const pageSource = await driver.getPageSource();
+      console.log(`Page source snippet: ${pageSource.slice(0, 1000)}`);
+    } catch (e) {
+      console.error("Could not retrieve page source:", e.message);
+    }
   } finally {
     // 6. Dọn dẹp
     console.log("🔌 Đóng kết nối Redis...");

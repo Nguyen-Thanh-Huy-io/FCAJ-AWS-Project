@@ -11,6 +11,7 @@ import { useAuth } from "../context/AuthContext";
 import { useBrand } from "../context/BrandContext";
 import { useDebounce } from "../hooks/useDebounce";
 import apiService from "../services/api";
+import { openNotificationStream } from "../utils/notification-stream";
 
 function SettingsDrawer({ isOpen, onClose }) {
   const navigate = useNavigate();
@@ -112,6 +113,7 @@ export function Topbar() {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [selectedSearchIndex, setSelectedSearchIndex] = useState(-1);
   const [isLoading, setIsLoading] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   const debouncedSearch = useDebounce(searchQuery, 300);
 
@@ -168,6 +170,40 @@ export function Topbar() {
 
   const currentPath = location.pathname;
   const isSuperadmin = currentPath.startsWith("/admin");
+
+  useEffect(() => {
+    if (isSuperadmin) return;
+
+    const fetchUnreadNotifications = async () => {
+      try {
+        const response = await apiService.get("/notifications?isRead=false&limit=1");
+        setUnreadNotifications(response.data?.meta?.total || 0);
+      } catch (error) {
+        setUnreadNotifications(0);
+      }
+    };
+
+    fetchUnreadNotifications();
+
+    let stream;
+    try {
+      stream = openNotificationStream();
+      stream.addEventListener("notification.created", fetchUnreadNotifications);
+      stream.addEventListener("notification.read", fetchUnreadNotifications);
+      stream.addEventListener("notifications.read_all", fetchUnreadNotifications);
+      stream.onerror = () => {
+        console.error("Notification stream disconnected");
+      };
+    } catch (error) {
+      console.error("Notification stream error:", error);
+    }
+
+    window.addEventListener("notifications:changed", fetchUnreadNotifications);
+    return () => {
+      stream?.close();
+      window.removeEventListener("notifications:changed", fetchUnreadNotifications);
+    };
+  }, [isSuperadmin, currentPath]);
 
   return (
     <>
@@ -258,7 +294,6 @@ export function Topbar() {
               { icon: <BarChart2 size={18} />, path: "/analytics", label: "Reports", isNew: true },
               { icon: <MessageSquare size={18} />, path: "/manage/inbox", label: "Inbox" },
               { icon: <Calendar size={18} />, path: "/planner", label: "Planning" },
-              { icon: <Radio size={18} />, path: "/live", label: "Livestream" },
               { icon: <Link2 size={18} />, path: "/smartlinks", label: "SmartLinks" },
               { icon: <Zap size={18} />, path: "/ai", label: "AI" },
             ].map((tool, i) => {
@@ -291,7 +326,13 @@ export function Topbar() {
               title="Notifications"
             >
               <Bell size={18} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-[#2D1D35]" />
+              {unreadNotifications > 0 && (
+                <span
+                  className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 bg-red-500 rounded-full border-2 border-[#2D1D35] text-[8px] font-bold text-white flex items-center justify-center"
+                >
+                  {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                </span>
+              )}
             </button>
           )}
 

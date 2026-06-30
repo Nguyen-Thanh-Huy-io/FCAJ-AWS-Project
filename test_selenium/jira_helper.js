@@ -20,7 +20,7 @@ async function reportBugToJira(summary, bugDetails = {}, screenshotPath = null) 
   const JIRA_BASE_URL = process.env.JIRA_BASE_URL;
   const JIRA_USER_EMAIL = process.env.JIRA_USER_EMAIL;
   const JIRA_API_TOKEN = process.env.JIRA_API_TOKEN;
-  const PROJECT_KEY = 'PB';
+  const PROJECT_KEY = 'PB'; // Space key đã được cung cấp
 
   if (!JIRA_BASE_URL || !JIRA_USER_EMAIL || !JIRA_API_TOKEN) {
     console.log('⚠️ Không tìm thấy đầy đủ cấu hình Jira API. Bỏ qua bước tạo Bug.');

@@ -2,6 +2,7 @@ const express = require('express');
 const oauthController = require('../../controllers/social/oauth.controller');
 const youtubeController = require('../../controllers/social/youtube.controller');
 const facebookController = require('../../controllers/social/facebook.controller');
+const facebookWebhookController = require('../../controllers/social/facebook-webhook.controller');
 const tiktokController = require('../../controllers/social/tiktok.controller');
 const instagramController = require('../../controllers/social/instagram.controller');
 const googleDriveController = require('../../controllers/social/google-drive.controller');
@@ -14,6 +15,7 @@ const discordStatsController = require('../../controllers/social/discord-stats.c
 const threadsController = require('../../controllers/social/threads.controller');
 const { verifyAuth } = require('../../middlewares/auth.middleware');
 const { requireFeature } = require('../../middlewares/feature-gate.middleware');
+const checkPermission = require('../../middlewares/permission.middleware');
 const { PRODUCT_IDS } = require('../../utils/constants');
 
 const router = express.Router();
@@ -23,6 +25,8 @@ router.get('/google/url', verifyAuth, oauthController.getGoogleAuthUrl);
 router.get('/google/callback', oauthController.googleCallback);
 router.get('/facebook/url', verifyAuth, oauthController.getFacebookAuthUrl);
 router.get('/facebook/callback', oauthController.facebookCallback);
+router.get('/facebook/webhook', facebookWebhookController.verifyWebhook);
+router.post('/facebook/webhook', facebookWebhookController.handleWebhookEvent);
 router.get('/instagram/url', verifyAuth, oauthController.getInstagramAuthUrl);
 router.get('/instagram/callback', oauthController.instagramCallback);
 router.get('/tiktok/url', verifyAuth, oauthController.getTikTokAuthUrl);
@@ -66,7 +70,7 @@ router.get('/instagram/published-posts', verifyAuth, instagramController.getInst
 router.get('/threads/published-posts', verifyAuth, threadsController.getThreadsPublishedPosts);
 
 // Real-time Metrics
-router.get('/metrics', verifyAuth, socialAnalyticsController.getMetrics);
+router.get('/metrics', verifyAuth, checkPermission('VIEW_ANALYTICS'), socialAnalyticsController.getMetrics);
 
 // YouTube Tracked Videos
 router.post('/youtube/track', verifyAuth, youtubeController.trackYouTubeVideo);

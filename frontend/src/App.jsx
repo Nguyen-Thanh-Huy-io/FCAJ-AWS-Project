@@ -85,7 +85,10 @@ export default function App() {
   useEffect(() => {
     const handleSessionExpired = () => {
       logout();
-      navigate('/login', { replace: true });
+      const publicPaths = ["/", "/login", "/signup", "/verify-otp", "/forgot-password", "/invite"];
+      if (!publicPaths.includes(window.location.pathname)) {
+        navigate('/login', { replace: true });
+      }
     };
     window.addEventListener('SESSION_EXPIRED', handleSessionExpired);
     return () => window.removeEventListener('SESSION_EXPIRED', handleSessionExpired);
@@ -132,9 +135,9 @@ export default function App() {
               {/* Protected Workspace Routes */}
               <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
               <Route path="/dashboard/:platform" element={<ProtectedRoute><PlatformDashboardPage /></ProtectedRoute>} />
-              <Route path="/scheduler" element={<ProtectedRoute><StreamSchedulerPage /></ProtectedRoute>} />
-              <Route path="/live" element={<ProtectedRoute><LiveMonitorPage /></ProtectedRoute>} />
-              <Route path="/live/setup" element={<ProtectedRoute><LiveSetupPage /></ProtectedRoute>} />
+              <Route path="/scheduler" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/live" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/live/setup" element={<Navigate to="/dashboard" replace />} />
               <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
               <Route path="/planner" element={<ProtectedRoute><PlannerLayout /></ProtectedRoute>}>
                 <Route index element={<Navigate to="calendar" replace />} />
@@ -175,7 +178,7 @@ export default function App() {
               {/* Protected Common App Routes */}
               <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/pricing" element={<ProtectedRoute><PricingPage /></ProtectedRoute>} />
-              <Route path="/history" element={<ProtectedRoute><StreamHistoryPage /></ProtectedRoute>} />
+              <Route path="/history" element={<Navigate to="/dashboard" replace />} />
               <Route path="/connect" element={<ProtectedRoute><ConnectPlatformsPage /></ProtectedRoute>} />
               <Route path="/invite" element={<InviteFlow />} />
               <Route path="/s/:slug" element={<PublicSmartLinksPage />} />

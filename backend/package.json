@@ -20,6 +20,7 @@
     "bcryptjs": "^3.0.3",
     "bullmq": "^5.77.3",
     "cloudinary": "^1.41.3",
+    "cookie": "^2.0.0",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
@@ -32,12 +33,17 @@
     "multer": "^2.1.1",
     "multer-storage-cloudinary": "^4.0.0",
     "nodemailer": "^8.0.7",
-    "redis": "^5.12.1"
+    "redis": "^5.12.1",
+    "socket.io": "^4.8.3"
   },
   "devDependencies": {
     "jest": "^29.7.0",
     "nodemon": "^3.1.14",
     "prisma": "^6.19.3",
+    "socket.io-client": "^4.8.3",
     "supertest": "^7.2.2"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   }
 }
