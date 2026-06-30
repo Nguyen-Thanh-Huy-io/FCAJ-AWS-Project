@@ -13,8 +13,13 @@ class NotificationRepository {
         skip,
         take,
         orderBy,
-        // Removed eager loading of readReceipts to avoid Prisma validation error.
-        // The isRead flag is sufficient for UI logic.
+        include: {
+          readReceipts: {
+            where: {
+              userId: viewerUserId || ''
+            }
+          }
+        }
       }),
       prisma.systemNotification.count({ where })
     ]);

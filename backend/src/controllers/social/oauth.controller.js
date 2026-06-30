@@ -166,9 +166,9 @@ class OAuthController {
     const codeVerifier = crypto.randomBytes(32).toString('base64url');
     const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
 
-    // LÃ†Â°u codeVerifier vÃƒÂ o Redis
+    // Lưu codeVerifier vào Redis
     const cacheKey = `tiktok_oauth_verifier:${brandId}`;
-    await redisClient.setEx(cacheKey, 600, codeVerifier); // HÃ¡ÂºÂ¿t hÃ¡ÂºÂ¡n sau 10 phÃƒÂºt
+    await redisClient.setEx(cacheKey, 600, codeVerifier); // Hết hạn sau 10 phút
 
     const url = tiktokGateway.getAuthUrl(SOCIAL_TECHNICAL.TIKTOK_SCOPES, brandId, redirectUri, codeChallenge);
     res.json({ url });
@@ -182,14 +182,14 @@ class OAuthController {
 
     if (!brandId) return res.redirect(`${frontendUrl}/manage/connections?error=brand_id_missing`);
 
-    // LÃ¡ÂºÂ¥y codeVerifier tÃ¡Â»Â« Redis
+    // Lấy codeVerifier từ Redis
     const cacheKey = `tiktok_oauth_verifier:${brandId}`;
     const codeVerifier = await redisClient.get(cacheKey);
     if (!codeVerifier) {
       logger.warn('[TikTok OAuth] PKCE code verifier expired or not found', { brandId });
       return res.redirect(`${frontendUrl}/manage/connections?error=oauth_session_expired`);
     }
-    // XÃƒÂ³a ngay lÃ¡ÂºÂ­p tÃ¡Â»Â©c (Single Use)
+    // Xóa ngay lập tức (Single Use)
     await redisClient.del(cacheKey);
 
     try {

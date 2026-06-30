@@ -151,6 +151,34 @@ async function main() {
     }
   });
 
+  console.log('Seeding Test User...');
+  const testPasswordHash = require('bcryptjs').hashSync('123456aA@', 10);
+  const testUser = await prisma.user.create({
+    data: {
+      id: 'e673a8b3-5edf-4366-b1e1-4400c06eb5dd',
+      email: 'trongphuc91thcsduclap@gmail.com',
+      passwordHash: testPasswordHash,
+      name: 'Nguyễn Trọng Phúc',
+      role: 'OWNER',
+      isActive: true,
+      isEmailVerified: true,
+      settings: {
+        create: {
+          language: 'vi',
+          timezone: 'Asia/Ho_Chi_Minh'
+        }
+      },
+      accounts: {
+        create: [
+          {
+            provider: 'LOCAL',
+            passwordHash: testPasswordHash
+          }
+        ]
+      }
+    }
+  });
+
   // Additional members to populate Team Management page
   const memberSpecialist = await prisma.user.create({
     data: {
@@ -249,6 +277,29 @@ async function main() {
       defaultLanguage: 'vi',
       ownerId: user.id,
       subscriptionId: subscription.id,
+      isActive: true
+    }
+  });
+
+  console.log('Seeding Test Subscription...');
+  const testSubscription = await prisma.subscription.create({
+    data: {
+      planId: proPlan.id,
+      status: 'ACTIVE',
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    }
+  });
+
+  console.log('Seeding Test Brand...');
+  const testBrand = await prisma.brand.create({
+    data: {
+      id: 'af40cc3e-321c-4647-9ac1-dd37967e350c',
+      name: 'Trong Phuc Brand',
+      timezone: 'Asia/Ho_Chi_Minh',
+      defaultLanguage: 'vi',
+      ownerId: testUser.id,
+      subscriptionId: testSubscription.id,
       isActive: true
     }
   });
@@ -791,6 +842,42 @@ async function main() {
         }
       }
     });
+  }
+
+  // Seed Notifications for test user
+  console.log('Seeding mock notifications...');
+  await prisma.notificationReadReceipt.deleteMany({});
+  await prisma.systemNotification.deleteMany({});
+
+  const testUserId = 'e673a8b3-5edf-4366-b1e1-4400c06eb5dd';
+  const testBrandId = 'af40cc3e-321c-4647-9ac1-dd37967e350c';
+
+  for (let i = 0; i < 21; i++) {
+    const category = ['stream', 'content', 'team', 'platform', 'system'][i % 5];
+    const isGlobal = i === 20; // 1 global system notification
+    const daysAgo = Math.floor(i / 3);
+    const createdNotification = await prisma.systemNotification.create({
+      data: {
+        title: `Mock Notification #${i + 1} (${category})`,
+        message: `This is the body description of mock notification #${i + 1}.`,
+        type: category,
+        brandId: isGlobal ? null : testBrandId,
+        userId: isGlobal ? null : testUserId,
+        isGlobal,
+        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000 * daysAgo)
+      }
+    });
+
+    // Mark i % 2 === 0 as read (create read receipt)
+    if (i % 2 === 0) {
+      await prisma.notificationReadReceipt.create({
+        data: {
+          notificationId: createdNotification.id,
+          userId: testUserId,
+          readAt: new Date()
+        }
+      });
+    }
   }
 
   console.log('Seeding completed successfully.');
