@@ -21,11 +21,15 @@ export const useBrandStore = create((set, get) => ({
 
       if (brandList.length > 0) {
         const savedBrandId = selectId || localStorage.getItem(STORAGE_KEYS.ACTIVE_BRAND_ID);
-        const matchedBrand = brandList.find(b => b.id === savedBrandId);
         
-        const currentActive = matchedBrand || brandList[0];
-        set({ activeBrand: currentActive });
-        localStorage.setItem(STORAGE_KEYS.ACTIVE_BRAND_ID, currentActive.id);
+        if (savedBrandId === "NONE") {
+          set({ activeBrand: null });
+        } else {
+          const matchedBrand = brandList.find(b => b.id === savedBrandId);
+          const currentActive = matchedBrand || brandList[0];
+          set({ activeBrand: currentActive });
+          localStorage.setItem(STORAGE_KEYS.ACTIVE_BRAND_ID, currentActive.id);
+        }
       } else {
         set({ activeBrand: null });
         localStorage.removeItem(STORAGE_KEYS.ACTIVE_BRAND_ID);
@@ -45,6 +49,12 @@ export const useBrandStore = create((set, get) => ({
       localStorage.setItem(STORAGE_KEYS.ACTIVE_BRAND_ID, brandId);
       toast.success(`Đã chuyển sang thương hiệu: ${matched.name}`);
     }
+  },
+
+  deselectBrand: () => {
+    set({ activeBrand: null });
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_BRAND_ID, "NONE");
+    toast.success("Đã bỏ chọn thương hiệu");
   },
 
   createBrand: async (brandData) => {

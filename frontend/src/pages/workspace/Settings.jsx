@@ -80,6 +80,19 @@ export function SettingsPage() {
   }, [location.search, navigate]);
 
   const handleSave = async () => {
+    if (!fullName.trim()) {
+      toast.error("Tên không được để trống");
+      return;
+    }
+    
+    if (receiveSummary && customSummaryEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(customSummaryEmail)) {
+        toast.error("Email không đúng định dạng");
+        return;
+      }
+    }
+
     setIsSaving(true);
     try {
       await profileService.editProfile({ fullName });
@@ -131,10 +144,8 @@ export function SettingsPage() {
       toast.error("Vui lòng nhập mật khẩu mới!");
       return;
     }
-    if (newPassword.length < 6) {
-      toast.error("Mật khẩu mới phải có ít nhất 6 ký tự!");
-      return;
-    }
+    // [BUG INJECTED] Removed password length validation check
+    // if (newPassword.length < 6) { ... }
 
     setIsUpdatingPassword(true);
     try {

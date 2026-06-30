@@ -104,7 +104,7 @@ export function Topbar() {
   const location = useLocation();
   const [brandOpen, setBrandOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const { brands, activeBrand, selectBrand } = useBrand();
+  const { brands, activeBrand, selectBrand, deselectBrand } = useBrand();
 
   // Search states
   const [searchQuery, setSearchQuery] = useState("");
@@ -340,6 +340,15 @@ export function Topbar() {
                       {activeBrand?.id === b.id && <Check size={12} />}
                     </button>
                   ))}
+                  {activeBrand && (
+                    <button 
+                      onClick={() => { deselectBrand(); setBrandOpen(false); }} 
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-red-50 text-sm font-medium text-red-600 flex items-center justify-between mt-1"
+                    >
+                      <span>Deselect Brand</span>
+                      <X size={12} />
+                    </button>
+                  )}
                   <div className="h-px bg-gray-100 my-1" />
                   <button 
                     onClick={() => { navigate("/manage/connections?tab=brand-settings"); setBrandOpen(false); }} 

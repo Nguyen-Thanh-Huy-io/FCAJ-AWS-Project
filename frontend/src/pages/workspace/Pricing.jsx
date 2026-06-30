@@ -100,6 +100,7 @@ export function PricingPage() {
   const [openFaq, setOpenFaq] = useState(null);
   const [paymentData, setPaymentData] = useState(null);
   const [loadingPlan, setLoadingPlan] = useState(null);
+  const [addonsList, setAddonsList] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -108,6 +109,9 @@ export function PricingPage() {
         .then(res => setCurrentPlan(res.data.data))
         .catch(console.error);
     }
+    apiService.get('/billing/subscriptions/addons')
+      .then(res => setAddonsList(res.data.data))
+      .catch(console.error);
   }, [activeBrand?.id]);
 
   // currentPlan.planName comes from DB as uppercase (e.g. "PRO", "STARTER")
@@ -149,6 +153,23 @@ export function PricingPage() {
       toast.error(err.message || "Không thể khởi tạo thanh toán.");
     } finally {
       setLoadingPlan(null);
+    }
+  };
+
+  const handleBuyAddon = async (addonId, qty) => {
+    try {
+      if (!activeBrand?.id) {
+        toast.error("Vui lòng chọn Brand");
+        return;
+      }
+      const res = await apiService.post('/billing/subscriptions/addons/initiate', {
+        addonId,
+        brandId: activeBrand.id,
+        quantity: parseInt(qty, 10)
+      });
+      setPaymentData(res.data.data);
+    } catch (err) {
+      toast.error(err.message || "Không thể khởi tạo mua Addon");
     }
   };
 
@@ -355,6 +376,37 @@ export function PricingPage() {
         )}
       </div>
 
+      {/* Addons Section */}
+      {addonsList.length > 0 && (
+        <div style={{ maxWidth: 1000, margin: "0 auto 32px" }}>
+          <h3 style={{ fontSize: 20, fontWeight: 500, color: "#0A0A0A", marginBottom: 16, textAlign: "center" }}>Gói bổ sung (Add-ons)</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+            {addonsList.map((addon) => (
+              <div key={addon.id} style={{ background: "#FFF", border: "0.5px solid #E5E7EB", borderRadius: 12, padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#0A0A0A" }}>{addon.name}</div>
+                  <div style={{ fontSize: 16, fontWeight: 500, color: "#0A0A0A", marginTop: 4 }}>
+                    {addon.priceAmount?.toLocaleString() || addon.price?.toLocaleString()} VND<span style={{ fontSize: 12, color: "#9CA3AF" }}>/mo</span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input type="number" min="1" defaultValue="1" id={`qty-${addon.id}`} style={{ width: 60, padding: "6px 8px", border: "1px solid #E5E7EB", borderRadius: 6 }} />
+                  <button 
+                    onClick={() => {
+                      const qty = document.getElementById(`qty-${addon.id}`).value;
+                      handleBuyAddon(addon.id, qty);
+                    }}
+                    style={{ flex: 1, background: "#0A0A0A", color: "#FFF", borderRadius: 6, fontWeight: 500, fontSize: 13, cursor: "pointer" }}
+                  >
+                    Buy
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* FAQ */}
       <div style={{ maxWidth: 700, margin: "0 auto" }}>
         <h3 style={{ fontSize: 16, fontWeight: 500, color: "#0A0A0A", marginBottom: 16, textAlign: "center" }}>Frequently Asked Questions</h3>
@@ -385,6 +437,7 @@ export function PricingPage() {
           onClose={() => setPaymentData(null)}
           onSuccess={() => {
             setPaymentData(null);
+            setLoadingPlan(null);
             // Optionally refresh user session or redirect
             window.location.reload();
           }}
