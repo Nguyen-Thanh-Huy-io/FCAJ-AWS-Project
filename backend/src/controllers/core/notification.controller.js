@@ -61,7 +61,9 @@ class NotificationController {
       return;
     }
 
-    req.on('close', unsubscribe);
+    res.on('close', () => {
+      unsubscribe();
+    });
   });
 }
 

@@ -5,6 +5,7 @@ import { useFilters } from "../../hooks/useFilters";
 import apiService from "../../services/api";
 import { toast } from "sonner";
 import { openNotificationStream } from "../../utils/notification-stream";
+import { useBrand } from "../../context/BrandContext";
 
 const TYPE_ICONS = {
   stream: <Radio size={14} style={{ color: "#FFF" }} />,
@@ -16,6 +17,7 @@ const TYPE_ICONS = {
 };
 
 export function NotificationsPage() {
+  const { activeBrand } = useBrand();
   const navigate = useNavigate();
   const { filters, updateFilters, clearFilters, searchParamsString } = useFilters({
     category: "all",
@@ -37,7 +39,11 @@ export function NotificationsPage() {
     }
 
     try {
-      const query = searchParamsString ? `?${searchParamsString}` : "";
+      const queryParams = new URLSearchParams(searchParamsString);
+      if (activeBrand?.id && !queryParams.has("brandId")) {
+        queryParams.set("brandId", activeBrand.id);
+      }
+      const query = queryParams.toString() ? `?${queryParams.toString()}` : "";
       const response = await apiService.get(`/notifications${query}`);
       setNotifData(response.data);
       setErrorMessage("");
@@ -52,7 +58,7 @@ export function NotificationsPage() {
         setLoading(false);
       }
     }
-  }, [searchParamsString]);
+  }, [searchParamsString, activeBrand]);
 
   useEffect(() => {
     fetchNotifications();
@@ -64,8 +70,27 @@ export function NotificationsPage() {
       stream = openNotificationStream();
       const refreshSilently = () => fetchNotifications({ silent: true });
       stream.addEventListener("notification.created", refreshSilently);
-      stream.addEventListener("notification.read", refreshSilently);
-      stream.addEventListener("notifications.read_all", refreshSilently);
+      stream.addEventListener("notification.read", (e) => {
+        try {
+          const payload = JSON.parse(e.data);
+          if (payload?.notificationId) {
+            setNotifData(prev => ({
+              ...prev,
+              data: prev.data.map(n => n.id === payload.notificationId ? { ...n, isRead: true } : n)
+            }));
+          }
+        } catch (err) {
+          console.error("Error parsing notification.read payload", err);
+        }
+        refreshSilently();
+      });
+      stream.addEventListener("notifications.read_all", (e) => {
+        setNotifData(prev => ({
+          ...prev,
+          data: prev.data.map(n => ({ ...n, isRead: true }))
+        }));
+        refreshSilently();
+      });
       stream.onerror = () => {
         console.error("Notification stream disconnected");
       };
@@ -80,7 +105,8 @@ export function NotificationsPage() {
 
   const markAsRead = async (id) => {
     try {
-      await apiService.post(`/notifications/${id}/read`);
+      const query = activeBrand?.id ? `?brandId=${activeBrand.id}` : "";
+      await apiService.post(`/notifications/${id}/read${query}`);
       // Optimistic update
       setNotifData(prev => ({
         ...prev,
@@ -94,7 +120,8 @@ export function NotificationsPage() {
 
   const markAllRead = async () => {
     try {
-      await apiService.post(`/notifications/read-all`);
+      const query = activeBrand?.id ? `?brandId=${activeBrand.id}` : "";
+      await apiService.post(`/notifications/read-all${query}`);
       setNotifData(prev => ({
         ...prev,
         data: prev.data.map(n => ({ ...n, isRead: true }))
@@ -162,14 +189,34 @@ export function NotificationsPage() {
             <input
               type="date"
               value={filters.startDate || ""}
-              onChange={(e) => updateFilters({ startDate: e.target.value })}
+              onChange={(e) => {
+                const newStart = e.target.value;
+                if (newStart && filters.endDate && newStart > filters.endDate) {
+                  toast.error("Start date must be before or equal to End date");
+                  return;
+                }
+                updateFilters({ startDate: newStart });
+              }}
               style={{ fontSize: 12, color: "#374151", background: "#FFF", border: "0.5px solid #E5E7EB", borderRadius: 8, padding: "5px 8px" }}
               aria-label="Start date"
             />
             <input
               type="date"
               value={filters.endDate || ""}
-              onChange={(e) => updateFilters({ endDate: e.target.value })}
+              onChange={(e) => {
+                const newEnd = e.target.value;
+                if (newEnd) {
+                  if (!filters.startDate) {
+                    toast.error("Please select a Start date first");
+                    return;
+                  }
+                  if (filters.startDate > newEnd) {
+                    toast.error("Start date must be before or equal to End date");
+                    return;
+                  }
+                }
+                updateFilters({ endDate: newEnd });
+              }}
               style={{ fontSize: 12, color: "#374151", background: "#FFF", border: "0.5px solid #E5E7EB", borderRadius: 8, padding: "5px 8px" }}
               aria-label="End date"
             />
@@ -292,7 +339,7 @@ export function NotificationsPage() {
           </div>
         )}
 
-        {!loading && totalPages > 1 && (
+        {!loading && totalPages >= 1 && (
           <div className="flex items-center justify-between mt-4">
             <span style={{ fontSize: 11, color: "#9CA3AF" }}>
               Page {currentPage} of {totalPages}
