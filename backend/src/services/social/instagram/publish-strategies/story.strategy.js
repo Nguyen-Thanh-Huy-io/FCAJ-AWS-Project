@@ -8,7 +8,8 @@ class StoryPublishStrategy extends InstagramPublishStrategy {
       return { id: `ig_mock_story_${Date.now()}` };
     }
 
-    const mediaUrl = postData.mediaUrl || (postData.mediaUrls && postData.mediaUrls[0]);
+    const rawMediaUrl = postData.mediaUrl || (postData.mediaUrls && postData.mediaUrls[0]);
+    const mediaUrl = this.resolveUrl(rawMediaUrl);
     const isVideo = MEDIA_EXTENSIONS.VIDEO.some(ext => mediaUrl.toLowerCase().endsWith(ext));
 
     const container = await instagramGateway.createStoryContainer(igAccountId, accessToken, mediaUrl, isVideo);

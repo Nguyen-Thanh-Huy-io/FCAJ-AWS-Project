@@ -20,8 +20,17 @@ class SocialService {
       });
       return Promise.race([promise, timeoutPromise])
         .catch(async (err) => {
-          console.warn(`[SocialService] Sync failed or timed out: ${err.message}. Using fallback account.`);
-          await this._notifyPlatformSyncFailure(fallback, err);
+          console.warn(`[SocialService] Sync failed or timed out for ${fallback.platform}: ${err.message}. Using fallback account.`);
+          const errMsg = (err.message || '').toLowerCase();
+          const isNetworkOrTimeout = errMsg.includes('timeout') || 
+                                     errMsg.includes('etimedout') || 
+                                     errMsg.includes('enotfound') || 
+                                     errMsg.includes('econnreset') ||
+                                     errMsg.includes('econnrefused') ||
+                                     errMsg.includes('fetch failed');
+          if (!isNetworkOrTimeout) {
+            await this._notifyPlatformSyncFailure(fallback, err);
+          }
           return fallback;
         })
         .finally(() => {
@@ -39,7 +48,16 @@ class SocialService {
         );
       } catch (error) {
         console.error(`Failed to sync metrics for ${account.platform} (${account.id}):`, error.message);
-        await this._notifyPlatformSyncFailure(account, error);
+        const errMsg = (error.message || '').toLowerCase();
+        const isNetworkOrTimeout = errMsg.includes('timeout') || 
+                                   errMsg.includes('etimedout') || 
+                                   errMsg.includes('enotfound') || 
+                                   errMsg.includes('econnreset') ||
+                                   errMsg.includes('econnrefused') ||
+                                   errMsg.includes('fetch failed');
+        if (!isNetworkOrTimeout) {
+          await this._notifyPlatformSyncFailure(account, error);
+        }
         return account; 
       }
     }));

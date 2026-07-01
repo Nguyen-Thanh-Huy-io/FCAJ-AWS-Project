@@ -40,13 +40,16 @@ class InstagramGateway {
   /**
    * Tạo media container cho hình ảnh đơn lẻ
    */
-  async createImageContainer(igAccountId, accessToken, imageUrl, caption) {
+  async createImageContainer(igAccountId, accessToken, imageUrl, caption, scheduledAt = null) {
     const url = `${this.graphBaseUrl}/${igAccountId}/media`;
     const body = {
       image_url: imageUrl,
       caption: caption || '',
       access_token: accessToken
     };
+    if (scheduledAt) {
+      body.scheduled_publish_time = Math.floor(new Date(scheduledAt).getTime() / 1000);
+    }
 
     const res = await fetch(url, {
       method: 'POST',
@@ -56,6 +59,7 @@ class InstagramGateway {
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
+      console.error('[InstagramGateway] createImageContainer FAILED:', JSON.stringify(errData, null, 2));
       throw new Error(errData.error?.message || 'Failed to create Instagram image container');
     }
 
@@ -65,14 +69,17 @@ class InstagramGateway {
   /**
    * Tạo media container cho video đơn lẻ
    */
-  async createVideoContainer(igAccountId, accessToken, videoUrl, caption) {
+  async createVideoContainer(igAccountId, accessToken, videoUrl, caption, scheduledAt = null) {
     const url = `${this.graphBaseUrl}/${igAccountId}/media`;
     const body = {
-      media_type: 'VIDEO',
+      media_type: 'REELS',
       video_url: videoUrl,
       caption: caption || '',
       access_token: accessToken
     };
+    if (scheduledAt) {
+      body.scheduled_publish_time = Math.floor(new Date(scheduledAt).getTime() / 1000);
+    }
 
     const res = await fetch(url, {
       method: 'POST',
@@ -82,6 +89,7 @@ class InstagramGateway {
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
+      console.error('[InstagramGateway] createVideoContainer FAILED:', JSON.stringify(errData, null, 2));
       throw new Error(errData.error?.message || 'Failed to create Instagram video container');
     }
 
@@ -91,7 +99,7 @@ class InstagramGateway {
   /**
    * Tạo media container cho Reels
    */
-  async createReelContainer(igAccountId, accessToken, videoUrl, caption) {
+  async createReelContainer(igAccountId, accessToken, videoUrl, caption, scheduledAt = null) {
     const url = `${this.graphBaseUrl}/${igAccountId}/media`;
     const body = {
       media_type: 'REELS',
@@ -99,6 +107,9 @@ class InstagramGateway {
       caption: caption || '',
       access_token: accessToken
     };
+    if (scheduledAt) {
+      body.scheduled_publish_time = Math.floor(new Date(scheduledAt).getTime() / 1000);
+    }
 
     const res = await fetch(url, {
       method: 'POST',
@@ -108,6 +119,7 @@ class InstagramGateway {
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
+      console.error('[InstagramGateway] createReelContainer FAILED:', JSON.stringify(errData, null, 2));
       throw new Error(errData.error?.message || 'Failed to create Instagram Reel container');
     }
 
@@ -138,6 +150,7 @@ class InstagramGateway {
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
+      console.error('[InstagramGateway] createStoryContainer FAILED:', JSON.stringify(errData, null, 2));
       throw new Error(errData.error?.message || 'Failed to create Instagram Story container');
     }
 
@@ -169,6 +182,7 @@ class InstagramGateway {
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
+      console.error('[InstagramGateway] createCarouselItemContainer FAILED:', JSON.stringify(errData, null, 2));
       throw new Error(errData.error?.message || 'Failed to create Instagram Carousel Item container');
     }
 
@@ -178,7 +192,7 @@ class InstagramGateway {
   /**
    * Tạo container cha cho Album/Carousel
    */
-  async createCarouselContainer(igAccountId, accessToken, childrenIds, caption) {
+  async createCarouselContainer(igAccountId, accessToken, childrenIds, caption, scheduledAt = null) {
     const url = `${this.graphBaseUrl}/${igAccountId}/media`;
     const body = {
       media_type: 'CAROUSEL',
@@ -186,6 +200,9 @@ class InstagramGateway {
       caption: caption || '',
       access_token: accessToken
     };
+    if (scheduledAt) {
+      body.scheduled_publish_time = Math.floor(new Date(scheduledAt).getTime() / 1000);
+    }
 
     const res = await fetch(url, {
       method: 'POST',
@@ -205,7 +222,7 @@ class InstagramGateway {
    * Kiểm tra trạng thái container (Polling)
    */
   async pollContainerStatus(containerId, accessToken) {
-    const url = `${this.graphBaseUrl}/${containerId}?fields=status_code,error_message&access_token=${accessToken}`;
+    const url = `${this.graphBaseUrl}/${containerId}?fields=status_code,status&access_token=${accessToken}`;
     
     const res = await fetch(url);
     if (!res.ok) {

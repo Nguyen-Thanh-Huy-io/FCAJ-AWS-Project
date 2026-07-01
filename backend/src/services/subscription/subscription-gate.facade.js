@@ -25,9 +25,12 @@ class SubscriptionGateFacade {
 
     const plan = brand.subscription.plan;
     
-    // Google Drive is a premium feature only available on the PRO plan
+    // Google Drive is a premium feature available on PRO and AGENCY plans by default
     if (productId === 'google_drive') {
-      return plan.name && plan.name.trim().toUpperCase() === 'PRO';
+      const planName = plan.name && plan.name.trim().toUpperCase();
+      if (planName === 'PRO' || planName === 'AGENCY') {
+        return true;
+      }
     }
     
     // Verify if the connected products list contains the requested product ID

@@ -189,10 +189,20 @@ class AnalyticsFacade {
       let shares = 0;
       let reachOrViews = 0;
 
-      if (platformUpper === 'FACEBOOK' && post.platformPostId) {
+      let currentPlatformPostId = post.platformPostId;
+      if (post.platformPostId && post.platformPostId.startsWith('{')) {
+        try {
+          const map = JSON.parse(post.platformPostId);
+          currentPlatformPostId = map[platformUpper] || null;
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      if (platformUpper === 'FACEBOOK' && currentPlatformPostId) {
         const fbMetric = await prisma.facebookPostMetric.findFirst({
           where: {
-            platformPostId: post.platformPostId,
+            platformPostId: currentPlatformPostId,
             brandId
           }
         });
@@ -202,10 +212,10 @@ class AnalyticsFacade {
           shares = fbMetric.shares || 0;
           reachOrViews = fbMetric.reach || 0;
         }
-      } else if (platformUpper === 'YOUTUBE' && post.platformPostId) {
+      } else if (platformUpper === 'YOUTUBE' && currentPlatformPostId) {
         const ytMetric = await prisma.trackedVideo.findFirst({
           where: {
-            videoId: post.platformPostId,
+            videoId: currentPlatformPostId,
             brandId
           }
         });

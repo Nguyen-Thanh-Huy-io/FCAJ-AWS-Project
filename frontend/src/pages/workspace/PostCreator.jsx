@@ -1176,8 +1176,8 @@ export function PostCreatorPage() {
                  </div>
                  )}
 
-                 {/* Facebook Presets Accordion (Reel Title) */}
-                 {selectedPlatforms.includes('facebook') && facebookType === 'reel' && (
+                 {/* Facebook Presets Accordion */}
+                 {selectedPlatforms.includes('facebook') && (
                   <div className="border border-gray-100 rounded-3xl overflow-hidden bg-white shadow-sm transition-all duration-300">
                     <div 
                       onClick={() => setFacebookOpen(!facebookOpen)}
@@ -1194,16 +1194,23 @@ export function PostCreatorPage() {
 
                     <div className={`transition-all duration-300 ease-in-out overflow-hidden ${facebookOpen ? 'max-h-[300px] border-t border-gray-50 p-6' : 'max-h-0'}`}>
                       <div className="space-y-4 text-left">
-                        <div>
-                          <label className="block text-[11px] font-bold text-gray-500 uppercase mb-2">Title</label>
-                          <input 
-                            type="text"
-                            value={facebookTitle}
-                            onChange={(e) => setFacebookTitle(e.target.value)}
-                            placeholder="Title"
-                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-xs font-semibold focus:border-black outline-none"
-                          />
-                        </div>
+                        {facebookType === 'reel' ? (
+                          <div>
+                            <label className="block text-[11px] font-bold text-gray-500 uppercase mb-2">Title</label>
+                            <input 
+                              type="text"
+                              value={facebookTitle}
+                              onChange={(e) => setFacebookTitle(e.target.value)}
+                              placeholder="Title"
+                              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-xs font-semibold focus:border-black outline-none"
+                            />
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-gray-400 font-medium leading-normal">
+                            Facebook content will be published as a Facebook {facebookType || 'post'}.
+                            {facebookType === 'story' && " Story links or interactive elements should be customized natively after publication."}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>

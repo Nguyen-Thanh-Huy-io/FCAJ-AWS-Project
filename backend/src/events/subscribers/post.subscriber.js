@@ -18,10 +18,10 @@ const initPostSubscribers = () => {
       }
     } else if (post.status === POST_STATUS.SCHEDULED) {
       try {
-        console.log(`[Event] Checking YouTube Native Scheduling for post ${post.id}`);
-        await postService._handleYouTubeNativeScheduling(post, options);
+        console.log(`[Event] Checking Native Scheduling for post ${post.id}`);
+        await postService._handleNativeScheduling(post, options);
       } catch (err) {
-        console.error(`[Event Error] YouTube Native Scheduling failed for post ${post.id}:`, err.message);
+        console.error(`[Event Error] Native Scheduling failed for post ${post.id}:`, err.message);
       }
     }
   });
@@ -36,10 +36,10 @@ const initPostSubscribers = () => {
       }
     } else if (post.status === POST_STATUS.SCHEDULED) {
       try {
-        console.log(`[Event] Checking YouTube Native Scheduling for updated post ${post.id}`);
-        await postService._handleYouTubeNativeScheduling(post, options);
+        console.log(`[Event] Checking Native Scheduling for updated post ${post.id}`);
+        await postService._handleNativeScheduling(post, options);
       } catch (err) {
-        console.error(`[Event Error] YouTube Native Scheduling failed for updated post ${post.id}:`, err.message);
+        console.error(`[Event Error] Native Scheduling failed for updated post ${post.id}:`, err.message);
       }
     }
   });

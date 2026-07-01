@@ -67,13 +67,54 @@ class InstagramPostService {
   }
 
   async publishPost(brandId, postData) {
+    const { platformPostId, scheduledAt, type, mediaUrls = [] } = postData;
+    console.log(`\n[Instagram] ▶ publishPost | brandId=${brandId} | type=${type} | mediaUrls=${JSON.stringify(mediaUrls)}`);
+
+    // Short-circuit
+    if (platformPostId) {
+      console.log(`[Instagram] Short-circuiting. Post already scheduled with ID: ${platformPostId}`);
+      return { platformVideoId: platformPostId, publishedAt: null };
+    }
+
     const { igAccountId, accessToken } = await this._getAccountCredentials(brandId);
-    const { type, mediaUrls = [] } = postData;
+    console.log(`[Instagram] Credentials OK | igAccountId=${igAccountId} | tokenPrefix=${accessToken?.substring(0, 10)}...`);
+
+    // Check if we can use native scheduling
+    let finalScheduledAt = null;
+    if (scheduledAt) {
+      const diffMs = new Date(scheduledAt).getTime() - Date.now();
+      // Meta requires 10 minutes to 75 days.
+      const isTimeValid = diffMs >= 10 * 60 * 1000 && diffMs <= 75 * 24 * 60 * 60 * 1000;
+      const isTypeSupported = type !== POST_TYPES.STORY; // Stories are queue-based
+
+      if (isTimeValid && isTypeSupported) {
+        finalScheduledAt = scheduledAt;
+        console.log(`[Instagram] Using Native Scheduling for scheduledAt: ${scheduledAt}`);
+      } else {
+        console.log(`[Instagram] Falling back to Queue-based scheduling. isTimeValid: ${isTimeValid}, isTypeSupported: ${isTypeSupported}`);
+      }
+    }
 
     const strategy = InstagramPublishStrategyFactory.getStrategy(type, mediaUrls);
-    const result = await strategy.publish(igAccountId, accessToken, postData);
+    console.log(`[Instagram] Strategy selected: ${strategy.constructor.name}`);
 
-    return { platformVideoId: result.id, publishedAt: new Date() };
+    try {
+      const result = await strategy.publish(igAccountId, accessToken, {
+        ...postData,
+        scheduledAt: finalScheduledAt
+      });
+      console.log(`[Instagram] ✅ Published successfully! platformPostId=${result.id}`);
+      return { 
+        platformVideoId: result.id, 
+        publishedAt: finalScheduledAt ? null : new Date() 
+      };
+    } catch (err) {
+      console.error(`[Instagram] ❌ Publish FAILED:`, err.message);
+      if (err.response?.data) {
+        console.error(`[Instagram] API Error Detail:`, JSON.stringify(err.response.data));
+      }
+      throw err;
+    }
   }
 
   // ============= Private Helper Methods =============

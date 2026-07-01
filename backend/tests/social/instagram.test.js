@@ -118,7 +118,7 @@ describe('Instagram Integration Service Tests', () => {
         caption: 'Hello Instagram!'
       });
 
-      expect(instagramGateway.createImageContainer).toHaveBeenCalledWith('ig_123', 'ig_access_token', 'http://pic.jpg', 'Hello Instagram!');
+      expect(instagramGateway.createImageContainer).toHaveBeenCalledWith('ig_123', 'ig_access_token', 'http://pic.jpg', 'Hello Instagram!', null);
       expect(instagramGateway.publishContainer).toHaveBeenCalledWith('ig_123', 'ig_access_token', 'container_photo_123');
       expect(result.platformVideoId).toBe('ig_post_photo_123');
     });
@@ -139,7 +139,7 @@ describe('Instagram Integration Service Tests', () => {
         caption: 'Awesome Reel!'
       });
 
-      expect(instagramGateway.createReelContainer).toHaveBeenCalledWith('ig_123', 'ig_access_token', 'http://video.mp4', 'Awesome Reel!');
+      expect(instagramGateway.createReelContainer).toHaveBeenCalledWith('ig_123', 'ig_access_token', 'http://video.mp4', 'Awesome Reel!', null);
       expect(instagramGateway.pollContainerStatus).toHaveBeenCalledWith('container_reel_123', 'ig_access_token');
       expect(instagramGateway.publishContainer).toHaveBeenCalledWith('ig_123', 'ig_access_token', 'container_reel_123');
       expect(result.platformVideoId).toBe('ig_post_reel_123');

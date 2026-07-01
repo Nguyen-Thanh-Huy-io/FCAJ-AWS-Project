@@ -240,9 +240,10 @@ export function AutoListPostCard({
                   onSelectImage={() => fileInputRef.current?.click()} 
                   onSelectVideo={() => fileInputRef.current?.click()} 
                   onSelectDrive={() => {
-                    const hasDriveAccess = activeBrand?.currentPlan?.name === 'PRO';
+                    const planName = activeBrand?.currentPlan?.name;
+                    const hasDriveAccess = planName === 'PRO' || planName === 'AGENCY';
                     if (!hasDriveAccess) {
-                      toast.error("Tính năng import từ Google Drive yêu cầu gói PRO.", {
+                      toast.error("Tính năng import từ Google Drive yêu cầu gói PRO hoặc AGENCY.", {
                         action: {
                           label: "Nâng cấp",
                           onClick: () => window.location.href = '/pricing'

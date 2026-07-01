@@ -50,14 +50,12 @@ router.post('/bulk-restore', checkPermission('CREATE_POSTS'), postController.bul
  */
 router.delete('/trash', checkPermission('DELETE_POSTS'), postController.emptyTrash);
 
-/**
- * PUT /api/posts/:id
- * Update an existing post
- */
-router.put('/:id', checkPermission('CREATE_POSTS'), postController.updatePost);
-
 const upload = require('../../middlewares/upload.middleware');
 
+/**
+ * POST /api/posts/upload
+ * Upload video/image file (MUST be before /:id to avoid Express matching 'upload' as an id)
+ */
 router.post('/upload', checkPermission('CREATE_POSTS'), (req, res, next) => {
   upload.single('video')(req, res, (err) => {
     if (err) {
@@ -67,5 +65,11 @@ router.post('/upload', checkPermission('CREATE_POSTS'), (req, res, next) => {
     next();
   });
 }, postController.uploadVideo);
+
+/**
+ * PUT /api/posts/:id
+ * Update an existing post
+ */
+router.put('/:id', checkPermission('CREATE_POSTS'), postController.updatePost);
 
 module.exports = router;

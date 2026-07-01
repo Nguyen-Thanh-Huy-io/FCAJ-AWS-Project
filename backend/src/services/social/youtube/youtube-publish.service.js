@@ -33,8 +33,10 @@ class YouTubePublishService {
     const metadata = this._prepareMetadata(postData, options);
 
     // 4. Thực hiện Upload chính
+    console.log(`[YouTube Publish] 🚀 Uploading video to YouTube...`);
     const uploadRes = await youtubeGateway.uploadVideo(auth, videoStream, metadata);
     const videoId = uploadRes.data.id;
+    console.log(`[YouTube Publish] ✅ Video uploaded successfully. ID: ${videoId}`);
 
     // 5. Thực hiện các tác vụ sau khi upload (Playlist, First Comment)
     await this._executePostUploadTasks(auth, videoId, options);
@@ -66,7 +68,15 @@ class YouTubePublishService {
 
   async _prepareVideoStream(mediaUrls) {
     if (!mediaUrls) throw new Error('Video URL is required');
-    const videoUrl = mediaUrls.split(SEPARATORS.COMMA)[0].trim();
+    
+    // Handle cả string (từ DB) lẫn array (từ SocialPublishStep pipeline)
+    let videoUrl;
+    if (Array.isArray(mediaUrls)) {
+      if (mediaUrls.length === 0) throw new Error('Video URL is required');
+      videoUrl = mediaUrls[0].trim();
+    } else {
+      videoUrl = mediaUrls.split(SEPARATORS.COMMA)[0].trim();
+    }
 
     if (videoUrl.startsWith('http')) {
       const response = await fetch(videoUrl);
@@ -147,13 +157,18 @@ class YouTubePublishService {
 
   async _prepareImageStream(imageUrl) {
     if (!imageUrl) throw new Error('Image URL is required');
-    if (imageUrl.startsWith('http')) {
-      const response = await fetch(imageUrl);
-      if (!response.ok) throw new Error(`Failed to fetch image: ${imageUrl}`);
+    
+    // imageUrl có thể là array (cần lấy phần tử đầu tiên)
+    const resolvedUrl = Array.isArray(imageUrl) ? imageUrl[0] : imageUrl;
+    if (!resolvedUrl) throw new Error('Image URL is required');
+    
+    if (resolvedUrl.startsWith('http')) {
+      const response = await fetch(resolvedUrl);
+      if (!response.ok) throw new Error(`Failed to fetch image: ${resolvedUrl}`);
       return response.body;
     }
 
-    const localPath = path.join(__dirname, '../../../../', imageUrl.replace(/^\//, ''));
+    const localPath = path.join(__dirname, '../../../../', resolvedUrl.replace(/^\//, ''));
     if (!fs.existsSync(localPath)) throw new Error(`Local file not found: ${localPath}`);
     return fs.createReadStream(localPath);
   }

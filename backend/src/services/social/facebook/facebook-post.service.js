@@ -67,14 +67,57 @@ class FacebookPostService {
     }
   }
   async publishPost(brandId, postData) {
+    const { platformPostId, scheduledAt, type, mediaUrls = [] } = postData;
+    console.log(`\n[Facebook] ▶ publishPost | brandId=${brandId} | type=${type} | mediaUrls=${JSON.stringify(mediaUrls)}`);
+
+    // Short-circuit
+    if (platformPostId) {
+      console.log(`[Facebook] Short-circuiting. Post already scheduled with ID: ${platformPostId}`);
+      return { platformVideoId: platformPostId, publishedAt: null };
+    }
+
     const { pageId, pageAccessToken } = await this._getAccountCredentials(brandId);
-    const { type, mediaUrls = [] } = postData;
+    console.log(`[Facebook] Credentials OK | pageId=${pageId} | tokenPrefix=${pageAccessToken?.substring(0, 10)}...`);
     const mediaUrl = mediaUrls && mediaUrls.length > 0 ? mediaUrls[0] : null;
 
-    const strategy = FacebookPublishStrategyFactory.getStrategy(type, mediaUrl);
-    const result = await strategy.publish(pageId, pageAccessToken, { ...postData, mediaUrl, mediaUrls });
+    // Check if we can use native scheduling
+    let finalScheduledAt = null;
+    if (scheduledAt) {
+      const diffMs = new Date(scheduledAt).getTime() - Date.now();
+      // Meta requires 10 minutes to 75 days.
+      const isTimeValid = diffMs >= 10 * 60 * 1000 && diffMs <= 75 * 24 * 60 * 60 * 1000;
+      const isTypeSupported = type !== POST_TYPES.STORY && type !== POST_TYPES.REEL; // Reels / Stories are queue-based
 
-    return { platformVideoId: result.id, publishedAt: new Date() };
+      if (isTimeValid && isTypeSupported) {
+        finalScheduledAt = scheduledAt;
+        console.log(`[Facebook] Using Native Scheduling for scheduledAt: ${scheduledAt}`);
+      } else {
+        console.log(`[Facebook] Falling back to Queue-based scheduling. isTimeValid: ${isTimeValid}, isTypeSupported: ${isTypeSupported}`);
+      }
+    }
+
+    const strategy = FacebookPublishStrategyFactory.getStrategy(type, mediaUrl);
+    console.log(`[Facebook] Strategy selected: ${strategy.constructor.name} | mediaUrl=${mediaUrl}`);
+
+    try {
+      const result = await strategy.publish(pageId, pageAccessToken, { 
+        ...postData, 
+        mediaUrl, 
+        mediaUrls,
+        scheduledAt: finalScheduledAt
+      });
+      console.log(`[Facebook] ✅ Published successfully! platformPostId=${result.id}`);
+      return { 
+        platformVideoId: result.id, 
+        publishedAt: finalScheduledAt ? null : new Date() 
+      };
+    } catch (err) {
+      console.error(`[Facebook] ❌ Publish FAILED:`, err.message);
+      if (err.response?.data) {
+        console.error(`[Facebook] API Error Detail:`, JSON.stringify(err.response.data));
+      }
+      throw err;
+    }
   }
 
   async updatePost(brandId, platformPostId, postData) {

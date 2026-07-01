@@ -40,6 +40,9 @@ class PostController {
     const { brandId } = req.body;
     if (!brandId) return res.status(400).json({ message: 'brandId is required' });
 
+    console.log("=== CREATE POST ===");
+    console.log("Request Body:", JSON.stringify(req.body, null, 2));
+
     const userId = req.user.id;
     const post = await postService.createPost(req.body, userId, brandId);
 
@@ -126,7 +129,16 @@ class PostController {
     if (!req.file) {
       return res.status(400).json({ message: 'No video file uploaded' });
     }
-    const videoUrl = req.file.path;
+    const isLocal = process.env.UPLOAD_STORAGE === 'local';
+    let videoUrl = req.file.path;
+    if (isLocal) {
+      const path = require('path');
+      const relativePath = path.relative(process.cwd(), req.file.path).replace(/\\/g, '/');
+      videoUrl = `/${relativePath}`;
+      console.log(`[Upload] Local storage: absolute="${req.file.path}" → relative="${videoUrl}"`);
+    } else {
+      console.log(`[Upload] Cloudinary: url="${videoUrl}"`);
+    }
     res.status(200).json({ message: 'Video uploaded successfully', videoUrl });
   });
 

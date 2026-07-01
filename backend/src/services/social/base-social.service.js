@@ -53,6 +53,20 @@ class BaseSocialService {
   async deletePost(brandId, platformPostId) {
     throw new Error("Method 'deletePost()' must be implemented.");
   }
+
+  /**
+   * Chuyển đổi đường dẫn cục bộ thành URL công khai dùng cho các nền tảng xã hội
+   */
+  resolveUrl(mediaUrl) {
+    if (!mediaUrl) return null;
+    if (mediaUrl.startsWith('http://') || mediaUrl.startsWith('https://')) {
+      return mediaUrl;
+    }
+    const baseUrl = process.env.BACKEND_BASE_URL || 'http://localhost:3000';
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const cleanMediaUrl = mediaUrl.startsWith('/') ? mediaUrl : `/${mediaUrl}`;
+    return `${cleanBaseUrl}${cleanMediaUrl}`;
+  }
 }
 
 module.exports = BaseSocialService;

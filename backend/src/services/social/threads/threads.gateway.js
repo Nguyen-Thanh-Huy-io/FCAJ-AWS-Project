@@ -95,7 +95,11 @@ class ThreadsGateway {
   async createMediaContainer(userId, accessToken, text, mediaUrl = null, mediaType = 'TEXT', whoCanReply = null) {
     let url = `${this.graphBaseUrl}/${userId}/threads?media_type=${mediaType}&text=${encodeURIComponent(text)}&access_token=${accessToken}`;
     if (mediaUrl) {
-      url += `&image_url=${encodeURIComponent(mediaUrl)}`;
+      if (mediaType === 'VIDEO') {
+        url += `&video_url=${encodeURIComponent(mediaUrl)}`;
+      } else {
+        url += `&image_url=${encodeURIComponent(mediaUrl)}`;
+      }
     }
     if (whoCanReply) {
       url += `&who_can_reply=${encodeURIComponent(whoCanReply)}`;
@@ -104,7 +108,19 @@ class ThreadsGateway {
     const res = await fetch(url, { method: 'POST' });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
+      console.error('[ThreadsGateway] createMediaContainer FAILED:', JSON.stringify(errData, null, 2));
       throw new Error(errData.error?.message || 'Failed to create Threads media container');
+    }
+    return res.json();
+  }
+
+  async getContainerStatus(accessToken, containerId) {
+    const url = `${this.graphBaseUrl}/${containerId}?fields=status,error_message&access_token=${accessToken}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      console.error('[ThreadsGateway] getContainerStatus FAILED:', JSON.stringify(errData, null, 2));
+      throw new Error(errData.error?.message || `Failed to fetch container status for ${containerId}`);
     }
     return res.json();
   }
@@ -115,6 +131,7 @@ class ThreadsGateway {
     const res = await fetch(url, { method: 'POST' });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
+      console.error('[ThreadsGateway] publishMediaContainer FAILED:', JSON.stringify(errData, null, 2));
       throw new Error(errData.error?.message || 'Failed to publish Threads media container');
     }
     return res.json();
