@@ -164,6 +164,151 @@ class TeamService {
   }
 
   /**
+   * Invite multiple team members
+   */
+  async inviteMembers({ emails, role, brandId, invitedByUserId }) {
+    if (!Array.isArray(emails) || emails.length === 0) {
+      const error = new Error('Danh sách email không hợp lệ.');
+      error.status = 400;
+      throw error;
+    }
+
+    const brand = await brandRepository.findBrandWithSubscription(brandId);
+    if (!brand) {
+      const error = new Error('Workspace/Brand không tồn tại.');
+      error.status = 404;
+      throw error;
+    }
+
+    const isAuthorized = await authorizationFacade.checkPermission(invitedByUserId, brandId, PERMISSION_KEYS.MANAGE_TEAM);
+    if (!isAuthorized) {
+      const error = new Error('Bạn không có quyền mời thành viên vào thương hiệu này.');
+      error.status = 403;
+      throw error;
+    }
+
+    // Check plan limits
+    const currentSeatCount = await teamRepository.countMembersByBrand(brandId);
+    const maxSeats = brand.subscription?.plan?.planLimit?.maxTeamSeats || 5;
+    const remainingSeats = maxSeats - currentSeatCount;
+
+    if (remainingSeats <= 0) {
+      const error = new Error(`Thương hiệu đã đạt giới hạn thành viên tối đa cho phép (${maxSeats} người). Vui lòng nâng cấp gói.`);
+      error.status = 402;
+      throw error;
+    }
+
+    if (emails.length > remainingSeats) {
+      const error = new Error(`Bạn chỉ có thể mời thêm tối đa ${remainingSeats} thành viên (Gói hiện tại giới hạn ${maxSeats} người).`);
+      error.status = 400;
+      throw error;
+    }
+
+    const successes = [];
+    const failures = [];
+
+    for (const email of emails) {
+      try {
+        if (!email || typeof email !== 'string') {
+          throw new Error('Email không được để trống.');
+        }
+        const cleanEmail = email.trim().toLowerCase();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(cleanEmail)) {
+          throw new Error('Định dạng email không hợp lệ.');
+        }
+
+        // Map role using RoleResolver
+        const { dbRole, customRoleId } = await roleResolver.resolve(role, brandId);
+
+        // Find or create shell user
+        let user = await userRepository.findByEmail(cleanEmail);
+        if (!user) {
+          user = await userRepository.createShellUser(cleanEmail);
+        }
+
+        // Check if already in Team
+        const existingTeam = await teamRepository.findByBrandAndUserId(brandId, user.id);
+        if (existingTeam && existingTeam.status === TEAM_STATUS.ACTIVE) {
+          throw new Error('Người dùng này đã là thành viên của thương hiệu.');
+        }
+
+        // Create or update team record
+        let team;
+        if (existingTeam) {
+          team = await teamRepository.update(existingTeam.id, {
+            role: dbRole,
+            customRoleId,
+            invitedByUserId,
+            invitedAt: new Date(),
+            status: TEAM_STATUS.PENDING
+          });
+        } else {
+          team = await teamRepository.create({
+            brandId,
+            userId: user.id,
+            role: dbRole,
+            customRoleId,
+            invitedByUserId,
+            status: TEAM_STATUS.PENDING
+          });
+        }
+
+        // Generate JWT Token (expires in 7 days)
+        const token = jwt.sign(
+          { teamId: team.id, email: user.email, brandId },
+          process.env.ACCESS_TOKEN_SECRET,
+          { expiresIn: '7d' }
+        );
+
+        // Send invitation email
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+        const inviteUrl = `${frontendUrl}/invite?token=${token}`;
+        const inviter = await userRepository.findById(invitedByUserId);
+
+        try {
+          const emailService = require('../core/email.service');
+          await emailService.sendTeamInvitation(user.email, inviter.name, brand.name, inviteUrl);
+        } catch (err) {
+          console.error('Failed to send invite email:', err);
+        }
+
+        // Tạo notification cho người được mời
+        try {
+          await notificationService.create({
+            userId: user.id,
+            brandId,
+            type: NOTIFICATION_TYPES.TEAM,
+            title: `Bạn được mời vào "${brand.name}"`,
+            message: `${inviter?.name || 'Ai đó'} đã mời bạn tham gia với vai trò ${role}.`,
+            actionUrl: `/invite?token=${token}`
+          });
+        } catch (notifErr) {
+          console.error('[TeamService] Failed to create invite notification:', notifErr.message);
+        }
+
+        successes.push({
+          email: cleanEmail,
+          team: this._formatTeamMember(await teamRepository.findById(team.id)),
+          token
+        });
+      } catch (err) {
+        failures.push({
+          email,
+          message: err.message
+        });
+      }
+    }
+
+    return {
+      message: `Đã xử lý mời thành viên. Thành công: ${successes.length}, Thất bại: ${failures.length}`,
+      successes,
+      failures
+    };
+  }
+
+
+  /**
    * Validate invitation token
    */
   async validateInvitation(token) {

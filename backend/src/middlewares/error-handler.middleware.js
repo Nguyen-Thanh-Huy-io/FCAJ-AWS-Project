@@ -38,8 +38,8 @@ const errorHandler = (err, req, res, _next) => {
 
   const response = { message, status: statusCode };
 
-  // Include stack trace only in development
-  if (process.env.NODE_ENV === 'development') {
+  // Include stack trace only in development or test environment
+  if (process.env.NODE_ENV === 'development' || process.env.JEST_WORKER_ID) {
     response.stack = err.stack;
   }
 

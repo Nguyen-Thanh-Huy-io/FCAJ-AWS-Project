@@ -158,8 +158,75 @@ describe('Team Management APIs', () => {
         .send({ email: 'invitee@gmail.com', role: 'Admin', brandId: 'brand-1' });
 
       expect(res.status).toBe(201);
-      expect(res.body.message).toBe('Đã gửi lời mời thành công');
-      expect(res.body.token).toBeDefined();
+      expect(res.body.message).toContain('Đã xử lý mời thành viên');
+      expect(res.body.successes[0].token).toBeDefined();
+    });
+
+    it('should support batch invitation of multiple emails', async () => {
+      const mockBrand = {
+        id: 'brand-1',
+        name: 'My Brand',
+        ownerId: 'operator-id',
+        subscription: {
+          plan: {
+            planLimit: {
+              maxTeamSeats: 5
+            }
+          }
+        }
+      };
+
+      prisma.brand.findFirst.mockResolvedValue(mockBrand);
+      prisma.team.count.mockResolvedValue(1);
+      prisma.user.findUnique.mockImplementation(async (query) => {
+        if (query.where.id === 'operator-id') {
+          return { id: 'operator-id', name: 'Owner' };
+        }
+        return null;
+      });
+      
+      prisma.user.create.mockImplementation(async (arg) => {
+        return { id: `user-${arg.data.email}`, email: arg.data.email };
+      });
+
+      prisma.team.create.mockImplementation(async (arg) => {
+        return {
+          id: `team-${arg.data.userId}`,
+          brandId: arg.data.brandId,
+          userId: arg.data.userId,
+          role: arg.data.role,
+          status: 'PENDING'
+        };
+      });
+
+      prisma.team.findUnique.mockImplementation(async (query) => {
+        const teamId = query.where.id || 'team-id';
+        const email = teamId.includes('invitee2') ? 'invitee2@gmail.com' : 'invitee1@gmail.com';
+        const userId = `user-${email}`;
+        return {
+          id: teamId,
+          brandId: 'brand-1',
+          userId,
+          role: 'ADMIN',
+          status: 'PENDING',
+          user: { id: userId, name: email.split('@')[0], email },
+          invitedBy: { name: 'Owner' }
+        };
+      });
+
+      const res = await request(app)
+        .post('/api/team/invite')
+        .send({
+          emails: ['invitee1@gmail.com', 'invitee2@gmail.com'],
+          role: 'Admin',
+          brandId: 'brand-1'
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.successes).toHaveLength(2);
+      expect(res.body.failures).toHaveLength(0);
+      expect(res.body.successes[0].email).toBe('invitee1@gmail.com');
+      expect(res.body.successes[1].email).toBe('invitee2@gmail.com');
     });
 
     it('should create a TEAM notification for the invited user', async () => {

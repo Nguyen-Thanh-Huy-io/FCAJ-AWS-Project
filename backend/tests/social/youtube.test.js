@@ -191,7 +191,8 @@ describe('YouTubeService', () => {
         privacyStatus: 'private',
         categoryId: '22',
         selfDeclaredMadeForKids: true,
-        tags: ['tag1', 'tag2']
+        tags: ['tag1', 'tag2'],
+        publishAt: null
       });
 
       expect(addVideoToPlaylistSpy).toHaveBeenCalledWith(expect.any(Object), 'playlistId123', 'ytVideoId123');
@@ -202,6 +203,66 @@ describe('YouTubeService', () => {
       uploadVideoSpy.mockRestore();
       addVideoToPlaylistSpy.mockRestore();
       insertCommentThreadSpy.mockRestore();
+    });
+
+    it('should upload video and set custom thumbnail if options.youtubeThumbnail is provided', async () => {
+      const mockPostData = {
+        title: 'Original Title',
+        caption: 'Original Caption',
+        mediaUrls: 'http://example.com/video.mp4',
+        options: {
+          youtubeThumbnail: 'http://example.com/thumb.jpg'
+        }
+      };
+
+      const mockAccount = {
+        id: 'sa1',
+        accessToken: 'token123',
+        refreshToken: 'refresh123',
+        tokenExpiresAt: new Date(Date.now() + 3600 * 1000)
+      };
+
+      socialAccountRepository.findByBrandAndPlatform.mockResolvedValue([mockAccount]);
+      googleOAuthService.createClient.mockReturnValue({
+        setCredentials: jest.fn()
+      });
+
+      const mockGatewayResult = {
+        data: {
+          id: 'ytVideoId123',
+          snippet: {
+            publishedAt: '2026-05-24T12:00:00Z'
+          }
+        }
+      };
+
+      const uploadVideoSpy = jest.spyOn(youtubeGateway, 'uploadVideo').mockResolvedValue(mockGatewayResult);
+      const setCustomThumbnailSpy = jest.spyOn(youtubeGateway, 'setCustomThumbnail').mockResolvedValue({});
+
+      global.fetch = jest.fn().mockImplementation((url) => {
+        if (url === 'http://example.com/video.mp4') {
+          return Promise.resolve({
+            ok: true,
+            body: 'videoStreamMock'
+          });
+        }
+        if (url === 'http://example.com/thumb.jpg') {
+          return Promise.resolve({
+            ok: true,
+            body: 'imageStreamMock'
+          });
+        }
+        return Promise.reject(new Error('not found'));
+      });
+
+      const result = await youtubeService.publishPost('brand1', mockPostData);
+
+      expect(uploadVideoSpy).toHaveBeenCalled();
+      expect(setCustomThumbnailSpy).toHaveBeenCalledWith(expect.any(Object), 'ytVideoId123', 'imageStreamMock', 'image/jpeg');
+      expect(result.platformVideoId).toBe('ytVideoId123');
+
+      uploadVideoSpy.mockRestore();
+      setCustomThumbnailSpy.mockRestore();
     });
 
     it('should automatically append #Shorts to title when publishing a YouTube Short', async () => {
@@ -246,12 +307,79 @@ describe('YouTubeService', () => {
         privacyStatus: 'private',
         categoryId: '22',
         selfDeclaredMadeForKids: false,
-        tags: []
+        tags: [],
+        publishAt: null
       });
 
       expect(result.platformVideoId).toBe('ytVideoId123');
 
       uploadVideoSpy.mockRestore();
+    });
+
+    it('should configure publishAt and force private status when scheduledAt is provided', async () => {
+      const mockPostData = {
+        title: 'Scheduled Title',
+        caption: 'Scheduled Caption',
+        mediaUrls: 'http://example.com/video.mp4',
+        scheduledAt: '2026-07-05T10:00:00.000Z',
+        options: {
+          privacyStatus: 'public'
+        }
+      };
+
+      const mockAccount = {
+        id: 'sa1',
+        accessToken: 'token123',
+        refreshToken: 'refresh123',
+        tokenExpiresAt: new Date(Date.now() + 3600 * 1000)
+      };
+
+      socialAccountRepository.findByBrandAndPlatform.mockResolvedValue([mockAccount]);
+      googleOAuthService.createClient.mockReturnValue({
+        setCredentials: jest.fn()
+      });
+
+      const mockGatewayResult = {
+        data: {
+          id: 'ytVideoId123',
+          snippet: {
+            publishedAt: '2026-05-24T12:00:00Z'
+          }
+        }
+      };
+
+      const uploadVideoSpy = jest.spyOn(youtubeGateway, 'uploadVideo').mockResolvedValue(mockGatewayResult);
+
+      const result = await youtubeService.publishPost('brand1', mockPostData);
+
+      expect(uploadVideoSpy).toHaveBeenCalledWith(expect.any(Object), 'videoStreamMock', {
+        title: 'Scheduled Title',
+        description: 'Scheduled Caption',
+        privacyStatus: 'private',
+        categoryId: '22',
+        selfDeclaredMadeForKids: false,
+        tags: [],
+        publishAt: '2026-07-05T10:00:00.000Z'
+      });
+
+      expect(result.platformVideoId).toBe('ytVideoId123');
+
+      uploadVideoSpy.mockRestore();
+    });
+
+    it('should short-circuit and return success immediately if platformPostId is provided', async () => {
+      const mockPostData = {
+        title: 'Already Uploaded Title',
+        caption: 'Already Uploaded Caption',
+        mediaUrls: 'http://example.com/video.mp4',
+        platformPostId: 'ytVideoId555',
+        options: {}
+      };
+
+      const result = await youtubeService.publishPost('brand1', mockPostData);
+
+      expect(result.platformVideoId).toBe('ytVideoId555');
+      expect(result.status).toBe('PUBLISHED');
     });
   });
 

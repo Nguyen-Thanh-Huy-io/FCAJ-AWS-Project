@@ -15,6 +15,9 @@ Chào mừng bạn đến với hệ thống tài liệu kỹ thuật của dự
     *   [Bài viết & Xuất bản](./diagrams/usecase_post_publishing.puml)
     *   [Không gian làm việc (Workspace) & Kênh MXH](./diagrams/usecase_workspace_social.puml)
     *   [Quản trị & Bảng giá](./diagrams/usecase_admin_pricing.puml)
+    *   [Thư viện Media](./diagrams/usecase_media_library.puml)
+    *   [Hộp thư Hợp nhất & Analytics](./diagrams/usecase_inbox_analytics.puml)
+    *   [Thông báo & Nhật ký hệ thống](./diagrams/usecase_notifications_audit.puml)
 
 ---
 

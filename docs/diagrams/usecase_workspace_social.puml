@@ -5,7 +5,6 @@ left to right direction
 skinparam monochrome true
 skinparam shading false
 
-
 actor "Thành viên Brand" as ActorMember
 actor "Chủ Brand (Owner)" as ActorOwner
 
@@ -33,6 +32,6 @@ ActorMember --> UC_ConnectPlatform
 
 ' Tác vụ đồng bộ nền
 UC_ConnectPlatform ..> UC_SyncTokens : <<include>>
-UC_SyncTokens <.. UC_ReceiveWebhook : <<extend>> (Đối với TikTok Webhook)
+UC_SyncTokens <.. UC_ReceiveWebhook : <<extend>>\n(TikTok Webhook)
 
 @enduml

@@ -11,6 +11,7 @@ import { useBrand } from "../../../context/BrandContext";
 import { toast } from "sonner";
 import { useBrandPermission } from "../../../hooks/useBrandPermission";
 import { AccessGuard } from "../../../components/shared/AccessGuard";
+import { buildMediaUrl } from "../../../utils/url";
 
 export function PostsLibraryView() {
   const [posts, setPosts] = useState([]);
@@ -120,7 +121,7 @@ export function PostsLibraryView() {
              >
                 <div className="aspect-square bg-gray-50 flex items-center justify-center relative overflow-hidden">
                    {item.thumbnail ? (
-                      <img src={item.thumbnail} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                      <img src={item.thumbnail.startsWith('http') ? item.thumbnail : buildMediaUrl(item.thumbnail)} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                    ) : (
                       <div className="text-4xl opacity-20 group-hover:scale-110 transition-transform duration-500">📝</div>
                    )}

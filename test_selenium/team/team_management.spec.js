@@ -105,6 +105,8 @@ describe('Team Management E2E Test Suite', function () {
       if (memberUserId) {
         await dbConnection.execute('DELETE FROM users WHERE id = ?', [memberUserId]);
       }
+      // Dọn dẹp thêm các email bulk test
+      await dbConnection.execute('DELETE FROM users WHERE email IN ("bulk1@gmail.com", "bulk2@gmail.com")');
       console.log('✅ DB Cleanup completed.');
     } catch (err) {
       console.error('❌ DB Cleanup failed:', err.message);
@@ -251,7 +253,7 @@ describe('Team Management E2E Test Suite', function () {
     await driver.sleep(2000);
 
     // 2. Gửi lời mời với Email sai format
-    const emailInput = await driver.findElement(By.xpath("//input[@type='email']"));
+    const emailInput = await driver.findElement(By.tagName("textarea"));
     await emailInput.sendKeys('invalid-email');
     await inviteSubmitBtn.click();
     await driver.sleep(1000);
@@ -259,7 +261,7 @@ describe('Team Management E2E Test Suite', function () {
     const toastFormatError = await driver.wait(until.elementLocated(By.xpath("//li[contains(., 'định dạng email') or contains(., 'Email không hợp lệ') or contains(., 'Định dạng email không hợp lệ')]")), 5000);
     expect(toastFormatError).to.not.be.null;
 
-    const backdrop = await driver.findElement(By.xpath("//div[contains(@class, 'bg-[#0A0A0A]/40')]"));
+    const backdrop = await driver.findElement(By.xpath("//div[contains(@class, 'backdrop-blur-sm')]"));
     await driver.executeScript("arguments[0].click();", backdrop);
     await driver.sleep(1000);
   });
@@ -269,7 +271,7 @@ describe('Team Management E2E Test Suite', function () {
     await safeClick(By.xpath("//button[contains(., 'Invite Member')]"));
     await driver.sleep(1000);
 
-    const emailInput = await driver.findElement(By.xpath("//input[@type='email']"));
+    const emailInput = await driver.findElement(By.tagName("textarea"));
     await emailInput.sendKeys('duplicate-member@gmail.com');
 
     let inviteSubmitBtn = await driver.findElement(By.xpath("//button[contains(text(), 'Gửi lời mời tham gia')]"));
@@ -277,7 +279,7 @@ describe('Team Management E2E Test Suite', function () {
     
     // Đợi modal đóng hẳn
     try {
-      const modal = await driver.findElement(By.xpath("//div[contains(@class, 'bg-[#0A0A0A]/40')]"));
+      const modal = await driver.findElement(By.xpath("//div[contains(@class, 'backdrop-blur-sm')]"));
       await driver.wait(until.stalenessOf(modal), 10000);
     } catch (e) {}
 
@@ -297,7 +299,7 @@ describe('Team Management E2E Test Suite', function () {
     await driver.sleep(1000);
 
     // Chờ element input email hiển thị
-    const emailInput2 = await driver.wait(until.elementLocated(By.xpath("//input[@type='email']")), 10000);
+    const emailInput2 = await driver.wait(until.elementLocated(By.tagName("textarea")), 10000);
     await driver.wait(until.elementIsVisible(emailInput2), 5000);
     await emailInput2.sendKeys('   DUPLICATE-MEMBER@gmail.com   ');
     
@@ -310,7 +312,7 @@ describe('Team Management E2E Test Suite', function () {
     expect(toastDuplicate).to.not.be.null;
 
     // Tắt modal bằng backdrop
-    const backdrop = await driver.findElement(By.xpath("//div[contains(@class, 'bg-[#0A0A0A]/40')]"));
+    const backdrop = await driver.findElement(By.xpath("//div[contains(@class, 'backdrop-blur-sm')]"));
     await driver.executeScript("arguments[0].click();", backdrop);
     await driver.sleep(1000);
   });
@@ -325,7 +327,7 @@ describe('Team Management E2E Test Suite', function () {
     await safeClick(By.xpath("//button[contains(., 'Invite Member')]"));
     await driver.sleep(1000);
 
-    const emailInput = await driver.findElement(By.xpath("//input[@type='email']"));
+    const emailInput = await driver.findElement(By.tagName("textarea"));
     await emailInput.sendKeys('another-member@gmail.com');
 
     const inviteSubmitBtn = await driver.findElement(By.xpath("//button[contains(text(), 'Gửi lời mời tham gia')]"));
@@ -337,7 +339,7 @@ describe('Team Management E2E Test Suite', function () {
     expect(toastLimit).to.not.be.null;
 
     // Tắt modal bằng backdrop
-    const backdrop = await driver.findElement(By.xpath("//div[contains(@class, 'bg-[#0A0A0A]/40')]"));
+    const backdrop = await driver.findElement(By.xpath("//div[contains(@class, 'backdrop-blur-sm')]"));
     await driver.executeScript("arguments[0].click();", backdrop);
     await driver.sleep(1000);
 
@@ -392,7 +394,7 @@ describe('Team Management E2E Test Suite', function () {
     await safeClick(By.xpath("//button[contains(., 'Invite Member')]"));
     await driver.sleep(1000);
 
-    const emailInput = await driver.findElement(By.xpath("//input[@type='email']"));
+    const emailInput = await driver.findElement(By.tagName("textarea"));
     await emailInput.sendKeys(memberEmail);
 
     // Chọn Custom Role "Restricted Analyst" (Đợi React re-render và hiển thị nó trong modal)
@@ -439,7 +441,7 @@ describe('Team Management E2E Test Suite', function () {
       }).then(r => r.json());
     `, apiUrl, memberEmail, customRoleId, ownerBrandId);
 
-    const token = inviteRes.token;
+    const token = inviteRes.token || (inviteRes.successes && inviteRes.successes[0]?.token);
     if (!token || typeof token !== 'string') {
       throw new Error('Không lấy được invitation token từ API. Response: ' + JSON.stringify(inviteRes));
     }
@@ -482,96 +484,92 @@ describe('Team Management E2E Test Suite', function () {
     const sidebarSource = await driver.getPageSource();
     expect(sidebarSource.includes('href="/manage/team"') || sidebarSource.includes('/manage/team')).to.be.false;
 
-    const userToken = await driver.executeScript("return localStorage.getItem('token') || sessionStorage.getItem('token') || '';");
     const apiUrl = process.env.API_URL || 'http://localhost:3000';
     
     const apiRes = await driver.executeScript(`
-      const apiUrl = arguments[2];
+      const apiUrl = arguments[1];
       return fetch(apiUrl + '/api/team/invite', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + arguments[0]
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           email: 'hackmember@gmail.com',
           role: 'Member',
-          brandId: arguments[1]
+          brandId: arguments[0]
         })
       }).then(r => ({ status: r.status }));
-    `, userToken, ownerBrandId, apiUrl);
+    `, ownerBrandId, apiUrl);
 
     expect(apiRes.status).to.equal(403);
 
     // ── Kiểm tra phạm vi quyền hạn của Custom Role ──
     console.log("📡 Kiểm chứng quyền CREATE_POSTS (được phép)...");
     const createPostRes = await driver.executeScript(`
-      const apiUrl = arguments[2];
+      const apiUrl = arguments[1];
       return fetch(apiUrl + '/api/posts', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + arguments[0]
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           title: 'E2E Custom Role Test Post',
           caption: 'Hello from Restricted Analyst with CREATE_POSTS permission',
-          brandId: arguments[1],
+          brandId: arguments[0],
           targetPlatforms: ['FACEBOOK']
         })
       }).then(r => ({ status: r.status }));
-    `, userToken, ownerBrandId, apiUrl);
+    `, ownerBrandId, apiUrl);
     expect(createPostRes.status).to.equal(201);
 
     console.log("📡 Kiểm chứng quyền APPROVE_POSTS (bị cấm)...");
     const approveRes = await driver.executeScript(`
-      const apiUrl = arguments[2];
+      const apiUrl = arguments[1];
       return fetch(apiUrl + '/api/posts/bulk-approve', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + arguments[0]
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           postIds: ['dummy-id-123'],
-          brandId: arguments[1]
+          brandId: arguments[0]
         })
       }).then(r => ({ status: r.status }));
-    `, userToken, ownerBrandId, apiUrl);
+    `, ownerBrandId, apiUrl);
     expect(approveRes.status).to.equal(403);
 
     console.log("📡 Kiểm chứng quyền DELETE_POSTS (bị cấm)...");
     const deleteRes = await driver.executeScript(`
-      const apiUrl = arguments[2];
+      const apiUrl = arguments[1];
       return fetch(apiUrl + '/api/posts/bulk', {
         method: 'DELETE',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + arguments[0]
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           postIds: ['dummy-id-123'],
-          brandId: arguments[1]
+          brandId: arguments[0]
         })
       }).then(r => ({ status: r.status }));
-    `, userToken, ownerBrandId, apiUrl);
+    `, ownerBrandId, apiUrl);
     expect(deleteRes.status).to.equal(403);
   });
 
   it('TC_TEAM_08_C: Kiểm chứng phân quyền xem Báo cáo & Biểu đồ thống kê (VIEW_ANALYTICS)', async function () {
-    const userToken = await driver.executeScript("return localStorage.getItem('token') || sessionStorage.getItem('token') || '';");
     const apiUrl = process.env.API_URL || 'http://localhost:3000';
 
     console.log("📡 Kiểm chứng quyền VIEW_ANALYTICS trên Report API (bị cấm)...");
     const reportRes = await driver.executeScript(`
-      const apiUrl = arguments[2];
-      return fetch(apiUrl + '/api/reports?brandId=' + arguments[1], {
+      const apiUrl = arguments[1];
+      return fetch(apiUrl + '/api/reports?brandId=' + arguments[0], {
         method: 'GET',
-        headers: {
-          'Authorization': 'Bearer ' + arguments[0]
-        }
+        credentials: 'include'
       }).then(r => ({ status: r.status }));
-    `, userToken, ownerBrandId, apiUrl);
+    `, ownerBrandId, apiUrl);
     expect(reportRes.status).to.equal(403);
 
     // ── Giao diện UI: Truy cập báo cáo (VIEW_ANALYTICS bị cấm) ──
@@ -610,14 +608,12 @@ describe('Team Management E2E Test Suite', function () {
 
     console.log("📡 Kiểm chứng quyền VIEW_ANALYTICS trên Dashboard Metrics API (bị cấm)...");
     const metricsRes = await driver.executeScript(`
-      const apiUrl = arguments[2];
-      return fetch(apiUrl + '/api/social/metrics?brandId=' + arguments[1] + '&platform=YOUTUBE', {
+      const apiUrl = arguments[1];
+      return fetch(apiUrl + '/api/social/metrics?brandId=' + arguments[0] + '&platform=YOUTUBE', {
         method: 'GET',
-        headers: {
-          'Authorization': 'Bearer ' + arguments[0]
-        }
+        credentials: 'include'
       }).then(r => ({ status: r.status }));
-    `, userToken, ownerBrandId, apiUrl);
+    `, ownerBrandId, apiUrl);
     
     // Dự kiến sẽ fail ở đây do backend trả về 200 thay vì 403 (bug phân quyền)
     expect(metricsRes.status).to.equal(403);
@@ -642,42 +638,41 @@ describe('Team Management E2E Test Suite', function () {
       [crypto.randomUUID(), roleId]
     );
 
-    const userToken = await driver.executeScript("return localStorage.getItem('token') || sessionStorage.getItem('token') || '';");
     const apiUrl = process.env.API_URL || 'http://localhost:3000';
 
     console.log("📡 Kiểm chứng quyền INVITE_MEMBERS (được phép)...");
     const inviteRes = await driver.executeScript(`
-      const apiUrl = arguments[2];
+      const apiUrl = arguments[1];
       return fetch(apiUrl + '/api/team/invite', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + arguments[0]
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           email: 'hackmember-test-08-d@gmail.com',
           role: 'Member',
-          brandId: arguments[1]
+          brandId: arguments[0]
         })
       }).then(r => ({ status: r.status }));
-    `, userToken, ownerBrandId, apiUrl);
+    `, ownerBrandId, apiUrl);
     expect(inviteRes.status).to.be.oneOf([200, 201]);
 
     console.log("📡 Kiểm chứng quyền CREATE_POSTS (bị cấm)...");
     const createPostRes = await driver.executeScript(`
-      const apiUrl = arguments[2];
+      const apiUrl = arguments[1];
       return fetch(apiUrl + '/api/posts', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + arguments[0]
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           title: 'Post from Team Manager',
-          brandId: arguments[1]
+          brandId: arguments[0]
         })
       }).then(r => ({ status: r.status }));
-    `, userToken, ownerBrandId, apiUrl);
+    `, ownerBrandId, apiUrl);
     expect(createPostRes.status).to.equal(403);
 
     // ── Giao diện UI: Tạo bài viết (CREATE_POSTS bị cấm) ──
@@ -729,37 +724,34 @@ describe('Team Management E2E Test Suite', function () {
       [crypto.randomUUID(), roleId]
     );
 
-    const userToken = await driver.executeScript("return localStorage.getItem('token') || sessionStorage.getItem('token') || '';");
     const apiUrl = process.env.API_URL || 'http://localhost:3000';
 
     console.log("📡 Kiểm chứng quyền VIEW_ANALYTICS trên Report API (được phép)...");
     const reportRes = await driver.executeScript(`
-      const apiUrl = arguments[2];
-      return fetch(apiUrl + '/api/reports?brandId=' + arguments[1], {
+      const apiUrl = arguments[1];
+      return fetch(apiUrl + '/api/reports?brandId=' + arguments[0], {
         method: 'GET',
-        headers: {
-          'Authorization': 'Bearer ' + arguments[0]
-        }
+        credentials: 'include'
       }).then(r => ({ status: r.status }));
-    `, userToken, ownerBrandId, apiUrl);
+    `, ownerBrandId, apiUrl);
     expect(reportRes.status).to.equal(200);
 
     console.log("📡 Kiểm chứng quyền INVITE_MEMBERS (bị cấm)...");
     const inviteRes = await driver.executeScript(`
-      const apiUrl = arguments[2];
+      const apiUrl = arguments[1];
       return fetch(apiUrl + '/api/team/invite', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + arguments[0]
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           email: 'hackmember-test-08-e@gmail.com',
           role: 'Member',
-          brandId: arguments[1]
+          brandId: arguments[0]
         })
       }).then(r => ({ status: r.status }));
-    `, userToken, ownerBrandId, apiUrl);
+    `, ownerBrandId, apiUrl);
     expect(inviteRes.status).to.equal(403);
 
     // ── Giao diện UI: Xem báo cáo (VIEW_ANALYTICS được phép) ──
@@ -798,17 +790,16 @@ describe('Team Management E2E Test Suite', function () {
       [crypto.randomUUID(), roleId]
     );
 
-    const userToken = await driver.executeScript("return localStorage.getItem('token') || sessionStorage.getItem('token') || '';");
     const apiUrl = process.env.API_URL || 'http://localhost:3000';
 
     console.log("📡 Kiểm chứng quyền MANAGE_ROLES (được phép)...");
     const createRoleRes = await driver.executeScript(`
-      const apiUrl = arguments[2];
-      return fetch(apiUrl + '/api/brands/' + arguments[1] + '/roles', {
+      const apiUrl = arguments[1];
+      return fetch(apiUrl + '/api/brands/' + arguments[0] + '/roles', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + arguments[0]
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           name: 'Temporary Role',
@@ -817,7 +808,7 @@ describe('Team Management E2E Test Suite', function () {
           permissions: []
         })
       }).then(r => ({ status: r.status }));
-    `, userToken, ownerBrandId, apiUrl);
+    `, ownerBrandId, apiUrl);
     expect(createRoleRes.status).to.be.oneOf([200, 201]);
 
     // Dọn dẹp vai trò tạm thời vừa tạo để không rác DB
@@ -832,20 +823,20 @@ describe('Team Management E2E Test Suite', function () {
 
     console.log("📡 Kiểm chứng quyền INVITE_MEMBERS (bị cấm)...");
     const inviteRes = await driver.executeScript(`
-      const apiUrl = arguments[2];
+      const apiUrl = arguments[1];
       return fetch(apiUrl + '/api/team/invite', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + arguments[0]
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           email: 'hackmember-test-08-f@gmail.com',
           role: 'Member',
-          brandId: arguments[1]
+          brandId: arguments[0]
         })
       }).then(r => ({ status: r.status }));
-    `, userToken, ownerBrandId, apiUrl);
+    `, ownerBrandId, apiUrl);
     expect(inviteRes.status).to.equal(403);
   });
 
@@ -868,58 +859,57 @@ describe('Team Management E2E Test Suite', function () {
       [crypto.randomUUID(), roleId]
     );
 
-    const userToken = await driver.executeScript("return localStorage.getItem('token') || sessionStorage.getItem('token') || '';");
     const apiUrl = process.env.API_URL || 'http://localhost:3000';
 
     console.log("📡 Kiểm chứng quyền APPROVE_POSTS (được phép)...");
     const approveRes = await driver.executeScript(`
-      const apiUrl = arguments[2];
+      const apiUrl = arguments[1];
       return fetch(apiUrl + '/api/posts/bulk-approve', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + arguments[0]
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           postIds: ['dummy-id-123'],
-          brandId: arguments[1]
+          brandId: arguments[0]
         })
       }).then(r => ({ status: r.status }));
-    `, userToken, ownerBrandId, apiUrl);
+    `, ownerBrandId, apiUrl);
     expect(approveRes.status).to.be.oneOf([200, 404]);
 
     console.log("📡 Kiểm chứng quyền DELETE_POSTS (được phép)...");
     const deleteRes = await driver.executeScript(`
-      const apiUrl = arguments[2];
+      const apiUrl = arguments[1];
       return fetch(apiUrl + '/api/posts/bulk', {
         method: 'DELETE',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + arguments[0]
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           postIds: ['dummy-id-123'],
-          brandId: arguments[1]
+          brandId: arguments[0]
         })
       }).then(r => ({ status: r.status }));
-    `, userToken, ownerBrandId, apiUrl);
+    `, ownerBrandId, apiUrl);
     expect(deleteRes.status).to.be.oneOf([200, 404]);
 
     console.log("📡 Kiểm chứng quyền CREATE_POSTS (bị cấm)...");
     const createRes = await driver.executeScript(`
-      const apiUrl = arguments[2];
+      const apiUrl = arguments[1];
       return fetch(apiUrl + '/api/posts', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + arguments[0]
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           title: 'Unauthorized Post Creation',
-          brandId: arguments[1]
+          brandId: arguments[0]
         })
       }).then(r => ({ status: r.status }));
-    `, userToken, ownerBrandId, apiUrl);
+    `, ownerBrandId, apiUrl);
     expect(createRes.status).to.equal(403);
   });
 
@@ -942,58 +932,57 @@ describe('Team Management E2E Test Suite', function () {
       [crypto.randomUUID(), roleId]
     );
 
-    const userToken = await driver.executeScript("return localStorage.getItem('token') || sessionStorage.getItem('token') || '';");
     const apiUrl = process.env.API_URL || 'http://localhost:3000';
 
     console.log("📡 Kiểm chứng quyền CREATE_POSTS (được phép)...");
     const createRes = await driver.executeScript(`
-      const apiUrl = arguments[2];
+      const apiUrl = arguments[1];
       return fetch(apiUrl + '/api/posts', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + arguments[0]
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           title: 'Post by Editor Only',
-          brandId: arguments[1]
+          brandId: arguments[0]
         })
       }).then(r => ({ status: r.status }));
-    `, userToken, ownerBrandId, apiUrl);
+    `, ownerBrandId, apiUrl);
     expect(createRes.status).to.be.oneOf([200, 201]);
 
     console.log("📡 Kiểm chứng quyền APPROVE_POSTS (bị cấm)...");
     const approveRes = await driver.executeScript(`
-      const apiUrl = arguments[2];
+      const apiUrl = arguments[1];
       return fetch(apiUrl + '/api/posts/bulk-approve', {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + arguments[0]
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           postIds: ['dummy-id-123'],
-          brandId: arguments[1]
+          brandId: arguments[0]
         })
       }).then(r => ({ status: r.status }));
-    `, userToken, ownerBrandId, apiUrl);
+    `, ownerBrandId, apiUrl);
     expect(approveRes.status).to.equal(403);
 
     console.log("📡 Kiểm chứng quyền DELETE_POSTS (bị cấm)...");
     const deleteRes = await driver.executeScript(`
-      const apiUrl = arguments[2];
+      const apiUrl = arguments[1];
       return fetch(apiUrl + '/api/posts/bulk', {
         method: 'DELETE',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + arguments[0]
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           postIds: ['dummy-id-123'],
-          brandId: arguments[1]
+          brandId: arguments[0]
         })
       }).then(r => ({ status: r.status }));
-    `, userToken, ownerBrandId, apiUrl);
+    `, ownerBrandId, apiUrl);
     expect(deleteRes.status).to.equal(403);
   });
 
@@ -1068,5 +1057,36 @@ describe('Team Management E2E Test Suite', function () {
 
     const pageSource = await driver.getPageSource();
     expect(pageSource.includes('Restricted Analyst')).to.be.false;
+  });
+
+  it('TC_TEAM_10: Mời hàng loạt thành viên (Bulk Team Invitation)', async function () {
+    await driver.get(`${BASE_URL}/manage/team`);
+    await driver.sleep(2000);
+
+    await safeClick(By.xpath("//button[contains(., 'Invite Member')]"));
+    await driver.sleep(1000);
+
+    const emailInput = await driver.findElement(By.tagName("textarea"));
+    await emailInput.sendKeys('bulk1@gmail.com, bulk2@gmail.com');
+
+    // Chọn vai trò Admin
+    const adminRoleOption = await driver.wait(until.elementLocated(By.xpath("//div[contains(text(), 'Admin')]")), 5000);
+    await driver.executeScript("arguments[0].click();", adminRoleOption);
+    await driver.sleep(500);
+
+    const inviteSubmitBtn = await driver.findElement(By.xpath("//button[contains(text(), 'Gửi lời mời tham gia')]"));
+    await inviteSubmitBtn.click();
+    await driver.sleep(2000);
+
+    // Chờ thông báo thành công
+    const toastSuccess = await driver.wait(until.elementLocated(By.xpath("//li[contains(., 'thành công')]")), 15000);
+    expect(toastSuccess).to.not.be.null;
+    await driver.sleep(2000);
+
+    // Kiểm tra xem cả 2 user đã được tạo và hiển thị trong danh sách thành viên chờ duyệt
+    const pendingMember1 = await driver.wait(until.elementLocated(By.xpath("//tr[td[contains(., 'bulk1@gmail.com')]]")), 10000);
+    const pendingMember2 = await driver.wait(until.elementLocated(By.xpath("//tr[td[contains(., 'bulk2@gmail.com')]]")), 10000);
+    expect(pendingMember1).to.not.be.null;
+    expect(pendingMember2).to.not.be.null;
   });
 });

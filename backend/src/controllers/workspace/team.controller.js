@@ -16,13 +16,29 @@ class TeamController {
   });
 
   inviteMember = asyncHandler(async (req, res) => {
-    const { email, role, brandId } = req.body;
-    if (!email || !role || !brandId) {
-      return res.status(400).json({ message: 'Missing required body fields: email, role, brandId' });
+    const { email, emails, role, brandId } = req.body;
+    if (!email && (!emails || !Array.isArray(emails))) {
+      return res.status(400).json({ message: 'Missing required body fields: email or emails, role, brandId' });
+    }
+    if (!role || !brandId) {
+      return res.status(400).json({ message: 'Missing required body fields: role, brandId' });
     }
 
-    const result = await teamService.inviteMember({
-      email,
+    let emailList = [];
+    if (emails && Array.isArray(emails)) {
+      emailList = emails;
+    } else if (email) {
+      emailList = [email];
+    }
+
+    emailList = emailList.map(e => typeof e === 'string' ? e.trim() : '').filter(Boolean);
+
+    if (emailList.length === 0) {
+      return res.status(400).json({ message: 'No valid email addresses provided' });
+    }
+
+    const result = await teamService.inviteMembers({
+      emails: emailList,
       role,
       brandId,
       invitedByUserId: req.user.id

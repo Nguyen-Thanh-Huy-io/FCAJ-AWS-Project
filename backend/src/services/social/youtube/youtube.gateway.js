@@ -149,23 +149,30 @@ class YouTubeGateway {
       privacyStatus = YOUTUBE_PRIVACY.PRIVATE, 
       categoryId = YOUTUBE_CATEGORIES.PEOPLE_BLOGS,
       selfDeclaredMadeForKids = false,
-      tags = []
+      tags = [],
+      publishAt = null
     } = metadata;
+
+    const requestBody = {
+      snippet: {
+        title,
+        description,
+        categoryId,
+        tags
+      },
+      status: {
+        privacyStatus,
+        selfDeclaredMadeForKids
+      }
+    };
+
+    if (publishAt) {
+      requestBody.status.publishAt = publishAt;
+    }
 
     return youtube.videos.insert({
       part: 'snippet,status',
-      requestBody: {
-        snippet: {
-          title,
-          description,
-          categoryId,
-          tags
-        },
-        status: {
-          privacyStatus,
-          selfDeclaredMadeForKids
-        }
-      },
+      requestBody,
       media: {
         body: videoStream
       }
@@ -215,6 +222,20 @@ class YouTubeGateway {
             }
           }
         }
+      }
+    });
+  }
+
+  /**
+   * Thiết lập ảnh bìa tùy chỉnh cho video YouTube
+   */
+  async setCustomThumbnail(auth, videoId, imageStream, mimeType) {
+    const youtube = google.youtube({ version: API_VERSIONS.YOUTUBE, auth });
+    return youtube.thumbnails.set({
+      videoId,
+      media: {
+        mimeType: mimeType || 'image/jpeg',
+        body: imageStream
       }
     });
   }

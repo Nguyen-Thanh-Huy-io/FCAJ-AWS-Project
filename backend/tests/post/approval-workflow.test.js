@@ -11,15 +11,19 @@ jest.mock('../../src/middlewares/auth.middleware', () => ({
 }));
 
 // Mock Authorization Facade
-jest.mock('../../src/services/auth/authorization.facade', () => ({
-  checkBrandAccess: jest.fn().mockResolvedValue(true),
-  hasPermission: jest.fn().mockImplementation((userId, brandId, permission) => {
+jest.mock('../../src/services/auth/authorization.facade', () => {
+  const hasPerm = jest.fn().mockImplementation((userId, brandId, permission) => {
     if (permission === 'APPROVE_POSTS') {
       return Promise.resolve(userId === 'reviewer-id');
     }
-    return Promise.resolve(false);
-  })
-}));
+    return Promise.resolve(true);
+  });
+  return {
+    checkBrandAccess: jest.fn().mockResolvedValue(true),
+    hasPermission: hasPerm,
+    checkPermission: hasPerm
+  };
+});
 
 // Mock Prisma
 jest.mock('../../src/config/prisma', () => {
@@ -54,12 +58,20 @@ jest.mock('../../src/config/prisma', () => {
   const mockTeam = {
     findMany: jest.fn()
   };
+  const mockWorkflowReviewer = {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    deleteMany: jest.fn()
+  };
 
   return {
     post: mockPost,
     approvalWorkflow: mockApprovalWorkflow,
     brand: mockBrand,
-    team: mockTeam
+    team: mockTeam,
+    workflowReviewer: mockWorkflowReviewer
   };
 });
 
@@ -124,8 +136,12 @@ describe('Post Content Approval Workflow APIs', () => {
 
       const res = await request(app)
         .post('/api/posts')
-        .send(postPayload)
-        .expect(201);
+        .send(postPayload);
+
+      if (res.status !== 201) {
+        console.error('ERROR BODY:', res.body);
+      }
+      expect(res.status).toBe(201);
 
       expect(res.body.data.status).toBe('pending_approval');
       expect(prisma.post.create).toHaveBeenCalled();
@@ -285,6 +301,99 @@ describe('Post Content Approval Workflow APIs', () => {
       expect(prisma.post.update).toHaveBeenCalledWith({
         where: { id: 'post-1' },
         data: { status: 'DRAFT' }
+      });
+    });
+
+    it('should keep workflow and post in PENDING status when policy is ALL and not all reviewers have approved yet', async () => {
+      mockUser = { id: 'reviewer-1-id', email: 'reviewer1@publicast.com' };
+
+      const mockWorkflow = {
+        id: 'wf-1',
+        postId: 'post-1',
+        brandId: 'brand-123',
+        requesterId: 'operator-id',
+        status: 'PENDING',
+        approvalPolicy: 'ALL',
+        selectedReviewers: JSON.stringify(['reviewer-1-id', 'reviewer-2-id']),
+        post: {
+          id: 'post-1',
+          status: 'PENDING_APPROVAL',
+          scheduledAt: new Date(Date.now() + 86400000)
+        }
+      };
+
+      prisma.approvalWorkflow.findUnique.mockResolvedValue(mockWorkflow);
+      prisma.approvalWorkflow.update.mockResolvedValue({
+        ...mockWorkflow,
+        status: 'PENDING'
+      });
+      prisma.workflowReviewer.findFirst.mockResolvedValue(null);
+      // reviewer-1 approved, but reviewer-2 is still pending
+      prisma.workflowReviewer.findMany.mockResolvedValue([
+        { reviewerId: 'reviewer-1-id', status: 'APPROVED' }
+      ]);
+      prisma.post.update.mockResolvedValue({
+        id: 'post-1',
+        status: 'PENDING_APPROVAL'
+      });
+
+      const res = await request(app)
+        .post('/api/brands/brand-123/workflows/wf-1/review')
+        .send({ action: 'APPROVED', comment: 'Looks good to me' })
+        .expect(200);
+
+      expect(res.body.status).toBe('success');
+      expect(res.body.data.status).toBe('PENDING');
+      expect(prisma.post.update).toHaveBeenCalledWith({
+        where: { id: 'post-1' },
+        data: { status: 'PENDING_APPROVAL' }
+      });
+    });
+
+    it('should transition workflow to APPROVED and post to SCHEDULED when policy is ALL and all reviewers have approved', async () => {
+      mockUser = { id: 'reviewer-2-id', email: 'reviewer2@publicast.com' };
+
+      const mockWorkflow = {
+        id: 'wf-1',
+        postId: 'post-1',
+        brandId: 'brand-123',
+        requesterId: 'operator-id',
+        status: 'PENDING',
+        approvalPolicy: 'ALL',
+        selectedReviewers: JSON.stringify(['reviewer-1-id', 'reviewer-2-id']),
+        post: {
+          id: 'post-1',
+          status: 'PENDING_APPROVAL',
+          scheduledAt: new Date(Date.now() + 86400000)
+        }
+      };
+
+      prisma.approvalWorkflow.findUnique.mockResolvedValue(mockWorkflow);
+      prisma.approvalWorkflow.update.mockResolvedValue({
+        ...mockWorkflow,
+        status: 'APPROVED'
+      });
+      prisma.workflowReviewer.findFirst.mockResolvedValue(null);
+      // Both reviewers approved
+      prisma.workflowReviewer.findMany.mockResolvedValue([
+        { reviewerId: 'reviewer-1-id', status: 'APPROVED' },
+        { reviewerId: 'reviewer-2-id', status: 'APPROVED' }
+      ]);
+      prisma.post.update.mockResolvedValue({
+        id: 'post-1',
+        status: 'SCHEDULED'
+      });
+
+      const res = await request(app)
+        .post('/api/brands/brand-123/workflows/wf-1/review')
+        .send({ action: 'APPROVED', comment: 'Approved by second reviewer' })
+        .expect(200);
+
+      expect(res.body.status).toBe('success');
+      expect(res.body.data.status).toBe('APPROVED');
+      expect(prisma.post.update).toHaveBeenCalledWith({
+        where: { id: 'post-1' },
+        data: { status: 'SCHEDULED' }
       });
     });
   });

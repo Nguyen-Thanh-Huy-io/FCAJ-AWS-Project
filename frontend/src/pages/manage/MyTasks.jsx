@@ -115,6 +115,12 @@ export function MyTasksPage() {
 
   // Helper function to check if the current user can approve a workflow
   const canApproveWorkflow = (w) => {
+    // If user has already reviewed (i.e. status is not PENDING in w.reviewers), they cannot review again.
+    const reviewerDecision = w.reviewers?.find(r => r.reviewerId === user?.id);
+    if (reviewerDecision && reviewerDecision.status !== 'PENDING') {
+      return false;
+    }
+
     const wfBrand = brands.find(b => b.id === w.brandId);
     if (!wfBrand) return false;
 
@@ -517,6 +523,43 @@ function PostPreviewModal({ workflow, brands, onClose, onApprove, onReject, onEd
             </button>
           </div>
         </div>
+
+        {/* Reviewers Status */}
+        {workflow.reviewers && workflow.reviewers.length > 0 && (
+          <div className="px-8 py-4 border-t border-gray-100 bg-[#FAFAFA] flex flex-col gap-2">
+            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center justify-between">
+              <span>Trạng thái phê duyệt</span>
+              <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full normal-case text-[9px]">
+                {workflow.approvalPolicy === 'ALL' ? 'Tất cả đồng thuận (ALL)' : 'Tối thiểu một người (ANY)'}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-3 mt-1">
+              {workflow.reviewers.map(r => (
+                <div key={r.id} className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-gray-200 shadow-sm text-xs">
+                  {r.reviewer?.avatarUrl ? (
+                    <img src={r.reviewer.avatarUrl} alt={r.reviewer.name} className="w-5 h-5 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center font-bold text-[10px] text-gray-500">
+                      {r.reviewer?.name?.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="font-medium text-gray-700">{r.reviewer?.name}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                    r.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                    r.status === 'REJECTED' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
+                    r.status === 'REVISION_NEEDED' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                    'bg-gray-50 text-gray-500 border border-gray-100'
+                  }`}>
+                    {r.status === 'APPROVED' ? 'Đã duyệt' :
+                     r.status === 'REJECTED' ? 'Từ chối' :
+                     r.status === 'REVISION_NEEDED' ? 'Yêu cầu sửa' :
+                     'Chờ duyệt'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Notice text */}
         <div className="px-8 py-3 border-t border-gray-100 bg-[#FAFAFA] text-center">

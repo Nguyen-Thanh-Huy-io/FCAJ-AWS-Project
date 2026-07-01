@@ -432,22 +432,45 @@ function InviteModal({ isOpen, onClose, activeBrandId, customRoles = [], onInvit
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInvite = async () => {
-    if (!email) {
+    if (!email.trim()) {
       toast.error("Vui lòng nhập địa chỉ email");
       return;
     }
+
+    const emailList = email
+      .split(/[\s,;]+/)
+      .map(e => e.trim().toLowerCase())
+      .filter(Boolean);
+
+    if (emailList.length === 0) {
+      toast.error("Không tìm thấy địa chỉ email hợp lệ");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      await apiService.post("/team/invite", {
-        email,
+      const response = await apiService.post("/team/invite", {
+        emails: emailList,
         role,
         brandId: activeBrandId
       });
-      toast.success("Đã gửi lời mời thành công!");
+
+      const { message, successes = [], failures = [] } = response.data || {};
+      
+      if (failures.length > 0) {
+        if (successes.length > 0) {
+          toast.warning(`Đã mời thành công ${successes.length} người. Thất bại ${failures.length} người.`);
+        } else {
+          toast.error(`Mời thành viên thất bại: ${failures[0].message}`);
+        }
+      } else {
+        toast.success(`Đã gửi lời mời thành công tới ${successes.length} thành viên!`);
+      }
+
       onInviteSuccess();
       onClose();
     } catch (error) {
-      toast.error(error.message || "Gửi lời mời thất bại");
+      toast.error(error.response?.data?.message || error.message || "Gửi lời mời thất bại");
     } finally {
       setIsSubmitting(false);
     }
@@ -463,15 +486,17 @@ function InviteModal({ isOpen, onClose, activeBrandId, customRoles = [], onInvit
         </div>
         <div className="p-8 space-y-6">
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Địa chỉ Email</label>
+            <div className="flex justify-between items-center">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Danh sách Email</label>
+              <span className="text-[9px] text-gray-400">Cách nhau bằng dấu phẩy hoặc xuống dòng</span>
+            </div>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" size={16} />
-              <input 
-                type="email" 
-                placeholder="colleague@company.com" 
+              <textarea 
+                placeholder="colleague1@company.com, colleague2@company.com" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-transparent rounded-2xl text-xs outline-none focus:bg-white focus:border-black transition-all" 
+                rows={4}
+                className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-2xl text-xs outline-none focus:bg-white focus:border-black transition-all resize-none" 
               />
             </div>
           </div>

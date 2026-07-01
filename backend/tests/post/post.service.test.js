@@ -14,7 +14,7 @@ jest.mock('../../src/repositories/workspace/post.repository', () => ({
   updateStatus: jest.fn(),
   findManyByIdsAndBrand: jest.fn(),
   updateMany: jest.fn(),
-  deleteMany: jest.fn(),
+  deleteMany: jest.fn().mockResolvedValue({ count: 3 }),
   countActivePostsThisMonth: jest.fn()
 }));
 
@@ -34,6 +34,18 @@ jest.mock('../../src/queues/publish.queue', () => ({
   upsertPublishJob: jest.fn(),
   removePublishJob: jest.fn()
 }));
+
+jest.mock('../../src/services/social/social-platform.factory', () => {
+  const mockYouTubeService = {
+    publishPost: jest.fn().mockResolvedValue({ platformVideoId: 'ytVideoIdMock' })
+  };
+  return {
+    getService: jest.fn().mockImplementation((platform) => {
+      if (platform === 'YOUTUBE') return mockYouTubeService;
+      return null;
+    })
+  };
+});
 
 describe('PostService Unit Tests', () => {
   beforeEach(() => {
@@ -233,14 +245,13 @@ describe('PostService Unit Tests', () => {
       postRepository.findManyByIdsAndBrand.mockResolvedValue([
         { id: 'post-1', autoListId: 'autolist-99' }
       ]);
-      postRepository.updateMany.mockResolvedValue({ count: 3 });
+      postRepository.deleteMany.mockResolvedValue({ count: 3 });
 
       const count = await postService.bulkDelete(['post-1', 'post-2', 'post-3'], 'brand-abc');
 
       expect(count).toBe(3);
-      expect(postRepository.updateMany).toHaveBeenCalledWith(
-        { id: { in: ['post-1', 'post-2', 'post-3'] }, brandId: 'brand-abc' },
-        expect.objectContaining({ isDeleted: true })
+      expect(postRepository.deleteMany).toHaveBeenCalledWith(
+        { id: { in: ['post-1', 'post-2', 'post-3'] }, brandId: 'brand-abc' }
       );
     });
   });
@@ -294,6 +305,45 @@ describe('PostService Unit Tests', () => {
       const result = await postService.createPost({ title: 'New Post', status: 'DRAFT' }, 'user-111', 'brand-abc');
       expect(result.title).toBe('New Post');
       expect(postRepository.create).toHaveBeenCalled();
+    });
+  });
+
+  describe('YouTube Native Scheduling integration', () => {
+    const socialPlatformFactory = require('../../src/services/social/social-platform.factory');
+
+    it('should trigger early YouTube native scheduling when creating a scheduled YouTube post', async () => {
+      const scheduleTime = new Date(Date.now() + 3600000);
+      const schedulePostInput = {
+        title: 'YouTube Native Title',
+        status: 'SCHEDULED',
+        scheduledAt: scheduleTime.toISOString(),
+        targetPlatforms: ['YOUTUBE'],
+        mediaUrls: ['http://example.com/video.mp4'],
+        options: { privacyStatus: 'public' }
+      };
+
+      authorizationFacade.hasPermission.mockResolvedValue(true);
+      postRepository.create.mockResolvedValue({
+        ...mockPostData,
+        id: 'post-yt-native',
+        brandId: 'brand-abc',
+        title: 'YouTube Native Title',
+        status: 'SCHEDULED',
+        scheduledAt: scheduleTime,
+        targetPlatforms: 'YOUTUBE',
+        mediaUrls: 'http://example.com/video.mp4'
+      });
+
+      const mockYtServiceInstance = socialPlatformFactory.getService('YOUTUBE');
+
+      const result = await postService.createPost(schedulePostInput, 'user-111', 'brand-abc');
+
+      expect(mockYtServiceInstance.publishPost).toHaveBeenCalledWith('brand-abc', expect.objectContaining({
+        title: 'YouTube Native Title',
+        scheduledAt: scheduleTime
+      }));
+      expect(postRepository.update).toHaveBeenCalledWith('post-yt-native', { platformPostId: 'ytVideoIdMock' });
+      expect(upsertPublishJob).toHaveBeenCalledWith('post-yt-native', scheduleTime);
     });
   });
 });

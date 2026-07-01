@@ -20,6 +20,17 @@ class ApprovalWorkflowRepository {
             name: true,
             avatarUrl: true
           }
+        },
+        reviewers: {
+          include: {
+            reviewer: {
+              select: {
+                id: true,
+                name: true,
+                avatarUrl: true
+              }
+            }
+          }
         }
       },
       orderBy: { requestedAt: 'desc' }
@@ -42,6 +53,17 @@ class ApprovalWorkflowRepository {
             name: true,
             avatarUrl: true
           }
+        },
+        reviewers: {
+          include: {
+            reviewer: {
+              select: {
+                id: true,
+                name: true,
+                avatarUrl: true
+              }
+            }
+          }
         }
       },
       orderBy: { requestedAt: 'desc' }
@@ -58,6 +80,17 @@ class ApprovalWorkflowRepository {
             id: true,
             name: true,
             avatarUrl: true
+          }
+        },
+        reviewers: {
+          include: {
+            reviewer: {
+              select: {
+                id: true,
+                name: true,
+                avatarUrl: true
+              }
+            }
           }
         }
       }
@@ -76,6 +109,17 @@ class ApprovalWorkflowRepository {
             name: true,
             avatarUrl: true
           }
+        },
+        reviewers: {
+          include: {
+            reviewer: {
+              select: {
+                id: true,
+                name: true,
+                avatarUrl: true
+              }
+            }
+          }
         }
       }
     });
@@ -91,6 +135,17 @@ class ApprovalWorkflowRepository {
             id: true,
             name: true,
             avatarUrl: true
+          }
+        },
+        reviewers: {
+          include: {
+            reviewer: {
+              select: {
+                id: true,
+                name: true,
+                avatarUrl: true
+              }
+            }
           }
         }
       }
@@ -108,6 +163,17 @@ class ApprovalWorkflowRepository {
             id: true,
             name: true,
             avatarUrl: true
+          }
+        },
+        reviewers: {
+          include: {
+            reviewer: {
+              select: {
+                id: true,
+                name: true,
+                avatarUrl: true
+              }
+            }
           }
         }
       }

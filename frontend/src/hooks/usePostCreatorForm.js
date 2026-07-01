@@ -96,6 +96,7 @@ export function usePostCreatorForm() {
   const [youtubeTags, setYoutubeTags] = useState("");
   const [youtubeFirstComment, setYoutubeFirstComment] = useState("");
   const [globalFirstComment, setGlobalFirstComment] = useState("");
+  const [youtubeThumbnail, setYoutubeThumbnail] = useState("");
 
   // Threads States
   const [threadsWhoCanReply, setThreadsWhoCanReply] = useState("everyone");
@@ -367,6 +368,7 @@ export function usePostCreatorForm() {
         setYoutubeTags(opts.tags || "");
         setYoutubeFirstComment(opts.firstComment || "");
         setGlobalFirstComment(opts.firstComment || "");
+        setYoutubeThumbnail(opts.youtubeThumbnail || "");
         setThreadsWhoCanReply(opts.threadsWhoCanReply || "everyone");
 
         // Setup Facebook
@@ -423,6 +425,7 @@ export function usePostCreatorForm() {
         setYoutubeTags(opts.tags || "");
         setYoutubeFirstComment(opts.firstComment || "");
         setGlobalFirstComment(opts.firstComment || "");
+        setYoutubeThumbnail(opts.youtubeThumbnail || "");
         setThreadsWhoCanReply(opts.threadsWhoCanReply || "everyone");
 
         // Setup Facebook
@@ -491,6 +494,7 @@ export function usePostCreatorForm() {
         setYoutubeTags("");
         setYoutubeFirstComment("");
         setGlobalFirstComment("");
+        setYoutubeThumbnail("");
 
         // Reset Facebook
         setFacebookType(FACEBOOK_TYPE.POST);
@@ -532,6 +536,7 @@ export function usePostCreatorForm() {
     setYoutubeTags(opts.tags || "");
     setYoutubeFirstComment(opts.firstComment || "");
     setGlobalFirstComment(opts.firstComment || "");
+    setYoutubeThumbnail(opts.youtubeThumbnail || "");
     setThreadsWhoCanReply(opts.threadsWhoCanReply || "everyone");
 
     // Setup Facebook
@@ -627,6 +632,7 @@ export function usePostCreatorForm() {
           tags: youtubeTags,
           madeForKids: youtubeMadeForKids,
           firstComment: youtubeFirstComment || globalFirstComment,
+          youtubeThumbnail,
           facebookType,
           facebookTitle,
           instagramType,
@@ -662,6 +668,7 @@ export function usePostCreatorForm() {
         setYoutubeTags("");
         setYoutubeFirstComment("");
         setGlobalFirstComment("");
+        setYoutubeThumbnail("");
         setFacebookTitle("");
         setFacebookType(FACEBOOK_TYPE.POST);
         setInstagramType(INSTAGRAM_TYPE.POST);
@@ -734,6 +741,8 @@ export function usePostCreatorForm() {
     setYoutubeFirstComment,
     globalFirstComment,
     setGlobalFirstComment,
+    youtubeThumbnail,
+    setYoutubeThumbnail,
     playlists,
     isLoadingPlaylists,
     videoFile,

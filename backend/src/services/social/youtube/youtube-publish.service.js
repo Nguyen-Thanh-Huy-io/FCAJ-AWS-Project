@@ -11,7 +11,17 @@ class YouTubePublishService {
    * Đăng tải video lên YouTube qua quy trình đa bước đã được mô-đun hóa
    */
   async publishPost(brandId, postData) {
-    const { options = {} } = postData;
+    const { options = {}, platformPostId } = postData;
+
+    if (platformPostId) {
+      console.log(`[YouTube Publish] Video already uploaded via Native Scheduling. ID: ${platformPostId}`);
+      return {
+        platformVideoId: platformPostId,
+        videoUrl: YOUTUBE_API.videoUrl(platformPostId),
+        status: POST_STATUS.PUBLISHED,
+        publishedAt: new Date()
+      };
+    }
 
     // 1. Chuẩn bị thông tin tài khoản và Auth
     const { account, auth } = await this._getAuthContext(brandId);
@@ -70,7 +80,7 @@ class YouTubePublishService {
   }
 
   _prepareMetadata(postData, options) {
-    const { title, caption } = postData;
+    const { title, caption, scheduledAt } = postData;
     let finalTitle = options.youtubeTitle || title || 'New YouTube Post';
     let finalDescription = caption || '';
 
@@ -83,13 +93,22 @@ class YouTubePublishService {
       }
     }
 
+    let privacyStatus = options.privacyStatus || YOUTUBE_PRIVACY.PRIVATE;
+    let publishAt = null;
+
+    if (scheduledAt) {
+      privacyStatus = YOUTUBE_PRIVACY.PRIVATE;
+      publishAt = new Date(scheduledAt).toISOString();
+    }
+
     return {
       title: finalTitle,
       description: finalDescription,
-      privacyStatus: options.privacyStatus || YOUTUBE_PRIVACY.PRIVATE,
+      privacyStatus,
       categoryId: options.categoryId || YOUTUBE_CATEGORIES.PEOPLE_BLOGS,
       selfDeclaredMadeForKids: options.madeForKids === true || options.madeForKids === 'true',
-      tags: options.tags ? options.tags.split(SEPARATORS.COMMA).map(t => t.trim()).filter(Boolean) : []
+      tags: options.tags ? options.tags.split(SEPARATORS.COMMA).map(t => t.trim()).filter(Boolean) : [],
+      publishAt
     };
   }
 
@@ -111,6 +130,32 @@ class YouTubePublishService {
         console.error(`[YouTube Post-Upload] First comment failed: ${err.message}`);
       }
     }
+
+    // Set Custom Thumbnail
+    if (options.youtubeThumbnail) {
+      try {
+        const imageStream = await this._prepareImageStream(options.youtubeThumbnail);
+        const ext = path.extname(options.youtubeThumbnail).toLowerCase();
+        const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
+        await youtubeGateway.setCustomThumbnail(auth, videoId, imageStream, mimeType);
+        console.log(`[YouTube Post-Upload] Successfully set custom thumbnail for video ${videoId}`);
+      } catch (err) {
+        console.error(`[YouTube Post-Upload] Setting custom thumbnail failed: ${err.message}`);
+      }
+    }
+  }
+
+  async _prepareImageStream(imageUrl) {
+    if (!imageUrl) throw new Error('Image URL is required');
+    if (imageUrl.startsWith('http')) {
+      const response = await fetch(imageUrl);
+      if (!response.ok) throw new Error(`Failed to fetch image: ${imageUrl}`);
+      return response.body;
+    }
+
+    const localPath = path.join(__dirname, '../../../../', imageUrl.replace(/^\//, ''));
+    if (!fs.existsSync(localPath)) throw new Error(`Local file not found: ${localPath}`);
+    return fs.createReadStream(localPath);
   }
 
   async deletePost(brandId, platformPostId) {

@@ -1,40 +1,85 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const bcrypt = require('bcryptjs');
 
 async function main() {
   console.log('Clearing existing data...');
-  // Delete in reverse order of dependencies to avoid foreign key violations
-  await prisma.auditLog.deleteMany({});
-  await prisma.customRolePermission.deleteMany({});
-  await prisma.customRole.deleteMany({});
-  await prisma.team.deleteMany({});
-  await prisma.adAnalytics.deleteMany({});
-  await prisma.analytics.deleteMany({});
-  await prisma.adAccount.deleteMany({});
-  await prisma.brand.deleteMany({});
-  await prisma.subscription.deleteMany({});
-  await prisma.userSettings.deleteMany({});
-  await prisma.userAccount.deleteMany({});
-  await prisma.user.deleteMany({});
-  await prisma.plan.deleteMany({});
-  await prisma.product.deleteMany({});
-  await prisma.planLimit.deleteMany({});
-  await prisma.systemPermission.deleteMany({});
+  // Tắt kiểm tra khóa ngoại để truncate toàn bộ các bảng sạch sẽ
+  await prisma.$executeRawUnsafe('SET FOREIGN_KEY_CHECKS = 0;');
+
+  const tables = [
+    'audit_logs',
+    'custom_role_permissions',
+    'custom_roles',
+    'teams',
+    'ad_analytics',
+    'social_analytics',
+    'analytics',
+    'ad_accounts',
+    'discord_guild_snapshots',
+    'tracked_videos',
+    'youtube_channels',
+    'instagram_accounts',
+    'facebook_pages',
+    'tiktok_accounts',
+    'linkedin_accounts',
+    'telegram_accounts',
+    'discord_accounts',
+    'social_accounts',
+    'pending_payments',
+    'subscription_addons',
+    'addons',
+    'invoices',
+    'ticket_messages',
+    'support_tickets',
+    'inbox_items',
+    'unified_inboxes',
+    'facebook_story_metrics',
+    'facebook_post_metrics',
+    'facebook_overview_metrics',
+    'competitor_analysis',
+    'link_item_daily_metrics',
+    'smart_link_daily_metrics',
+    'link_items',
+    'smart_links',
+    'hashtag_sets',
+    'hashtag_trackers',
+    'ai_assistants',
+    'media_library',
+    'media_folders',
+    'approval_workflows',
+    'workflow_reviewers',
+    'posts',
+    'livestreams',
+    'content_calendars',
+    'best_time_slots',
+    'auto_lists',
+    'brands',
+    'subscriptions',
+    'user_settings',
+    'user_accounts',
+    'users',
+    'plans',
+    'products',
+    'plan_limits',
+    'system_permissions',
+    'platform_limits',
+    'system_notifications',
+    'notification_read_receipts'
+  ];
+
+  for (const table of tables) {
+    try {
+      await prisma.$executeRawUnsafe(`TRUNCATE TABLE \`${table}\`;`);
+    } catch (e) {
+      console.warn(`Truncate Table \`${table}\` failed, trying deleteMany. Error: ${e.message}`);
+    }
+  }
+
+  await prisma.$executeRawUnsafe('SET FOREIGN_KEY_CHECKS = 1;');
+  console.log('Database cleared.');
 
   console.log('Seeding PlanLimits...');
-  const proLimit = await prisma.planLimit.create({
-    data: {
-      maxBrands: 5,
-      maxSocialProfiles: 10,
-      maxPostsPerMonth: 100,
-      maxLivePlatforms: 3,
-      maxStreamQuality: 'HD_720P',
-      maxTeamSeats: 5,
-      allowCustomRoles: true,
-      allowApprovalWorkflow: true
-    }
-  });
-
   const freeLimit = await prisma.planLimit.create({
     data: {
       maxBrands: 1,
@@ -45,6 +90,45 @@ async function main() {
       maxTeamSeats: 1,
       allowCustomRoles: false,
       allowApprovalWorkflow: false
+    }
+  });
+
+  const starterLimit = await prisma.planLimit.create({
+    data: {
+      maxBrands: 3,
+      maxSocialProfiles: 5,
+      maxPostsPerMonth: 50,
+      maxLivePlatforms: 2,
+      maxStreamQuality: 'HD_720P',
+      maxTeamSeats: 3,
+      allowCustomRoles: true,
+      allowApprovalWorkflow: false
+    }
+  });
+
+  const proLimit = await prisma.planLimit.create({
+    data: {
+      maxBrands: 10,
+      maxSocialProfiles: 20,
+      maxPostsPerMonth: 300,
+      maxLivePlatforms: 5,
+      maxStreamQuality: 'FHD_1080P',
+      maxTeamSeats: 10,
+      allowCustomRoles: true,
+      allowApprovalWorkflow: true
+    }
+  });
+
+  const agencyLimit = await prisma.planLimit.create({
+    data: {
+      maxBrands: 50,
+      maxSocialProfiles: 100,
+      maxPostsPerMonth: 2000,
+      maxLivePlatforms: 10,
+      maxStreamQuality: 'UHD_4K',
+      maxTeamSeats: 50,
+      allowCustomRoles: true,
+      allowApprovalWorkflow: true
     }
   });
 
@@ -60,14 +144,70 @@ async function main() {
   await prisma.product.create({ data: { id: 'custom_links', name: 'Custom Branded Links', category: 'Tools' } });
 
   console.log('Seeding Plans...');
+  const freePlan = await prisma.plan.create({
+    data: {
+      name: 'FREE',
+      priceAmount: 0,
+      currency: 'USD',
+      billingCycle: 'MONTHLY',
+      description: 'Free Plan for beginners',
+      planLimitId: freeLimit.id,
+      isActive: true,
+      products: { connect: [{ id: 'youtube_analytics' }, { id: 'facebook_management' }] }
+    }
+  });
+
+  const starterPlan = await prisma.plan.create({
+    data: {
+      name: 'STARTER',
+      priceAmount: 19.00,
+      currency: 'USD',
+      billingCycle: 'MONTHLY',
+      description: 'Starter Plan for growing creators',
+      planLimitId: starterLimit.id,
+      isActive: true,
+      products: {
+        connect: [
+          { id: 'youtube_analytics' },
+          { id: 'facebook_management' },
+          { id: 'instagram_insights' }
+        ]
+      }
+    }
+  });
+
   const proPlan = await prisma.plan.create({
     data: {
       name: 'PRO',
-      priceAmount: 29.00,
+      priceAmount: 49.00,
       currency: 'USD',
       billingCycle: 'MONTHLY',
-      description: 'Professional Plan',
+      description: 'Professional Plan for marketers',
       planLimitId: proLimit.id,
+      isActive: true,
+      products: {
+        connect: [
+          { id: 'youtube_analytics' },
+          { id: 'facebook_management' },
+          { id: 'tiktok_creative' },
+          { id: 'instagram_insights' },
+          { id: 'ai_content_engine' },
+          { id: 'ai_best_time' },
+          { id: 'unified_inbox' },
+          { id: 'custom_links' }
+        ]
+      }
+    }
+  });
+
+  const agencyPlan = await prisma.plan.create({
+    data: {
+      name: 'AGENCY',
+      priceAmount: 199.00,
+      currency: 'USD',
+      billingCycle: 'MONTHLY',
+      description: 'Agency Plan for large teams',
+      planLimitId: agencyLimit.id,
       isActive: true,
       products: {
         connect: [
@@ -85,24 +225,6 @@ async function main() {
     }
   });
 
-  const freePlan = await prisma.plan.create({
-    data: {
-      name: 'FREE',
-      priceAmount: 0,
-      currency: 'USD',
-      billingCycle: 'MONTHLY',
-      description: 'Free Plan',
-      planLimitId: freeLimit.id,
-      isActive: true,
-      products: {
-        connect: [
-          { id: 'youtube_analytics' },
-          { id: 'facebook_management' }
-        ]
-      }
-    }
-  });
-
   console.log('Seeding SystemPermissions...');
   const permissionsData = [
     { key: 'CREATE_POSTS', label: 'Tạo bài viết', description: 'Cho phép tạo bài viết mới', category: 'posts' },
@@ -114,153 +236,128 @@ async function main() {
   ];
 
   for (const perm of permissionsData) {
-    await prisma.systemPermission.create({
-      data: perm
-    });
+    await prisma.systemPermission.create({ data: perm });
   }
 
-  console.log('Seeding User...');
-  // Password is 'nhacc123@'
-  const passwordHash = require('bcryptjs').hashSync('nhacc123@', 10);
-  const user = await prisma.user.create({
+  // Hash password
+  const customerPasswordHash = bcrypt.hashSync('nhacc123@', 10);
+  const testUserPasswordHash = bcrypt.hashSync('123456aA@', 10);
+
+  console.log('Seeding Users...');
+  // 1. Customer cao nhất
+  const customerUser = await prisma.user.create({
     data: {
       email: 'vothanhnha26@gmail.com',
-      passwordHash: passwordHash,
-      name: 'Nhã Võ',
-      role: 'ADMIN',
+      passwordHash: customerPasswordHash,
+      name: 'Võ Thành Nhã',
+      role: 'OWNER',
       isActive: true,
       isEmailVerified: true,
-      settings: {
-        create: {
-          language: 'vi',
-          timezone: 'Asia/Ho_Chi_Minh'
-        }
-      },
-      accounts: {
-        create: [
-          {
-            provider: 'LOCAL',
-            passwordHash: passwordHash
-          },
-          {
-            provider: 'GOOGLE',
-            providerId: 'google-oauth2-vothanhnha26'
-          }
-        ]
-      }
+      settings: { create: { language: 'vi', timezone: 'Asia/Ho_Chi_Minh' } },
+      accounts: { create: [{ provider: 'LOCAL', passwordHash: customerPasswordHash }] }
     }
   });
 
-  console.log('Seeding Test User...');
-  const testPasswordHash = require('bcryptjs').hashSync('123456aA@', 10);
+  // 2. Admin riêng biệt
+  const adminUser = await prisma.user.create({
+    data: {
+      email: 'admin@publicast.com',
+      passwordHash: customerPasswordHash,
+      name: 'Hệ Thống Admin',
+      role: 'ADMIN',
+      isActive: true,
+      isEmailVerified: true,
+      settings: { create: { language: 'vi', timezone: 'Asia/Ho_Chi_Minh' } },
+      accounts: { create: [{ provider: 'LOCAL', passwordHash: customerPasswordHash }] }
+    }
+  });
+
+  // 3. Staff riêng biệt
+  const staffUser = await prisma.user.create({
+    data: {
+      email: 'staff@publicast.com',
+      passwordHash: customerPasswordHash,
+      name: 'Nhân Viên Hỗ Trợ',
+      role: 'STAFF',
+      isActive: true,
+      isEmailVerified: true,
+      settings: { create: { language: 'vi', timezone: 'Asia/Ho_Chi_Minh' } },
+      accounts: { create: [{ provider: 'LOCAL', passwordHash: customerPasswordHash }] }
+    }
+  });
+
+  // 4. Test Customer khác
   const testUser = await prisma.user.create({
     data: {
       id: 'e673a8b3-5edf-4366-b1e1-4400c06eb5dd',
       email: 'trongphuc91thcsduclap@gmail.com',
-      passwordHash: testPasswordHash,
+      passwordHash: testUserPasswordHash,
       name: 'Nguyễn Trọng Phúc',
       role: 'OWNER',
       isActive: true,
       isEmailVerified: true,
-      settings: {
-        create: {
-          language: 'vi',
-          timezone: 'Asia/Ho_Chi_Minh'
-        }
-      },
-      accounts: {
-        create: [
-          {
-            provider: 'LOCAL',
-            passwordHash: testPasswordHash
-          }
-        ]
-      }
+      settings: { create: { language: 'vi', timezone: 'Asia/Ho_Chi_Minh' } },
+      accounts: { create: [{ provider: 'LOCAL', passwordHash: testUserPasswordHash }] }
     }
   });
 
-  // Additional members to populate Team Management page
-  const memberSpecialist = await prisma.user.create({
+  // Additional members for team management
+  const specialistUser = await prisma.user.create({
     data: {
       email: 'specialist@publicast.com',
-      passwordHash: passwordHash,
-      name: 'Nguyễn Văn Chuyên',
+      passwordHash: customerPasswordHash,
+      name: 'Nguyễn Văn Chuyên (Specialist)',
       role: 'USER',
       isActive: true,
       isEmailVerified: true,
-      settings: {
-        create: {
-          language: 'vi',
-          timezone: 'Asia/Ho_Chi_Minh'
-        }
-      },
-      accounts: {
-        create: [
-          {
-            provider: 'LOCAL',
-            passwordHash: passwordHash
-          },
-          {
-            provider: 'GOOGLE',
-            providerId: 'google-oauth2-chuyennguyen'
-          }
-        ]
-      }
+      settings: { create: { language: 'vi', timezone: 'Asia/Ho_Chi_Minh' } }
     }
   });
 
-  const memberManager = await prisma.user.create({
+  const managerUser = await prisma.user.create({
     data: {
       email: 'manager@publicast.com',
-      passwordHash: passwordHash,
-      name: 'Lê Thị Quản Lý',
+      passwordHash: customerPasswordHash,
+      name: 'Lê Thị Quản Lý (Manager)',
       role: 'MANAGER',
       isActive: true,
       isEmailVerified: true,
-      settings: {
-        create: {
-          language: 'vi',
-          timezone: 'Asia/Ho_Chi_Minh'
-        }
-      },
-      accounts: {
-        create: [
-          {
-            provider: 'LOCAL',
-            passwordHash: passwordHash
-          }
-        ]
-      }
+      settings: { create: { language: 'vi', timezone: 'Asia/Ho_Chi_Minh' } }
     }
   });
 
-  const memberGuest = await prisma.user.create({
+  // Create Subscriptions
+  console.log('Seeding Subscriptions...');
+  // 3 Subscription Agency cho 3 brand của customer chính vothanhnha26@gmail.com
+  const agencySub1 = await prisma.subscription.create({
     data: {
-      email: 'guest@publicast.com',
-      passwordHash: passwordHash,
-      name: 'Trần Khách Mời',
-      role: 'USER',
-      isActive: true,
-      isEmailVerified: true,
-      settings: {
-        create: {
-          language: 'vi',
-          timezone: 'Asia/Ho_Chi_Minh'
-        }
-      },
-      accounts: {
-        create: [
-          {
-            provider: 'LOCAL',
-            passwordHash: passwordHash
-          }
-        ]
-      }
+      planId: agencyPlan.id,
+      status: 'ACTIVE',
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
     }
   });
 
-  console.log('Seeding Subscription...');
-  const subscription = await prisma.subscription.create({
+  const agencySub2 = await prisma.subscription.create({
+    data: {
+      planId: agencyPlan.id,
+      status: 'ACTIVE',
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    }
+  });
+
+  const agencySub3 = await prisma.subscription.create({
+    data: {
+      planId: agencyPlan.id,
+      status: 'ACTIVE',
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    }
+  });
+
+  // Subscription Pro cho test user trongphuc91thcsduclap@gmail.com
+  const proSub = await prisma.subscription.create({
     data: {
       planId: proPlan.id,
       status: 'ACTIVE',
@@ -269,29 +366,42 @@ async function main() {
     }
   });
 
-  console.log('Seeding Brand...');
-  const brand = await prisma.brand.create({
+  console.log('Seeding Brands...');
+  // 3 Brands cho customer vothanhnha26@gmail.com
+  const brand1 = await prisma.brand.create({
     data: {
-      name: 'PubliCast Team',
+      name: 'PubliCast Global',
       timezone: 'Asia/Ho_Chi_Minh',
       defaultLanguage: 'vi',
-      ownerId: user.id,
-      subscriptionId: subscription.id,
+      ownerId: customerUser.id,
+      subscriptionId: agencySub1.id,
       isActive: true
     }
   });
 
-  console.log('Seeding Test Subscription...');
-  const testSubscription = await prisma.subscription.create({
+  const brand2 = await prisma.brand.create({
     data: {
-      planId: proPlan.id,
-      status: 'ACTIVE',
-      currentPeriodStart: new Date(),
-      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      name: 'Aesthetics Tech',
+      timezone: 'Asia/Ho_Chi_Minh',
+      defaultLanguage: 'vi',
+      ownerId: customerUser.id,
+      subscriptionId: agencySub2.id,
+      isActive: true
     }
   });
 
-  console.log('Seeding Test Brand...');
+  const brand3 = await prisma.brand.create({
+    data: {
+      name: 'Võ Thanh Nhã Brand',
+      timezone: 'Asia/Ho_Chi_Minh',
+      defaultLanguage: 'vi',
+      ownerId: customerUser.id,
+      subscriptionId: agencySub3.id,
+      isActive: true
+    }
+  });
+
+  // 1 Brand cho test user trongphuc91thcsduclap@gmail.com
   const testBrand = await prisma.brand.create({
     data: {
       id: 'af40cc3e-321c-4647-9ac1-dd37967e350c',
@@ -299,177 +409,21 @@ async function main() {
       timezone: 'Asia/Ho_Chi_Minh',
       defaultLanguage: 'vi',
       ownerId: testUser.id,
-      subscriptionId: testSubscription.id,
+      subscriptionId: proSub.id,
       isActive: true
     }
   });
 
-  console.log('Seeding SmartLinks...');
-  const smartLink = await prisma.smartLink.create({
-    data: {
-      brandId: brand.id,
-      slug: 'metricool-instagram-en',
-      pageTitle: 'Metricool Instagram EN',
-      bio: 'Social analytics, content planning, and link performance in one place.',
-      profileImageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
-      backgroundType: 'THEME',
-      backgroundValue: 'midnight',
-      buttonStyle: 'rounded',
-      socialLinks: 'instagram=https://instagram.com/publicast;youtube=https://youtube.com/@publicast;twitter=https://x.com/publicast',
-      isPublished: true,
-      links: {
-        create: [
-          {
-            title: 'Download the FREE 2026 Social Media Calendar',
-            url: 'https://publicast.com/calendar',
-            emoji: '📅',
-            position: 0,
-            isActive: true,
-            iconUrl: '',
-            linkStyle: 'style:bgColor=#E6B325;textColor=#FFFFFF;borderColor=#E6B325',
-            clicks: 134
-          },
-          {
-            title: 'Watch the webinar replay',
-            url: 'https://publicast.com/webinar',
-            emoji: '🎥',
-            position: 1,
-            isActive: true,
-            iconUrl: '',
-            linkStyle: 'style:bgColor=#4A90E2;textColor=#FFFFFF;borderColor=#4A90E2',
-            clicks: 58
-          },
-          {
-            title: 'Read the growth playbook',
-            url: 'https://publicast.com/playbook',
-            emoji: '📘',
-            position: 2,
-            isActive: true,
-            iconUrl: '',
-            linkStyle: 'style:bgColor=#E65C9C;textColor=#FFFFFF;borderColor=#E65C9C',
-            clicks: 36
-          }
-        ]
-      }
-    },
-    include: {
-      links: true
-    }
-  });
+  // ==========================================
+  // SEED MOCK DATA FOR CUSTOMER (vothanhnha26@gmail.com)
+  // NO POSTS / LIVESTREAMS
+  // ==========================================
+  console.log('Seeding data for vothanhnha26@gmail.com brands (No posts)...');
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  // Seed 90 days of metrics
-  const analyticsDays = Array.from({ length: 90 }, (_, index) => {
-    const date = new Date(today);
-    date.setDate(date.getDate() - (89 - index));
-    
-    // Wave patterns for realistic weekly cycle
-    const dayOfWeek = date.getDay();
-    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday = 0, Saturday = 6
-    const weekendFactor = isWeekend ? 0.45 : 1.0; // Drop in weekend traffic
-    
-    const sineWave = Math.sin((index / 89) * Math.PI * 6) * 0.4 + 0.6; // Multi-cycle wave
-    const randomNoise = (Math.random() * 0.2) - 0.1; // Minor daily variations
-    
-    // Spikes representing campaign posts or newsletter blasts
-    let spike = 0;
-    if (index === 15) spike = 45; // Huge spike early on
-    if (index === 42) spike = 35;
-    if (index === 78) spike = 50; // Spike in the last 2 weeks
-    if (index === 87) spike = 25;
-    
-    const visits = Math.max(8, Math.round((30 + sineWave * 50 + spike) * weekendFactor + (Math.random() * 6)));
-    const buttonClicks = Math.max(3, Math.round(visits * (0.65 + randomNoise)));
-    const uniqueVisitors = Math.max(2, Math.round(visits * (0.75 + randomNoise * 0.5)));
-    
-    return {
-      date,
-      visits,
-      buttonClicks,
-      uniqueVisitors
-    };
-  });
-
-  await prisma.smartLinkDailyMetric.createMany({
-    data: analyticsDays.map((day) => ({
-      smartLinkId: smartLink.id,
-      date: day.date,
-      pageViews: day.visits,
-      uniqueVisitors: day.uniqueVisitors
-    }))
-  });
-
-  const linkOne = smartLink.links[0];
-  const linkTwo = smartLink.links[1];
-  const linkThree = smartLink.links[2];
-
-  let totalClicksOne = 0;
-  let totalClicksTwo = 0;
-  let totalClicksThree = 0;
-
-  const linkMetrics = analyticsDays.flatMap((day) => {
-    const clicksOne = Math.max(1, Math.round(day.buttonClicks * 0.48));
-    const clicksTwo = Math.max(0, Math.round(day.buttonClicks * 0.32));
-    const clicksThree = Math.max(0, Math.round(day.buttonClicks * 0.20));
-
-    totalClicksOne += clicksOne;
-    totalClicksTwo += clicksTwo;
-    totalClicksThree += clicksThree;
-
-    return [
-      {
-        smartLinkId: smartLink.id,
-        linkItemId: linkOne.id,
-        date: day.date,
-        clicks: clicksOne
-      },
-      {
-        smartLinkId: smartLink.id,
-        linkItemId: linkTwo.id,
-        date: day.date,
-        clicks: clicksTwo
-      },
-      {
-        smartLinkId: smartLink.id,
-        linkItemId: linkThree.id,
-        date: day.date,
-        clicks: clicksThree
-      }
-    ];
-  });
-
-  await prisma.linkItemDailyMetric.createMany({
-    data: linkMetrics
-  });
-
-  // Update totalClicks on the SmartLink and individual LinkItems
-  const sumTotalClicks = totalClicksOne + totalClicksTwo + totalClicksThree;
-  await prisma.smartLink.update({
-    where: { id: smartLink.id },
-    data: { totalClicks: sumTotalClicks }
-  });
-
-  await prisma.linkItem.update({
-    where: { id: linkOne.id },
-    data: { clicks: totalClicksOne }
-  });
-  await prisma.linkItem.update({
-    where: { id: linkTwo.id },
-    data: { clicks: totalClicksTwo }
-  });
-  await prisma.linkItem.update({
-    where: { id: linkThree.id },
-    data: { clicks: totalClicksThree }
-  });
-
-  console.log('Seeding Custom Roles...');
-  
-  // 1. Social Specialist Role
+  // Custom Roles & Team for brand1 (PubliCast Global)
   const specialistRole = await prisma.customRole.create({
     data: {
-      brandId: brand.id,
+      brandId: brand1.id,
       name: 'Social Media Specialist',
       description: 'Chuyên viên biên soạn và tối ưu bài viết mạng xã hội',
       colorHex: '#3B82F6',
@@ -478,229 +432,525 @@ async function main() {
           { permissionKey: 'CREATE_POSTS', isAllowed: true },
           { permissionKey: 'PUBLISH_POSTS', isAllowed: false },
           { permissionKey: 'APPROVE_POSTS', isAllowed: false },
-          { permissionKey: 'DELETE_POSTS', isAllowed: true },
-          { permissionKey: 'MANAGE_ROLES', isAllowed: false },
-          { permissionKey: 'INVITE_MEMBERS', isAllowed: false }
+          { permissionKey: 'DELETE_POSTS', isAllowed: true }
         ]
       }
     }
   });
 
-  // 2. Content Manager Role
   const managerRole = await prisma.customRole.create({
     data: {
-      brandId: brand.id,
+      brandId: brand1.id,
       name: 'Content Manager',
-      description: 'Quản lý duyệt bài viết và cấu hình quyền hạn cơ bản',
+      description: 'Quản lý duyệt bài viết',
       colorHex: '#8B5CF6',
       permissions: {
         create: [
           { permissionKey: 'CREATE_POSTS', isAllowed: true },
           { permissionKey: 'PUBLISH_POSTS', isAllowed: true },
           { permissionKey: 'APPROVE_POSTS', isAllowed: true },
-          { permissionKey: 'DELETE_POSTS', isAllowed: true },
-          { permissionKey: 'MANAGE_ROLES', isAllowed: true },
-          { permissionKey: 'INVITE_MEMBERS', isAllowed: true }
+          { permissionKey: 'DELETE_POSTS', isAllowed: true }
         ]
       }
     }
   });
 
-  // 3. Guest Editor Role
-  const guestRole = await prisma.customRole.create({
-    data: {
-      brandId: brand.id,
-      name: 'Guest Editor',
-      description: 'Thành viên viết bài khách mời, chỉ soạn thảo bản nháp',
-      colorHex: '#F59E0B',
-      permissions: {
-        create: [
-          { permissionKey: 'CREATE_POSTS', isAllowed: true },
-          { permissionKey: 'PUBLISH_POSTS', isAllowed: false },
-          { permissionKey: 'APPROVE_POSTS', isAllowed: false },
-          { permissionKey: 'DELETE_POSTS', isAllowed: false },
-          { permissionKey: 'MANAGE_ROLES', isAllowed: false },
-          { permissionKey: 'INVITE_MEMBERS', isAllowed: false }
-        ]
-      }
-    }
-  });
-
-  console.log('Seeding Team Members...');
-  
-  // Owner is Nhã Võ
   await prisma.team.create({
     data: {
-      brandId: brand.id,
-      userId: user.id,
+      brandId: brand1.id,
+      userId: customerUser.id,
       role: 'OWNER',
-      invitedByUserId: user.id,
+      invitedByUserId: customerUser.id,
       status: 'ACTIVE',
       acceptedAt: new Date()
     }
   });
 
-  // Specialist Nguyễn Văn Chuyên
   await prisma.team.create({
     data: {
-      brandId: brand.id,
-      userId: memberSpecialist.id,
+      brandId: brand1.id,
+      userId: specialistUser.id,
       role: 'USER',
       customRoleId: specialistRole.id,
-      invitedByUserId: user.id,
+      invitedByUserId: customerUser.id,
       status: 'ACTIVE',
       acceptedAt: new Date()
     }
   });
 
-  // Manager Lê Thị Quản Lý
   await prisma.team.create({
     data: {
-      brandId: brand.id,
-      userId: memberManager.id,
+      brandId: brand1.id,
+      userId: managerUser.id,
       role: 'MANAGER',
       customRoleId: managerRole.id,
-      invitedByUserId: user.id,
+      invitedByUserId: customerUser.id,
       status: 'ACTIVE',
       acceptedAt: new Date()
     }
   });
 
-  // Guest Trần Khách Mời
-  await prisma.team.create({
+  // AutoLists
+  await prisma.autoList.create({
     data: {
-      brandId: brand.id,
-      userId: memberGuest.id,
-      role: 'USER',
-      customRoleId: guestRole.id,
-      invitedByUserId: user.id,
-      status: 'ACTIVE',
-      acceptedAt: new Date()
+      brandId: brand1.id,
+      name: 'Danh sách bài đăng tuyển dụng',
+      sourceType: 'MANUAL',
+      targetPlatforms: 'LINKEDIN,FACEBOOK',
+      scheduleType: 'INTERVAL',
+      intervalMinutes: 120,
+      activeDays: 'MON,WED,FRI',
+      isActive: true,
+      loopEnabled: true
     }
   });
 
-  console.log('Seeding AuditLogs...');
-  const auditLogs = [
-    {
-      action: 'PUBLISHED',
-      targetType: 'Content',
-      targetId: 'Q2 Campaign Post',
-      details: 'success',
-      ipAddress: '192.168.1.42',
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-      createdAt: new Date(Date.now() - 5 * 60 * 1000) // 5 mins ago
-    },
-    {
-      action: 'INVITED',
-      targetType: 'Team',
-      targetId: 'alex@company.com',
-      details: 'success',
-      ipAddress: '10.0.0.15',
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-      createdAt: new Date(Date.now() - 15 * 60 * 1000) // 15 mins ago
-    },
-    {
-      action: 'FAILED LOGIN',
-      targetType: 'Security',
-      targetId: 'admin@publicast.com',
-      details: 'failed',
-      ipAddress: '45.33.21.108',
-      userAgent: 'python-requests/2.28.1',
-      createdAt: new Date(Date.now() - 30 * 60 * 1000) // 30 mins ago
-    },
-    {
-      action: 'SUBMITTED',
-      targetType: 'Content',
-      targetId: 'Product Launch Stream',
-      details: 'success',
-      ipAddress: '192.168.1.88',
-      userAgent: 'Mozilla/5.0 (Linux; Android 10; SM-G973F)',
-      createdAt: new Date(Date.now() - 45 * 60 * 1000) // 45 mins ago
-    },
-    {
-      action: 'PLAN UPGRADE',
-      targetType: 'Billing',
-      targetId: 'Pro → Agency',
-      details: 'success',
-      ipAddress: '192.168.1.1',
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
-    },
-    {
-      action: 'EDITED',
-      targetType: 'Content',
-      targetId: 'Summer Campaign',
-      details: 'success',
-      ipAddress: '192.168.1.42',
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-      createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000) // 3 hours ago
-    },
-    {
-      action: 'EXPORTED',
-      targetType: 'Data',
-      targetId: 'Analytics Report Q1',
-      details: 'success',
-      ipAddress: '10.0.0.15',
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-      createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000) // 5 hours ago
-    },
-    {
-      action: 'START STREAM',
-      targetType: 'Stream',
-      targetId: 'Tech Review Q2',
-      details: 'success',
-      ipAddress: '192.168.1.88',
-      userAgent: 'Mozilla/5.0 (Linux; Android 10; SM-G973F)',
-      createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000) // 12 hours ago
-    },
-    {
-      action: 'PASSWORD CHANGE',
-      targetType: 'Security',
-      targetId: 'admin@publicast.com',
-      details: 'success',
-      ipAddress: '192.168.1.1',
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-      createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000) // 1 day ago
-    },
-    {
-      action: 'ROLE CHANGE',
-      targetType: 'Team',
-      targetId: 'Sarah K. (Editor -> Manager)',
-      details: 'success',
-      ipAddress: '10.0.0.15',
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) // 2 days ago
-    },
-    {
-      action: 'DELETE POST',
-      targetType: 'Content',
-      targetId: 'Draft post #12',
-      details: 'success',
-      ipAddress: '192.168.1.42',
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) // 3 days ago
-    },
-    {
-      action: 'STOP STREAM',
-      targetType: 'Stream',
-      targetId: 'Tech Review Q2',
-      details: 'success',
-      ipAddress: '192.168.1.88',
-      userAgent: 'Mozilla/5.0 (Linux; Android 10; SM-G973F)',
-      createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000) // 4 days ago
+  await prisma.autoList.create({
+    data: {
+      brandId: brand1.id,
+      name: 'RSS News Feed',
+      sourceType: 'RSS_FEED',
+      rssUrl: 'https://vnexpress.net/rss/tin-moi-nhat.rss',
+      targetPlatforms: 'FACEBOOK,TELEGRAM',
+      scheduleType: 'SPECIFIC_TIMES',
+      specificTimes: '09:00,15:00,21:00',
+      activeDays: 'MON,TUE,WED,THU,FRI,SAT,SUN',
+      isActive: true
     }
-  ];
+  });
 
-  for (const log of auditLogs) {
-    await prisma.auditLog.create({
+  // Reports
+  await prisma.report.create({
+    data: {
+      brandId: brand1.id,
+      createdByUserId: customerUser.id,
+      title: 'Báo cáo hiệu quả Social Media Q2',
+      description: 'Đánh giá chỉ số tương tác và phát triển thương hiệu trên các kênh Social.',
+      dateFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      dateTo: new Date(),
+      includedPlatforms: 'FACEBOOK,INSTAGRAM,YOUTUBE',
+      includedSections: 'OVERVIEW,AUDIENCE,POSTS',
+      format: 'PDF',
+      isWhiteLabel: true,
+      brandColorHex: '#4F46E5',
+      createdAt: new Date()
+    }
+  });
+
+  // SmartLinks
+  const smartLinkBrand1 = await prisma.smartLink.create({
+    data: {
+      brandId: brand1.id,
+      slug: 'publicast-links',
+      pageTitle: 'PubliCast Global - SmartLinks',
+      bio: 'Nền tảng lên kế hoạch và tối ưu hóa nội dung đa kênh tiện lợi.',
+      profileImageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop&q=80',
+      backgroundType: 'THEME',
+      backgroundValue: 'midnight',
+      buttonStyle: 'rounded',
+      socialLinks: 'instagram=https://instagram.com;youtube=https://youtube.com',
+      isPublished: true,
+      links: {
+        create: [
+          {
+            title: 'Trải nghiệm ứng dụng miễn phí',
+            url: 'https://publicast.com/free-trial',
+            emoji: '🚀',
+            position: 0,
+            isActive: true,
+            clicks: 250
+          },
+          {
+            title: 'Tài liệu hướng dẫn sử dụng',
+            url: 'https://docs.publicast.com',
+            emoji: '📚',
+            position: 1,
+            isActive: true,
+            clicks: 120
+          }
+        ]
+      }
+    },
+    include: { links: true }
+  });
+
+  // SmartLink Metrics 30 days
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const metricsDays = Array.from({ length: 30 }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(date.getDate() - (29 - index));
+    const dayOfWeek = date.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const factor = isWeekend ? 0.5 : 1.0;
+    const visits = Math.max(10, Math.round((50 + Math.sin(index / 5) * 20 + Math.random() * 10) * factor));
+    return {
+      date,
+      visits,
+      unique: Math.max(5, Math.round(visits * 0.8))
+    };
+  });
+
+  await prisma.smartLinkDailyMetric.createMany({
+    data: metricsDays.map(day => ({
+      smartLinkId: smartLinkBrand1.id,
+      date: day.date,
+      pageViews: day.visits,
+      uniqueVisitors: day.unique
+    }))
+  });
+
+  // SocialAccounts
+  const socialFB = await prisma.socialAccount.create({
+    data: {
+      brandId: brand1.id,
+      platform: 'FACEBOOK',
+      platformAccountId: 'fb_page_123',
+      username: 'publicast.global',
+      displayName: 'PubliCast Global Fanpage',
+      accessToken: 'fb_mock_token',
+      scopes: 'pages_read_engagement,pages_manage_posts',
+      isConnected: true,
+      connectedAt: new Date()
+    }
+  });
+
+  await prisma.facebookPage.create({
+    data: {
+      socialAccountId: socialFB.id,
+      pageId: 'fb_page_123',
+      category: 'Software Company',
+      likesCount: 5200,
+      followersCount: 5600,
+      about: 'Trang thông tin chính thức của PubliCast Global'
+    }
+  });
+
+  const socialYT = await prisma.socialAccount.create({
+    data: {
+      brandId: brand1.id,
+      platform: 'YOUTUBE',
+      platformAccountId: 'yt_channel_456',
+      username: '@publicast_global',
+      displayName: 'PubliCast Global YT',
+      accessToken: 'yt_mock_token',
+      scopes: 'youtube.readonly,youtube.upload',
+      isConnected: true,
+      connectedAt: new Date()
+    }
+  });
+
+  await prisma.youTubeChannel.create({
+    data: {
+      socialAccountId: socialYT.id,
+      channelId: 'yt_channel_456',
+      subscribersCount: 12000,
+      totalVideosCount: 84,
+      totalViewsCount: 450000
+    }
+  });
+
+  // Ads
+  const adAcc = await prisma.adAccount.create({
+    data: {
+      brandId: brand1.id,
+      platform: 'META_ADS',
+      platformAccountId: 'act_vothanhnha_ad',
+      accountName: 'Meta Ads - Võ Thành Nhã Pro',
+      currency: 'VND',
+      timezone: 'Asia/Ho_Chi_Minh',
+      accessToken: 'mock_ad_token',
+      isActive: true
+    }
+  });
+
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const spend = 150000 + Math.round(Math.sin(i) * 50000 + Math.random() * 20000);
+    const clicks = Math.round(spend / 1500);
+    const conversions = Math.round(clicks * 0.05);
+
+    await prisma.analytics.create({
       data: {
-        ...log,
-        brandId: brand.id,
-        userId: user.id
+        brandId: brand1.id,
+        adAccountId: adAcc.id,
+        dateFrom: d,
+        dateTo: d,
+        granularity: 'DAY',
+        fetchedAt: new Date(),
+        analyticsType: 'AD',
+        adAnalytics: {
+          create: {
+            campaignId: 'camp_brand1_lead',
+            campaignName: 'Lead Generation - VietNam',
+            totalSpend: spend,
+            impressions: clicks * 50,
+            clicks: clicks,
+            ctr: 2.0,
+            cpc: 1500,
+            cpm: 75000,
+            conversions: conversions,
+            conversionValue: conversions * 50000,
+            cpa: conversions > 0 ? spend / conversions : 0,
+            roas: conversions > 0 ? (conversions * 50000) / spend : 0,
+            reach: clicks * 40,
+            frequency: 1.1
+          }
+        }
       }
     });
   }
 
+  // ==========================================
+  // SEED FULL DATA FOR TEST USER (trongphuc91thcsduclap@gmail.com)
+  // INCLUDES POSTS & LIVESTREAMS FOR UI TESTING
+  // ==========================================
+  console.log('Seeding full test data (including posts) for trongphuc91thcsduclap@gmail.com...');
+
+  await prisma.team.create({
+    data: {
+      brandId: testBrand.id,
+      userId: testUser.id,
+      role: 'OWNER',
+      invitedByUserId: testUser.id,
+      status: 'ACTIVE',
+      acceptedAt: new Date()
+    }
+  });
+
+  // Social accounts for test brand
+  const testSocialFB = await prisma.socialAccount.create({
+    data: {
+      brandId: testBrand.id,
+      platform: 'FACEBOOK',
+      platformAccountId: 'fb_page_test',
+      username: 'trongphuc.test',
+      displayName: 'Trong Phuc Tech Fanpage',
+      accessToken: 'fb_mock_token_test',
+      scopes: 'pages_read_engagement,pages_manage_posts',
+      isConnected: true,
+      connectedAt: new Date()
+    }
+  });
+
+  await prisma.facebookPage.create({
+    data: {
+      socialAccountId: testSocialFB.id,
+      pageId: 'fb_page_test',
+      likesCount: 1500,
+      followersCount: 1650,
+      about: 'Trang kiểm thử công nghệ của Nguyễn Trọng Phúc'
+    }
+  });
+
+  // Posts for testBrand
+  await prisma.post.create({
+    data: {
+      brandId: testBrand.id,
+      createdByUserId: testUser.id,
+      title: 'Bài viết ra mắt sản phẩm mới - Bản nháp',
+      caption: 'Chúng tôi sắp sửa ra mắt giải pháp AI tự động hóa lịch đăng bài đa kênh. Cùng chờ đón nhé!',
+      type: 'IMAGE',
+      status: 'DRAFT',
+      targetPlatforms: 'FACEBOOK,INSTAGRAM',
+      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+    }
+  });
+
+  await prisma.post.create({
+    data: {
+      brandId: testBrand.id,
+      createdByUserId: testUser.id,
+      title: 'Thông báo tuyển dụng vị trí Developer',
+      caption: 'PubliCast đang tuyển dụng lập trình viên NodeJS / ReactJS có kinh nghiệm. Môi trường làm việc năng động, phúc lợi cao!',
+      type: 'TEXT',
+      status: 'SCHEDULED',
+      targetPlatforms: 'LINKEDIN',
+      scheduledAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // Lên lịch sau 2 ngày
+      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+    }
+  });
+
+  await prisma.post.create({
+    data: {
+      brandId: testBrand.id,
+      createdByUserId: testUser.id,
+      title: 'Chia sẻ kiến thức Marketing đa kênh',
+      caption: 'Làm thế nào để phân phối nội dung đồng thời lên Facebook, TikTok và YouTube Shorts mà vẫn giữ chân người dùng? Đọc bài viết sau đây.',
+      type: 'LINK',
+      status: 'PUBLISHED',
+      targetPlatforms: 'FACEBOOK',
+      publishedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      platformPostId: 'fb_post_999123',
+      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+    }
+  });
+
+  await prisma.post.create({
+    data: {
+      brandId: testBrand.id,
+      createdByUserId: testUser.id,
+      title: 'Video Demo tính năng AI Content Generator',
+      caption: 'Cùng xem sức mạnh của AI trong việc tự động sáng tạo nội dung bài viết và đề xuất hashtag cực thông minh.',
+      type: 'VIDEO',
+      status: 'FAILED',
+      targetPlatforms: 'YOUTUBE',
+      failureReason: 'OAuth Token Expired. Please reconnect your account.',
+      createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000)
+    }
+  });
+
+  // Livestreams for testBrand
+  await prisma.livestream.create({
+    data: {
+      brandId: testBrand.id,
+      createdByUserId: testUser.id,
+      title: 'Livestream hỏi đáp giải pháp PubliCast',
+      description: 'Buổi giao lưu trực tiếp giải đáp mọi thắc mắc của người dùng về việc tự động hóa kế hoạch bài đăng.',
+      scheduledAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+      durationMinutes: 60,
+      status: 'SCHEDULED',
+      streamKey: 'live_test_key_123',
+      rtmpUrl: 'rtmp://live.publicast.com/app',
+      targetPlatforms: 'YOUTUBE,FACEBOOK',
+      streamQuality: 'HD_720P'
+    }
+  });
+
+  // AutoLists for testBrand
+  const testAutoList = await prisma.autoList.create({
+    data: {
+      brandId: testBrand.id,
+      name: 'Hàng đợi bài viết kỹ thuật công nghệ',
+      sourceType: 'MANUAL',
+      targetPlatforms: 'FACEBOOK,LINKEDIN',
+      scheduleType: 'INTERVAL',
+      intervalMinutes: 180,
+      activeDays: 'MON,TUE,WED,THU,FRI',
+      isActive: true,
+      loopEnabled: false
+    }
+  });
+
+  // Link a post to the auto list
+  await prisma.post.create({
+    data: {
+      brandId: testBrand.id,
+      createdByUserId: testUser.id,
+      title: 'Kỹ thuật tối ưu database MySQL cho ứng dụng lớn',
+      caption: 'Tìm hiểu cách index, tối ưu truy vấn để database luôn hoạt động ổn định.',
+      type: 'TEXT',
+      status: 'SCHEDULED',
+      targetPlatforms: 'LINKEDIN',
+      autoListId: testAutoList.id,
+      createdAt: new Date()
+    }
+  });
+
+  // Reports for testBrand
+  await prisma.report.create({
+    data: {
+      brandId: testBrand.id,
+      createdByUserId: testUser.id,
+      title: 'Báo cáo tuần - Trong Phuc Brand',
+      description: 'Thống kê tương tác định kỳ mỗi tuần.',
+      dateFrom: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      dateTo: new Date(),
+      includedPlatforms: 'FACEBOOK',
+      includedSections: 'OVERVIEW,POSTS',
+      format: 'PDF',
+      createdAt: new Date()
+    }
+  });
+
+  // SmartLinks for testBrand
+  await prisma.smartLink.create({
+    data: {
+      brandId: testBrand.id,
+      slug: 'trongphuc-tech',
+      pageTitle: 'Nguyễn Trọng Phúc - Tech Bio',
+      bio: 'Nơi chia sẻ các bài viết kỹ thuật phần mềm và kiến thức thiết kế hệ thống.',
+      backgroundType: 'THEME',
+      backgroundValue: 'mint',
+      buttonStyle: 'classic',
+      isPublished: true,
+      links: {
+        create: [
+          {
+            title: 'Đọc blog cá nhân',
+            url: 'https://trongphuc.dev',
+            emoji: '💻',
+            position: 0,
+            isActive: true,
+            clicks: 142
+          }
+        ]
+      }
+    }
+  });
+
+  // Seeding Post Templates (Library)
+  console.log('Seeding Post Templates (Library)...');
+  await prisma.post.create({
+    data: {
+      brandId: brand1.id,
+      createdByUserId: customerUser.id,
+      title: 'Mẫu thông báo chương trình khuyến mãi cuối tuần',
+      caption: '🔥 KHUYẾN MÃI CỰC KHỦNG CUỐI TUẦN 🔥\n\nNhận ngay ưu đãi giảm giá lên đến 50% cho toàn bộ sản phẩm trên hệ thống. Số lượng có hạn, nhanh tay săn ngay!\n\n👉 Chi tiết xem tại: https://publicast.com/promo\n\n#KhuyenMai #CuoiTuan #PubliCast',
+      type: 'IMAGE',
+      status: 'DRAFT',
+      targetPlatforms: 'FACEBOOK,LINKEDIN',
+      isLibrary: true,
+      mediaUrls: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=500&auto=format&fit=crop&q=60',
+      mediaThumbnailUrls: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=500&auto=format&fit=crop&q=60',
+      createdAt: new Date()
+    }
+  });
+
+  await prisma.post.create({
+    data: {
+      brandId: brand1.id,
+      createdByUserId: customerUser.id,
+      title: 'Mẫu video giới thiệu tính năng sản phẩm mới',
+      caption: '🚀 GIỚI THIỆU TÍNH NĂNG MỚI: AI CONTENT GENERATOR 🚀\n\nBạn đã bao giờ tốn hàng giờ để viết caption và tìm hashtag? Hãy xem video này để biết cách AI giúp bạn tự động hóa việc đó trong 30 giây!\n\n#AI #ProductUpdate #Marketing #PubliCast',
+      type: 'VIDEO',
+      status: 'DRAFT',
+      targetPlatforms: 'YOUTUBE,TIKTOK',
+      isLibrary: true,
+      mediaUrls: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&auto=format&fit=crop&q=60',
+      mediaThumbnailUrls: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&auto=format&fit=crop&q=60',
+      metadata: JSON.stringify({
+        youtubeType: 'video',
+        youtubeTitle: 'GIỚI THIỆU TÍNH NĂNG MỚI: AI CONTENT GENERATOR',
+        privacyStatus: 'public',
+        categoryId: '28',
+        madeForKids: false,
+        youtubeThumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=500&auto=format&fit=crop&q=60',
+        tags: 'AI, ProductUpdate, Marketing, PubliCast',
+        firstComment: 'Hãy đăng ký dùng thử miễn phí tại publicast.com nhé!'
+      }),
+      createdAt: new Date()
+    }
+  });
+
+  await prisma.post.create({
+    data: {
+      brandId: testBrand.id,
+      createdByUserId: testUser.id,
+      title: 'Mẫu Daily Tech Tips chia sẻ kiến thức',
+      caption: '💡 DAILY TECH TIPS 💡\n\nCách tối ưu hóa MySQL database cực đơn giản mà bạn nên biết để tăng tốc hiệu năng ứng dụng lên gấp 2 lần.\n\n#MySQL #Database #Developer #Tips',
+      type: 'IMAGE',
+      status: 'DRAFT',
+      targetPlatforms: 'LINKEDIN',
+      isLibrary: true,
+      mediaUrls: 'https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=500&auto=format&fit=crop&q=60',
+      mediaThumbnailUrls: 'https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=500&auto=format&fit=crop&q=60',
+      createdAt: new Date()
+    }
+  });
+
+  // Platform Limits
   console.log('Seeding PlatformLimits...');
   const platformLimits = [
     { platform: 'YOUTUBE', subType: 'VIDEO', maxCaptionLength: 5000, maxFileSizeMb: 1024, allowedMediaTypes: 'VIDEO', allowedFormats: 'mp4,mov', minVideoDuration: null, maxVideoDuration: null, aspectRatios: '16:9' },
@@ -730,150 +980,29 @@ async function main() {
     });
   }
 
-  console.log('Seeding AdAccounts and AdAnalytics...');
-  const fbAdAccount = await prisma.adAccount.create({
-    data: {
-      brandId: brand.id,
-      platform: 'META_ADS',
-      platformAccountId: 'act_10928374',
-      accountName: 'Meta Ads - PubliCast Campaign',
-      currency: 'USD',
-      timezone: 'Asia/Ho_Chi_Minh',
-      accessToken: 'eaab_mock_token_123',
-      isActive: true,
-      lastSyncAt: new Date()
-    }
-  });
-
-  const ggAdAccount = await prisma.adAccount.create({
-    data: {
-      brandId: brand.id,
-      platform: 'GOOGLE_ADS',
-      platformAccountId: 'act_82736451',
-      accountName: 'Google Search Ads - PubliCast App',
-      currency: 'USD',
-      timezone: 'Asia/Ho_Chi_Minh',
-      accessToken: 'ya29_mock_token_456',
-      isActive: true,
-      lastSyncAt: new Date()
-    }
-  });
-
-  // Generate daily metrics for both ad accounts for 30 days
-  const adAnalyticsList = [];
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-
-    // FB Ads metrics
-    const fbSpend = parseFloat((50 + Math.sin(i) * 20 + Math.random() * 10).toFixed(2));
-    const fbImpressions = Math.floor(fbSpend * 80 + Math.random() * 200);
-    const fbClicks = Math.floor(fbImpressions * 0.022 + Math.random() * 15);
-    const fbConversions = Math.floor(fbClicks * 0.12 + Math.random() * 2);
-    const fbConversionValue = fbConversions * 45; // 45$ per conversion value
-    const fbRoas = fbSpend > 0 ? parseFloat((fbConversionValue / fbSpend).toFixed(2)) : 0;
-
-    const fbAnalytics = await prisma.analytics.create({
-      data: {
-        brandId: brand.id,
-        adAccountId: fbAdAccount.id,
-        dateFrom: d,
-        dateTo: d,
-        granularity: 'DAY',
-        fetchedAt: new Date(),
-        analyticsType: 'AD',
-        adAnalytics: {
-          create: {
-            campaignId: 'camp_fb_q2',
-            campaignName: 'Summer Launch Campaign',
-            adSetId: 'adset_fb_1',
-            totalSpend: fbSpend,
-            impressions: fbImpressions,
-            clicks: fbClicks,
-            ctr: fbImpressions > 0 ? parseFloat(((fbClicks / fbImpressions) * 100).toFixed(2)) : 0,
-            cpc: fbClicks > 0 ? parseFloat((fbSpend / fbClicks).toFixed(2)) : 0,
-            cpm: fbImpressions > 0 ? parseFloat(((fbSpend / fbImpressions) * 1000).toFixed(2)) : 0,
-            conversions: fbConversions,
-            conversionValue: fbConversionValue,
-            cpa: fbConversions > 0 ? parseFloat((fbSpend / fbConversions).toFixed(2)) : 0,
-            roas: fbRoas,
-            reach: Math.floor(fbImpressions * 0.85),
-            frequency: 1.0
-          }
-        }
-      }
-    });
-
-    // Google Ads metrics
-    const ggSpend = parseFloat((80 + Math.cos(i) * 30 + Math.random() * 15).toFixed(2));
-    const ggImpressions = Math.floor(ggSpend * 60 + Math.random() * 150);
-    const ggClicks = Math.floor(ggImpressions * 0.038 + Math.random() * 25);
-    const ggConversions = Math.floor(ggClicks * 0.08 + Math.random() * 3);
-    const ggConversionValue = ggConversions * 50;
-    const ggRoas = ggSpend > 0 ? parseFloat((ggConversionValue / ggSpend).toFixed(2)) : 0;
-
-    const ggAnalytics = await prisma.analytics.create({
-      data: {
-        brandId: brand.id,
-        adAccountId: ggAdAccount.id,
-        dateFrom: d,
-        dateTo: d,
-        granularity: 'DAY',
-        fetchedAt: new Date(),
-        analyticsType: 'AD',
-        adAnalytics: {
-          create: {
-            campaignId: 'camp_gg_search',
-            campaignName: 'SaaS App Search Leads',
-            adSetId: 'adset_gg_2',
-            totalSpend: ggSpend,
-            impressions: ggImpressions,
-            clicks: ggClicks,
-            ctr: ggImpressions > 0 ? parseFloat(((ggClicks / ggImpressions) * 100).toFixed(2)) : 0,
-            cpc: ggClicks > 0 ? parseFloat((ggSpend / ggClicks).toFixed(2)) : 0,
-            cpm: ggImpressions > 0 ? parseFloat(((ggSpend / ggImpressions) * 1000).toFixed(2)) : 0,
-            conversions: ggConversions,
-            conversionValue: ggConversionValue,
-            cpa: ggConversions > 0 ? parseFloat((ggSpend / ggConversions).toFixed(2)) : 0,
-            roas: ggRoas,
-            reach: Math.floor(ggImpressions * 0.9),
-            frequency: 1.0
-          }
-        }
-      }
-    });
-  }
-
-  // Seed Notifications for test user
-  console.log('Seeding mock notifications...');
-  await prisma.notificationReadReceipt.deleteMany({});
-  await prisma.systemNotification.deleteMany({});
-
-  const testUserId = 'e673a8b3-5edf-4366-b1e1-4400c06eb5dd';
-  const testBrandId = 'af40cc3e-321c-4647-9ac1-dd37967e350c';
-
-  for (let i = 0; i < 21; i++) {
+  // System notifications for test user
+  console.log('Seeding mock notifications for testUser...');
+  for (let i = 0; i < 10; i++) {
     const category = ['stream', 'content', 'team', 'platform', 'system'][i % 5];
-    const isGlobal = i === 20; // 1 global system notification
-    const daysAgo = Math.floor(i / 3);
+    const isGlobal = i === 9;
+    const daysAgo = Math.floor(i / 2);
     const createdNotification = await prisma.systemNotification.create({
       data: {
-        title: `Mock Notification #${i + 1} (${category})`,
-        message: `This is the body description of mock notification #${i + 1}.`,
+        title: `Thông báo thử nghiệm #${i + 1} (${category})`,
+        message: `Nội dung chi tiết của thông báo thử nghiệm hệ thống #${i + 1}.`,
         type: category,
-        brandId: isGlobal ? null : testBrandId,
-        userId: isGlobal ? null : testUserId,
+        brandId: isGlobal ? null : testBrand.id,
+        userId: isGlobal ? null : testUser.id,
         isGlobal,
         createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000 * daysAgo)
       }
     });
 
-    // Mark i % 2 === 0 as read (create read receipt)
     if (i % 2 === 0) {
       await prisma.notificationReadReceipt.create({
         data: {
           notificationId: createdNotification.id,
-          userId: testUserId,
+          userId: testUser.id,
           readAt: new Date()
         }
       });
@@ -891,3 +1020,4 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+

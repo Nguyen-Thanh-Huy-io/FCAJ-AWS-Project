@@ -5,12 +5,14 @@ const {
   POST_STATUS,
   WORKFLOW_STATUS,
   WORKFLOW_POLICY,
+  REVIEW_ACTION,
   TEAM_STATUS,
   PERMISSION_KEYS,
   USER_ROLES
 } = require('../../utils/constants');
 const { REVIEW_ACTION_STRATEGY_MAP } = require('./review-action-strategies');
 const prisma = require('../../config/prisma');
+const { eventEmitter, EVENTS } = require('../../events/event-emitter');
 
 class ApprovalWorkflowService {
   /**
@@ -133,7 +135,13 @@ class ApprovalWorkflowService {
       approvalPolicy:    policy,
       selectedReviewers: JSON.stringify(reviewerList),
       requesterNote,
-      status:            WORKFLOW_STATUS.PENDING
+      status:            WORKFLOW_STATUS.PENDING,
+      reviewers: {
+        create: reviewerList.map(rId => ({
+          reviewerId: rId,
+          status: WORKFLOW_STATUS.PENDING
+        }))
+      }
     });
 
     await postRepository.updateStatus(postId, POST_STATUS.PENDING_APPROVAL);
@@ -170,16 +178,97 @@ class ApprovalWorkflowService {
       throw error;
     }
 
-    const { workflowStatus, postStatus } = await strategy.execute(workflow);
+    // Update individual reviewer status first
+    let reviewerStatus = WORKFLOW_STATUS.PENDING;
+    if (action === REVIEW_ACTION.APPROVED) {
+      reviewerStatus = WORKFLOW_STATUS.APPROVED;
+    } else if (action === REVIEW_ACTION.REJECTED) {
+      reviewerStatus = WORKFLOW_STATUS.REJECTED;
+    } else if (action === REVIEW_ACTION.REVISION_NEEDED) {
+      reviewerStatus = WORKFLOW_STATUS.REVISION_NEEDED;
+    }
+
+    const existingReviewerRecord = await prisma.workflowReviewer.findFirst({
+      where: { workflowId, reviewerId }
+    });
+
+    if (existingReviewerRecord) {
+      await prisma.workflowReviewer.update({
+        where: { id: existingReviewerRecord.id },
+        data: {
+          status: reviewerStatus,
+          comment,
+          reviewedAt: new Date()
+        }
+      });
+    } else {
+      await prisma.workflowReviewer.create({
+        data: {
+          workflowId,
+          reviewerId,
+          status: reviewerStatus,
+          comment,
+          reviewedAt: new Date()
+        }
+      });
+    }
+
+    // Decide final workflow & post status based on policy
+    let finalWorkflowStatus = WORKFLOW_STATUS.PENDING;
+    let finalPostStatus = POST_STATUS.PENDING_APPROVAL;
+
+    if (action === REVIEW_ACTION.REJECTED) {
+      finalWorkflowStatus = WORKFLOW_STATUS.REJECTED;
+      finalPostStatus = POST_STATUS.REJECTED;
+    } else if (action === REVIEW_ACTION.REVISION_NEEDED) {
+      finalWorkflowStatus = WORKFLOW_STATUS.REVISION_NEEDED;
+      finalPostStatus = POST_STATUS.DRAFT;
+    } else if (action === REVIEW_ACTION.APPROVED) {
+      const policy = workflow.approvalPolicy || WORKFLOW_POLICY.AT_LEAST_ONE;
+      if (policy === WORKFLOW_POLICY.AT_LEAST_ONE) {
+        const { workflowStatus, postStatus } = await strategy.execute(workflow);
+        finalWorkflowStatus = workflowStatus;
+        finalPostStatus = postStatus;
+      } else if (policy === WORKFLOW_POLICY.ALL) {
+        const reviewersList = JSON.parse(workflow.selectedReviewers || '[]');
+        const currentDecisions = await prisma.workflowReviewer.findMany({
+          where: { workflowId }
+        });
+
+        const allApproved = reviewersList.every(rId => {
+          const decision = currentDecisions.find(d => d.reviewerId === rId);
+          return decision && decision.status === WORKFLOW_STATUS.APPROVED;
+        });
+
+        if (allApproved) {
+          const { workflowStatus, postStatus } = await strategy.execute(workflow);
+          finalWorkflowStatus = workflowStatus;
+          finalPostStatus = postStatus;
+        } else {
+          finalWorkflowStatus = WORKFLOW_STATUS.PENDING;
+          finalPostStatus = POST_STATUS.PENDING_APPROVAL;
+        }
+      }
+    }
 
     const updatedWorkflow = await approvalWorkflowRepository.update(workflowId, {
-      status:            workflowStatus,
+      status:            finalWorkflowStatus,
       reviewedByUserId:  reviewerId,
       reviewedAt:        new Date(),
       reviewerComment:   comment
     });
 
-    await postRepository.updateStatus(workflow.postId, postStatus);
+    await postRepository.updateStatus(workflow.postId, finalPostStatus);
+
+    const updatedPost = await postRepository.findById(workflow.postId);
+    if (updatedPost) {
+      let options = {};
+      if (updatedPost.metadata) {
+        try { options = JSON.parse(updatedPost.metadata); } catch(e) {}
+      }
+      const statusChangedToPublished = finalPostStatus === POST_STATUS.PUBLISHED;
+      eventEmitter.emit(EVENTS.POST.UPDATED, { post: updatedPost, options, statusChangedToPublished });
+    }
 
     return updatedWorkflow;
   }
