@@ -268,21 +268,69 @@ class ThreadsService extends BaseSocialService {
     const account = accounts[0];
 
     const text = postData.caption || '';
-    const mediaUrl = (postData.mediaUrls && postData.mediaUrls.length > 0) ? postData.mediaUrls[0] : null;
-    const mediaType = mediaUrl ? 'IMAGE' : 'TEXT';
+    const rawMediaUrl = (postData.mediaUrls && postData.mediaUrls.length > 0) ? postData.mediaUrls[0] : null;
+    const mediaUrl = this.resolveUrl(rawMediaUrl);
+    
+    let mediaType = 'TEXT';
+    if (mediaUrl) {
+      const isVideo = ['.mp4', '.mov', '.avi', '.mkv'].some(ext => mediaUrl.toLowerCase().endsWith(ext));
+      mediaType = isVideo ? 'VIDEO' : 'IMAGE';
+    }
     const whoCanReply = postData.options?.threadsWhoCanReply || null;
 
-    // Tạo media container
-    const container = await threadsGateway.createMediaContainer(account.platformAccountId, account.accessToken, text, mediaUrl, mediaType, whoCanReply);
-    
-    // Publish container
-    const publishRes = await threadsGateway.publishMediaContainer(account.platformAccountId, account.accessToken, container.id);
-    
-    return {
-      success: true,
-      platformVideoId: publishRes.id,
-      publishedAt: new Date()
-    };
+    console.log(`\n[Threads] ▶ publishPost | brandId=${brandId} | userId=${account.platformAccountId}`);
+    console.log(`[Threads] mediaType=${mediaType} | mediaUrl=${mediaUrl} | whoCanReply=${whoCanReply}`);
+    console.log(`[Threads] tokenPrefix=${account.accessToken?.substring(0, 10)}...`);
+
+    try {
+      // Tạo media container
+      console.log(`[Threads] Creating media container...`);
+      const container = await threadsGateway.createMediaContainer(account.platformAccountId, account.accessToken, text, mediaUrl, mediaType, whoCanReply);
+      console.log(`[Threads] Container created | containerId=${container.id}`);
+
+      // Polling cho đến khi container xử lý xong (nếu có media)
+      if (mediaType !== 'TEXT') {
+        const maxAttempts = 60;
+        const intervalMs = 5000;
+        let isReady = false;
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          const statusData = await threadsGateway.getContainerStatus(account.accessToken, container.id);
+          const status = statusData.status;
+          console.log(`[Threads Polling] Attempt ${attempt}/${maxAttempts} | Container: ${container.id} | Status: ${status}`);
+
+          if (status === 'FINISHED') {
+            isReady = true;
+            break;
+          }
+          if (status === 'ERROR') {
+            throw new Error(statusData.error_message || 'Threads media processing failed');
+          }
+          await new Promise(resolve => setTimeout(resolve, intervalMs));
+        }
+
+        if (!isReady) {
+          throw new Error('Timeout waiting for Threads media container to be processed');
+        }
+      }
+
+      // Publish container
+      console.log(`[Threads] Publishing container ${container.id}...`);
+      const publishRes = await threadsGateway.publishMediaContainer(account.platformAccountId, account.accessToken, container.id);
+      console.log(`[Threads] ✅ Published successfully! platformPostId=${publishRes.id}`);
+
+      return {
+        success: true,
+        platformVideoId: publishRes.id,
+        publishedAt: new Date()
+      };
+    } catch (err) {
+      console.error(`[Threads] ❌ Publish FAILED:`, err.message);
+      if (err.response?.data) {
+        console.error(`[Threads] API Error Detail:`, JSON.stringify(err.response.data));
+      }
+      throw err;
+    }
   }
 
   async deletePost(brandId, platformPostId) {

@@ -686,7 +686,15 @@ export function usePostCreatorForm() {
       }
     } catch (error) {
       console.error("Failed to create/update post:", error);
-      toast.error(error.response?.data?.message || "Failed to create post");
+      const serverMessage = error.response?.data?.message || error.message || "Failed to create post";
+      console.error('[PostCreator] Server error detail:', serverMessage);
+      // Tách validation errors nếu có (bắt đầu bằng "Validation failed:")
+      if (serverMessage.startsWith('Validation failed:')) {
+        const details = serverMessage.replace('Validation failed: ', '');
+        toast.error(`Lỗi validation:\n${details}`, { duration: 8000 });
+      } else {
+        toast.error(serverMessage);
+      }
     } finally {
       setIsCreating(false);
     }

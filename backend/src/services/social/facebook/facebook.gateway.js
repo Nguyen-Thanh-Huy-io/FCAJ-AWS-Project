@@ -246,8 +246,12 @@ class FacebookGateway {
     return recipient ? recipient.id : null;
   }
 
-  async publishTextPost(pageId, pageAccessToken, message) {
-    const url = `${this.graphBaseUrl}/${pageId}/feed?message=${encodeURIComponent(message)}&access_token=${pageAccessToken}`;
+  async publishTextPost(pageId, pageAccessToken, message, scheduledAt = null) {
+    let url = `${this.graphBaseUrl}/${pageId}/feed?message=${encodeURIComponent(message)}&access_token=${pageAccessToken}`;
+    if (scheduledAt) {
+      const timestamp = Math.floor(new Date(scheduledAt).getTime() / 1000);
+      url += `&published=false&scheduled_publish_time=${timestamp}`;
+    }
     const res = await fetch(url, { method: 'POST' });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
@@ -256,7 +260,7 @@ class FacebookGateway {
     return res.json();
   }
 
-  async publishPhoto(pageId, pageAccessToken, mediaUrl, caption) {
+  async publishPhoto(pageId, pageAccessToken, mediaUrl, caption, scheduledAt = null) {
     const { buffer, filename } = await this._getMediaBuffer(mediaUrl);
     
     const formData = new FormData();
@@ -264,6 +268,11 @@ class FacebookGateway {
     formData.append('source', blob, filename);
     if (caption) formData.append('message', caption);
     formData.append('access_token', pageAccessToken);
+    if (scheduledAt) {
+      const timestamp = Math.floor(new Date(scheduledAt).getTime() / 1000);
+      formData.append('published', 'false');
+      formData.append('scheduled_publish_time', timestamp.toString());
+    }
 
     const url = `${this.graphBaseUrl}/${pageId}/photos`;
     const res = await fetch(url, { method: 'POST', body: formData });
@@ -337,7 +346,7 @@ class FacebookGateway {
     return data;
   }
 
-  async publishMultiPhotoPost(pageId, pageAccessToken, photoIds, message) {
+  async publishMultiPhotoPost(pageId, pageAccessToken, photoIds, message, scheduledAt = null) {
     console.log('[FacebookGateway] Publishing multi-photo post to feed:', { pageId, photoIds, messageLength: message?.length });
     const formData = new FormData();
     if (message) formData.append('message', message);
@@ -345,6 +354,11 @@ class FacebookGateway {
     const attachedMedia = photoIds.map(id => ({ media_fbid: id }));
     formData.append('attached_media', JSON.stringify(attachedMedia));
     formData.append('access_token', pageAccessToken);
+    if (scheduledAt) {
+      const timestamp = Math.floor(new Date(scheduledAt).getTime() / 1000);
+      formData.append('published', 'false');
+      formData.append('scheduled_publish_time', timestamp.toString());
+    }
 
     const url = `${this.graphBaseUrl}/${pageId}/feed`;
     const res = await fetch(url, { method: 'POST', body: formData });
@@ -358,7 +372,7 @@ class FacebookGateway {
     return data;
   }
 
-  async publishAlbum(pageId, pageAccessToken, mediaUrls, caption, mediaCaptions = []) {
+  async publishAlbum(pageId, pageAccessToken, mediaUrls, caption, mediaCaptions = [], scheduledAt = null) {
     console.log('[FacebookGateway] Publishing album start:', { pageId, mediaUrlsCount: mediaUrls.length, caption });
     if (!Array.isArray(mediaUrls) || mediaUrls.length < 2) {
       throw new Error('Facebook album requires at least 2 images');
@@ -390,12 +404,12 @@ class FacebookGateway {
         photoIds.push(result.id);
       }
       
-      const feedResult = await this.publishMultiPhotoPost(pageId, pageAccessToken, photoIds, caption);
+      const feedResult = await this.publishMultiPhotoPost(pageId, pageAccessToken, photoIds, caption, scheduledAt);
       return { id: feedResult.id, fallback: true, photoIds };
     }
   }
 
-  async publishVideo(pageId, pageAccessToken, mediaUrl, title, description) {
+  async publishVideo(pageId, pageAccessToken, mediaUrl, title, description, scheduledAt = null) {
     const { buffer, filename } = await this._getMediaBuffer(mediaUrl);
 
     const formData = new FormData();
@@ -404,6 +418,11 @@ class FacebookGateway {
     if (title) formData.append('title', title);
     if (description) formData.append('description', description);
     formData.append('access_token', pageAccessToken);
+    if (scheduledAt) {
+      const timestamp = Math.floor(new Date(scheduledAt).getTime() / 1000);
+      formData.append('published', 'false');
+      formData.append('scheduled_publish_time', timestamp.toString());
+    }
 
     const url = `${FACEBOOK_API.VIDEO_BASE_URL}/${API_VERSIONS.FACEBOOK}/${pageId}/videos`;
     const res = await fetch(url, { method: 'POST', body: formData });

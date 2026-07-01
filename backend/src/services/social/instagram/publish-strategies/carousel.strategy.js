@@ -8,14 +8,15 @@ class CarouselPublishStrategy extends InstagramPublishStrategy {
       return { id: `ig_mock_carousel_${Date.now()}` };
     }
 
-    const { mediaUrls = [], caption } = postData;
+    const { mediaUrls = [], caption, scheduledAt } = postData;
     if (mediaUrls.length === 0) {
       throw new Error('At least one media URL is required for Instagram Carousel');
     }
 
     // 1. Tạo các container con cho từng tệp phương tiện
     const childrenIds = [];
-    for (const url of mediaUrls) {
+    for (const rawUrl of mediaUrls) {
+      const url = this.resolveUrl(rawUrl);
       const isVideo = MEDIA_EXTENSIONS.VIDEO.some(ext => url.toLowerCase().endsWith(ext));
       const itemContainer = await instagramGateway.createCarouselItemContainer(igAccountId, accessToken, url, isVideo);
       
@@ -26,7 +27,7 @@ class CarouselPublishStrategy extends InstagramPublishStrategy {
     }
 
     // 2. Tạo container cha liên kết các container con
-    const parentContainer = await instagramGateway.createCarouselContainer(igAccountId, accessToken, childrenIds, caption);
+    const parentContainer = await instagramGateway.createCarouselContainer(igAccountId, accessToken, childrenIds, caption, scheduledAt);
     
     // 3. Xuất bản container cha
     return instagramGateway.publishContainer(igAccountId, accessToken, parentContainer.id);

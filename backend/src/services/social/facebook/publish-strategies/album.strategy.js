@@ -3,7 +3,7 @@ const facebookGateway = require('../facebook.gateway');
 
 class AlbumPublishStrategy extends FacebookPublishStrategy {
   async publish(pageId, pageAccessToken, postData) {
-    const { mediaUrls = [], caption } = postData;
+    const { mediaUrls = [], caption, scheduledAt } = postData;
     const mediaCaptions = postData.mediaCaptions || postData.options?.mediaCaptions || [];
     
     console.log('[AlbumPublishStrategy] Publishing album with:', {
@@ -11,13 +11,14 @@ class AlbumPublishStrategy extends FacebookPublishStrategy {
       mediaUrlsCount: mediaUrls.length,
       caption,
       mediaCaptionsCount: mediaCaptions.length,
-      mediaCaptions
+      mediaCaptions,
+      scheduledAt
     });
 
     if (!Array.isArray(mediaUrls) || mediaUrls.length < 2) {
       throw new Error('Facebook album requires at least 2 images');
     }
-    return facebookGateway.publishAlbum(pageId, pageAccessToken, mediaUrls, caption, mediaCaptions);
+    return facebookGateway.publishAlbum(pageId, pageAccessToken, mediaUrls, caption, mediaCaptions, scheduledAt);
   }
 }
 

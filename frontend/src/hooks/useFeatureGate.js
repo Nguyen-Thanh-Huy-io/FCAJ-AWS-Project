@@ -13,7 +13,7 @@ export function useFeatureGate() {
 
   const hasAccess = (productId) => {
     if (productId === PRODUCT_IDS.GOOGLE_DRIVE) {
-      return planName === 'PRO';
+      return planName === 'PRO' || planName === 'AGENCY';
     }
     return allowedProducts.includes(productId);
   };

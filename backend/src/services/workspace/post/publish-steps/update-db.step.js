@@ -26,6 +26,7 @@ class UpdatePostStatusStep extends BaseStep {
 
     if (allSuccessful) {
       const primaryResult = results[0].result;
+      console.log(`[UpdatePostStatusStep] 🎉 Post ${post.id} published successfully on all platforms: ${results.map(r => r.platform).join(', ')}`);
 
       if (shouldLoop) {
         await this._handleLoopCycle(post, {
@@ -44,7 +45,12 @@ class UpdatePostStatusStep extends BaseStep {
 
       await this._notifyPublishSuccess(post, results);
     } else {
-      const failureReason = firstFailure ? `${firstFailure.platform}: ${firstFailure.error}` : 'Unknown publishing error';
+      // Truncate failureReason để không vượt VARCHAR(191) của DB
+      const failureReason = firstFailure
+        ? `${firstFailure.platform}: ${firstFailure.error}`.substring(0, 190)
+        : 'Unknown publishing error';
+
+      console.warn(`[UpdatePostStatusStep] ⚠️ Post ${post.id} publication failed/partially failed. Failure reason: "${failureReason}". Results details:`, JSON.stringify(results, null, 2));
 
       // Handle Failure
       if (shouldLoop) {

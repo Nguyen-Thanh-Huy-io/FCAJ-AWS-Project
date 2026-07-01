@@ -271,12 +271,20 @@ class TikTokGateway {
   // ============= Private Helper Methods =============
 
   _resolveLocalPath(mediaUrl) {
-    // If it's already an absolute path or doesn't need resolving
+    if (!mediaUrl) throw new Error('Media URL is required');
+
+    // Nếu đã là absolute path và tồn tại
     if (fs.existsSync(mediaUrl)) return mediaUrl;
 
-    const localPath = path.join(process.cwd(), mediaUrl.startsWith('/') ? mediaUrl.substring(1) : mediaUrl);
+    // Nếu là relative path (bắt đầu bằng /) thì join với process.cwd() (thư mục gốc backend)
+    const cleanPath = mediaUrl.startsWith('/') ? mediaUrl.substring(1) : mediaUrl;
+    const localPath = path.join(process.cwd(), cleanPath);
+    
     if (!fs.existsSync(localPath)) {
-      throw new Error(`Media file not found at ${localPath}`);
+      // Fallback: thử join với __dirname (vị trí file gateway)
+      const altPath = path.join(__dirname, '../../../../', cleanPath);
+      if (fs.existsSync(altPath)) return altPath;
+      throw new Error(`Media file not found. Tried:\n  - ${localPath}\n  - ${altPath}`);
     }
     return localPath;
   }

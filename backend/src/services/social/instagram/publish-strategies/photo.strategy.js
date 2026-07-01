@@ -7,9 +7,10 @@ class PhotoPublishStrategy extends InstagramPublishStrategy {
       return { id: `ig_mock_photo_${Date.now()}` };
     }
 
-    const mediaUrl = postData.mediaUrl || (postData.mediaUrls && postData.mediaUrls[0]);
-    const { caption } = postData;
-    const container = await instagramGateway.createImageContainer(igAccountId, accessToken, mediaUrl, caption);
+    const rawMediaUrl = postData.mediaUrl || (postData.mediaUrls && postData.mediaUrls[0]);
+    const mediaUrl = this.resolveUrl(rawMediaUrl);
+    const { caption, scheduledAt } = postData;
+    const container = await instagramGateway.createImageContainer(igAccountId, accessToken, mediaUrl, caption, scheduledAt);
     return instagramGateway.publishContainer(igAccountId, accessToken, container.id);
   }
 }

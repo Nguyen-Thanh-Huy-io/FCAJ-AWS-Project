@@ -81,7 +81,13 @@ class ProfileController {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    const avatarUrl = req.file.path;
+    const isLocal = process.env.UPLOAD_STORAGE === 'local';
+    let avatarUrl = req.file.path;
+    if (isLocal) {
+      const path = require('path');
+      const relativePath = path.relative(process.cwd(), req.file.path).replace(/\\/g, '/');
+      avatarUrl = `/${relativePath}`;
+    }
 
     // Update user avatarUrl
     const updatedUser = await profileService.editProfile(req.user.id, { avatarUrl });

@@ -592,7 +592,7 @@ model Post {
   collaboratorHandle String?
   scheduledAt        DateTime?
   publishedAt        DateTime?
-  failureReason      String?
+  failureReason      String?    @db.Text
   autoListId         String?
   platformPostId     String?
   isLibrary          Boolean    @default(false)

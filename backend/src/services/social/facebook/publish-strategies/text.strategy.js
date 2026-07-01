@@ -3,8 +3,8 @@ const facebookGateway = require('../facebook.gateway');
 
 class TextPublishStrategy extends FacebookPublishStrategy {
   async publish(pageId, pageAccessToken, postData) {
-    const { caption } = postData;
-    return facebookGateway.publishTextPost(pageId, pageAccessToken, caption);
+    const { caption, scheduledAt } = postData;
+    return facebookGateway.publishTextPost(pageId, pageAccessToken, caption, scheduledAt);
   }
 }
 

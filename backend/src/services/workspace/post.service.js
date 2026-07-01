@@ -69,9 +69,10 @@ class PostService {
       }
     }
 
-    // Platform limits validation
-    const hasMedia = postData.mediaUrls && postData.mediaUrls.length > 0;
-    const firstMediaUrl = hasMedia ? postData.mediaUrls[0] : null;
+    // Platform limits validation — lọc bỏ empty strings trước khi check
+    const validMediaUrls = (postData.mediaUrls || []).filter(u => u && u.trim() !== '');
+    const hasMedia = validMediaUrls.length > 0;
+    const firstMediaUrl = hasMedia ? validMediaUrls[0] : null;
     const format = firstMediaUrl ? firstMediaUrl.split('.').pop().split('?')[0].toLowerCase() : null;
     const isVideo = hasMedia && ['mp4', 'mov', 'webm', 'avi', 'mkv'].includes(format);
     
@@ -122,7 +123,7 @@ class PostService {
     } else {
       // If one-off post is scheduled, add to BullMQ
       if (!post.autoListId && post.status === POST_STATUS.SCHEDULED && post.scheduledAt) {
-        await this._handleYouTubeNativeScheduling(post, postData.options);
+        await this._handleNativeScheduling(post, postData.options);
         await upsertPublishJob(post.id, post.scheduledAt);
       }
     }
@@ -155,14 +156,18 @@ class PostService {
       ...postData.options
     };
 
-    const hasMedia = postData.mediaUrls !== undefined 
-      ? (postData.mediaUrls && postData.mediaUrls.length > 0)
-      : (post.mediaUrls && post.mediaUrls.length > 0);
+    // Lọc bỏ empty strings trước khi check media
+    let hasMedia, firstMediaUrl;
+    if (postData.mediaUrls !== undefined) {
+      const validMediaUrls = (postData.mediaUrls || []).filter(u => u && u.trim() !== '');
+      hasMedia = validMediaUrls.length > 0;
+      firstMediaUrl = hasMedia ? validMediaUrls[0] : null;
+    } else {
+      const existingUrls = post.mediaUrls ? post.mediaUrls.split(',').map(u => u.trim()).filter(Boolean) : [];
+      hasMedia = existingUrls.length > 0;
+      firstMediaUrl = hasMedia ? existingUrls[0] : null;
+    }
     
-    const firstMediaUrl = postData.mediaUrls !== undefined
-      ? (hasMedia ? postData.mediaUrls[0] : null)
-      : (post.mediaUrls ? post.mediaUrls.split(',')[0] : null);
-      
     const format = firstMediaUrl ? firstMediaUrl.split('.').pop().split('?')[0].toLowerCase() : null;
     const isVideo = hasMedia && ['mp4', 'mov', 'webm', 'avi', 'mkv'].includes(format);
     
@@ -192,14 +197,20 @@ class PostService {
         const socialPlatformFactory = require('../social/social-platform.factory');
         if (hasFacebook) {
           try {
-            await socialPlatformFactory.getService(PLATFORMS.FACEBOOK).updatePublishedPost(brandId, post.platformPostId, postData);
+            const platformId = this._getPlatformPostId(post, PLATFORMS.FACEBOOK);
+            if (platformId) {
+              await socialPlatformFactory.getService(PLATFORMS.FACEBOOK).updatePublishedPost(brandId, platformId, postData);
+            }
           } catch (err) {
             console.error(`[Post Service] Failed to update post on Facebook:`, err.message);
           }
         }
         if (hasDiscord) {
           try {
-            await socialPlatformFactory.getService(PLATFORMS.DISCORD).updatePublishedPost(brandId, post.platformPostId, postData);
+            const platformId = this._getPlatformPostId(post, PLATFORMS.DISCORD);
+            if (platformId) {
+              await socialPlatformFactory.getService(PLATFORMS.DISCORD).updatePublishedPost(brandId, platformId, postData);
+            }
           } catch (err) {
             console.error(`[Post Service] Failed to update post on Discord:`, err.message);
           }
@@ -242,7 +253,7 @@ class PostService {
       // Sync BullMQ for one-off posts
       if (!updatedPost.autoListId) {
         if (updatedPost.status === POST_STATUS.SCHEDULED && updatedPost.scheduledAt) {
-          await this._handleYouTubeNativeScheduling(updatedPost, postData.options);
+          await this._handleNativeScheduling(updatedPost, postData.options);
           await upsertPublishJob(updatedPost.id, updatedPost.scheduledAt);
         } else {
           await removePublishJob(updatedPost.id);
@@ -286,8 +297,13 @@ class PostService {
               const service = socialPlatformFactory.getService(platform);
               if (service.deletePost) {
                 console.log(`[Post Service] Found deletePost for ${platform}. Invoking service.deletePost...`);
-                await service.deletePost(brandId, post.platformPostId);
-                console.log(`[Post Service] Successfully deleted post on ${platform}`);
+                const platformId = this._getPlatformPostId(post, platform);
+                if (platformId) {
+                  await service.deletePost(brandId, platformId);
+                  console.log(`[Post Service] Successfully deleted post on ${platform}`);
+                } else {
+                  console.log(`[Post Service] No platform post ID found for ${platform}`);
+                }
               } else {
                 console.log(`[Post Service] Platform ${platform} service does not implement deletePost`);
               }
@@ -358,37 +374,92 @@ class PostService {
     };
   }
 
-  async _handleYouTubeNativeScheduling(post, options = {}) {
+  async _handleNativeScheduling(post, options = {}) {
     const targetPlatforms = post.targetPlatforms ? post.targetPlatforms.split(SEPARATORS.COMMA).map(p => p.trim().toUpperCase()) : [];
-    if (!targetPlatforms.includes(PLATFORMS.YOUTUBE)) {
+    
+    // Nền tảng nào hỗ trợ lên lịch gốc
+    const supportedPlatforms = [PLATFORMS.YOUTUBE, PLATFORMS.FACEBOOK, PLATFORMS.INSTAGRAM];
+    const platformsToSchedule = targetPlatforms.filter(p => supportedPlatforms.includes(p));
+    
+    if (platformsToSchedule.length === 0) {
       return;
     }
 
+    // Parse platformPostId hiện tại (nếu có) thành JSON map
+    let platformIdMap = {};
     if (post.platformPostId) {
-      return;
-    }
-
-    console.log(`[PostService] 🚀 Triggering early YouTube Native Scheduling for Post: ${post.id}`);
-    try {
-      const youtubeService = socialPlatformFactory.getService(PLATFORMS.YOUTUBE);
-      const result = await youtubeService.publishPost(post.brandId, {
-        title: post.title,
-        caption: post.caption,
-        mediaUrls: post.mediaUrls,
-        type: post.type,
-        scheduledAt: post.scheduledAt,
-        options: options
-      });
-
-      if (result && result.platformVideoId) {
-        console.log(`[PostService] ✅ YouTube Native Scheduling successful! Video ID: ${result.platformVideoId}`);
-        post.platformPostId = result.platformVideoId;
-        await postRepository.update(post.id, { platformPostId: result.platformVideoId });
+      try {
+        platformIdMap = JSON.parse(post.platformPostId);
+        if (typeof platformIdMap !== 'object' || platformIdMap === null) {
+          // Trường hợp là chuỗi đơn (tương thích ngược)
+          platformIdMap = { [PLATFORMS.YOUTUBE]: post.platformPostId };
+        }
+      } catch (e) {
+        platformIdMap = { [PLATFORMS.YOUTUBE]: post.platformPostId };
       }
-    } catch (err) {
-      console.error(`[PostService] ❌ Failed to execute early YouTube Native Scheduling:`, err.message);
-      throw new Error(`YouTube scheduling failed: ${err.message}`);
     }
+
+    let hasChanges = false;
+    let errors = [];
+
+    for (const platform of platformsToSchedule) {
+      // Nếu platform này đã được lên lịch gốc rồi thì bỏ qua
+      if (platformIdMap[platform]) {
+        continue;
+      }
+
+      console.log(`[PostService] 🚀 Triggering early Native Scheduling for platform: ${platform}, Post: ${post.id}`);
+      try {
+        const service = socialPlatformFactory.getService(platform);
+        
+        // Chuẩn bị postData truyền vào
+        const postData = {
+          title: post.title,
+          caption: post.caption,
+          mediaUrls: post.mediaUrls ? post.mediaUrls.split(SEPARATORS.COMMA).map(m => m.trim()) : [],
+          type: post.type,
+          scheduledAt: post.scheduledAt,
+          options: options
+        };
+
+        const result = await service.publishPost(post.brandId, postData);
+
+        if (result && result.platformVideoId) {
+          console.log(`[PostService] ✅ ${platform} Native Scheduling successful! ID: ${result.platformVideoId}`);
+          platformIdMap[platform] = result.platformVideoId;
+          hasChanges = true;
+        }
+      } catch (err) {
+        console.error(`[PostService] ❌ Failed to execute early ${platform} Native Scheduling:`, err.message);
+        errors.push(`${platform} scheduling failed: ${err.message}`);
+      }
+    }
+
+    if (hasChanges) {
+      const updatedPlatformPostId = JSON.stringify(platformIdMap);
+      post.platformPostId = updatedPlatformPostId;
+      await postRepository.update(post.id, { platformPostId: updatedPlatformPostId });
+    }
+
+    if (errors.length > 0) {
+      throw new Error(errors.join('; '));
+    }
+  }
+
+  _getPlatformPostId(post, platform) {
+    if (!post.platformPostId) return null;
+    try {
+      const map = JSON.parse(post.platformPostId);
+      if (map && typeof map === 'object') {
+        return map[platform.toUpperCase()] || null;
+      }
+    } catch (e) {
+      // Tương thích ngược: Nếu không phải JSON, coi đó là ID của YouTube
+      if (platform.toUpperCase() === PLATFORMS.YOUTUBE) {
+        return post.platformPostId;
+      }
+    }
+    return null;
   }
 
   _preparePostData(postData, userId, brandId) {
