@@ -50,6 +50,7 @@ model User {
   repliedInboxItems        InboxItem[]          @relation("InboxItemRepliedBy")
   uploadedMedia            MediaLibrary[]       @relation("MediaLibraryUploader")
   approvalWorkflowRequests ApprovalWorkflow[]   @relation("ApprovalWorkflowRequester")
+  workflowReviews          WorkflowReviewer[]   @relation("WorkflowReviewerUser")
 
   @@map("users")
 }
@@ -722,10 +723,31 @@ model ApprovalWorkflow {
   livestream Livestream? @relation(fields: [livestreamId], references: [id], onDelete: Cascade)
   brand      Brand       @relation(fields: [brandId], references: [id], onDelete: Cascade)
   requester  User        @relation("ApprovalWorkflowRequester", fields: [requesterId], references: [id], onDelete: Restrict)
+  reviewers  WorkflowReviewer[]
 
   @@index([brandId])
   @@map("approval_workflows")
 }
+
+model WorkflowReviewer {
+  id               String           @id @default(uuid())
+  workflowId       String
+  reviewerId       String
+  status           WorkflowStatus   @default(PENDING) // PENDING, APPROVED, REJECTED, REVISION_NEEDED
+  comment          String?          @db.Text
+  reviewedAt       DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  workflow         ApprovalWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  reviewer         User             @relation("WorkflowReviewerUser", fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@unique([workflowId, reviewerId])
+  @@index([workflowId])
+  @@index([reviewerId])
+  @@map("workflow_reviewers")
+}
+
 
 // ============================================
 // ANALYTICS

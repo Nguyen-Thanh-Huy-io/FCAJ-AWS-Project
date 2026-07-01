@@ -6,7 +6,7 @@ import {
   Calendar, Youtube, PlayCircle, Smartphone, Monitor, Info, MessageSquare,
   Languages, Settings, LayoutGrid, Film, PlusCircle, AlertCircle, Check,
   MoreHorizontal, Edit, Type, Trash2, Diamond, Search, Lock, Sparkles, ArrowRight,
-  Linkedin, Send
+  Linkedin, Send, Upload
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useFeatureGate } from "../../hooks/useFeatureGate";
@@ -30,6 +30,7 @@ import { Instagram } from "lucide-react";
 import { toast } from "sonner";
 import { useBrandPermission } from "../../hooks/useBrandPermission";
 import { PlatformIcon } from "../../components/shared/PlatformIcon";
+import { buildMediaUrl } from "../../utils/url";
 
 const PUBLISH_OPTIONS = [
   { id: "draft", label: "SAVE AS DRAFT", sub: "Save and publish at a later time" },
@@ -87,6 +88,8 @@ export function PostCreatorPage() {
     setYoutubeFirstComment,
     globalFirstComment,
     setGlobalFirstComment,
+    youtubeThumbnail,
+    setYoutubeThumbnail,
     playlists,
     isLoadingPlaylists,
     videoFile,
@@ -168,6 +171,7 @@ export function PostCreatorPage() {
   } = usePostCreatorForm();
 
   const [threadsOpen, setThreadsOpen] = useState(false);
+  const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
 
   const discordAccounts = activeBrand?.socialAccounts?.filter(sa => sa.platform === 'DISCORD' && sa.isConnected) || [];
 
@@ -1111,6 +1115,51 @@ export function PostCreatorPage() {
                              </div>
                           </div>
 
+                          {/* Custom Thumbnail */}
+                          {youtubeType.toLowerCase() === 'short' ? (
+                             <div className="col-span-2 p-4 bg-amber-50/50 rounded-2xl border border-amber-100 flex items-center gap-2">
+                               <span className="text-amber-600 text-xs">💡</span>
+                               <span className="text-[11px] text-amber-700 font-semibold leading-normal">
+                                 Custom Thumbnails are not supported for YouTube Shorts by the YouTube API.
+                               </span>
+                             </div>
+                           ) : (
+                             <div className="col-span-2">
+                                <label className="block text-[11px] font-bold text-gray-500 uppercase mb-2">Custom Thumbnail</label>
+                                <div className="flex items-center gap-4">
+                                  {youtubeThumbnail ? (
+                                    <div className="relative w-28 h-20 rounded-2xl overflow-hidden border border-gray-200 shadow-sm group">
+                                      <img src={buildMediaUrl(youtubeThumbnail)} alt="YT Thumbnail" className="w-full h-full object-cover" />
+                                      <button 
+                                        type="button" 
+                                        onClick={() => setYoutubeThumbnail("")}
+                                        className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-black uppercase tracking-wider cursor-pointer"
+                                      >
+                                        Remove
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button 
+                                      type="button"
+                                      onClick={() => {
+                                        setIsUploadingThumbnail(true);
+                                        setUploadModalTab("computer");
+                                        setShowUploadModal(true);
+                                      }}
+                                      className="w-full max-w-xs h-20 border-2 border-dashed border-gray-200 hover:border-gray-400 rounded-2xl flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-gray-600 transition-all cursor-pointer bg-gray-50/50"
+                                    >
+                                      <Upload size={16} />
+                                      <span className="text-[10px] font-bold uppercase tracking-wider">Upload Thumbnail</span>
+                                    </button>
+                                  )}
+                                  <div className="flex-1 text-[10px] text-gray-400 font-medium leading-normal text-left">
+                                    Select an image from your computer or media library to use as the thumbnail for this YouTube video. 
+                                    Max size 2MB. Recommended resolution: 1280x720.
+                                  </div>
+                                </div>
+                             </div>
+                           )}
+
                           {/* First Comment inside YT presets */}
                           <div className="col-span-2">
                              <label className="block text-[11px] font-bold text-gray-500 uppercase mb-2">First Comment (Auto post after publishing)</label>
@@ -1672,18 +1721,26 @@ export function PostCreatorPage() {
           isOpen={showUploadModal}
           initialTab={uploadModalTab}
           brandId={activeBrand?.id}
-          onClose={() => setShowUploadModal(false)}
+          onClose={() => {
+            setShowUploadModal(false);
+            setIsUploadingThumbnail(false);
+          }}
           onAccept={(file, path) => {
-            if (file) {
-              setVideoFile(file);
-              const previewUrl = URL.createObjectURL(file);
-              setVideoFileUrl(previewUrl);
+            if (isUploadingThumbnail) {
+              setYoutubeThumbnail(path);
+              setIsUploadingThumbnail(false);
             } else {
-              setVideoFile(null);
-              setVideoFileUrl(path);
+              if (file) {
+                setVideoFile(file);
+                const previewUrl = URL.createObjectURL(file);
+                setVideoFileUrl(previewUrl);
+              } else {
+                setVideoFile(null);
+                setVideoFileUrl(path);
+              }
+              setUploadedVideoPath(path);
+              setImageTransform({ rotation: 0, flipH: false, flipV: false, filter: 'none' }); // reset transform on new upload
             }
-            setUploadedVideoPath(path);
-            setImageTransform({ rotation: 0, flipH: false, flipV: false, filter: 'none' }); // reset transform on new upload
           }}
         />
         <ImageEditorModal 

@@ -122,6 +122,7 @@ class PostService {
     } else {
       // If one-off post is scheduled, add to BullMQ
       if (!post.autoListId && post.status === POST_STATUS.SCHEDULED && post.scheduledAt) {
+        await this._handleYouTubeNativeScheduling(post, postData.options);
         await upsertPublishJob(post.id, post.scheduledAt);
       }
     }
@@ -241,6 +242,7 @@ class PostService {
       // Sync BullMQ for one-off posts
       if (!updatedPost.autoListId) {
         if (updatedPost.status === POST_STATUS.SCHEDULED && updatedPost.scheduledAt) {
+          await this._handleYouTubeNativeScheduling(updatedPost, postData.options);
           await upsertPublishJob(updatedPost.id, updatedPost.scheduledAt);
         } else {
           await removePublishJob(updatedPost.id);
@@ -351,8 +353,42 @@ class PostService {
       thumbnail: p.mediaThumbnailUrls ? p.mediaThumbnailUrls.split(SEPARATORS.COMMA)[0] : null,
       mediaUrls: p.mediaUrls ? p.mediaUrls.split(SEPARATORS.COMMA).map(m => m.trim()) : [],
       altText: p.altText,
+      isLibrary: p.isLibrary,
       options
     };
+  }
+
+  async _handleYouTubeNativeScheduling(post, options = {}) {
+    const targetPlatforms = post.targetPlatforms ? post.targetPlatforms.split(SEPARATORS.COMMA).map(p => p.trim().toUpperCase()) : [];
+    if (!targetPlatforms.includes(PLATFORMS.YOUTUBE)) {
+      return;
+    }
+
+    if (post.platformPostId) {
+      return;
+    }
+
+    console.log(`[PostService] 🚀 Triggering early YouTube Native Scheduling for Post: ${post.id}`);
+    try {
+      const youtubeService = socialPlatformFactory.getService(PLATFORMS.YOUTUBE);
+      const result = await youtubeService.publishPost(post.brandId, {
+        title: post.title,
+        caption: post.caption,
+        mediaUrls: post.mediaUrls,
+        type: post.type,
+        scheduledAt: post.scheduledAt,
+        options: options
+      });
+
+      if (result && result.platformVideoId) {
+        console.log(`[PostService] ✅ YouTube Native Scheduling successful! Video ID: ${result.platformVideoId}`);
+        post.platformPostId = result.platformVideoId;
+        await postRepository.update(post.id, { platformPostId: result.platformVideoId });
+      }
+    } catch (err) {
+      console.error(`[PostService] ❌ Failed to execute early YouTube Native Scheduling:`, err.message);
+      throw new Error(`YouTube scheduling failed: ${err.message}`);
+    }
   }
 
   _preparePostData(postData, userId, brandId) {
@@ -364,12 +400,17 @@ class PostService {
       finalStatus = POST_STATUS.DRAFT;
     }
 
+    let finalThumbnailUrls = mediaThumbnailUrls;
+    if ((!finalThumbnailUrls || finalThumbnailUrls.length === 0 || (Array.isArray(finalThumbnailUrls) && finalThumbnailUrls.length === 0)) && options.youtubeThumbnail) {
+      finalThumbnailUrls = [options.youtubeThumbnail];
+    }
+
     return {
       brandId, createdByUserId: userId, title: title || WORKSPACE_DEFAULTS.UNTITLED, caption, type,
       status: finalStatus,
       targetPlatforms: Array.isArray(targetPlatforms) ? targetPlatforms.join(SEPARATORS.COMMA) : targetPlatforms,
       mediaUrls: Array.isArray(mediaUrls) ? mediaUrls.join(SEPARATORS.COMMA) : mediaUrls,
-      mediaThumbnailUrls: Array.isArray(mediaThumbnailUrls) ? mediaThumbnailUrls.join(SEPARATORS.COMMA) : mediaThumbnailUrls,
+      mediaThumbnailUrls: Array.isArray(finalThumbnailUrls) ? finalThumbnailUrls.join(SEPARATORS.COMMA) : finalThumbnailUrls,
       scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
       altText, isLibrary: isLibrary === true || isLibrary === 'true',
       autoListId,
@@ -405,6 +446,9 @@ class PostService {
       data.metadata = JSON.stringify(postData.options);
       if (postData.options.firstComment !== undefined) {
         data.firstComment = postData.options.firstComment || null;
+      }
+      if (postData.options.youtubeThumbnail !== undefined) {
+        data.mediaThumbnailUrls = postData.options.youtubeThumbnail;
       }
     }
     return data;

@@ -5,9 +5,7 @@ left to right direction
 skinparam monochrome true
 skinparam shading false
 
-
 actor "Thành viên Brand" as ActorMember
-actor "Cloudinary Service (External)" as ActorCloudinary
 
 rectangle "Media Library Scope" {
     usecase "Xem thư viện đa phương tiện" as UC_ViewLibrary
@@ -32,10 +30,8 @@ UC_ViewLibrary <.. UC_SearchMedia : <<extend>>
 ' Luồng tải lên Media
 UC_UploadMedia ..> UC_GetSignature : <<include>>
 UC_UploadMedia ..> UC_SaveMetadata : <<include>>
-UC_UploadMedia --> ActorCloudinary : Direct Upload
 
 ' Luồng xóa Media
 UC_DeleteMedia ..> UC_CloudDelete : <<include>>
-UC_CloudDelete --> ActorCloudinary : Xóa file
 
 @enduml

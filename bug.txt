@@ -1,34 +1,20 @@
-✅ DB Cleanup completed.
-  8 passing (20s)
-  3 failing
-  1) General Dashboard E2E Test Suite
-       TC_DASHBOARD_07: Kiểm tra tính năng mở và đóng Post Creator từ Dashboard:
-     ElementClickInterceptedError: element click intercepted: Element <button class="flex items-center gap-2 text-gray-400 hover:text-black transition-colors group cursor-pointer">...</button> is not clickable at point (1213, 351). Other element would receive the click: <div class="flex-1 flex flex-col items-center justify-center p-8 space-y-8">...</div>
-  (Session info: chrome=149.0.7827.200)
-      at Object.throwDecodedError (node_modules/selenium-webdriver/lib/error.js:523:15)
-      at parseHttpResponse (node_modules/selenium-webdriver/lib/http.js:527:13)
-      at Executor.execute (node_modules/selenium-webdriver/lib/http.js:459:28)
-      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
-      at async Driver.execute (node_modules/selenium-webdriver/lib/webdriver.js:745:17)
-      at async Context.<anonymous> (dashboard/general_dashboard.spec.js:340:5)
-  2) General Dashboard E2E Test Suite
-       TC_DASHBOARD_08: Kiểm tra liên kết nhanh đến phần Planner lịch đăng:
-     ElementClickInterceptedError: element click intercepted: Element <button class="text-xs font-bold text-blue-600 hover:underline bg-transparent border-none cursor-pointer">...</button> is not clickable at point (749, 498). Other element would receive the click: <div class="flex-1 flex flex-col items-center justify-center p-8 space-y-8">...</div>
-  (Session info: chrome=149.0.7827.200)
-      at Object.throwDecodedError (node_modules/selenium-webdriver/lib/error.js:523:15)
-      at parseHttpResponse (node_modules/selenium-webdriver/lib/http.js:527:13)
-      at Executor.execute (node_modules/selenium-webdriver/lib/http.js:459:28)
-      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
-      at async Driver.execute (node_modules/selenium-webdriver/lib/webdriver.js:745:17)
-      at async Context.<anonymous> (dashboard/general_dashboard.spec.js:351:5)
-  3) General Dashboard E2E Test Suite
-       TC_DASHBOARD_09: Kiểm tra liên kết nhanh đến quản lý kết nối:
-     ElementClickInterceptedError: element click intercepted: Element <button class="text-[10px] font-black text-gray-400 hover:text-white uppercase tracking-wider bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-md border-none cursor-pointer transition-colors">...</button> is not clickable at point (1173, 494). Other element would receive the click: <div class="w-full max-w-sm">...</div>
-  (Session info: chrome=149.0.7827.200)
-      at Object.throwDecodedError (node_modules/selenium-webdriver/lib/error.js:523:15)
-      at parseHttpResponse (node_modules/selenium-webdriver/lib/http.js:527:13)
-      at Executor.execute (node_modules/selenium-webdriver/lib/http.js:459:28)
-      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
-      at async Driver.execute (node_modules/selenium-webdriver/lib/webdriver.js:745:17)
-      at async Context.<anonymous> (dashboard/general_dashboard.spec.js:368:5)
-Error: Process completed with exit code 3.
+VM1667:58 [PubliCast] [ERROR] Notification stream disconnected
+:3000/api/notifications/stream:1 
+ GET http://localhost:3000/api/notifications/stream net::ERR_CONNECTION_RESET 200 (OK)
+socket__io-client.js?v=1eaa39b2:1524 WebSocket connection to 'ws://localhost:3000/socket.io/?EIO=4&transport=websocket' failed: 
+VM1667:58 [PubliCast] [ERROR] ❌ [SocketClient] Connection error: websocket error
+VM1667:58 [PubliCast] [ERROR] Notification stream disconnected
+:3000/api/notifications/stream:1 
+ GET http://localhost:3000/api/notifications/stream net::ERR_CONNECTION_REFUSED
+VM1667:58 [PubliCast] [ERROR] Error uploading file: Error: Network Error
+    at api.js:90:29
+    at async handleFileChange (SupportChat.jsx:238:19)
+api.js:98 
+ POST http://localhost:3000/api/media/upload net::ERR_CONNECTION_REFUSED
+socket__io-client.js?v=1eaa39b2:1524 WebSocket connection to 'ws://localhost:3000/socket.io/?EIO=4&transport=websocket' failed: 
+VM1667:58 [PubliCast] [ERROR] ❌ [SocketClient] Connection error: websocket error
+VM1667:58 [PubliCast] [ERROR] Notification stream disconnected
+:3000/api/notifications/stream:1 
+ GET http://localhost:3000/api/notifications/stream net::ERR_CONNECTION_REFUSED
+
+﻿

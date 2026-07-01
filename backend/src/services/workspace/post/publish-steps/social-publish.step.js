@@ -15,6 +15,7 @@ class SocialPublishStep extends BaseStep {
           caption: post.caption,
           mediaUrls: post.mediaUrls ? post.mediaUrls.split(SEPARATORS.COMMA).map(m => m.trim()) : [],
           type: post.type,
+          platformPostId: post.platformPostId,
           options: options
         });
         

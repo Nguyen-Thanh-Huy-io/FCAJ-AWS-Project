@@ -16,7 +16,7 @@ export function AccessGuard({ feature, children, fallback = null, overrideStrate
   
   // 2. Kiểm tra Gói Cước (Subscription Tier)
   const currentPlan = activeBrand?.currentPlan?.name || "FREE";
-  const planRank = { "FREE": 0, "PRO": 1, "ENTERPRISE": 2 };
+  const planRank = { "FREE": 0, "STARTER": 1, "PRO": 2, "AGENCY": 3, "ENTERPRISE": 4 };
   const hasRequiredPlan = planRank[currentPlan] >= planRank[config.minPlan];
 
   // 3. Quyết định trạng thái

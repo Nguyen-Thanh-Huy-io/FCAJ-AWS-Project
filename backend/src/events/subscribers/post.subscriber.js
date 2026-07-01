@@ -16,6 +16,13 @@ const initPostSubscribers = () => {
       } catch (err) {
         console.error(`[Event Error] Auto-publishing failed for post ${post.id}:`, err.message);
       }
+    } else if (post.status === POST_STATUS.SCHEDULED) {
+      try {
+        console.log(`[Event] Checking YouTube Native Scheduling for post ${post.id}`);
+        await postService._handleYouTubeNativeScheduling(post, options);
+      } catch (err) {
+        console.error(`[Event Error] YouTube Native Scheduling failed for post ${post.id}:`, err.message);
+      }
     }
   });
 
@@ -26,6 +33,13 @@ const initPostSubscribers = () => {
         await postService.publishToPlatforms(post.id, options);
       } catch (err) {
         console.error(`[Event Error] Publishing failed for updated post ${post.id}:`, err.message);
+      }
+    } else if (post.status === POST_STATUS.SCHEDULED) {
+      try {
+        console.log(`[Event] Checking YouTube Native Scheduling for updated post ${post.id}`);
+        await postService._handleYouTubeNativeScheduling(post, options);
+      } catch (err) {
+        console.error(`[Event Error] YouTube Native Scheduling failed for updated post ${post.id}:`, err.message);
       }
     }
   });
