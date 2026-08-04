@@ -1,11 +1,16 @@
-variable "github_backend_repo" {
+variable "project" {
   type        = string
-  description = "Tên repo Backend trên GitHub (VD: thanhhuy/publicast-backend)"
+  description = "Tên dự án (VD: publicast)"
 }
 
-variable "github_frontend_repo" {
+variable "environment" {
   type        = string
-  description = "Tên repo Frontend trên GitHub (VD: thanhhuy/publicast-frontend)"
+  description = "Môi trường triển khai (VD: staging)"
+}
+
+variable "github_monorepo" {
+  type        = string
+  description = "Tên repo Backend trên GitHub (VD: thanhhuy/publicast-backend)"
 }
 
 variable "github_branch" {

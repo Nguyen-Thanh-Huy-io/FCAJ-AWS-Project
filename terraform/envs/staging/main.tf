@@ -198,12 +198,21 @@ module "s3_cloudfront" {
 
 module "route53" {
   source = "../../modules/route53"
-
   hosted_zone_id = "Z1022587CG0ZOTXXGXTQ"
-
   domain_name = "publicast"
-
   cloudfront_domain_name = module.s3_cloudfront.cloudfront_domain_name
+}
 
+module "cicd" {
+  source      = "../../modules/ci/cd"
+  project     = var.project
+  environment = var.environment
 
+  github_monorepo = var.github_monorepo
+  github_branch   = var.github_branch
+
+  ecr_repository_name         = module.ecr.repository_name
+  ecs_cluster_name            = module.ecs.cluster_name
+  frontend_s3_bucket_name     = module.s3_cloudfront.bucket_name
+  cloudfront_distribution_id  = module.s3_cloudfront.cloudfront_id
 }

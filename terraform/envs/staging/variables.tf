@@ -220,3 +220,13 @@ variable "gemini_api_key" {
   sensitive = true
   default   = ""
 }
+
+variable "github_monorepo" {
+  type      = string
+  default   = ""
+}
+
+variable "github_branch" {
+  type      = string
+  default   = ""
+}

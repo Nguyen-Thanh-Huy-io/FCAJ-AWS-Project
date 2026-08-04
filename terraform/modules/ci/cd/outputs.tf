@@ -1,3 +1,7 @@
+# ------------------------------------------------------------------------------
+# CI/CD OUTPUTS
+# ------------------------------------------------------------------------------
+
 output "codestar_connection_arn" {
   description = "ARN của CodeStar Connection với GitHub (Cần thiết để verify kết nối)"
   value       = aws_codestarconnections_connection.github.arn
