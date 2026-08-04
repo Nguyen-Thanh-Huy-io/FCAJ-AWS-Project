@@ -23,7 +23,7 @@ const verifyAuth = (req, res, next) => {
     req.user = decoded;
     next();
   } catch (error) {
-    if (error.message === 'Access token expired') {
+    if (error.message === 'Access token has expired') {
       return res.status(401).json({ message: 'Access token expired. Please refresh.' });
     }
     logger.warn('Auth failed: invalid token', { error: error.message, url: req.url });
@@ -31,7 +31,5 @@ const verifyAuth = (req, res, next) => {
   }
 };
 
-module.exports = {
-  verifyAuth
-};
+module.exports = { verifyAuth };
 
