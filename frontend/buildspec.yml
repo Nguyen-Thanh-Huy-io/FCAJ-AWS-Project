@@ -6,17 +6,17 @@ phases:
       nodejs: 20
   pre_build:
     commands:
-      - cd frontend
+      - cd $CODEBUILD_SRC_DIR/frontend
       - echo "Installing dependencies..."
       - npm install --legacy-peer-deps
   build:
     commands:
-      - cd frontend
+      - cd $CODEBUILD_SRC_DIR/frontend
       - echo "Building React App..."
       - npm run build
   post_build:
     commands:
-      - cd frontend
+      - cd $CODEBUILD_SRC_DIR/frontend
       - echo "Deploying to S3..."
       - aws s3 sync dist/ s3://$S3_BUCKET_NAME --delete
       - echo "Invalidating CloudFront Cache..."
