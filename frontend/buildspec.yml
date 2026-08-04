@@ -8,7 +8,7 @@ phases:
     commands:
       - cd frontend
       - echo "Installing dependencies..."
-      - npm ci
+      - npm install --legacy-peer-deps
   build:
     commands:
       - cd frontend
