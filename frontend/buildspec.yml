@@ -6,12 +6,9 @@ phases:
       nodejs: 20
   pre_build:
     commands:
-      - cd $CODEBUILD_SRC_DIR
-      - echo "Installing root dependencies..."
-      - npm install --legacy-peer-deps           
       - cd $CODEBUILD_SRC_DIR/frontend
       - echo "Installing frontend dependencies..."
-      - npm install --legacy-peer-deps            
+      - npm install --legacy-peer-deps
   build:
     commands:
       - cd $CODEBUILD_SRC_DIR/frontend
