@@ -80,7 +80,10 @@ class AuthService {
   async resendOTP(email) {
     const normalizedEmail = email.toLowerCase();
     const throttleKey = `resend-otp-throttle:${normalizedEmail}`;
+    
+    console.log('🔍 [Step 1] Đang check Redis throttle...');
     const isThrottled = await redisClient.get(throttleKey);
+    console.log('🔍 [Step 2] Check Redis xong, isThrottled =', isThrottled);
 
     if (isThrottled) {
       const error = new Error('Vui lòng đợi 60 giây trước khi yêu cầu mã mới');
@@ -88,7 +91,10 @@ class AuthService {
       throw error;
     }
 
+    console.log('🔍 [Step 3] Đang tìm user trong Database...');
     const user = await userRepository.findByEmail(normalizedEmail);
+    console.log('🔍 [Step 4] Tìm user xong:', user ? 'Tìm thấy' : 'Không thấy');
+
     if (!user) {
       const error = new Error(ERROR_MESSAGES.INVALID_EMAIL);
       error.status = 404;
@@ -101,15 +107,20 @@ class AuthService {
       throw error;
     }
 
+    console.log('🔍 [Step 5] Đang tạo và lưu OTP...');
     const otp = await otpService.generateOTP();
     await otpService.saveOTP(normalizedEmail, otp);
+    console.log('🔍 [Step 6] Lưu OTP thành công. Chuẩn bị gọi emailService...');
+
+    // Chỗ này rất dễ bị treo nếu mạng/SMTP kẹt
     await emailService.sendOTP(normalizedEmail, otp);
+    console.log('🔍 [Step 7] Gửi email thành công!');
 
     // Set throttle key for 60 seconds
     await redisClient.setEx(throttleKey, 60, '1');
 
     return { message: 'Mã OTP mới đã được gửi vào email của bạn' };
-  }
+}
 
   async login(email, password) {
     const user = await userRepository.findByEmailWithPassword(email);

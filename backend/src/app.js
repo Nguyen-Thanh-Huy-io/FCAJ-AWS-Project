@@ -55,6 +55,8 @@ const queueDashboard = require('./queues/dashboard');
 
 const app = express();
 
+app.set('trust proxy', 1);
+
 // ── Structured HTTP request logger (replaces raw console.log) ──────────────
 app.use(logger.httpMiddleware());
 
@@ -82,7 +84,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning']
+  allowedHeaders: ['Content-Type', 'Authorization', 'ngrok-skip-browser-warning', 'x-requested-with', 'Cookie']
 }));
 
 // ── Body parsers — limit JSON to 10MB to prevent payload DoS ──────────────

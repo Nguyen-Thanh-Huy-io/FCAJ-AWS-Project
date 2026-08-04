@@ -53,7 +53,6 @@ export function isVideoPath(url, file = null) {
   const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.avi', '.webm'];
   const lowerUrl = url.toLowerCase().split('?')[0]; // bỏ query string
   if (VIDEO_EXTENSIONS.some((ext) => lowerUrl.endsWith(ext))) return true;
-  if (url.includes('/video/upload/')) return true; // Cloudinary
 
   return false;
 }

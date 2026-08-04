@@ -3,7 +3,6 @@ import { useFilters } from "./useFilters";
 import { useDebounce } from "./useDebounce";
 import apiService from "../services/api";
 import { toast } from "sonner";
-import CloudinaryResumableUploader from "../utils/cloudinaryUploader";
 import { useBrand } from "../context/BrandContext";
 
 export function useMediaLibrary() {
@@ -110,31 +109,25 @@ export function useMediaLibrary() {
 
     try {
       for (const file of files) {
-        // 1. Get signature from backend
-        const isVideo = file.type.startsWith('video/');
-        const folder = isVideo ? 'publicast/videos' : 'publicast/images';
-        const sigRes = await apiService.get(`/media/signature?folder=${folder}`);
-        const { signature, timestamp, apiKey, cloudName } = sigRes.data.data;
+        toast.loading(`Uploading ${file.name}...`, { id: toastId });
 
-        toast.loading(`Uploading ${file.name}... 0%`, { id: toastId });
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("brandId", activeBrand.id);
+        if (currentFolderId) {
+          formData.append("folderId", currentFolderId);
+        }
 
-        // 2. Resumable Upload using chunks
-        const uploader = new CloudinaryResumableUploader(
-          cloudName, 
-          apiKey, 
-          folder, 
-          (percent) => {
-            toast.loading(`Uploading ${file.name}... ${percent}%`, { id: toastId });
+        await apiService.post("/media/upload", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              toast.loading(`Uploading ${file.name}... ${percent}%`, { id: toastId });
+            }
           }
-        );
-
-        const uploadData = await uploader.upload(file, signature, timestamp);
-
-        // 3. Save info to our backend
-        await apiService.post("/media/save-direct", {
-          brandId: activeBrand.id,
-          folderId: currentFolderId,
-          fileInfo: uploadData
         });
       }
       toast.success("All files uploaded successfully", { id: toastId });

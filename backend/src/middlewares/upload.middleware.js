@@ -1,7 +1,16 @@
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const { storage } = require('../config/cloudinary');
+
+/**
+ * File Upload Middleware
+ * 
+ * Uses multer.memoryStorage() so that uploaded files are available as
+ * req.file.buffer. The actual storage (S3 or local) is handled by
+ * the StorageService abstraction in controllers/services.
+ * 
+ * Preserves all existing validation:
+ * - 100MB max file size
+ * - Allowed MIME types: images, videos, PDF
+ */
 
 const fileFilter = (req, file, cb) => {
   const allowedTypes = [
@@ -38,24 +47,8 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const localStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const brandId = req.body?.brandId || req.query?.brandId || 'unassigned';
-    const uploadDir = path.join(process.cwd(), 'uploads', 'media', brandId);
-    fs.mkdirSync(uploadDir, { recursive: true });
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const base = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9-_]/g, '-').slice(0, 60);
-    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}-${base}${ext}`);
-  }
-});
-
-const selectedStorage = process.env.UPLOAD_STORAGE === 'local' ? localStorage : storage;
-
 const upload = multer({
-  storage: selectedStorage,
+  storage: multer.memoryStorage(),
   fileFilter: fileFilter,
   limits: {
     fileSize: 100 * 1024 * 1024 // 100MB limit

@@ -1,7 +1,10 @@
 const userRepository = require('../../repositories/auth/user.repository');
 const profileService = require('../../services/auth/profile.service');
 const brandService = require('../../services/workspace/brand.service');
+const storageService = require('../../services/storage');
 const asyncHandler = require('../../utils/async-handler');
+const path = require('path');
+const crypto = require('crypto');
 
 class ProfileController {
   /**
@@ -75,22 +78,22 @@ class ProfileController {
   /**
    * Upload avatar
    * For /upload/avatar endpoint
+   * Uploads avatar to storage (S3 or local) via StorageService.
    */
   uploadAvatar = asyncHandler(async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    const isLocal = process.env.UPLOAD_STORAGE === 'local';
-    let avatarUrl = req.file.path;
-    if (isLocal) {
-      const path = require('path');
-      const relativePath = path.relative(process.cwd(), req.file.path).replace(/\\/g, '/');
-      avatarUrl = `/${relativePath}`;
-    }
+    const userId = req.user.id;
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const uniqueId = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const key = `avatars/${userId}/${uniqueId}${ext}`;
+
+    const { url: avatarUrl } = await storageService.upload(req.file.buffer, key, req.file.mimetype);
 
     // Update user avatarUrl
-    const updatedUser = await profileService.editProfile(req.user.id, { avatarUrl });
+    const updatedUser = await profileService.editProfile(userId, { avatarUrl });
 
     res.status(200).json({
       message: 'Avatar uploaded successfully',

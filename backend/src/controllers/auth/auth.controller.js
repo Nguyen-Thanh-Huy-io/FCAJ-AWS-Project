@@ -89,18 +89,20 @@ class AuthController {
    * Login user
    * POST /api/auth/login
    */
+  
   login = asyncHandler(async (req, res) => {
+    console.log("DEBUG: Request received in login controller"); // Log 1
     const { email, password } = req.body;
 
     try {
+      console.log("DEBUG: Calling authService.login for:", email); // Log 2
       const result = await authService.login(email.toLowerCase(), password);
+      console.log("DEBUG: authService.login completed successfully"); // Log 3
 
-      // Reset rate limit on successful login
       if (req.rateLimit) {
         await loginRateLimiter.resetAttempts(req.rateLimit.email, req.rateLimit.ip);
       }
 
-      // Set tokens via HttpOnly cookies only — do NOT return raw tokens in body (XSS risk)
       setAuthCookies(res, result.accessToken, result.refreshToken);
 
       res.status(200).json({
@@ -110,12 +112,13 @@ class AuthController {
         user: result.user
       });
     } catch (error) {
+      console.error("DEBUG: Login failed with error:", error.message); // Log 4
       if (req.rateLimit) {
         await loginRateLimiter.recordFailedAttempt(req.rateLimit.email, req.rateLimit.ip);
       }
       throw error;
     }
-  });
+});
 
   /**
    * Refresh access token

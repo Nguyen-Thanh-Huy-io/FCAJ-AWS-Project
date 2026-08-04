@@ -8,10 +8,9 @@ const REQUIRED_VARS = [
   'DATABASE_URL',
   'ACCESS_TOKEN_SECRET',
   'REFRESH_TOKEN_SECRET',
-  'CLOUDINARY_CLOUD_NAME',
-  'CLOUDINARY_API_KEY',
-  'CLOUDINARY_API_SECRET',
   'ENCRYPTION_KEY',
+  'AWS_S3_BUCKET_NAME',     // S3 Bucket for media storage
+  'AWS_REGION',             // AWS Region (e.g. ap-southeast-2)
 ];
 
 const WARNED_VARS = [
@@ -32,7 +31,12 @@ const WARNED_VARS = [
  * @throws {Error} if any required variable is missing.
  */
 function validateEnv() {
-  const missing = REQUIRED_VARS.filter((key) => !process.env[key]);
+  // Skip AWS validation when using local storage
+  const effectiveRequired = process.env.UPLOAD_STORAGE === 'local'
+    ? REQUIRED_VARS.filter(v => !v.startsWith('AWS_'))
+    : REQUIRED_VARS;
+
+  const missing = effectiveRequired.filter((key) => !process.env[key]);
 
   if (missing.length > 0) {
     throw new Error(

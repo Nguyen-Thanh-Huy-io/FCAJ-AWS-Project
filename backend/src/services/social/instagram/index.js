@@ -64,6 +64,7 @@ class InstagramService extends BaseSocialService {
     
     return require('../../../repositories/social/social-account.repository').upsertInstagramAccount(brandId, {
       igAccountId: igAccountData.igAccountId,
+      facebookPageId: selectedPage.id,
       username: igAccountData.username,
       displayName: igAccountData.displayName,
       profilePictureUrl: igAccountData.profilePictureUrl,
@@ -85,7 +86,8 @@ class InstagramService extends BaseSocialService {
       throw new Error('Social account not found or is not an Instagram account');
     }
 
-    const pageId = account.platformAccountId;
+    // Critical Fix: Facebook Page ID is required to query Instagram Analytics, NOT the Instagram ID.
+    const pageId = account.instagramAccount?.facebookPageId || account.platformAccountId; 
     const pageAccessToken = account.accessToken;
 
     const igInfo = await instagramAnalytics.getChannelInfo({ pageId, pageAccessToken }, startDate, endDate, socialAccountId);

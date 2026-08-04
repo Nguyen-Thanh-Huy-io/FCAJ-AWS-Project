@@ -67,9 +67,14 @@ import { RevenueDashboard } from "./pages/admin/RevenueDashboard";
 // Landing
 import { LandingPage } from "./pages/landing/LandingPage";
 
+// Legal
+import { PrivacyPolicy } from "./pages/legal/PrivacyPolicy";
+import { DataDeletion } from "./pages/legal/DataDeletion";
+import { TermsOfService } from "./pages/legal/TermsOfService";
+
 import UpsellModal from "./components/billing/UpsellModal";
 
-const NO_LAYOUT_PATHS = ["/", "/login", "/signup", "/verify-otp", "/start", "/forgot-password", "/connect", "/invite", "/manage/workplace/new"];
+const NO_LAYOUT_PATHS = ["/", "/login", "/signup", "/verify-otp", "/start", "/forgot-password", "/connect", "/invite", "/manage/workplace/new", "/privacy-policy", "/data-deletion", "/terms-of-service"];
 
 export default function App() {
   const { isAuthenticated, loading, logout } = useAuthStore();
@@ -85,7 +90,7 @@ export default function App() {
   useEffect(() => {
     const handleSessionExpired = () => {
       logout();
-      const publicPaths = ["/", "/login", "/signup", "/verify-otp", "/forgot-password", "/invite"];
+      const publicPaths = ["/", "/login", "/signup", "/verify-otp", "/forgot-password", "/invite", "/privacy-policy","/data-deletion", "/terms-of-service"];
       if (!publicPaths.includes(window.location.pathname)) {
         navigate('/login', { replace: true });
       }
@@ -182,6 +187,9 @@ export default function App() {
               <Route path="/connect" element={<ProtectedRoute><ConnectPlatformsPage /></ProtectedRoute>} />
               <Route path="/invite" element={<InviteFlow />} />
               <Route path="/s/:slug" element={<PublicSmartLinksPage />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route path="/data-deletion" element={<DataDeletion />} />
+              <Route path="/terms-of-service" element={<TermsOfService />} />
               
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>

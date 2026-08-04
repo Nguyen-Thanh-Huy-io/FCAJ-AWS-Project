@@ -543,11 +543,11 @@ class FacebookGateway {
 
   /**
    * Resolve mediaUrl thành local file path.
-   * Nếu là Cloudinary URL (http/https), throw lỗi gợi ý dùng _getMediaBuffer.
+   * Nếu là remote URL (http/https), throw lỗi gợi ý dùng _getMediaBuffer.
    * Nếu là relative path, join với cwd().
    */
   _resolveLocalPath(mediaUrl) {
-    // Nếu là URL (Cloudinary, S3, ...) thì không xử lý như local path
+    // Nếu là URL (S3, CloudFront, v.v.) thì không xử lý như local path
     if (mediaUrl.startsWith('http://') || mediaUrl.startsWith('https://')) {
       throw new Error(`_resolveLocalPath: mediaUrl là remote URL, hãy dùng _getMediaBuffer(). URL: ${mediaUrl}`);
     }
@@ -560,13 +560,35 @@ class FacebookGateway {
   }
 
   /**
-   * Lấy Buffer từ mediaUrl — hỗ trợ cả local path lẫn remote URL (Cloudinary, v.v.)
+   * Lấy Buffer từ mediaUrl — hỗ trợ cả local path lẫn remote URL (S3, v.v.)
    * @param {string} mediaUrl
    * @returns {Promise<{ buffer: Buffer, filename: string }>}
    */
   async _getMediaBuffer(mediaUrl) {
     const isRemote = mediaUrl.startsWith('http://') || mediaUrl.startsWith('https://');
     if (isRemote) {
+      try {
+        const urlObj = new URL(mediaUrl);
+        const pathObj = urlObj.pathname;
+        
+        // Nếu URL trỏ về media hoặc avatars của hệ thống
+        if (pathObj.startsWith('/media/') || pathObj.startsWith('/avatars/')) {
+          const key = pathObj.substring(1); // Xóa dấu '/' ở đầu
+          console.log(`[Facebook Gateway] Fetching internal media directly via StorageService: ${key}`);
+          
+          const storageService = require('../../storage');
+          const buffer = await storageService.getBuffer(key);
+          
+          return {
+            buffer,
+            filename: path.basename(pathObj) || 'media'
+          };
+        }
+      } catch (err) {
+        console.warn(`[Facebook Gateway] Internal S3 fetch failed, falling back to HTTP: ${err.message}`);
+      }
+
+      console.log(`[Facebook Gateway] Fetching remote media via HTTP: ${mediaUrl}`);
       const res = await fetch(mediaUrl);
       if (!res.ok) {
         throw new Error(`Failed to download media from URL: ${mediaUrl} (status ${res.status})`);
@@ -592,7 +614,7 @@ class FacebookGateway {
         {
           pageId: "mock_comp_page_123",
           title: "Competitor C page",
-          thumbnail: "https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg",
+          thumbnail: "https://via.placeholder.com/150",
           followersCount: 15200,
           category: "Media"
         }
@@ -626,7 +648,7 @@ class FacebookGateway {
       return {
         pageId: pageId,
         displayName: `Competitor C page`,
-        avatarUrl: `https://res.cloudinary.com/demo/image/upload/v1312461204/sample.jpg`,
+        avatarUrl: `https://via.placeholder.com/150`,
         followersCount: 15200,
         category: "Media",
         profileUrl: `https://www.facebook.com/${pageId}`,

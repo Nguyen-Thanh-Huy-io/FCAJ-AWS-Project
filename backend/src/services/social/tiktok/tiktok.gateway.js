@@ -15,16 +15,27 @@ class TikTokGateway {
    * Get Auth URL for TikTok OAuth 2.0
    */
   getAuthUrl(scopes, state, redirectUri, codeChallenge) {
-    const scopeString = encodeURIComponent(scopes.join(','));
-    const encodedRedirect = encodeURIComponent(redirectUri);
-    
-    // Authorization MUST go to www.tiktok.com, not open.tiktokapis.com
-    let url = `${this.authBaseUrl}?client_key=${this.clientKey}&scope=${scopeString}&response_type=code&redirect_uri=${encodedRedirect}&state=${state}`;
-    if (codeChallenge) {
-      url += `&code_challenge=${codeChallenge}&code_challenge_method=S256`;
-    }
-    return url;
+  console.log('================ TIKTOK AUTH ================');
+  console.log('Client Key:', JSON.stringify(this.clientKey));
+  console.log('Length:', this.clientKey.length);
+  console.log('Auth Base URL:', this.authBaseUrl);
+  console.log('Redirect URI:', redirectUri);
+  console.log('Scopes:', scopes);
+
+  const scopeString = encodeURIComponent(scopes.join(','));
+  const encodedRedirect = encodeURIComponent(redirectUri);
+
+  let url = `${this.authBaseUrl}?client_key=${this.clientKey}&scope=${scopeString}&response_type=code&redirect_uri=${encodedRedirect}&state=${state}`;
+
+  if (codeChallenge) {
+    url += `&code_challenge=${codeChallenge}&code_challenge_method=S256`;
   }
+
+  console.log('Generated URL:', url);
+  console.log('=============================================');
+
+  return url;
+}
 
   /**
    * Exchange Code for Access Token
@@ -144,11 +155,9 @@ class TikTokGateway {
    * Automatically handles FILE_UPLOAD (recommended for local files/non-verified domains)
    */
   async publishVideo(accessToken, filePath, title) {
-    const localPath = this._resolveLocalPath(filePath);
-    const stats = fs.statSync(localPath);
-    const videoSize = stats.size;
+    const { buffer: videoBuffer, size: videoSize, name: fileName } = await this._getMediaBufferAndSize(filePath);
 
-    console.log(`[TikTok Gateway] Initializing FILE_UPLOAD for ${path.basename(localPath)} (${videoSize} bytes)`);
+    console.log(`[TikTok Gateway] Initializing FILE_UPLOAD for ${fileName} (${videoSize} bytes)`);
 
     // Optional: Check creator info for debugging
     const creatorInfo = await this.getCreatorInfo(accessToken);
@@ -211,7 +220,6 @@ class TikTokGateway {
 
     // Step 2: Upload Video Binary
     console.log(`[TikTok Gateway] Uploading binary to ${upload_url}`);
-    const videoBuffer = fs.readFileSync(localPath);
     const uploadRes = await fetch(upload_url, {
       method: 'PUT',
       headers: {
@@ -269,6 +277,59 @@ class TikTokGateway {
   }
 
   // ============= Private Helper Methods =============
+
+  async _getMediaBufferAndSize(mediaUrl) {
+    if (!mediaUrl) throw new Error('Media URL is required');
+
+    // Nếu là remote URL (S3, CloudFront, v.v.)
+    if (mediaUrl.startsWith('http://') || mediaUrl.startsWith('https://')) {
+      try {
+        const urlObj = new URL(mediaUrl);
+        const path = urlObj.pathname;
+        
+        // Nếu URL trỏ về media hoặc avatars của hệ thống (S3 hoặc CloudFront của ta)
+        if (path.startsWith('/media/') || path.startsWith('/avatars/')) {
+          const key = path.substring(1); // Xóa dấu '/' ở đầu để ra S3 key
+          console.log(`[TikTok Gateway] Fetching internal media directly via StorageService: ${key}`);
+          
+          const storageService = require('../../storage');
+          const buffer = await storageService.getBuffer(key);
+          
+          return {
+            buffer,
+            size: buffer.length,
+            name: key.split('/').pop()
+          };
+        }
+      } catch (err) {
+        console.warn(`[TikTok Gateway] Internal S3 fetch failed, falling back to HTTP: ${err.message}`);
+      }
+
+      // Fallback: Fetch external HTTP URL
+      console.log(`[TikTok Gateway] Fetching remote media via HTTP: ${mediaUrl}`);
+      const res = await fetch(mediaUrl);
+      if (!res.ok) {
+        throw new Error(`Failed to fetch remote media: ${mediaUrl} (Status: ${res.status})`);
+      }
+      const arrayBuffer = await res.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      return { 
+        buffer, 
+        size: buffer.length, 
+        name: mediaUrl.split('/').pop().split('?')[0] || 'video.mp4' 
+      };
+    }
+
+    // Nếu là local path
+    const localPath = this._resolveLocalPath(mediaUrl);
+    const buffer = fs.readFileSync(localPath);
+    const stats = fs.statSync(localPath);
+    return { 
+      buffer, 
+      size: stats.size, 
+      name: path.basename(localPath) 
+    };
+  }
 
   _resolveLocalPath(mediaUrl) {
     if (!mediaUrl) throw new Error('Media URL is required');

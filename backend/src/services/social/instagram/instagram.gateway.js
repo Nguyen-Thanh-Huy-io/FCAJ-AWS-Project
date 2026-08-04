@@ -43,7 +43,7 @@ class InstagramGateway {
   async createImageContainer(igAccountId, accessToken, imageUrl, caption, scheduledAt = null) {
     const url = `${this.graphBaseUrl}/${igAccountId}/media`;
     const body = {
-      image_url: imageUrl,
+      image_url: this._ensurePublicUrl(imageUrl),
       caption: caption || '',
       access_token: accessToken
     };
@@ -73,7 +73,7 @@ class InstagramGateway {
     const url = `${this.graphBaseUrl}/${igAccountId}/media`;
     const body = {
       media_type: 'REELS',
-      video_url: videoUrl,
+      video_url: this._ensurePublicUrl(videoUrl),
       caption: caption || '',
       access_token: accessToken
     };
@@ -103,7 +103,7 @@ class InstagramGateway {
     const url = `${this.graphBaseUrl}/${igAccountId}/media`;
     const body = {
       media_type: 'REELS',
-      video_url: videoUrl,
+      video_url: this._ensurePublicUrl(videoUrl),
       caption: caption || '',
       access_token: accessToken
     };
@@ -137,9 +137,9 @@ class InstagramGateway {
     };
 
     if (isVideo) {
-      body.video_url = mediaUrl;
+      body.video_url = this._ensurePublicUrl(mediaUrl);
     } else {
-      body.image_url = mediaUrl;
+      body.image_url = this._ensurePublicUrl(mediaUrl);
     }
 
     const res = await fetch(url, {
@@ -169,9 +169,9 @@ class InstagramGateway {
 
     if (isVideo) {
       body.media_type = 'VIDEO';
-      body.video_url = mediaUrl;
+      body.video_url = this._ensurePublicUrl(mediaUrl);
     } else {
-      body.image_url = mediaUrl;
+      body.image_url = this._ensurePublicUrl(mediaUrl);
     }
 
     const res = await fetch(url, {
@@ -324,6 +324,27 @@ class InstagramGateway {
     }
     
     return res.json();
+  }
+
+  // ============= Private Helper Methods =============
+
+  /**
+   * Đảm bảo URL luôn là CloudFront URL nếu có cấu hình CLOUDFRONT_DOMAIN.
+   * Giúp khắc phục lỗi 403 khi truy cập S3 trực tiếp trên các bài post cũ.
+   */
+  _ensurePublicUrl(url) {
+    if (!url) return url;
+    
+    const cloudfrontDomain = process.env.CLOUDFRONT_DOMAIN;
+    if (cloudfrontDomain && url.includes('s3.ap-southeast-2.amazonaws.com')) {
+      try {
+        const urlObj = new URL(url);
+        return `https://${cloudfrontDomain}${urlObj.pathname}`;
+      } catch (err) {
+        return url;
+      }
+    }
+    return url;
   }
 }
 

@@ -1,5 +1,8 @@
 const postService = require('../../services/workspace/post.service');
+const storageService = require('../../services/storage');
 const asyncHandler = require('../../utils/async-handler');
+const path = require('path');
+const crypto = require('crypto');
 
 class PostController {
   /**
@@ -124,22 +127,29 @@ class PostController {
 
   /**
    * POST /api/posts/upload
+   * Upload video/image file to storage (S3 or local).
    */
   uploadVideo = asyncHandler(async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: 'No video file uploaded' });
     }
-    const isLocal = process.env.UPLOAD_STORAGE === 'local';
-    let videoUrl = req.file.path;
-    if (isLocal) {
-      const path = require('path');
-      const relativePath = path.relative(process.cwd(), req.file.path).replace(/\\/g, '/');
-      videoUrl = `/${relativePath}`;
-      console.log(`[Upload] Local storage: absolute="${req.file.path}" → relative="${videoUrl}"`);
-    } else {
-      console.log(`[Upload] Cloudinary: url="${videoUrl}"`);
-    }
-    res.status(200).json({ message: 'Video uploaded successfully', videoUrl });
+
+    const brandId = req.body.brandId || req.query.brandId || 'unassigned';
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const uniqueId = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const safeName = path.basename(req.file.originalname, ext)
+      .replace(/[^a-zA-Z0-9-_]/g, '-')
+      .slice(0, 50);
+
+    let subfolder = 'videos';
+    if (req.file.mimetype.startsWith('image/')) subfolder = 'images';
+
+    const key = `media/${brandId}/${subfolder}/${uniqueId}-${safeName}${ext}`;
+    const { url } = await storageService.upload(req.file.buffer, key, req.file.mimetype);
+
+    console.log(`[Upload] Storage: key="${key}" → url="${url}"`);
+
+    res.status(200).json({ message: 'Video uploaded successfully', videoUrl: url });
   });
 
   // ============= Private Helper Methods =============

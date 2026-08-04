@@ -81,7 +81,7 @@ class YouTubePublishService {
     if (videoUrl.startsWith('http')) {
       const response = await fetch(videoUrl);
       if (!response.ok) throw new Error(`Failed to fetch video: ${videoUrl}`);
-      return response.body;
+      return require('stream').Readable.fromWeb(response.body);
     }
 
     const localPath = path.join(__dirname, '../../../../', videoUrl.replace(/^\//, ''));
@@ -165,7 +165,7 @@ class YouTubePublishService {
     if (resolvedUrl.startsWith('http')) {
       const response = await fetch(resolvedUrl);
       if (!response.ok) throw new Error(`Failed to fetch image: ${resolvedUrl}`);
-      return response.body;
+      return require('stream').Readable.fromWeb(response.body);
     }
 
     const localPath = path.join(__dirname, '../../../../', resolvedUrl.replace(/^\//, ''));

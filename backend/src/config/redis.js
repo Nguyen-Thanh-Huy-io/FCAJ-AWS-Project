@@ -84,16 +84,18 @@ if (process.env.USE_MEMORY_REDIS === 'true') {
   module.exports = createMemoryRedisClient();
 } else {
   const redisClient = createClient({
-    url: `redis://${process.env.REDIS_HOST || '127.0.0.1'}:${process.env.REDIS_PORT || 6379}`,
+    url: `rediss://${process.env.REDIS_HOST || '127.0.0.1'}:${process.env.REDIS_PORT || 6379}`,
     socket: {
+      tls: true, // QUAN TRỌNG: Bật TLS vì ElastiCache yêu cầu Transit Encryption Required
+      rejectUnauthorized: false, // Tránh lỗi chứng chỉ tự ký trên AWS nếu có
+      connectTimeout: 10000,
       reconnectStrategy: (retries) => {
         if (retries > 10) {
           console.error('Redis max reconnection retries reached');
           return new Error('Redis max reconnection retries reached');
         }
         return Math.min(retries * 50, 1000);
-      },
-      connectTimeout: 20000
+      }
     }
   });
 

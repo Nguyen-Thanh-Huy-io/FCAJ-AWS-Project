@@ -438,6 +438,7 @@ model YouTubeChannel {
 model InstagramAccount {
   id                    String  @id @default(uuid())
   socialAccountId       String  @unique
+  facebookPageId        String? // Linked Facebook Page ID for Analytics queries
   accountType           String
   businessCategoryName  String?
   followersCount        Int     @default(0)

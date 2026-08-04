@@ -9,14 +9,7 @@ const { POST_STATUS } = require('../../utils/constants');
 const initPostSubscribers = () => {
   // Handle Auto-publishing
   eventEmitter.on(EVENTS.POST.CREATED, async ({ post, options }) => {
-    if (post.status === POST_STATUS.PUBLISHED) {
-      try {
-        console.log(`[Event] Auto-publishing post ${post.id}`);
-        await postService.publishToPlatforms(post.id, options);
-      } catch (err) {
-        console.error(`[Event Error] Auto-publishing failed for post ${post.id}:`, err.message);
-      }
-    } else if (post.status === POST_STATUS.SCHEDULED) {
+    if (post.status === POST_STATUS.SCHEDULED) {
       try {
         console.log(`[Event] Checking Native Scheduling for post ${post.id}`);
         await postService._handleNativeScheduling(post, options);
@@ -26,15 +19,8 @@ const initPostSubscribers = () => {
     }
   });
 
-  eventEmitter.on(EVENTS.POST.UPDATED, async ({ post, options, statusChangedToPublished }) => {
-    if (statusChangedToPublished) {
-      try {
-        console.log(`[Event] Publishing updated post ${post.id}`);
-        await postService.publishToPlatforms(post.id, options);
-      } catch (err) {
-        console.error(`[Event Error] Publishing failed for updated post ${post.id}:`, err.message);
-      }
-    } else if (post.status === POST_STATUS.SCHEDULED) {
+  eventEmitter.on(EVENTS.POST.UPDATED, async ({ post, options }) => {
+    if (post.status === POST_STATUS.SCHEDULED) {
       try {
         console.log(`[Event] Checking Native Scheduling for updated post ${post.id}`);
         await postService._handleNativeScheduling(post, options);

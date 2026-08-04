@@ -73,6 +73,48 @@ class FacebookWebhookService {
       }
     }
   }
+
+  async processDataDeletion(metaUserId) {
+    logger.info(`[FacebookWebhookService] Processing data deletion for Meta User ID: ${metaUserId}`);
+    
+    const crypto = require('crypto');
+    const ticketId = crypto.randomBytes(8).toString('hex');
+    
+    try {
+      const { PrismaClient } = require('@prisma/client');
+      const prisma = new PrismaClient();
+      
+      // Remove Facebook Login mapping
+      const userAccount = await prisma.userAccount.findFirst({
+        where: {
+          provider: 'FACEBOOK',
+          providerId: metaUserId
+        }
+      });
+      
+      if (userAccount) {
+        await prisma.userAccount.delete({
+          where: { id: userAccount.id }
+        });
+        logger.info(`[FacebookWebhookService] Deleted Facebook UserAccount for Meta User ID: ${metaUserId}`);
+      }
+
+      // If we stored the personal Meta User ID in SocialAccount.platformAccountId 
+      // for Facebook Profiles/Groups, we delete them too.
+      await prisma.socialAccount.deleteMany({
+        where: {
+          platform: 'FACEBOOK',
+          platformAccountId: metaUserId
+        }
+      });
+
+      await prisma.$disconnect();
+    } catch (err) {
+      logger.error(`[FacebookWebhookService] Error processing data deletion for ${metaUserId}:`, err);
+    }
+    
+    return ticketId;
+  }
 }
 
 module.exports = new FacebookWebhookService();

@@ -10,25 +10,9 @@ const {
   editProfileValidation,
 } = require('../../middlewares/validation.middleware');
 
-const multer = require('multer');
-const path = require('path');
+const upload = require('../../middlewares/upload.middleware');
 
 const router = express.Router();
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-
-  filename: (req, file, cb) => {
-    const uniqueName =
-      Date.now() + path.extname(file.originalname);
-
-    cb(null, uniqueName);
-  },
-});
-
-const upload = multer({ storage });
 
 // User profile - all roles can access their own profile
 router.get(

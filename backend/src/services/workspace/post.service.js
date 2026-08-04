@@ -120,6 +120,19 @@ class PostService {
         postData.approvalPolicy || 'AT_LEAST_ONE',
         postData.requesterNote || 'Vui lòng phê duyệt bài viết này.'
       );
+    } else if (post.status === POST_STATUS.PUBLISHED) {
+      // Execute synchronous publish for immediate requests
+      await this.publishToPlatforms(post.id, postData.options);
+      
+      const checkPost = await postRepository.findById(post.id);
+      if (checkPost.status === POST_STATUS.FAILED) {
+        const error = new Error(`Publishing failed: ${checkPost.failureReason}`);
+        error.statusCode = 500;
+        throw error;
+      }
+      
+      eventEmitter.emit(EVENTS.POST.CREATED, { post: checkPost, options: postData.options });
+      return this._formatPostResponse(checkPost);
     } else {
       // If one-off post is scheduled, add to BullMQ
       if (!post.autoListId && post.status === POST_STATUS.SCHEDULED && post.scheduledAt) {
@@ -235,6 +248,8 @@ class PostService {
 
     const updatedPost = await postRepository.update(id, data);
 
+    const statusChangedToPublished = post.status !== POST_STATUS.PUBLISHED && updatedPost.status === POST_STATUS.PUBLISHED;
+
     // Sync BullMQ/Approval Workflow
     if (updatedPost.status === POST_STATUS.PENDING_APPROVAL) {
       // Clean up any existing scheduled jobs
@@ -249,6 +264,19 @@ class PostService {
         postData.approvalPolicy || 'AT_LEAST_ONE',
         postData.requesterNote || 'Vui lòng phê duyệt bài viết sau khi cập nhật.'
       );
+    } else if (statusChangedToPublished) {
+      await removePublishJob(updatedPost.id);
+      
+      // Execute synchronous publish
+      await this.publishToPlatforms(updatedPost.id, postData.options);
+      
+      const checkPost = await postRepository.findById(updatedPost.id);
+      if (checkPost.status === POST_STATUS.FAILED) {
+        const error = new Error(`Publishing failed: ${checkPost.failureReason}`);
+        error.statusCode = 500;
+        throw error;
+      }
+      Object.assign(updatedPost, checkPost);
     } else {
       // Sync BullMQ for one-off posts
       if (!updatedPost.autoListId) {
@@ -261,8 +289,7 @@ class PostService {
       }
     }
 
-    const statusChangedToPublished = post.status !== POST_STATUS.PUBLISHED && postData.status?.toUpperCase() === POST_STATUS.PUBLISHED;
-    eventEmitter.emit(EVENTS.POST.UPDATED, { post: updatedPost, options: postData.options, statusChangedToPublished });
+    eventEmitter.emit(EVENTS.POST.UPDATED, { post: updatedPost, options: postData.options });
 
     return this._formatPostResponse(updatedPost);
   }

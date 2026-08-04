@@ -405,7 +405,7 @@ class SocialAccountRepository {
   }
 
   async upsertInstagramAccount(brandId, accountData, tokens, platform = PLATFORMS.INSTAGRAM) {
-    const { igAccountId, username, displayName, profilePictureUrl, followersCount = 0, followingCount = 0, mediaCount = 0, biography = '', website = '', accountType = 'BUSINESS', businessCategoryName = '' } = accountData;
+    const { igAccountId, facebookPageId, username, displayName, profilePictureUrl, followersCount = 0, followingCount = 0, mediaCount = 0, biography = '', website = '', accountType = 'BUSINESS', businessCategoryName = '' } = accountData;
 
     const finalUsername = username || displayName || 'instagram_user';
 
@@ -433,6 +433,7 @@ class SocialAccountRepository {
             create: {
               accountType,
               businessCategoryName,
+              facebookPageId,
               followersCount: parseInt(followersCount) || 0,
               followingCount: parseInt(followingCount) || 0,
               mediaCount: parseInt(mediaCount) || 0,
@@ -446,6 +447,7 @@ class SocialAccountRepository {
             update: {
               accountType,
               businessCategoryName,
+              facebookPageId,
               followersCount: parseInt(followersCount) || 0,
               followingCount: parseInt(followingCount) || 0,
               mediaCount: parseInt(mediaCount) || 0,
@@ -472,6 +474,7 @@ class SocialAccountRepository {
           create: {
             accountType,
             businessCategoryName,
+            facebookPageId,
             followersCount: parseInt(followersCount) || 0,
             followingCount: parseInt(followingCount) || 0,
             mediaCount: parseInt(mediaCount) || 0,

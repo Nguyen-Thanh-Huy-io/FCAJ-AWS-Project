@@ -29,8 +29,3 @@ export const PLATFORM_LIMITS = {
  * Dùng thay cho chuỗi .endsWith(".mp4") rải rác.
  */
 export const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.avi', '.webm'];
-
-/**
- * CLOUDINARY_VIDEO_MARKER — Dấu hiệu URL video từ Cloudinary.
- */
-export const CLOUDINARY_VIDEO_MARKER = '/video/upload/';

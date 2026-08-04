@@ -27,6 +27,7 @@ router.get('/facebook/url', verifyAuth, oauthController.getFacebookAuthUrl);
 router.get('/facebook/callback', oauthController.facebookCallback);
 router.get('/facebook/webhook', facebookWebhookController.verifyWebhook);
 router.post('/facebook/webhook', facebookWebhookController.handleWebhookEvent);
+router.post('/facebook/data-deletion', facebookWebhookController.handleDataDeletionWebhook);
 router.get('/instagram/url', verifyAuth, oauthController.getInstagramAuthUrl);
 router.get('/instagram/callback', oauthController.instagramCallback);
 router.get('/tiktok/url', verifyAuth, oauthController.getTikTokAuthUrl);

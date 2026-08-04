@@ -4,9 +4,9 @@ const MediaLibrarySearchFilter = require('./media-library/filters/search.filter'
 const MediaLibraryTypeFilter = require('./media-library/filters/type.filter');
 const MediaLibraryUsedFilter = require('./media-library/filters/used.filter');
 const MediaLibraryFolderFilter = require('./media-library/filters/folder.filter');
-const { cloudinary } = require('../../config/cloudinary');
-const fs = require('fs/promises');
+const storageService = require('../storage');
 const path = require('path');
+const crypto = require('crypto');
 
 const ALLOWED_SORT_FIELDS = ['createdAt', 'filename', 'sizeBytes'];
 const ALLOWED_SORT_ORDERS = ['asc', 'desc'];
@@ -39,11 +39,13 @@ class MediaLibraryService {
   }
 
   /**
-   * Upload and save media file info
+   * Upload and save media file info.
+   * File is uploaded to storage (S3 or local) via StorageService.
    */
   async uploadFile(file, brandId, userId, folderId = null) {
-    const isLocal = process.env.UPLOAD_STORAGE === 'local';
-    const storageUrl = isLocal ? this._toPublicUploadUrl(file.path) : file.path;
+    const s3Key = this._buildStorageKey(brandId, file.mimetype, file.originalname);
+
+    const { url } = await storageService.upload(file.buffer, s3Key, file.mimetype);
 
     const media = await mediaLibraryRepository.create({
       brandId,
@@ -51,8 +53,8 @@ class MediaLibraryService {
       filename: file.originalname,
       mimeType: file.mimetype,
       sizeBytes: file.size,
-      storageUrl,
-      mediaId: isLocal ? file.filename : file.filename, // Cloudinary public_id or local filename
+      storageUrl: url,
+      mediaId: s3Key,  // Store the S3 key for deletion
       folderId: folderId || null,
       uploadedAt: new Date()
     });
@@ -61,7 +63,7 @@ class MediaLibraryService {
   }
 
   /**
-   * Delete media file and physical file
+   * Delete media file from database and storage
    */
   async deleteMedia(id, brandId) {
     const media = await mediaLibraryRepository.findById(id);
@@ -72,50 +74,42 @@ class MediaLibraryService {
     // Delete from DB
     await mediaLibraryRepository.delete(id);
 
-    if (this._isLocalUploadUrl(media.storageUrl)) {
-      try {
-        const localPath = this._fromPublicUploadUrl(media.storageUrl);
-        await fs.unlink(localPath);
-      } catch (err) {
-        if (err.code !== 'ENOENT') {
-          console.error(`Local media deletion failed for ${media.storageUrl}:`, err.message);
-        }
-      }
-    } else {
-      try {
-        const resourceType = this._getResourceType(media.mimeType);
-        await cloudinary.uploader.destroy(media.mediaId, { resource_type: resourceType });
-      } catch (err) {
-        console.error(`Cloudinary deletion failed for ${media.mediaId}:`, err.message);
-      }
+    // Delete from storage using the stored key
+    try {
+      await storageService.delete(media.mediaId);
+    } catch (err) {
+      console.error(`[MediaLibrary] Storage deletion failed for ${media.mediaId}:`, err.message);
     }
 
     return { success: true };
   }
 
-  /**
-   * Save media info after direct upload to Cloudinary
-   */
-  async saveDirectMedia(fileInfo, brandId, userId, folderId = null) {
-    const media = await mediaLibraryRepository.create({
-      brandId,
-      uploadedByUserId: userId,
-      filename: fileInfo.original_filename || fileInfo.filename,
-      mimeType: fileInfo.mimetype || `${fileInfo.resource_type}/${fileInfo.format}`,
-      sizeBytes: fileInfo.bytes,
-      storageUrl: fileInfo.secure_url,
-      mediaId: fileInfo.public_id,
-      folderId: folderId || null,
-      width: fileInfo.width,
-      height: fileInfo.height,
-      durationSeconds: fileInfo.duration,
-      uploadedAt: new Date()
-    });
-
-    return this._formatMediaFile(media);
-  }
-
   // ============= Private Helper Methods =============
+
+  /**
+   * Build a storage key following the folder structure:
+   *   media/{brandId}/images/  (for image/*)
+   *   media/{brandId}/videos/  (for video/*)
+   *   media/{brandId}/documents/  (for PDF, etc.)
+   * 
+   * Generates unique filenames while preserving extensions.
+   */
+  _buildStorageKey(brandId, mimeType, originalName) {
+    const ext = path.extname(originalName).toLowerCase();
+    const uniqueId = `${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const safeName = path.basename(originalName, ext)
+      .replace(/[^a-zA-Z0-9-_]/g, '-')
+      .slice(0, 50);
+
+    let subfolder = 'documents';
+    if (mimeType.startsWith('image/')) {
+      subfolder = 'images';
+    } else if (mimeType.startsWith('video/') || mimeType === 'application/x-matroska') {
+      subfolder = 'videos';
+    }
+
+    return `media/${brandId}/${subfolder}/${uniqueId}-${safeName}${ext}`;
+  }
 
   _getResourceType(mimeType) {
     if (mimeType.startsWith('image/')) return 'image';
@@ -136,18 +130,7 @@ class MediaLibraryService {
   }
 
   _formatMediaFile(f) {
-    let thumbnail = f.thumbnailUrl;
-    
-    // Auto-generate thumbnail for Cloudinary if missing
-    if (!thumbnail && f.storageUrl.includes('cloudinary.com')) {
-      if (f.mimeType.startsWith('image/')) {
-        // For images, we can use the original URL or a transformed version
-        thumbnail = f.storageUrl.replace('/upload/', '/upload/c_thumb,w_200,g_face/');
-      } else if (f.mimeType.startsWith('video/')) {
-        // For videos, Cloudinary can generate a jpg thumbnail by changing the extension
-        thumbnail = f.storageUrl.replace(/\.[^/.]+$/, ".jpg").replace('/upload/', '/upload/c_thumb,w_200,g_face,so_auto/');
-      }
-    }
+    const thumbnail = f.thumbnailUrl || f.storageUrl;
 
     return {
       id: f.id,
@@ -158,25 +141,11 @@ class MediaLibraryService {
       date: new Date(f.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       used: f.isUsed,
       url: f.storageUrl,
-      thumbnail: thumbnail || f.storageUrl, // Fallback to storageUrl if still missing
+      thumbnail: thumbnail,
       aspect: f.aspectRatio || '1/1',
       emoji: this._getEmoji(f.mimeType),
       duration: f.durationSeconds ? this._formatDuration(f.durationSeconds) : null
     };
-  }
-
-  _toPublicUploadUrl(filePath) {
-    const relativePath = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
-    return `/${relativePath}`;
-  }
-
-  _fromPublicUploadUrl(url) {
-    const cleanUrl = url.split('?')[0].replace(/^\/+/, '');
-    return path.join(process.cwd(), cleanUrl);
-  }
-
-  _isLocalUploadUrl(url) {
-    return typeof url === 'string' && url.startsWith('/uploads/');
   }
 
   _getShortType(mime) {
