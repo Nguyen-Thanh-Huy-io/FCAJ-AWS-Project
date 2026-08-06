@@ -17,7 +17,7 @@ function LeftPanel({ tagline, features }) {
         <div style={{ width: 32, height: 32, background: "#FFF", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Wifi size={16} color="#0A0A0A" />
         </div>
-        <span style={{ color: "#FFF", fontSize: 16, fontWeight: 500 }}>StreamHub Test</span>
+        <span style={{ color: "#FFF", fontSize: 16, fontWeight: 500 }}>StreamHubbb</span>
       </div>
 
       <div className="flex flex-col justify-center flex-1 py-12">
