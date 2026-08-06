@@ -4,17 +4,24 @@ const prisma = require('../config/prisma');
 
 logger.info('Starting Heavy Worker...');
 
-// TODO: Require future heavy BullMQ workers here
-// e.g. require('../queues/media-processing.worker');
+// 🎯 KHI NÀO VIẾT XONG WORKER THÌ UNCOMMENT DÒNG NÀY:
+// const mediaWorker = require('../queues/media-processing.worker');
+
 logger.info('Waiting for heavy tasks...');
+
+// 💡 GIẢI PHÁP: Giữ Node.js Event Loop luôn sống trong khi chờ code Worker hoàn thiện
+// Dòng này giúp Container luôn giữ trạng thái RUNNING trên ECS Fargate
+const keepAlive = setInterval(() => {}, 1000 * 60 * 60);
 
 // ── Graceful Shutdown ───────────────────────────────────────────────────────
 async function shutdown(signal) {
   logger.info(`Received ${signal}. Shutting down Heavy Worker gracefully...`);
 
+  // Xóa bộ đếm keepAlive khi dừng Container
+  clearInterval(keepAlive);
+
   try {
-    // Close Heavy Workers here when implemented
-    // const mediaWorker = require('../queues/media-processing.worker');
+    // Nếu có worker thật thì đóng kết nối worker ở đây:
     // if (mediaWorker && typeof mediaWorker.close === 'function') {
     //   await mediaWorker.close();
     // }
@@ -39,6 +46,9 @@ process.on('uncaughtException', (err) => {
 });
 
 process.on('unhandledRejection', (reason) => {
-  logger.error('Unhandled Promise Rejection in Heavy Worker', reason instanceof Error ? { message: reason.message, stack: reason.stack } : reason);
+  logger.error(
+    'Unhandled Promise Rejection in Heavy Worker',
+    reason instanceof Error ? { message: reason.message, stack: reason.stack } : reason
+  );
   process.exit(1);
 });
