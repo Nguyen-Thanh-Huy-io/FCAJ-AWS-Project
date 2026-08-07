@@ -360,6 +360,7 @@ const FACEBOOK_SCOPES = {
     'pages_read_user_content',
     'read_insights',
     'pages_manage_engagement',
+    'pages_manage_posts',
     'business_management'
   ].join(','),
   INSTAGRAM: [
