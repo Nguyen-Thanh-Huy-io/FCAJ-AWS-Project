@@ -255,6 +255,7 @@ class FacebookGateway {
     const res = await fetch(url, { method: 'POST' });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
+      console.error(`[FacebookGateway] publishTextPost Error:`, JSON.stringify(errData, null, 2));
       throw new Error(errData.error?.message || 'Failed to publish text post to Facebook');
     }
     return res.json();
@@ -279,6 +280,7 @@ class FacebookGateway {
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
+      console.error(`[FacebookGateway] publishPhoto Error:`, JSON.stringify(errData, null, 2));
       throw new Error(errData.error?.message || 'Failed to publish photo to Facebook');
     }
     return res.json();
@@ -429,6 +431,7 @@ class FacebookGateway {
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
+      console.error(`[FacebookGateway] publishVideo Error:`, JSON.stringify(errData, null, 2));
       throw new Error(errData.error?.message || 'Failed to publish video to Facebook');
     }
     return res.json();
