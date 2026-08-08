@@ -3,27 +3,28 @@ version: 0.2
 phases:
   pre_build:
     commands:
-      - cd $CODEBUILD_SRC_DIR/backend
       - echo "Logging in to Amazon ECR..."
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
       - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_COMMIT_HASH | cut -c 1-7)
       - IMAGE_TAG=${COMMIT_HASH:-latest}
+
   build:
     commands:
-      - cd $CODEBUILD_SRC_DIR/backend                   
+      - cd $CODEBUILD_SRC_DIR/backend
       - echo "Building Docker image..."
       - docker build -t $REPOSITORY_URI:latest .
       - docker tag $REPOSITORY_URI:latest $REPOSITORY_URI:$IMAGE_TAG
+
   post_build:
     commands:
-      - cd $CODEBUILD_SRC_DIR/backend                   
       - echo "Pushing Docker image to ECR..."
       - docker push $REPOSITORY_URI:latest
       - docker push $REPOSITORY_URI:$IMAGE_TAG
       - echo "Writing image definitions file..."
-      - printf '[{"name":"%s","imageUri":"%s"}]' $CONTAINER_NAME $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+      - printf '[{"name":"api","imageUri":"%s"},{"name":"worker-light","imageUri":"%s"},{"name":"worker-heavy","imageUri":"%s"}]' "$REPOSITORY_URI:$IMAGE_TAG" "$REPOSITORY_URI:$IMAGE_TAG" "$REPOSITORY_URI:$IMAGE_TAG" > imagedefinitions.json
 
 artifacts:
   files:
-    - backend/imagedefinitions.json
+    - imagedefinitions.json
+  base-directory: backend

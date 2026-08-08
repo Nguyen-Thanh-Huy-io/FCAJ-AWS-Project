@@ -121,18 +121,11 @@ class PostService {
         postData.requesterNote || 'Vui lòng phê duyệt bài viết này.'
       );
     } else if (post.status === POST_STATUS.PUBLISHED) {
-      // Execute synchronous publish for immediate requests
-      await this.publishToPlatforms(post.id, postData.options);
+      // Execute asynchronous publish using BullMQ to avoid HTTP timeout
+      await upsertPublishJob(post.id, new Date());
       
-      const checkPost = await postRepository.findById(post.id);
-      if (checkPost.status === POST_STATUS.FAILED) {
-        const error = new Error(`Publishing failed: ${checkPost.failureReason}`);
-        error.statusCode = 500;
-        throw error;
-      }
-      
-      eventEmitter.emit(EVENTS.POST.CREATED, { post: checkPost, options: postData.options });
-      return this._formatPostResponse(checkPost);
+      eventEmitter.emit(EVENTS.POST.CREATED, { post, options: postData.options });
+      return this._formatPostResponse(post);
     } else {
       // If one-off post is scheduled, add to BullMQ
       if (!post.autoListId && post.status === POST_STATUS.SCHEDULED && post.scheduledAt) {
@@ -267,16 +260,8 @@ class PostService {
     } else if (statusChangedToPublished) {
       await removePublishJob(updatedPost.id);
       
-      // Execute synchronous publish
-      await this.publishToPlatforms(updatedPost.id, postData.options);
-      
-      const checkPost = await postRepository.findById(updatedPost.id);
-      if (checkPost.status === POST_STATUS.FAILED) {
-        const error = new Error(`Publishing failed: ${checkPost.failureReason}`);
-        error.statusCode = 500;
-        throw error;
-      }
-      Object.assign(updatedPost, checkPost);
+      // Execute asynchronous publish using BullMQ to avoid HTTP timeout
+      await upsertPublishJob(updatedPost.id, new Date());
     } else {
       // Sync BullMQ for one-off posts
       if (!updatedPost.autoListId) {

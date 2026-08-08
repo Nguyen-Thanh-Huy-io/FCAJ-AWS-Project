@@ -17,7 +17,7 @@ const publishWorker = new Worker(PUBLISH_QUEUE_NAME, async (job) => {
   try {
     // 1. Double check post status in DB (Safety check)
     const post = await postRepository.findById(postId);
-    if (!post || (post.status !== POST_STATUS.SCHEDULED && post.status !== POST_STATUS.DRAFT)) {
+    if (!post || (post.status !== POST_STATUS.SCHEDULED && post.status !== POST_STATUS.DRAFT && post.status !== POST_STATUS.PUBLISHED)) {
       console.log(`[BullMQ Worker] ⏩ Post ${postId} is not in a valid state for publishing. Skipping.`);
       return;
     }
