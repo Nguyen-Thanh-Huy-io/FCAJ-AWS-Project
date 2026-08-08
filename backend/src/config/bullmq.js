@@ -6,6 +6,14 @@ const redisConfig = {
   password: process.env.REDIS_PASSWORD || undefined,
 };
 
+// If we are in production or REDIS_TLS is set, we need to pass a tls object to ioredis
+// so it connects via TLS to ElastiCache.
+if (process.env.NODE_ENV === 'production' || process.env.REDIS_TLS === 'true') {
+  redisConfig.tls = {
+    rejectUnauthorized: false
+  };
+}
+
 const defaultConnection = {
   connection: redisConfig
 };
