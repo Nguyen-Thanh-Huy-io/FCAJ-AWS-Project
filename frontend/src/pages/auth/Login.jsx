@@ -17,7 +17,7 @@ function LeftPanel({ tagline, features }) {
         <div style={{ width: 32, height: 32, background: "#FFF", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Wifi size={16} color="#0A0A0A" />
         </div>
-        <span style={{ color: "#FFF", fontSize: 16, fontWeight: 500 }}>StreamHubbb</span>
+        <span style={{ color: "#FFF", fontSize: 16, fontWeight: 500 }}>StreamHub</span>
       </div>
 
       <div className="flex flex-col justify-center flex-1 py-12">
@@ -80,12 +80,12 @@ export function LoginPage({ initialScreen = "login" }) {
   // Restore state on F5
   useEffect(() => {
     const pendingEmail = localStorage.getItem(STORAGE_KEYS.PENDING_VERIFY_EMAIL);
-    
+
     // Nếu đang ở URL /verify-otp mà có email chờ xác thực
     if (initialScreen === "verify-otp" && pendingEmail) {
       setEmail(pendingEmail);
     }
-    
+
     setScreen(initialScreen);
   }, [initialScreen]);
 
@@ -144,11 +144,11 @@ export function LoginPage({ initialScreen = "login" }) {
       await register({ name: fullName, email, password, confirmPassword });
       localStorage.setItem(STORAGE_KEYS.IS_VERIFYING_OTP, "true");
       localStorage.setItem(STORAGE_KEYS.PENDING_VERIFY_EMAIL, email);
-      
+
       const expiry = Date.now() + 60 * 1000;
       localStorage.setItem(STORAGE_KEYS.RESEND_TIMER_EXPIRY, expiry.toString());
       setResendTimer(60);
-      
+
       navigate("/verify-otp");
     } catch (err) {
       // Error handled by AuthContext
@@ -229,10 +229,10 @@ export function LoginPage({ initialScreen = "login" }) {
             {screen === "login" ? (
               <>
                 <div className="md:hidden flex items-center gap-2 mb-8">
-                   <div style={{ width: 28, height: 28, background: "#0A0A0A", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <Wifi size={14} color="#FFF" />
-                   </div>
-                   <span style={{ color: "#0A0A0A", fontSize: 16, fontWeight: 500 }}>StreamHub</span>
+                  <div style={{ width: 28, height: 28, background: "#0A0A0A", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Wifi size={14} color="#FFF" />
+                  </div>
+                  <span style={{ color: "#0A0A0A", fontSize: 16, fontWeight: 500 }}>StreamHub</span>
                 </div>
 
                 <h3 style={{ fontSize: 24, fontWeight: 500, color: "#0A0A0A", marginBottom: 4 }}>Welcome back</h3>
@@ -247,7 +247,7 @@ export function LoginPage({ initialScreen = "login" }) {
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <label style={{ fontSize: 12, fontWeight: 500, color: "#374151" }}>Password</label>
-                      <button 
+                      <button
                         type="button"
                         onClick={() => navigate("/forgot-password")}
                         className="text-[12px] color-[#2563EB] cursor-pointer bg-transparent border-none hover:underline"
@@ -281,7 +281,7 @@ export function LoginPage({ initialScreen = "login" }) {
                 </div>
 
                 <div className="flex flex-col gap-3 mb-8">
-                  <button 
+                  <button
                     onClick={handleGoogleLogin}
                     style={{ width: "100%", height: 46, borderRadius: 10, background: "#FFF", color: "#0A0A0A", fontSize: 14, fontWeight: 400, cursor: "pointer", border: "0.5px solid #E5E7EB", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}
                   >
@@ -302,10 +302,10 @@ export function LoginPage({ initialScreen = "login" }) {
             ) : screen === "signup" ? (
               <>
                 <div className="md:hidden flex items-center gap-2 mb-8">
-                   <div style={{ width: 28, height: 28, background: "#0A0A0A", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <Wifi size={14} color="#FFF" />
-                   </div>
-                   <span style={{ color: "#0A0A0A", fontSize: 16, fontWeight: 500 }}>StreamHub</span>
+                  <div style={{ width: 28, height: 28, background: "#0A0A0A", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Wifi size={14} color="#FFF" />
+                  </div>
+                  <span style={{ color: "#0A0A0A", fontSize: 16, fontWeight: 500 }}>StreamHub</span>
                 </div>
 
                 <h3 style={{ fontSize: 24, fontWeight: 500, color: "#0A0A0A", marginBottom: 4 }}>Create your account</h3>
@@ -315,12 +315,12 @@ export function LoginPage({ initialScreen = "login" }) {
                   <div>
                     <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#374151", marginBottom: 6 }}>Full Name</label>
                     <input type="text" placeholder="Your name" value={fullName} onChange={(e) => setFullName(e.target.value)}
-                        style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "0.5px solid #E5E7EB", fontSize: 14, outline: "none", height: 46 }} required />
+                      style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "0.5px solid #E5E7EB", fontSize: 14, outline: "none", height: 46 }} required />
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#374151", marginBottom: 6 }}>Email Address</label>
                     <input id="email" type="email" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)}
-                        style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "0.5px solid #E5E7EB", fontSize: 14, outline: "none", height: 46 }} required />
+                      style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "0.5px solid #E5E7EB", fontSize: 14, outline: "none", height: 46 }} required />
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: 12, fontWeight: 500, color: "#374151", marginBottom: 6 }}>Password</label>
@@ -382,10 +382,10 @@ export function LoginPage({ initialScreen = "login" }) {
             ) : (
               <>
                 <div className="md:hidden flex items-center gap-2 mb-8">
-                   <div style={{ width: 28, height: 28, background: "#0A0A0A", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <Wifi size={14} color="#FFF" />
-                   </div>
-                   <span style={{ color: "#0A0A0A", fontSize: 16, fontWeight: 500 }}>StreamHub</span>
+                  <div style={{ width: 28, height: 28, background: "#0A0A0A", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Wifi size={14} color="#FFF" />
+                  </div>
+                  <span style={{ color: "#0A0A0A", fontSize: 16, fontWeight: 500 }}>StreamHub</span>
                 </div>
 
                 <h3 style={{ fontSize: 24, fontWeight: 500, color: "#0A0A0A", marginBottom: 4 }}>Verify your email</h3>
@@ -409,10 +409,10 @@ export function LoginPage({ initialScreen = "login" }) {
 
                 <div style={{ textAlign: "center", fontSize: 14, color: "#6B7280" }}>
                   Didn't receive code?{" "}
-                  <button 
+                  <button
                     type="button"
                     disabled={resendTimer > 0}
-                    style={{ color: resendTimer > 0 ? "#9CA3AF" : "#0A0A0A", fontWeight: 500, cursor: resendTimer > 0 ? "not-allowed" : "pointer", background: "none", border: "none", padding: 0, fontSize: 14 }} 
+                    style={{ color: resendTimer > 0 ? "#9CA3AF" : "#0A0A0A", fontWeight: 500, cursor: resendTimer > 0 ? "not-allowed" : "pointer", background: "none", border: "none", padding: 0, fontSize: 14 }}
                     onClick={handleResendOTP}
                   >
                     {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend →"}

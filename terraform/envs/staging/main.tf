@@ -180,6 +180,9 @@ module "cloudwatch" {
 
   project     = local.project
   environment = local.env
+  retention_in_days = var.retention_in_days
+  alert_email       = var.alert_email 
+  tags              = var.tags
 }
 
 module "s3_cloudfront" {
@@ -198,7 +201,7 @@ module "s3_cloudfront" {
 
 module "route53" {
   source = "../../modules/route53"
-  hosted_zone_id = "Z1022587CG0ZOTXXGXTQ"
+  hosted_zone_id = "Z043445810SXRLY1P1ARV"
   domain_name = "publicast"
   cloudfront_domain_name = module.s3_cloudfront.cloudfront_domain_name
 }

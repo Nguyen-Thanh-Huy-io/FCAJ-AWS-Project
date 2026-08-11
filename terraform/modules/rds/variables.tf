@@ -46,7 +46,7 @@ variable "security_group_ids" {
 
 variable "engine_version" {
   type    = string
-  default = "8.4"
+  default = "8.4.10"
 }
 
 variable "publicly_accessible" {

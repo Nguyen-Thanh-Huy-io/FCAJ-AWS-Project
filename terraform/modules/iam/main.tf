@@ -49,7 +49,7 @@ resource "aws_iam_policy" "ecs_secrets_policy_staging" {
         Action   = [
           "secretsmanager:GetSecretValue"
         ]
-        Resource = "arn:aws:secretsmanager:ap-southeast-2:960010863301:secret:publiast-staging-*"
+        Resource = "arn:aws:secretsmanager:ap-southeast-2:722630232100:secret:publiast-staging-*"
       }
     ]
   })

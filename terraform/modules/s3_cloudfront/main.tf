@@ -8,7 +8,7 @@ locals {
 # ==============================
 
 resource "aws_s3_bucket" "frontend" {
-  bucket = var.bucket_name != "" ? var.bucket_name : "${var.project}-${var.environment}-frontend"
+  bucket = var.bucket_name != "" ? var.bucket_name : "${var.project}-${var.environment}-frontend-new"
   tags = {
     Name        = "${var.project}-${var.environment}-frontend"
     Environment = var.environment
@@ -28,7 +28,7 @@ resource "aws_s3_bucket_public_access_block" "frontend" {
 # ==============================
 
 resource "aws_s3_bucket" "backend_storage" {
-  bucket = "${var.project}-${var.environment}-backend-storage"
+  bucket = "${var.project}-${var.environment}-backend-storage-new"
 
 }
 

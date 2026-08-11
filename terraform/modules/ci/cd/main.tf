@@ -1,8 +1,8 @@
 # ------------------------------------------------------------------------------
-# 1. S3 BUCKET ĐỂ LƯU CODEPIPELINE ARTIFACTS
+# 1. S3 BUCKET LƯU ARTIFACTS
 # ------------------------------------------------------------------------------
 resource "aws_s3_bucket" "pipeline_artifacts" {
-  bucket        = "${var.project}-${var.environment}-pipeline-artifacts"
+  bucket        = "${var.project}-${var.environment}-pipeline-artifacts-new"
   force_destroy = true
 }
 
@@ -71,7 +71,20 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
     Statement = [
       {
         Effect   = "Allow"
-        Action   = ["s3:*", "codebuild:*", "codestar-connections:UseConnection"]
+        Action   = [
+          "s3:*", 
+          "codebuild:*", 
+          "codestar-connections:UseConnection",
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "ecs:DescribeServices",
+          "ecs:DescribeTaskDefinition",
+          "ecs:DescribeClusters",
+          "ecs:RegisterTaskDefinition",
+          "ecs:UpdateService",
+          "iam:PassRole"
+        ]
         Resource = "*"
       }
     ]
@@ -90,10 +103,10 @@ resource "aws_codebuild_project" "backend" {
   artifacts { type = "CODEPIPELINE" }
 
   environment {
-    compute_type                = "BUILD_GENERAL1_SMALL"
-    image                       = "aws/codebuild/amazonlinux2-x86_64-standard:5.0"
-    type                        = "LINUX_CONTAINER"
-    privileged_mode             = true # ⚠️ Bắt buộc true để chạy Docker in Docker
+    compute_type    = "BUILD_GENERAL1_SMALL"
+    image           = "aws/codebuild/amazonlinux2-x86_64-standard:5.0"
+    type            = "LINUX_CONTAINER"
+    privileged_mode = true
 
     environment_variable {
       name  = "AWS_ACCOUNT_ID"
@@ -162,55 +175,28 @@ resource "aws_codebuild_project" "frontend" {
 
 # --- A. Backend Pipeline ---
 resource "aws_codepipeline" "backend" {
-  name     = "${var.project}-${var.environment}-backend-pipeline"
-  role_arn = aws_iam_role.codepipeline_role.arn
+  name          = "${var.project}-${var.environment}-backend-pipeline"
+  role_arn      = aws_iam_role.codepipeline_role.arn
+  pipeline_type = "V2"
 
   artifact_store {
     location = aws_s3_bucket.pipeline_artifacts.bucket
     type     = "S3"
   }
 
-  stage {
-    name = "Source"
-    action {
-      name             = "Source"
-      category         = "Source"
-      owner            = "AWS"
-      provider         = "CodeStarSourceConnection"
-      version          = "1"
-      output_artifacts = ["source_output"]
-      configuration = {
-        ConnectionArn    = aws_codestarconnections_connection.github.arn
-        FullRepositoryId = var.github_monorepo 
-        BranchName       = var.github_branch      
+  trigger {
+    provider_type = "CodeStarSourceConnection"
+    git_configuration {
+      source_action_name = "Source"
+      push {
+        branches {
+          includes = [var.github_branch]
+        }
+        file_paths {
+          includes = ["backend/**"]
+        }
       }
     }
-  }
-
-  stage {
-    name = "Build"
-    action {
-      name             = "Build"
-      category         = "Build"
-      owner            = "AWS"
-      provider         = "CodeBuild"
-      input_artifacts  = ["source_output"]
-      version          = "1"
-      configuration = {
-        ProjectName = aws_codebuild_project.backend.name
-      }
-    }
-  }
-}
-
-# --- B. Frontend Pipeline ---
-resource "aws_codepipeline" "frontend" {
-  name     = "${var.project}-${var.environment}-frontend-pipeline"
-  role_arn = aws_iam_role.codepipeline_role.arn
-
-  artifact_store {
-    location = aws_s3_bucket.pipeline_artifacts.bucket
-    type     = "S3"
   }
 
   stage {
@@ -226,6 +212,117 @@ resource "aws_codepipeline" "frontend" {
         ConnectionArn    = aws_codestarconnections_connection.github.arn
         FullRepositoryId = var.github_monorepo 
         BranchName       = var.github_branch
+        DetectChanges    = "false"
+      }
+    }
+  }
+
+  stage {
+  name = "Build"
+
+  action {
+    name             = "Build"
+    category         = "Build"
+    owner            = "AWS"
+    provider         = "CodeBuild"
+    version          = "1"
+
+    input_artifacts  = ["source_output"]
+    output_artifacts = ["build_output"]
+
+    configuration = {
+      ProjectName = aws_codebuild_project.backend.name
+    }
+  }
+}
+
+  stage {
+    name = "Deploy"
+
+    action {
+      name            = "Deploy-API"
+      category        = "Deploy"
+      owner           = "AWS"
+      provider        = "ECS"
+      version         = "1"
+      input_artifacts = ["build_output"]
+      configuration = {
+        ClusterName     = var.ecs_cluster_name
+        ServiceName     = "publiast-staging-api-service"
+        FileName        = "imagedefinitions.json"
+      }
+    }
+
+    action {
+      name            = "Deploy-Worker-Light"
+      category        = "Deploy"
+      owner           = "AWS"
+      provider        = "ECS"
+      version         = "1"
+      input_artifacts = ["build_output"]
+      configuration = {
+        ClusterName     = var.ecs_cluster_name
+        ServiceName     = "publiast-staging-worker-light-service"
+        FileName        = "imagedefinitions.json"
+      }
+    }
+
+    action {
+      name            = "Deploy-Worker-Heavy"
+      category        = "Deploy"
+      owner           = "AWS"
+      provider        = "ECS"
+      version         = "1"
+      input_artifacts = ["build_output"]
+      configuration = {
+        ClusterName     = var.ecs_cluster_name
+        ServiceName     = "publiast-staging-worker-heavy-service"
+        FileName        = "imagedefinitions.json"
+      }
+    }
+  }
+}
+
+# --- B. Frontend Pipeline ---
+resource "aws_codepipeline" "frontend" {
+  name          = "${var.project}-${var.environment}-frontend-pipeline"
+  role_arn      = aws_iam_role.codepipeline_role.arn
+  pipeline_type = "V2"
+
+  artifact_store {
+    location = aws_s3_bucket.pipeline_artifacts.bucket
+    type     = "S3"
+  }
+
+  trigger {
+    provider_type = "CodeStarSourceConnection"
+    git_configuration {
+      source_action_name = "Source"
+      push {
+        branches {
+          includes = [var.github_branch]
+        }
+        file_paths {
+          includes = ["frontend/**"]
+        }
+      }
+    }
+  }
+
+  stage {
+    name = "Source"
+    action {
+      name             = "Source"
+      category         = "Source"
+      owner            = "AWS"
+      provider         = "CodeStarSourceConnection"
+      version          = "1"
+      output_artifacts = ["source_output"]
+      configuration = {
+        ConnectionArn    = aws_codestarconnections_connection.github.arn
+        FullRepositoryId = var.github_monorepo 
+        BranchName       = var.github_branch
+        DetectChanges    = "false"
       }
     }
   }
@@ -246,5 +343,4 @@ resource "aws_codepipeline" "frontend" {
   }
 }
 
-# Data source lấy AWS Account ID hiện tại
 data "aws_caller_identity" "current" {}

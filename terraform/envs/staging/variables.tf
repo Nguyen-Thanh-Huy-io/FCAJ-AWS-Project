@@ -44,6 +44,23 @@ variable "cors_allowed_origins" {
   default = "https://d2h2nyllhz7psh.cloudfront.net"
 }
 
+variable "alert_email" {
+  type        = string
+  description = "Địa chỉ email nhận thông báo cảnh báo sự cố từ CloudWatch Alarm"
+}
+
+variable "retention_in_days" {
+  type        = number
+  description = "Số ngày lưu trữ log trong CloudWatch"
+  default     = 7
+}
+
+variable "tags" {
+  type        = map(string)
+  description = "Resource tags"
+  default     = {}
+}
+
 variable "domain_name"{
    type = string
 }

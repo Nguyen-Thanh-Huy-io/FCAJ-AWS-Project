@@ -16,6 +16,23 @@ resource "aws_internet_gateway" "igw" {
   }
 }
 
+data "aws_region" "current" {}
+
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id            = aws_vpc.this.id
+  service_name      = "com.amazonaws.${data.aws_region.current.region}.s3"
+  vpc_endpoint_type = "Gateway"
+
+  # Tự động thêm đường tắt vào Route Table Private
+  route_table_ids = [
+    aws_route_table.private.id
+  ]
+
+  tags = merge({
+    Name = "${var.project}-${var.environment}-s3-endpoint"
+  }, var.tags)
+}
+
 resource "aws_subnet" "public" {
   count = var.az_count
   vpc_id            = aws_vpc.this.id
