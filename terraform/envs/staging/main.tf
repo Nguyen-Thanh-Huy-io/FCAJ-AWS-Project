@@ -151,6 +151,11 @@ module "alb" {
 
   health_check_path = "/"
 
+  acm_certificate_arn = var.acm_certificate_arn
+
+  domain_name = var.domain_name
+
+  route53_zone_name = var.route53_zone_name
 }
 
 module "ecs_service" {

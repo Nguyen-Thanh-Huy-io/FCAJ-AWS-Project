@@ -1,0 +1,55 @@
+region      = ""
+environment = ""
+project     = ""
+
+aws_profile         = ""
+acm_certificate_arn = ""
+
+db_password    = ""
+redis_password = ""
+
+domain_name = ""
+frontend_bucket_name = ""
+
+cors_allowed_origins = ""
+backend_base_url     = ""
+
+jwt_secret = ""
+
+access_token_secret  = ""
+refresh_token_secret = ""
+
+resend_api_key    = ""
+resend_from_email = ""
+
+google_client_id     = ""
+google_client_secret = ""
+
+facebook_app_id     = ""
+facebook_app_secret = ""
+
+tiktok_client_key    = ""
+tiktok_client_secret = ""
+
+discord_client_id     = ""
+discord_client_secret = ""
+discord_bot_token     = ""
+
+threads_app_id     = ""
+threads_app_secret = ""
+
+sepay_api_key = ""
+vietqr_account_no = ""
+vietqr_account_name = ""
+payment_gateway= ""
+vietqr_acq_id= ""
+vietqr_template= ""
+payment_qr_expiry_minutes= ""
+
+openai_api_key = ""
+gemini_api_key = ""
+
+encryption_key = ""
+
+github_monorepo = ""
+github_branch   = ""

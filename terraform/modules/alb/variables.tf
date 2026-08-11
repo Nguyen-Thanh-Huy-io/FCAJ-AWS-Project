@@ -6,6 +6,10 @@ variable "environment" {
   type = string
 }
 
+variable "domain_name" {
+  type = string
+}
+
 variable "vpc_id" {
   type = string
 }
@@ -26,4 +30,13 @@ variable "target_port" {
 variable "health_check_path" {
   type    = string
   default = "/"
+}
+
+variable "acm_certificate_arn" {
+  description = "ACM certificate ARN for HTTPS listener. Certificate must be in the same AWS region as the ALB."
+  type        = string
+}
+
+variable "route53_zone_name" {
+  type = string
 }

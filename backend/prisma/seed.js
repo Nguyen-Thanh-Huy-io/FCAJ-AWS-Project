@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 async function main() {
   const seedDemo = process.env.SEED_DEMO === "true";
 
-  await require("./seed")(prisma, { seedDemo });
+  await require("./seed/index.js")(prisma, { seedDemo });
 }
 
 main()
