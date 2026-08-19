@@ -18,7 +18,7 @@ To most accurately reflect your current capabilities as you prepare to enter a r
 | No. | Criteria                            | Description                                                                                      | Good | Fair | Average |
 | --- | ----------------------------------- | ------------------------------------------------------------------------------------------------ | ---- | ---- | ------- |
 | 1   | **Professional knowledge & skills** | Strong full-stack grasp, highly capable with Cloud, IaC, and complex third-party APIs.           | ☐    | ✅    | ☐       |
-| 2   | **Ability to learn**                | Extremely fast absorption of difficult concepts (VPC Endpoints, Microservices, CI/CD).           | ☐     | ✅   | ☐       |
+| 2   | **Ability to learn**                | Extremely fast absorption of difficult concepts (VPC Endpoints, Microservices, CI/CD).           | ✅     | ☐   | ☐       |
 | 3   | **Proactiveness**                   | Continuously finding issues to solve (calculating costs, fixing bugs, structuring docs).         | ✅    | ☐    | ☐       |
 | 4   | **Sense of responsibility**         | Sticking to the final goal of perfecting the project at all costs.                               | ✅    | ☐    | ☐       |
 | 5   | **Discipline (Focus & Flow)**       | Sometimes context-switches too rapidly between coding, infrastructure, and writing docs.         | ☐    | ✅    | ☐       |
@@ -26,7 +26,7 @@ To most accurately reflect your current capabilities as you prepare to enter a r
 | 7   | **Communication (Issue reporting)** | Gives quick requirements, but sometimes too brief/lacking context when encountering errors.      | ☐    | ✅    | ☐       |
 | 8   | **Teamwork (Pair-programming)**     | Coordinated seamlessly with AI to debug and deploy features.                                     | ✅    | ☐    | ☐       |
 | 9   | **Professional conduct**            | Highly focused, straight-to-the-point work attitude.                                             | ✅    | ☐    | ☐       |
-| 10  | **Problem-solving skills**          | Strong logic, but sometimes rushes for a quick-fix instead of deeply reading library docs.       | ☐    | ✅    | ☐       |
+| 10  | **Problem-solving skills**          | Strong logic, but sometimes rushes for a quick-fix instead of deeply reading library docs.       | ✅     | ☐    | ☐       |
 | 11  | **Contribution to project/team**    | The lead engineer, driving the entire architecture and workflow of the project.                  | ✅    | ☐    | ☐       |
 | 12  | **Overall**                         | A highly potential Full-stack/Cloud Engineer, ready for a real-world production environment.     | ✅    | ☐    | ☐       |
 
