@@ -19,17 +19,17 @@ Về tác phong, tôi luôn cố gắng hoàn thành tốt nhiệm vụ, tuân t
 | STT | Tiêu chí                            | Mô tả                                                                                            | Tốt | Khá | Trung bình |
 | --- | ----------------------------------- | ------------------------------------------------------------------------------------------------ | --- | --- | ---------- |
 | 1   | **Kiến thức và kỹ năng chuyên môn** | Nắm vững full-stack, thao tác xuất sắc với Cloud, IaC và các API bên thứ 3 phức tạp.             | ☐   | ✅   | ☐          |
-| 2   | **Khả năng học hỏi**                | Tiếp thu cực nhanh các khái niệm khó (như VPC Endpoint, chia nhỏ Microservices, CI/CD Monorepo). | ☐   | ✅   | ☐          |
+| 2   | **Khả năng học hỏi**                | Tiếp thu cực nhanh các khái niệm khó (như VPC Endpoint, chia nhỏ Microservices, CI/CD Monorepo). | ✅   | ☐   | ☐          |
 | 3   | **Chủ động**                        | Liên tục tìm ra vấn đề để nhờ hỗ trợ giải quyết (tính chi phí, fix bug, viết document, policies).| ✅   | ☐   | ☐          |
 | 4   | **Tinh thần trách nhiệm**           | Bám sát mục tiêu hoàn thiện dự án cuối kỳ đến cùng.                                              | ✅   | ☐   | ☐          |
 | 5   | **Kỷ luật (Focus & Flow)**          | Đôi khi nhảy bối cảnh (context switch) quá nhanh giữa code, hạ tầng và viết tài liệu.            | ☐   | ✅   | ☐           |
-| 6   | **Tính cầu tiến**                   | Luôn muốn refactor để hệ thống tốt hơn (tách monolith, thêm cơ chế security).                    | ☐   | ✅   | ☐          |
+| 6   | **Tính cầu tiến**                   | Luôn muốn refactor để hệ thống tốt hơn (tách monolith, thêm cơ chế security).                    | ✅   | ☐   | ☐          |
 | 7   | **Giao tiếp (Truyền đạt vấn đề)**   | Cung cấp yêu cầu nhanh, nhưng đôi khi quá vắn tắt, thiếu ngữ cảnh chi tiết khi gặp lỗi.          | ☐   | ✅    | ☐           |
-| 8   | **Hợp tác (Pair-programming)**      | Phối hợp nhịp nhàng với AI để gỡ lỗi và triển khai tính năng.                                    | ☐   | ✅   | ☐          |
-| 9   | **Ứng xử chuyên nghiệp**            | Thái độ làm việc tập trung, đi thẳng vào vấn đề.                                                 | ☐   | ✅   | ☐          |
-| 10  | **Tư duy giải quyết vấn đề**        | Tư duy logic tốt, nhưng đôi khi hơi vội vã tìm cách fix ngay thay vì đọc kỹ docs của thư viện.   | ☐   | ✅   | ☐          |
+| 8   | **Hợp tác (Pair-programming)**      | Phối hợp nhịp nhàng với AI để gỡ lỗi và triển khai tính năng.                                    | ✅   | ☐   | ☐          |
+| 9   | **Ứng xử chuyên nghiệp**            | Thái độ làm việc tập trung, đi thẳng vào vấn đề.                                                 | ✅   | ☐   | ☐          |
+| 10  | **Tư duy giải quyết vấn đề**        | Tư duy logic tốt, nhưng đôi khi hơi vội vã tìm cách fix ngay thay vì đọc kỹ docs của thư viện.   | ✅    | ☐   | ☐          |
 | 11  | **Đóng góp vào dự án**              | Là kỹ sư chính, dẫn dắt toàn bộ kiến trúc và luồng đi của dự án.                                 | ✅   | ☐   | ☐          |
-| 12  | **Tổng thể**                        | Một Full-stack/Cloud Engineer đầy tiềm năng, sẵn sàng cho môi trường thực tế.                    | ☐   | ✅   | ☐          |
+| 12  | **Tổng thể**                        | Một Full-stack/Cloud Engineer đầy tiềm năng, sẵn sàng cho môi trường thực tế.                    | ✅   | ☐   | ☐          |
 
 ### Cần cải thiện
 
